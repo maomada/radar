@@ -65,7 +65,7 @@ func RunStdioMode(ctx context.Context, readOnly bool) error {
 	ctx = context.WithValue(ctx, runtimeLocalCallerKey{}, true)
 	server := newServer(!readOnly, serverInstructions(!readOnly))
 	if !runtimeEvidenceAllowed(ctx) {
-		server.RemoveTools("collect_runtime_evidence")
+		server.RemoveTools("collect_application_evidence")
 	}
 	return server.Run(ctx, &mcpsdk.StdioTransport{})
 }
@@ -73,7 +73,7 @@ func RunStdioMode(ctx context.Context, readOnly bool) error {
 // NewHandler creates the full MCP HTTP handler (read + write tools) to mount on chi.
 func NewHandler() http.Handler {
 	localServer, remoteServer := newFullServer(), newFullServer()
-	remoteServer.RemoveTools("collect_runtime_evidence")
+	remoteServer.RemoveTools("collect_application_evidence")
 	return handlerForServerSelector(func(r *http.Request) *mcpsdk.Server {
 		if runtimeEvidenceAllowed(r.Context()) {
 			return localServer
@@ -84,7 +84,12 @@ func NewHandler() http.Handler {
 
 func newApplyServer() *mcpsdk.Server {
 	server := newServer(true, "")
-	server.RemoveTools("collect_runtime_evidence")
+	server.RemoveTools("collect_application_evidence")
+	server.AddReceivingMiddleware(func(next mcpsdk.MethodHandler) mcpsdk.MethodHandler {
+		return func(ctx context.Context, method string, req mcpsdk.Request) (mcpsdk.Result, error) {
+			return next(context.WithValue(ctx, applicationActionsDisabledKey{}, true), method, req)
+		}
+	})
 	return server
 }
 
