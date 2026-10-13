@@ -23,6 +23,7 @@ import { stableHash } from "./identity";
 import {
   issue,
   nonEmptyString,
+  nonNegativeInteger,
   parseJSON,
   record,
   resourceRef,
@@ -291,6 +292,8 @@ export class ProjectionBuilder {
   readonly projectedSources = new Set<string>();
   readonly checkedSources = new Set<string>();
   readonly limitedSources = new Set<string>();
+  readonly connectorRecoveryBySource = new Map<string, DiagnosisResourceRef>();
+
   readonly semanticCoverageBySource = new Map<
     string,
     Set<InvestigationSemanticDomain>
@@ -1042,6 +1045,11 @@ function addRelatedApplicationFindings(
   if (
     !value ||
     !applicationSource ||
+    !["cached", "limited", "unavailable"].includes(
+      String(value.coverageState),
+    ) ||
+    !nonNegativeInteger(value.checked) ||
+    !nonNegativeInteger(value.unknown) ||
     !nonEmptyString(value.coverage) ||
     (value.truncated !== undefined && typeof value.truncated !== "boolean") ||
     (findingsRaw !== undefined &&
