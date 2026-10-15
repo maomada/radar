@@ -280,7 +280,7 @@ function PodLogsViewer({
       getRetainedEntries={getRetainedEntries}
       isLoading={isLoading || isConnecting}
       errorMessage={entries.length === 0 ? fetchError || (!emptyMessage && !streamAnswer ? streamError : null) : null}
-      isStreaming={isStreaming}
+      isStreaming={streamBusy}
       onStartStream={createStream ? handleStartStreaming : undefined}
       onStopStream={handleStopStreaming}
       onRefresh={loadLogs}
