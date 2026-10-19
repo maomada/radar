@@ -14,7 +14,21 @@ import (
 
 	"github.com/skyhook-io/radar/internal/ai"
 	"github.com/skyhook-io/radar/internal/app"
+	"github.com/skyhook-io/radar/internal/config"
 )
+
+func TestStandaloneRejectsDisabledMCPBeforeBoot(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("RADAR_MCP_READ_ONLY", "")
+	disabled := false
+	if err := config.Save(config.Config{MCP: &disabled}); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := bootEphemeral("")
+	if err == nil || !strings.Contains(err.Error(), "MCP is disabled") {
+		t.Fatalf("boot: %v", err)
+	}
+}
 
 func TestCursorConsentNoticeDisclosesAutoApprovedTools(t *testing.T) {
 	notice := strings.Join(strings.Fields(consentNotice("cursor-agent", ai.ExecutionProfileFullLocal)), " ")

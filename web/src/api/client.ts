@@ -7630,6 +7630,7 @@ export interface DiagnosticsSnapshot {
     historyLimit: number;
     debugEvents: boolean;
     mcpEnabled: boolean;
+    mcpReadOnly: boolean;
     hasPrometheusURL: boolean;
     hasPrometheusHeaders: boolean;
   };

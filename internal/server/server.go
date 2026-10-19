@@ -206,7 +206,7 @@ type Config struct {
 	TrustedOrigins          []string                    // Extra origins allowed to make changes, from ParseTrustedOrigins
 	StaticFS                embed.FS                    // Embedded frontend files
 	StaticRoot              string                      // Path within StaticFS
-	MCPHandler              http.Handler                // MCP server handler (nil = MCP disabled)
+	MCPHandler              http.Handler                // Full MCP server handler (nil = full endpoint disabled)
 	MCPReadOnlyHandler      http.Handler                // public read-only MCP handler (read tools only)
 	MCPInvestigationHandler http.Handler                // internal read-only MCP handler with evidence correlation
 	InvestigationRefs       *investigationrefs.Registry // shared private evidence issuance ledger
@@ -935,12 +935,18 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 	// MCP server (Model Context Protocol for AI tools)
 	if s.mcpHandler != nil {
 		r.Mount("/mcp", s.mcpHandler)
+	} else {
+		r.Mount("/mcp", http.NotFoundHandler())
 	}
 	if s.mcpReadOnlyHandler != nil {
 		r.Mount("/mcp-readonly", s.mcpReadOnlyHandler)
+	} else {
+		r.Mount("/mcp-readonly", http.NotFoundHandler())
 	}
 	if s.mcpInvestigationHandler != nil {
 		r.Mount("/mcp-investigation", s.mcpInvestigationHandler)
+	} else {
+		r.Mount("/mcp-investigation", http.NotFoundHandler())
 	}
 
 	// OAuth discovery probes from MCP HTTP clients. Without this, the frontend
@@ -1378,7 +1384,8 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 	responseCaps := *caps
 	caps = &responseCaps
 
-	caps.MCPEnabled = s.mcpHandler != nil
+	caps.MCPEnabled = s.mcpEnabled()
+	caps.MCPReadOnly = s.mcpReadOnly()
 	caps.Deployment = k8s.DeploymentInfo{Mode: deploymentMode()}
 	caps.CloudConnect = s.cloudConnectCapability()
 	caps.Features = k8s.FeatureCapabilities{
