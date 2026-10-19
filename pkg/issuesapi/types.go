@@ -740,10 +740,24 @@ func (c *ClusterScopedChanges) Informative() bool {
 	return c != nil && (len(c.Changes) > 0 || len(c.NotListed) > 0 || c.Truncated || c.Error != "" || c.Incomplete != "")
 }
 
-// UncheckedSource is one issue source Radar couldn't check.
+// UncheckedSource is one issue source Radar couldn't check. A source can
+// appear more than once, once per reason.
 type UncheckedSource struct {
 	Source UncheckedSourceName `json:"source"`
 	Reason UncheckedReason     `json:"reason"`
+	// Kinds names the kinds within the source that went unchecked. Absent
+	// means the whole source, or that Radar can't tell which kinds.
+	Kinds []UncheckedKind `json:"kinds,omitempty"`
+	// Namespaces names the namespaces whose read failed when the source was
+	// read in the others, so issues outside them are complete. Absent means
+	// the gap is not limited to particular namespaces.
+	Namespaces []string `json:"namespaces,omitempty"`
+}
+
+// UncheckedKind is a resource kind whose issues went unchecked.
+type UncheckedKind struct {
+	Group string `json:"group,omitempty"`
+	Kind  string `json:"kind"`
 }
 
 // UncheckedSourceName names an issue source that can go unchecked. It is not
@@ -754,6 +768,16 @@ const (
 	// UncheckedSourceHelm is Radar's native Helm release read (release
 	// Secrets). Flux HelmReleases are not part of it.
 	UncheckedSourceHelm UncheckedSourceName = "helm"
+	// UncheckedSourceResources is Radar's checks on built-in Kubernetes kinds
+	// (Pods, workloads, Services, PVCs, HPAs, Nodes and the like), read from
+	// its resource cache.
+	UncheckedSourceResources UncheckedSourceName = "resources"
+	// UncheckedSourceCustomResources is the check for failing status
+	// conditions on custom resources.
+	UncheckedSourceCustomResources UncheckedSourceName = "custom_resources"
+	// UncheckedSourceKarpenter is the Karpenter NodePool, NodeClass and
+	// NodeClaim checks.
+	UncheckedSourceKarpenter UncheckedSourceName = "karpenter"
 )
 
 type UncheckedReason string
@@ -762,6 +786,15 @@ const (
 	// UncheckedReasonReadFailed: the read failed, for example an API server
 	// error, rejected credentials, or Radar's own request deadline.
 	UncheckedReasonReadFailed UncheckedReason = "read_failed"
+	// UncheckedReasonSyncPending: Radar is still loading these kinds, for
+	// example right after it starts. A later request can succeed.
+	UncheckedReasonSyncPending UncheckedReason = "kind_sync_pending"
+	// UncheckedReasonSyncFailed: loading these kinds stalled or gave up.
+	UncheckedReasonSyncFailed UncheckedReason = "kind_sync_failed"
+	// UncheckedReasonCollectorAccessDenied: Kubernetes refused Radar's own
+	// identity, such as a ServiceAccount that may not impersonate the
+	// caller. Granting the caller more access does not help.
+	UncheckedReasonCollectorAccessDenied UncheckedReason = "collector_access_denied"
 )
 
 type BindingType string

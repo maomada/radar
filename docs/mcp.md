@@ -27,6 +27,55 @@ The MCP server is **enabled by default** when Radar starts. To disable it:
 radar --no-mcp
 ```
 
+To expose only read-only MCP tools:
+
+```bash
+radar --mcp-read-only
+```
+
+This is one server-wide mode. `/mcp-readonly` stays available, and Radar's
+internal `/mcp-investigation` endpoint keeps its read-only tools and evidence
+correlation. The full `/mcp` endpoint returns 404, including direct MCP calls.
+Write tools cannot be listed or called on the retained endpoints. Diagnostic
+options that create temporary Kubernetes resources (`diagnose`'s `in_cluster`)
+are also rejected. Built-in investigations and verification remain available;
+their Apply action is unavailable because it requires MCP write tools.
+This setting does not restrict writes in the Radar UI or REST API.
+
+CLI and Desktop accept both flags. You can also set
+`RADAR_MCP_READ_ONLY=1` or persist `"mcpReadOnly": true` in
+`~/.radar/config.json`. The existing `"mcp": false` disables all MCP endpoints.
+
+CLI settings take priority over the environment, which takes priority over the
+config file. A higher-priority mode selection replaces a lower-priority one:
+
+| Settings | Effective mode |
+| --- | --- |
+| No settings | Full MCP, including `/mcp` |
+| Config `mcpReadOnly: true`, CLI `--no-mcp` | Disabled |
+| Config `mcp: false`, env `RADAR_MCP_READ_ONLY=1` | Read-only |
+| Env `RADAR_MCP_READ_ONLY=1`, CLI `--mcp-read-only=false` | Full MCP |
+| Config `mcp: false`, CLI `--no-mcp=false` | Full MCP |
+| Env `RADAR_MCP_READ_ONLY=1`, CLI `--no-mcp=false` | Read-only |
+
+An explicit false value clears only that setting. Environment booleans use
+Go's `strconv.ParseBool` spelling (`1`, `0`, `true`, `false`, `T`, `F`, and
+their supported case variants); an empty value is unset and an invalid value
+is an error. `--no-mcp --mcp-read-only` is an error. A config file containing
+both `"mcp": false` and `"mcpReadOnly": true` is also rejected; correct the
+file before starting Radar, even when passing overrides.
+
+Malformed or unreadable config files stop CLI, Desktop and standalone
+investigation startup rather than falling back to full MCP. For example,
+`"mcpReadOnly": "true"` is invalid: use the JSON boolean `true` without quotes.
+The settings API also rejects contradictory MCP settings before saving them.
+
+In read-only mode, use `http://localhost:9280/mcp-readonly` in client
+configurations. Radar's setup dialog, settings and interactive investigation
+handoffs select this endpoint automatically. Existing client configurations
+using `/mcp` must be updated. Startup output and `/api/capabilities`
+(`mcpEnabled`, `mcpReadOnly`) describe the effective mode.
+
 ## MCP Endpoint
 
 ```
@@ -51,11 +100,20 @@ radar --mcp-catalog-only --no-browser
 
 This mode skips Kubernetes initialization and starts the `/mcp` endpoint for schema introspection. Cluster-backed tool calls still require a normal Radar process connected to Kubernetes.
 
+Adding `--mcp-read-only` exposes `/mcp-readonly` instead of `/mcp` and keeps the
+internal investigation mount. The same config and environment precedence applies.
+
 For registries that launch MCP servers over stdio, use:
 
 ```bash
 radar --mcp-catalog-stdio
 ```
+
+Add `--mcp-read-only` to serve the existing read-only catalog over stdio, with
+the same write-tool and mutating-diagnostic rejection as HTTP. Both catalog
+entrypoints reject an explicit `--no-mcp`. Choosing a catalog entrypoint
+overrides a saved `"mcp": false`. `radar diagnose --standalone`
+honors the saved and environment MCP mode; a disabled mode rejects startup.
 
 This exposes the same tool and resource catalog over stdio without starting the HTTP UI server.
 The stdio mode is intended only for catalog introspection; normal Radar sessions use the HTTP endpoint above.
@@ -548,7 +606,7 @@ leave Kubernetes resources, infrastructure or storage behind. Dependents with
 their own finalizers can remain stuck even after the controller is restored;
 older VictoriaMetrics operators place such finalizers on managed objects.
 
-For `issues`, `unchecked_sources` lists the issue sources Radar couldn't check for this answer, so their issues may be missing; don't read the response as healthy for them. Today the only source is `helm` (failed or stuck Helm releases), with reason `read_failed`. Treat any other value as unchecked too. Read `timing_summary` when present; it explains timing combinations that are easy to misread without schema context. The raw provenance fields remain available for filtering. `first_seen` is an evidence-backed lower bound, `onset_unknown` means no contributing signal has a known onset, and `resource_created_at` is resource-age context rather than issue age. A missing `first_seen` is exposed to CEL as `0`; require `first_seen != 0` for any age filter, and also require `onset_coverage_unknown == 0` when the whole row must have exact timing.
+For `issues`, `unchecked_sources` lists the issue sources Radar couldn't check for this answer, so their issues may be missing; don't read the response as healthy for them. Sources: `helm` (failed or stuck Helm releases), `resources` (built-in kinds such as Pods, workloads, PVCs, HPAs and Nodes), `custom_resources` (failing conditions on custom resources) and `karpenter` (NodePools, NodeClasses, NodeClaims). Reasons: `read_failed`, `kind_sync_pending` (still loading, for example right after Radar starts; ask again shortly), `kind_sync_failed` (loading stalled), and `collector_access_denied` (Kubernetes refused Radar's own identity, so the caller's permissions can't fix it). An entry may carry `kinds` (only those kinds went unchecked) and `namespaces` (only those namespaces failed; the rest are complete). Treat any other source or reason as unchecked too. Read `timing_summary` when present; it explains timing combinations that are easy to misread without schema context. The raw provenance fields remain available for filtering. `first_seen` is an evidence-backed lower bound, `onset_unknown` means no contributing signal has a known onset, and `resource_created_at` is resource-age context rather than issue age. A missing `first_seen` is exposed to CEL as `0`; require `first_seen != 0` for any age filter, and also require `onset_coverage_unknown == 0` when the whole row must have exact timing.
 
 Resource context distinguishes observed dependency references (`dependencies` and
 `dependents`) from autoscalers (`scaledBy`). A Certificate depends on its issuer;
