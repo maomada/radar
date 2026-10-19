@@ -247,7 +247,7 @@ export function IssuesPane({
     return <PaneLoader label="Loading issues…" className="flex-1" />;
   }
 
-  if (!subject && error) {
+  if (!subject && error && !data) {
     return (
       <div className="flex-1 flex items-center justify-center text-theme-text-secondary">
         <p>Failed to load issues</p>
@@ -295,6 +295,13 @@ export function IssuesPane({
           </>
         }
       />
+
+      {!subject && error && (
+        <div className="flex items-start gap-2 rounded-lg border border-theme-border bg-theme-elevated px-3 py-2 text-xs text-theme-text-secondary">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+          <span>Issue refresh failed. Showing the last successful result.</span>
+        </div>
+      )}
 
       {/* Visibility honesty: when RBAC reads are incomplete, an empty queue may
           mean "can't see" rather than "nothing broken" — say so up front so the
@@ -395,6 +402,13 @@ export function IssuesPane({
           headline="No issues found"
           body={uncheckedLines.join(" ")}
           action={<UncheckedSourceHelp onRetry={() => { void refetch({ cancelRefetch: false }); }} isRefreshing={isFetching} />}
+        />
+      ) : !subject && error && scopeIssues.length === 0 ? (
+        <EmptyState
+          tone="neutral"
+          variant="card"
+          headline="No issues in the last successful result"
+          body="Current issues could not be checked."
         />
       ) : (
         /* anyData = the query resolved, i.e. the cluster is reachable; an empty
