@@ -169,17 +169,54 @@ func (s *session) dynamicCandidates(q *search, kind ownership.Kind) {
 		q.gapEverywhere(gk, kind.Namespaced, reason)
 		return
 	}
+	// A version's cluster-wide informer serves every namespace, so it is read
+	// once per search and its matches split by namespace: reading it per
+	// namespace would gather all its matches once for each.
+	type clusterWideRead struct {
+		all         []*unstructured.Unstructured
+		byNamespace map[string][]*unstructured.Unstructured
+	}
+	clusterWide := map[schema.GroupVersionResource]*clusterWideRead{}
+	readVersion := func(gvr schema.GroupVersionResource, namespace string) ([]*unstructured.Unstructured, bool) {
+		cw, seen := clusterWide[gvr]
+		if !seen {
+			if objs, server, ok := s.caches.Dynamic.ReadableDependents(gvr, "", q.uid); ok {
+				s.record(gvr, "", server)
+				cw = &clusterWideRead{all: objs}
+			}
+			clusterWide[gvr] = cw
+		}
+		if cw != nil {
+			if namespace == "" {
+				return cw.all, true
+			}
+			if cw.byNamespace == nil {
+				cw.byNamespace = map[string][]*unstructured.Unstructured{}
+				for _, u := range cw.all {
+					cw.byNamespace[u.GetNamespace()] = append(cw.byNamespace[u.GetNamespace()], u)
+				}
+			}
+			return cw.byNamespace[namespace], true
+		}
+		if namespace == "" {
+			return nil, false
+		}
+		objs, server, ok := s.caches.Dynamic.ReadableDependents(gvr, namespace, q.uid)
+		if ok {
+			s.record(gvr, namespace, server)
+		}
+		return objs, ok
+	}
 	// read searches the informers serving namespace at every watched version
 	// that can answer, and says which versions answered. Versions that
 	// disagree leave the namespace unread: one of their watches hasn't caught
 	// up.
 	read := func(namespace string) (found []*unstructured.Unstructured, at schema.GroupVersionResource, answered []schema.GroupVersionResource, reason readreason.Code) {
 		for _, gvr := range versions {
-			objs, server, ok := s.caches.Dynamic.ReadableDependents(gvr, namespace, q.uid)
+			objs, ok := readVersion(gvr, namespace)
 			if !ok {
 				continue
 			}
-			s.record(gvr, namespace, server)
 			if len(answered) == 0 {
 				found, at = objs, gvr
 			} else if !sameIncarnations(found, objs) {
@@ -188,7 +225,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.Kind) {
 			answered = append(answered, gvr)
 		}
 		if len(answered) == 0 {
-			return nil, at, nil, dynamicReason(s.caches.Dynamic.NamespaceObservation(versions[0], namespace))
+			return nil, at, nil, s.unansweredReason(versions, namespace)
 		}
 		return found, at, answered, ""
 	}
@@ -239,9 +276,16 @@ func (s *session) dynamicCandidates(q *search, kind ownership.Kind) {
 		q.gap(gk, "", reason)
 		return
 	}
-	// Watched only namespace by namespace: read those, and the rest are unread.
+	// Read the namespaces watched one by one. The rest are unread: still
+	// loading if a version is watched cluster-wide, otherwise uncollected.
 	readNamespaces(namespaces)
-	q.gap(gk, "", readreason.RadarNamespaceNotCollected)
+	rest := readreason.RadarNamespaceNotCollected
+	for _, gvr := range versions {
+		if _, byNamespace := s.namespaceWatches(gvr); !byNamespace {
+			rest = dynamicReason(s.caches.Dynamic.NamespaceObservation(gvr, ""))
+		}
+	}
+	q.gap(gk, "", rest)
 }
 
 // unwatchedReason reports a kind none of whose served versions is watched,
