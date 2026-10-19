@@ -28,9 +28,9 @@ type Kind struct {
 	// Versions are every version serving the kind, sorted. They are the
 	// catalog's own and must not be modified.
 	Versions []string
-	// GarbageCollected: Kubernetes' garbage collector acts on objects of this
-	// kind, which it does for every resource served with delete, list and
-	// watch. One such version is enough.
+	// GarbageCollected: the kind is served with delete, list and watch, which
+	// Kubernetes' garbage collector needs to act on its objects. One such
+	// version is enough. The collector ignores Events whatever their verbs.
 	GarbageCollected bool
 }
 
@@ -149,7 +149,9 @@ func (c *Catalog) Serves(gk resourceid.GroupKind, version string) bool {
 	return ok && slices.Contains(k.Versions, version)
 }
 
-// Complete reports whether the catalog lists every served kind.
+// Complete reports whether the discovery that built the catalog answered for
+// every API group. It describes that discovery, which can be minutes old: a
+// kind installed since may be served and still missing.
 func (c *Catalog) Complete() bool {
 	return c.complete
 }
