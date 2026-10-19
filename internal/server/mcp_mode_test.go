@@ -4,13 +4,41 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/skyhook-io/radar/internal/ai"
+	"github.com/skyhook-io/radar/internal/config"
 	"github.com/skyhook-io/radar/internal/investigationrefs"
 	"github.com/skyhook-io/radar/internal/k8s"
 )
+
+func TestPutConfigRejectsContradictoryMCPWithoutChangingFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if err := config.Save(config.Config{Port: 9280}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(config.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(Config{})
+	response := httptest.NewRecorder()
+	s.handlePutConfig(response, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(`{"mcp":false,"mcpReadOnly":true}`)))
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "MCP") {
+		t.Fatalf("save = %d %s; want MCP validation error", response.Code, response.Body.String())
+	}
+	after, err := os.ReadFile(config.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("invalid save changed the config file")
+	}
+}
 
 func TestReadOnlyMCPKeepsAIEligible(t *testing.T) {
 	stub := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})

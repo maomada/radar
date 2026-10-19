@@ -50,7 +50,10 @@ func gpuPolicyName(p linux.WebviewGpuPolicy) string {
 
 func main() {
 	// Load persistent config (~/.radar/config.json) for flag defaults.
-	fileCfg := config.Load()
+	fileCfg, err := config.LoadForStartup()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Parse flags (defaults come from config file, falling back to hardcoded values)
 	kubeconfig := flag.String("kubeconfig", fileCfg.Kubeconfig, "Path to primary kubeconfig file (default: ~/.kube/config)")

@@ -27,7 +27,11 @@ import (
 // to a tail buffer and surfaced only on failure; the terminal shows a single
 // connecting spinner instead.
 func bootEphemeral(kubeconfig string) (base string, shutdown func(), err error) {
-	mode, err := config.RegisterMCPFlags(flag.NewFlagSet("standalone", flag.ContinueOnError), config.Load()).Resolve()
+	fileCfg, err := config.LoadForStartup()
+	if err != nil {
+		return "", nil, err
+	}
+	mode, err := config.RegisterMCPFlags(flag.NewFlagSet("standalone", flag.ContinueOnError), fileCfg).Resolve()
 	if err != nil {
 		return "", nil, err
 	}

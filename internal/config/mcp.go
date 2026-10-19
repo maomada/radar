@@ -45,6 +45,12 @@ func (f MCPFlags) Resolve() (MCPMode, error) {
 	return resolveMCP(f.file, os.LookupEnv, noMCP, readOnly)
 }
 
+// ValidateMCPFile checks persisted MCP settings without environment or CLI overrides.
+func ValidateMCPFile(c Config) error {
+	_, err := resolveMCP(c, func(string) (string, bool) { return "", false }, nil, nil)
+	return err
+}
+
 // resolveMCP merges explicit settings in source order. Selecting a mode clears
 // the competing lower-priority mode; false only clears the named setting.
 func resolveMCP(file Config, lookup func(string) (string, bool), noMCP, readOnly *bool) (MCPMode, error) {

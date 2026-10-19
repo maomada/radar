@@ -65,6 +65,11 @@ is an error. `--no-mcp --mcp-read-only` is an error. A config file containing
 both `"mcp": false` and `"mcpReadOnly": true` is also rejected; correct the
 file before starting Radar, even when passing overrides.
 
+Malformed or unreadable config files stop CLI, Desktop and standalone
+investigation startup rather than falling back to full MCP. For example,
+`"mcpReadOnly": "true"` is invalid: use the JSON boolean `true` without quotes.
+The settings API also rejects contradictory MCP settings before saving them.
+
 In read-only mode, use `http://localhost:9280/mcp-readonly` in client
 configurations. Radar's setup dialog, settings and interactive investigation
 handoffs select this endpoint automatically. Existing client configurations
@@ -106,8 +111,8 @@ radar --mcp-catalog-stdio
 
 Add `--mcp-read-only` to serve the existing read-only catalog over stdio, with
 the same write-tool and mutating-diagnostic rejection as HTTP. Both catalog
-entrypoints reject an explicit `--no-mcp`; as before, choosing a catalog
-entrypoint overrides a saved `"mcp": false`. `radar diagnose --standalone`
+entrypoints reject an explicit `--no-mcp`. Choosing a catalog entrypoint
+overrides a saved `"mcp": false`. `radar diagnose --standalone`
 honors the saved and environment MCP mode; a disabled mode rejects startup.
 
 This exposes the same tool and resource catalog over stdio without starting the HTTP UI server.

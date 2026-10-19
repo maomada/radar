@@ -3,9 +3,60 @@ package config
 import (
 	"flag"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestStartupConfigDoesNotDiscardMCPPolicy(t *testing.T) {
+	for _, raw := range []string{
+		`{"mcpReadOnly":"true"}`,
+		`{"mcpReadOnly":true,"port":"9280"}`,
+		`{"mcp":false,"mcpReadOnly":`,
+	} {
+		t.Run(raw, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
+			if err := os.MkdirAll(filepath.Dir(Path()), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(Path(), []byte(raw), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadForStartup(); err == nil || !strings.Contains(err.Error(), "invalid Radar config") {
+				t.Fatalf("malformed startup config accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestStartupConfigMissingUsesDefaults(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	c, err := LoadForStartup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mode, err := resolveMCP(c, func(string) (string, bool) { return "", false }, nil, nil)
+	if err != nil || !mode.Enabled || mode.ReadOnly {
+		t.Fatalf("missing config mode: %+v, %v", mode, err)
+	}
+}
+
+func TestStartupConfigUnreadableStopsStartup(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if err := os.MkdirAll(Path(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadForStartup(); err == nil || !strings.Contains(err.Error(), "cannot read Radar config") {
+		t.Fatalf("unreadable startup config accepted: %v", err)
+	}
+}
 
 func TestMCPModePrecedence(t *testing.T) {
 	ptr := func(v bool) *bool { return &v }

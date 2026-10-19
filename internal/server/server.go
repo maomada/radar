@@ -6004,6 +6004,10 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if err := config.ValidateMCPFile(updated); err != nil {
+		s.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	normalizedCurrency, err := config.NormalizeOpenCostCurrency(updated.OpenCostCurrency)
 	if err != nil {
 		s.writeError(w, http.StatusBadRequest, "invalid OpenCost currency: "+err.Error())

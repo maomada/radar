@@ -95,7 +95,10 @@ func main() {
 
 	// Load persistent config (~/.radar/config.json) for flag defaults.
 	// CLI flags override config file values.
-	fileCfg := config.Load()
+	fileCfg, err := config.LoadForStartup()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Parse flags (defaults come from config file, falling back to hardcoded values)
 	kubeconfig := flag.String("kubeconfig", fileCfg.Kubeconfig, "Path to primary kubeconfig file (default: ~/.kube/config)")
@@ -324,7 +327,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Catalog entrypoints historically override a disabled file default.
+	// Catalog entrypoints enable MCP even when the saved default disables it.
 	noMCPExplicit := false
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "no-mcp" {
