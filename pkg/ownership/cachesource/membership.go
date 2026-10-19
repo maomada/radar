@@ -179,58 +179,30 @@ type membersRead struct {
 	gaps                  []ownership.Gap
 }
 
-// readAttempts bounds how often readMembers reads a manager kind whose stores
-// keep changing while it reads them.
-const readAttempts = 3
-
-// readMembers reads kind's unreadable list and the member keys from one state
-// of its stores. A manager can change between two of these reads, from an
-// unreadable list to one naming the object or from one reading of its entry to
-// another, and a manager that changes twice can be in neither list at each
-// read; so the reads count only if no store of kind changed while they ran.
-// Without store versions to compare, it reads everything twice, in turn, which
-// finds a manager that changes once mid-search.
+// readMembers reads the managers of kind filed under the unreadable key or any
+// of keys, each store of kind once for all of them. A manager that changes
+// while Recorders runs, from an unreadable list to one naming the object or
+// from one reading of its entry to another, is then found in one of its
+// states: reads of one key at a time could find it in none.
 func (s *session) readMembers(kind ownership.Kind, keys []string) membersRead {
-	gr := schema.GroupResource{Group: kind.Group, Resource: kind.Resource}
-	for range readAttempts {
-		before, fenced := s.caches.Dynamic.StoreVersion(gr)
-		var m membersRead
-		s.readMembersOnce(&m, kind, keys)
-		if !fenced {
-			s.readMembersOnce(&m, kind, keys)
-			return m
-		}
-		if after, _ := s.caches.Dynamic.StoreVersion(gr); after.Equal(before) {
-			return m
-		}
-	}
-	return membersRead{gaps: []ownership.Gap{{Kind: kind.GroupKind, Reason: readreason.KindSyncPending}}}
-}
-
-func (s *session) readMembersOnce(m *membersRead, kind ownership.Kind, keys []string) {
 	gk := kind.GroupKind
+	var m membersRead
 	q := &search{domain: ownership.Everywhere()}
-	s.dynamicIndexed(q, kind, k8score.GitOpsMembersIndex, k8score.UnreadableMembersKey, func(_ schema.GroupVersionResource, u *unstructured.Unstructured) {
-		m.unreadable = append(m.unreadable, resourceid.Ref{Group: gk.Group, Kind: gk.Kind, Namespace: u.GetNamespace(), Name: u.GetName()})
-	})
-	s.afterRecordersRead(k8score.UnreadableMembersKey)
-	for _, key := range keys {
-		s.dynamicIndexed(q, kind, k8score.GitOpsMembersIndex, key, func(gvr schema.GroupVersionResource, u *unstructured.Unstructured) {
-			manager := resourceid.Ref{Group: gk.Group, Kind: gk.Kind, Namespace: u.GetNamespace(), Name: u.GetName()}
-			if !appliesHere(gk, u) {
-				m.elsewhere = append(m.elsewhere, manager)
-				return
-			}
+	keys = append([]string{k8score.UnreadableMembersKey}, keys...)
+	s.dynamicIndexed(q, kind, k8score.GitOpsMembersIndex, keys, func(gvr schema.GroupVersionResource, u *unstructured.Unstructured) {
+		manager := resourceid.Ref{Group: gk.Group, Kind: gk.Kind, Namespace: u.GetNamespace(), Name: u.GetName()}
+		switch membersOf(gk, u).state {
+		case ownership.MembersUnreadable:
+			m.unreadable = append(m.unreadable, manager)
+		case ownership.MembersRemote:
+			m.elsewhere = append(m.elsewhere, manager)
+		default:
 			m.recorders = append(m.recorders, candidate{ref: manager, apiVersion: gvr.GroupVersion().String(), obj: u})
-		})
-		s.afterRecordersRead(key)
-	}
-	m.gaps = append(m.gaps, q.gaps...)
-}
-
-// afterRecordersRead runs the session's recordersRead hook, if a test set one.
-func (s *session) afterRecordersRead(key string) {
+		}
+	})
 	if s.recordersRead != nil {
-		s.recordersRead(key)
+		s.recordersRead(gk, keys)
 	}
+	m.gaps = q.gaps
+	return m
 }

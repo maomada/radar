@@ -62,6 +62,9 @@ var gitopsMembersIndexers = map[schema.GroupResource]cache.Indexers{
 // the entry's kind's scope could call for.
 func memberKeys(members func(*unstructured.Unstructured) (gitops.MemberList, bool)) cache.IndexFunc {
 	return func(obj any) ([]string, error) {
+		if q, isQuery := obj.(indexQuery); isQuery {
+			return q, nil
+		}
 		u, ok := obj.(*unstructured.Unstructured)
 		if !ok {
 			return nil, nil

@@ -87,7 +87,8 @@ func TestGitOpsManagersAreIndexedByMembers(t *testing.T) {
 	}}
 	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(apiruntime.NewScheme(), map[schema.GroupVersionResource]string{
 		apps: "ApplicationList", kustomizations: "KustomizationList", helmReleases: "HelmReleaseList", widgets: "WidgetList",
-	}, argoApplication("web", []any{map[string]any{"kind": "Service", "name": "ui"}}), argoApplication("pending", nil), kustomization, helmRelease, widget)
+	}, argoApplication("web", []any{map[string]any{"kind": "Service", "name": "ui"}}), argoApplication("pending", nil),
+		argoApplication("widgets", []any{map[string]any{"group": "example.io", "kind": "Widget", "name": "w1"}}), kustomization, helmRelease, widget)
 	d, err := NewDynamicResourceCache(DynamicCacheConfig{DynamicClient: dyn})
 	if err != nil {
 		t.Fatal(err)
@@ -117,6 +118,13 @@ func TestGitOpsManagersAreIndexedByMembers(t *testing.T) {
 		if !ok || !slices.Equal(names(got), []string{tc.want}) {
 			t.Fatalf("%s under %q = %v, %v; want %s", tc.gvr.Resource, tc.key, names(got), ok, tc.want)
 		}
+	}
+	// Several keys are read together: each manager filed under any of them,
+	// once, however many of them it is filed under.
+	w1 := []string{MemberKey(MemberAsRecorded, "example.io", "Widget", "", "w1"), MemberKey(MemberInDestination, "example.io", "Widget", "shop", "w1")}
+	got, _, ok := d.ReadableIndexed(apps, "", GitOpsMembersIndex, append([]string{ui, UnreadableMembersKey}, w1...)...)
+	if !ok || !slices.Equal(names(got), []string{"pending", "web", "widgets"}) {
+		t.Fatalf("applications under any of the keys = %v, %v; want pending, web and widgets once each", names(got), ok)
 	}
 	if _, _, ok := d.ReadableIndexed(widgets, "", GitOpsMembersIndex, ui); ok {
 		t.Fatal("a resource without the members index can't answer from it")
