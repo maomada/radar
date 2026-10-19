@@ -114,19 +114,6 @@ func (rc *ResourceCache) ReadableDependents(resource string, namespaces []string
 	return out, true
 }
 
-// Indexes reports whether gr's informers carry index: OwnerUIDIndex for every
-// resource but Events, and the indexes DynamicCacheConfig.Indexers gives it.
-func (d *DynamicResourceCache) Indexes(gr schema.GroupResource, index string) bool {
-	if d == nil {
-		return false
-	}
-	if index == OwnerUIDIndex {
-		return !isEventResource(gr.WithVersion(""))
-	}
-	_, ok := d.config.Indexers[gr][index]
-	return ok
-}
-
 // StoreVersion is the informers serving a resource at a moment and the
 // resource version each one's store had applied.
 type StoreVersion struct {

@@ -8,6 +8,7 @@ import (
 	clientfeatures "k8s.io/client-go/features"
 	clientfeaturestesting "k8s.io/client-go/features/testing"
 
+	"github.com/skyhook-io/radar/pkg/k8score"
 	"github.com/skyhook-io/radar/pkg/ownership"
 	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
 	"github.com/skyhook-io/radar/pkg/resourceid"
@@ -34,7 +35,7 @@ func TestRecordersFindAManagerChangingTwiceMidSearch(t *testing.T) {
 	}
 	r := render(t, w)
 	s := begin(t, r.source()).(*session)
-	recorded := memberKey(asRecorded, widget.Group, widget.Kind, widget.Namespace, widget.Name)
+	recorded := k8score.MemberKey(k8score.MemberAsRecorded, widget.Group, widget.Kind, widget.Namespace, widget.Name)
 	unreadReads, changes := 0, 0
 	s.recordersRead = func(key string) {
 		switch {
@@ -43,11 +44,11 @@ func TestRecordersFindAManagerChangingTwiceMidSearch(t *testing.T) {
 			app.ResourceVersion, app.Members = "11", []resourceid.Ref{widget, other}
 			r.update(t, app, recorded)
 			changes++
-		case key == unreadableKey:
+		case key == k8score.UnreadableMembersKey:
 			unreadReads++
 			if unreadReads == 2 && changes == 1 {
 				app.ResourceVersion, app.Membership = "12", ownership.MembersUnreadable
-				r.update(t, app, unreadableKey)
+				r.update(t, app, k8score.UnreadableMembersKey)
 				changes++
 			}
 		}
@@ -83,7 +84,7 @@ func TestRecordersWithoutStoreVersionsReadTwice(t *testing.T) {
 		t.Fatal("stores keep a version with AtomicFIFO off; this test no longer reaches the fallback")
 	}
 	s := begin(t, r.source()).(*session)
-	recorded := memberKey(asRecorded, widget.Group, widget.Kind, widget.Namespace, widget.Name)
+	recorded := k8score.MemberKey(k8score.MemberAsRecorded, widget.Group, widget.Kind, widget.Namespace, widget.Name)
 	changed := false
 	s.recordersRead = func(key string) {
 		if key == recorded && !changed {
