@@ -224,3 +224,16 @@ it('pauses and reveals focused row controls without pausing for toolbar focus', 
   expect(onFollowingChange).toHaveBeenCalledWith(false)
   expect(reveal).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
 })
+
+it('pauses following before text selection or middle-button scrolling in the log area', async () => {
+  const onFollowingChange = vi.fn()
+  const entry = { id: 1, timestamp: '', content: 'INFO saved', container: 'app', level: 'info', levelSource: 'keyword', isJson: false, isLogfmt: false } satisfies ComponentProps<typeof LogCore>['entries'][number]
+  await render({ entries: [entry], isFollowing: true, onFollowingChange })
+  const scroller = element.querySelector<HTMLElement>('[data-virtuoso-scroller]')!
+  scroller.getBoundingClientRect = () => new DOMRect(0, 0, 500, 300)
+  for (const button of [0, 1]) {
+    onFollowingChange.mockClear()
+    await act(async () => scroller.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button, clientX: 100 })))
+    expect(onFollowingChange).toHaveBeenCalledWith(false)
+  }
+})

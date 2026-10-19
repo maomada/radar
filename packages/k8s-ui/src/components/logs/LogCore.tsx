@@ -1119,7 +1119,9 @@ export function LogCore({
           onPointerDownCapture={event => {
             const scroller = event.currentTarget.querySelector('[data-virtuoso-scroller]')
             scrollbarDragging.current = !!scroller && event.clientX >= scroller.getBoundingClientRect().right - 20
-            if (scrollbarDragging.current) setFollowing(false)
+            const target = event.target
+            const interactingWithLogs = target instanceof Element && !!target.closest('[data-virtuoso-scroller]')
+            if (scrollbarDragging.current || (interactingWithLogs && (event.button === 0 || event.button === 1))) setFollowing(false)
           }}
           onPointerUpCapture={() => { scrollbarDragging.current = false }}
           onPointerCancelCapture={() => { scrollbarDragging.current = false }}

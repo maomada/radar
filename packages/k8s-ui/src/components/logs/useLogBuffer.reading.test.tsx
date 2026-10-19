@@ -135,3 +135,15 @@ it('keeps collecting the latest logs when animation frames stop running', async 
   expect(buffer().getRetainedEntries().at(-1)?.id).toBe(40_004)
   expect(buffer().missingLineCount).toBe(20_005)
 })
+
+it('does not count records from before an empty reset when pausing and receiving a large batch', async () => {
+  await append(25_000)
+  for (const reset of [() => buffer().clear(), () => buffer().set([])]) {
+    await act(async () => { reset(); buffer().setFollowing(false) })
+    await append(20_001)
+    expect(buffer().entries).toHaveLength(10_000)
+    expect(buffer().pendingLineCount).toBe(10_001)
+    expect(buffer().missingLineCount).toBe(1)
+    expect(buffer().retainedLineCount).toBe(20_000)
+  }
+})
