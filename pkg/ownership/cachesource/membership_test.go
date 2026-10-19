@@ -188,8 +188,8 @@ func TestRecordersOfABuiltInDiscoveryDisputes(t *testing.T) {
 			cache := begin(t, render(t, w).source())
 			want := []ownership.Gap{{Kind: clusterRole, Reason: readreason.ReadError}}
 			for source, s := range map[string]ownership.Session{"scan": scan, "cache": cache} {
-				if got := s.Recorders(reader); len(got.Recorders) != 0 || !slices.Equal(got.Gaps, want) {
-					t.Errorf("%s: Recorders(%v) = %+v, want only %+v", source, reader, got, want)
+				if got := s.Recorders(reader); len(got.Recorders) != 0 || !got.Unnamed || !slices.Equal(got.Gaps, want) {
+					t.Errorf("%s: Recorders(%v) = %+v, want it unnamed with only %+v", source, reader, got, want)
 				}
 				if got := s.Inventory(app.Ref); got.Membership != ownership.MembersRecorded || !slices.Equal(got.Members, []resourceid.Ref{reader}) {
 					t.Errorf("%s: Inventory = %v %v, want the entry as recorded", source, got.Membership, got.Members)

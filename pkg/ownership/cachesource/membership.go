@@ -133,7 +133,7 @@ func (s *session) readings(ref resourceid.Ref) ([]string, readreason.Code) {
 func (s *session) Recorders(ref resourceid.Ref) ownership.RecorderRead {
 	keys, reason := s.readings(ref)
 	if reason != "" {
-		return ownership.RecorderRead{Gaps: []ownership.Gap{{Kind: ref.GroupKind(), Namespace: ref.Namespace, Reason: reason}}}
+		return ownership.RecorderRead{Unnamed: true, Gaps: []ownership.Gap{{Kind: ref.GroupKind(), Namespace: ref.Namespace, Reason: reason}}}
 	}
 	q := &search{domain: ownership.Everywhere()}
 	var recorders []candidate
