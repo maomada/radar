@@ -206,20 +206,28 @@ a patch to the fields an action sets, and the grant works from any client, not
 only Radar. A holder can:
 
 - change an Application's sources, destination, sync policy, labels, status and
-  `spec.project`. The controller enforces whichever existing AppProject the
-  Application names, so the original project is not a fixed boundary;
+  `spec.project`. An Application in Argo CD's namespace may use any existing
+  AppProject; elsewhere, the project's `sourceNamespaces` decide which
+  Application namespaces it permits. The original project is not a fixed boundary;
 - start operations, including a sync to another revision or with locally
-  supplied manifests, which argocd-server would gate behind its `override`
-  permission;
+  supplied manifests. Through argocd-server, local manifests always need
+  `override`; another revision needs it only when `argocd-cm` enables
+  `application.sync.requireOverridePrivilegeForRevisionSync` (off by default);
 - so use the Argo CD controller's deployment authority, often cluster-admin and
   possibly on remote clusters that Argo CD manages.
 
 It does not allow creating or deleting Applications, or administering
-AppProjects. Argo CD's own user and project RBAC, and argocd-server's request
-checks, are not consulted for actions through Radar or `kubectl`. What the
-controller enforces still holds: sync windows (Argo CD 2.11 and later), the
-destination, kind and namespace limits of the project the Application names,
-and source-integrity rules.
+AppProjects. Argo CD's own user and project RBAC, including its `get` permission,
+and argocd-server's request checks are not consulted for actions through Radar
+or `kubectl`. Kubernetes `get` exposes the whole Application.
+
+The project's source-repository allowlist is checked against the Application's
+spec only. A directly written sync operation can name its own source, which the
+controller renders without that check. Application patch access therefore lets
+a holder deploy from a repository the project doesn't allow, within the
+project's destination, kind and namespace limits. The controller also enforces
+sync windows (Argo CD 2.11 and later). Source integrity (GPG) covers Git sources
+only; on Argo CD 3.x, a sync with local manifests can bypass it.
 
 A stock `admin` owner already has indirect routes to this authority, but
 admission policies may block them, so the grant can add real authority. If
