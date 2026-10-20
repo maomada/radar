@@ -8,9 +8,11 @@ import { copyText } from '../../utils/clipboard'
 vi.mock('../../utils/clipboard', () => ({ copyText: vi.fn(async () => true) }))
 
 let atBottom: ((bottom: boolean) => void) | undefined
-vi.mock('react-virtuoso', () => ({ Virtuoso: ({ data, itemContent, atBottomStateChange }: { data: unknown[]; itemContent: (index: number, value: unknown) => ReactNode; atBottomStateChange: (bottom: boolean) => void }) => {
+let totalHeightChanged: (() => void) | undefined
+vi.mock('react-virtuoso', () => ({ Virtuoso: ({ data, itemContent, atBottomStateChange, totalListHeightChanged, scrollerRef }: { data: unknown[]; itemContent: (index: number, value: unknown) => ReactNode; atBottomStateChange: (bottom: boolean) => void; totalListHeightChanged: () => void; scrollerRef: (element: HTMLElement | null) => void }) => {
   atBottom = atBottomStateChange
-  return <div data-virtuoso-scroller>{data.map((value, index) => <div key={index}>{itemContent(index, value)}</div>)}</div>
+  totalHeightChanged = totalListHeightChanged
+  return <div ref={scrollerRef} data-virtuoso-scroller>{data.map((value, index) => <div key={index}>{itemContent(index, value)}</div>)}</div>
 } }))
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -26,6 +28,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount())
   element.remove()
+  vi.unstubAllGlobals()
 })
 
 const noop = () => {}
@@ -236,4 +239,42 @@ it('pauses following before text selection or middle-button scrolling in the log
     await act(async () => scroller.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button, clientX: 100 })))
     expect(onFollowingChange).toHaveBeenCalledWith(false)
   }
+})
+
+it('schedules one bottom update per height change without polling idle frames', async () => {
+  const frames: FrameRequestCallback[] = []
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.push(callback); return frames.length })
+  vi.stubGlobal('cancelAnimationFrame', vi.fn())
+  const entry = { id: 1, timestamp: '', content: 'INFO saved', container: 'app', level: 'info', levelSource: 'keyword', isJson: false, isLogfmt: false } satisfies ComponentProps<typeof LogCore>['entries'][number]
+  await render({ entries: [entry] })
+  expect(frames).toHaveLength(1)
+  await act(async () => frames.shift()?.(0))
+  expect(frames).toHaveLength(0)
+  await act(async () => { totalHeightChanged?.(); totalHeightChanged?.() })
+  expect(frames).toHaveLength(1)
+  await act(async () => frames.shift()?.(0))
+  expect(frames).toHaveLength(0)
+})
+
+it('pauses for browser text selection inside logs but ignores selection outside them', async () => {
+  const onFollowingChange = vi.fn()
+  const entry = { id: 1, timestamp: '', content: 'INFO selected record', container: 'app', level: 'info', levelSource: 'keyword', isJson: false, isLogfmt: false } satisfies ComponentProps<typeof LogCore>['entries'][number]
+  await render({ entries: [entry], isFollowing: true, onFollowingChange })
+  const outside = document.createTextNode('outside logs')
+  document.body.appendChild(outside)
+  const selection = document.getSelection()!
+  const range = document.createRange()
+  range.selectNodeContents(outside)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  await act(async () => document.dispatchEvent(new Event('selectionchange')))
+  expect(onFollowingChange).not.toHaveBeenCalled()
+  const rowText = [...element.querySelectorAll('span')].find(span => span.textContent === entry.content)!
+  range.selectNodeContents(rowText)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  await act(async () => document.dispatchEvent(new Event('selectionchange')))
+  expect(onFollowingChange).toHaveBeenCalledWith(false)
+  selection.removeAllRanges()
+  outside.remove()
 })

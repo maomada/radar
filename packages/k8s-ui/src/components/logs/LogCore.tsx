@@ -170,9 +170,6 @@ export function LogCore({
   const isFollowing = controlledFollowing ?? localFollowing
   const followingRef = useRef(isFollowing)
   const scrollerRef = useRef<HTMLElement | null>(null)
-  const handleScrollerRef = useCallback((element: HTMLElement | Window | null) => {
-    scrollerRef.current = element instanceof HTMLElement ? element : null
-  }, [])
   const resumeAtBottom = useRef(false)
   const scrollbarDragging = useRef(false)
   const scrollPosition = useRef<number | null>(null)
@@ -184,6 +181,18 @@ export function LogCore({
   }, [onFollowingChange])
   const touchY = useRef<number | null>(null)
   const pauseFollowing = useCallback(() => setFollowing(false), [setFollowing])
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = document.getSelection()
+      if (!followingRef.current || !selection || selection.isCollapsed || !selection.anchorNode || !scrollerRef.current?.contains(selection.anchorNode)) return
+      pauseFollowing()
+      const anchor = selection.anchorNode
+      const element = anchor instanceof Element ? anchor : anchor.parentElement
+      element?.closest('[data-index]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [pauseFollowing])
   const themeLocked = typeof forceDark === 'boolean'
   // Seed isDark: forceDark prop wins; else localStorage['radar-logs-dark'];
   // else defaultDark (the host app's theme, dark if not given). See
@@ -573,17 +582,32 @@ export function LogCore({
     followingRef.current = isFollowing
     pinToBottom()
   }, [groupedEntries, isFollowing, pinToBottom])
-  useEffect(() => {
-    if (!isFollowing) return
-    let frame: number
-    const follow = () => {
-      if (!followingRef.current) return
+  const pinFrame = useRef<number | null>(null)
+  const viewportObserver = useRef<ResizeObserver | null>(null)
+  const schedulePinToBottom = useCallback(() => {
+    if (!followingRef.current || !scrollerRef.current || pinFrame.current !== null) return
+    pinFrame.current = requestAnimationFrame(() => {
+      pinFrame.current = null
       pinToBottom()
-      frame = requestAnimationFrame(follow)
+    })
+  }, [pinToBottom])
+  const handleScrollerRef = useCallback((element: HTMLElement | Window | null) => {
+    viewportObserver.current?.disconnect()
+    const scroller = element instanceof HTMLElement ? element : null
+    scrollerRef.current = scroller
+    if (scroller && typeof ResizeObserver !== 'undefined') {
+      viewportObserver.current = new ResizeObserver(schedulePinToBottom)
+      viewportObserver.current.observe(scroller)
+      const list = scroller.querySelector('[data-testid="virtuoso-item-list"]')
+      if (list) viewportObserver.current.observe(list, { box: 'border-box' })
     }
-    frame = requestAnimationFrame(follow)
-    return () => cancelAnimationFrame(frame)
-  }, [isFollowing, pinToBottom])
+    schedulePinToBottom()
+  }, [schedulePinToBottom])
+  useEffect(() => () => {
+    if (pinFrame.current !== null) cancelAnimationFrame(pinFrame.current)
+    pinFrame.current = null
+    viewportObserver.current?.disconnect()
+  }, [])
 
   const scrollToBottom = useCallback(() => {
     setFollowing(true)
@@ -1131,6 +1155,7 @@ export function LogCore({
             data={groupedEntries}
             scrollerRef={handleScrollerRef}
             computeItemKey={(_index, group) => group.head.id}
+            totalListHeightChanged={schedulePinToBottom}
             atBottomStateChange={handleAtBottomStateChange}
             atBottomThreshold={50}
             increaseViewportBy={200}
