@@ -94,9 +94,9 @@ func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]o
 	switch d.Asked {
 	case ownershiptest.AskedCandidates:
 		holds = r.candidatesHold(d)
-	case ownershiptest.AskedRecorders:
+	case ownershiptest.AskedRecordingManagers:
 		holds = r.recordersHold(d)
-	case ownershiptest.AskedInventory:
+	case ownershiptest.AskedMembers:
 		holds = r.inventoryHolds(d)
 	}
 	switch {
@@ -220,7 +220,7 @@ func (r *rechecking) recordersHold(d ownershiptest.Difference) bool {
 		return recorded || elsewhere || unreadable
 	}
 	for range answers {
-		fresh := r.cache.Recorders(d.Ref)
+		fresh := r.cache.RecordingManagers(d.Ref)
 		if !slices.Equal(fresh.Gaps, d.WantGaps) {
 			return false
 		}
@@ -232,12 +232,12 @@ func (r *rechecking) recordersHold(d ownershiptest.Difference) bool {
 			seen[m] = true
 			return r.exists[m] && says(lists(r.current[m], d.Ref))
 		}
-		for _, c := range fresh.Recorders {
+		for _, c := range fresh.Managers {
 			if !named(c.Ref, func(recorded, _, _ bool) bool { return recorded }) || !ownershiptest.SameObservation(c, ownershiptest.Observe(r.current[c.Ref])) {
 				return false
 			}
 		}
-		for _, m := range fresh.Elsewhere {
+		for _, m := range fresh.Remote {
 			if !named(m, func(_, elsewhere, _ bool) bool { return elsewhere }) {
 				return false
 			}
@@ -257,7 +257,7 @@ func (r *rechecking) recordersHold(d ownershiptest.Difference) bool {
 			if seen[m] || !ownership.IsRecordingManager(m.GroupKind()) || unread(fresh.Gaps, m) {
 				continue
 			}
-			inv := r.cache.Inventory(m)
+			inv := r.cache.Members(m)
 			cached := inv.Manager.State == ownership.Present && (inv.Membership == ownership.MembersUnreadable || slices.Contains(inv.Members, d.Ref))
 			if mentions(o) || cached {
 				suspects = append(suspects, m)
@@ -277,7 +277,7 @@ func (r *rechecking) recordersHold(d ownershiptest.Difference) bool {
 // inventoryHolds: the fresh read of the manager matches its current copy, and
 // so does what it says of its members.
 func (r *rechecking) inventoryHolds(d ownershiptest.Difference) bool {
-	fresh := r.cache.Inventory(d.Ref)
+	fresh := r.cache.Members(d.Ref)
 	if !r.exists[d.Ref] {
 		return fresh.Manager.State == ownership.Absent
 	}

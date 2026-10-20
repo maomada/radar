@@ -125,9 +125,9 @@ type session struct {
 	// unwatched holds why each resource with no watched version is unread
 	// ("" for a watched one).
 	unwatched map[schema.GroupResource]readreason.Code
-	// recordersRead, set only by tests, runs after Recorders reads a manager
+	// recordingManagersRead, set only by tests, runs after RecordingManagers reads a manager
 	// kind, with the keys it read together.
-	recordersRead func(kind resourceid.GroupKind, keys []string)
+	recordingManagersRead func(kind resourceid.GroupKind, keys []string)
 }
 
 type servedKey struct {

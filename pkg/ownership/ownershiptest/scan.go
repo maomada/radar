@@ -315,11 +315,11 @@ func compareGaps(a, b ownership.Gap) int {
 // names them.
 var managers = []resourceid.GroupKind{ownership.ArgoApplication, ownership.FluxHelmRelease, ownership.FluxKustomization}
 
-func (s scanSession) Inventory(manager resourceid.Ref) ownership.InventoryRead {
+func (s scanSession) Members(manager resourceid.Ref) ownership.MembersRead {
 	if !slices.Contains(managers, manager.GroupKind()) {
-		return ownership.InventoryRead{Manager: unavailable(manager, readreason.ReadError)}
+		return ownership.MembersRead{Manager: unavailable(manager, readreason.ReadError)}
 	}
-	r := ownership.InventoryRead{Manager: s.Object(manager)}
+	r := ownership.MembersRead{Manager: s.Object(manager)}
 	if r.Manager.State != ownership.Present {
 		return r
 	}
@@ -362,10 +362,10 @@ func (s scanSession) nameable(ref resourceid.Ref) readreason.Code {
 	return ""
 }
 
-func (s scanSession) Recorders(ref resourceid.Ref) ownership.RecorderRead {
-	var r ownership.RecorderRead
+func (s scanSession) RecordingManagers(ref resourceid.Ref) ownership.RecordingManagersRead {
+	var r ownership.RecordingManagersRead
 	if reason := s.nameable(ref); reason != "" {
-		r.Unnamed = true
+		r.TargetUnresolvable = true
 		r.Gaps = []ownership.Gap{{Kind: ref.GroupKind(), Namespace: ref.Namespace, Reason: reason}}
 		return r
 	}
@@ -408,14 +408,14 @@ func (s scanSession) Recorders(ref resourceid.Ref) ownership.RecorderRead {
 				r.Unreadable = append(r.Unreadable, o.Ref)
 			case !slices.Contains(o.Members, ref):
 			case o.Membership == ownership.MembersRecorded:
-				r.Recorders = append(r.Recorders, observation(o))
+				r.Managers = append(r.Managers, observation(o))
 			case o.Membership == ownership.MembersRemote:
-				r.Elsewhere = append(r.Elsewhere, o.Ref)
+				r.Remote = append(r.Remote, o.Ref)
 			}
 		}
 	}
-	slices.SortFunc(r.Recorders, func(a, b ownership.Observation) int { return compareRefs(a.Ref, b.Ref) })
-	slices.SortFunc(r.Elsewhere, compareRefs)
+	slices.SortFunc(r.Managers, func(a, b ownership.Observation) int { return compareRefs(a.Ref, b.Ref) })
+	slices.SortFunc(r.Remote, compareRefs)
 	slices.SortFunc(r.Unreadable, compareRefs)
 	slices.SortFunc(r.Gaps, compareGaps)
 	r.Gaps = slices.Compact(r.Gaps)

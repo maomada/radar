@@ -33,12 +33,12 @@ type ReadSession interface {
 	// domain whose owner references name uid, at most limit of them (0 for
 	// no limit). It does no I/O and waits for nothing.
 	DependentCandidates(uid types.UID, domain SearchScope, limit int) DependentCandidatesRead
-	// Inventory reads the member list in a manager's status; a manager must
+	// Members reads the member list in a manager's status; a manager must
 	// be of a RecordingManagers kind. It does no I/O and waits for nothing.
-	Inventory(manager resourceid.Ref) InventoryRead
-	// Recorders finds the local managers, in every namespace, whose member
+	Members(manager resourceid.Ref) MembersRead
+	// RecordingManagers finds the local managers, in every namespace, whose member
 	// lists name ref. It does no I/O and waits for nothing.
-	Recorders(ref resourceid.Ref) RecorderRead
+	RecordingManagers(ref resourceid.Ref) RecordingManagersRead
 	// ValidateStores returns nil if every store the session read is still the one
 	// serving what it served then, and no version of a resource it read, left
 	// unread because nothing watched it then, is watched now; otherwise
