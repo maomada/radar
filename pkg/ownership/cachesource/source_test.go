@@ -179,7 +179,7 @@ func (f *fixture) source() *Source {
 	return New(func() Caches { return f.caches })
 }
 
-func begin(t *testing.T, s *Source) ownership.Session {
+func begin(t testing.TB, s *Source) ownership.Session {
 	t.Helper()
 	session, err := s.Begin()
 	if err != nil {
