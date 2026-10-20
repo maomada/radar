@@ -2,7 +2,7 @@
 import { act, type InputHTMLAttributes, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChartSourceStatus, HelmRepository, SourceUpgradeSelection } from '../../types'
+import type { ArtifactHubChart, ChartSourceStatus, HelmRepository, SourceUpgradeSelection } from '../../types'
 import { TrackChartSourceDialog } from './TrackChartSourceDialog'
 
 const state = vi.hoisted(() => ({
@@ -12,6 +12,8 @@ const state = vi.hoisted(() => ({
   featureSupported: true,
   associateSource: vi.fn(),
   addRepository: vi.fn(),
+  addOCI: vi.fn(),
+  searchCharts: [] as ArtifactHubChart[],
 }))
 
 vi.mock('@skyhook-io/k8s-ui/components/ui/DialogPortal', () => ({
@@ -19,6 +21,7 @@ vi.mock('@skyhook-io/k8s-ui/components/ui/DialogPortal', () => ({
 }))
 vi.mock('@skyhook-io/k8s-ui', () => ({
   Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
+  Badge: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }))
 vi.mock('../settings/OperatorManagedNotice', () => ({ OperatorManagedNotice: () => null }))
 vi.mock('../../api/client', () => {
@@ -32,7 +35,8 @@ vi.mock('../../api/client', () => {
     useCapabilities: () => ({ data: { configManagement: 'local' } }),
     useCloudRole: () => ({ canAtLeast: () => state.isOwner }),
     useAddHelmRepository: () => ({ mutate: state.addRepository, isPending: false }),
-    useAddOCISource: () => idle,
+    useAddOCISource: () => ({ ...idle, mutate: state.addOCI }),
+    useArtifactHubSearch: () => ({ data: { charts: state.searchCharts }, isFetching: false, error: null, refetch: vi.fn() }),
     useRemoveOCISource: () => idle,
     useSetHelmSource: () => ({ ...idle, mutate: state.associateSource }),
   }
@@ -56,6 +60,8 @@ beforeEach(() => {
   state.featureSupported = true
   state.associateSource.mockReset()
   state.addRepository.mockReset()
+  state.addOCI.mockReset()
+  state.searchCharts = []
   const element = document.createElement('div')
   document.body.appendChild(element)
   root = createRoot(element)
@@ -189,4 +195,53 @@ it('shows the no-source hint when the backend omits empty suggestions', async ()
  state.status = { configured: false, available: false, revision: 1 }
  await renderDialog(vi.fn())
  expect(document.body.textContent).toContain('No configured sources found. Add a repository or OCI source.')
+})
+
+describe('public source discovery', () => {
+  const chart: ArtifactHubChart = { packageId: 'podinfo', name: 'podinfo', version: '6.11.1', stars: 0, repository: { name: 'podinfo', url: recordedURL } }
+
+  async function search() {
+    const button = Array.from(document.querySelectorAll('button')).find(item => item.textContent === 'Search ArtifactHub')
+    await act(async () => button?.click())
+  }
+
+  it('adds a discovered HTTP repository without binding or selecting it, preserving an occupied alias', async () => {
+    state.searchCharts = [chart]
+    state.repositories = [{ name: 'podinfo', url: 'https://other.example.test' }]
+    const select = vi.fn()
+    await renderDialog(select)
+    await search()
+    const button = document.querySelector<HTMLButtonElement>(`button[aria-label="Add source: ${recordedURL}"]`)
+    await act(async () => button?.click())
+    expect(state.addRepository).toHaveBeenCalledWith({ name: 'podinfo-2', url: recordedURL }, expect.anything())
+    expect(state.associateSource).not.toHaveBeenCalled()
+    expect(select).not.toHaveBeenCalled()
+  })
+
+  it('registers the OCI parent prefix rather than duplicating the chart name', async () => {
+    state.searchCharts = [{ ...chart, repository: { name: 'podinfo', url: 'oci://ghcr.io/stefanprodan/charts/podinfo' } }]
+    await renderDialog()
+    await search()
+    const button = document.querySelector<HTMLButtonElement>('button[aria-label^="Add source:"]')
+    await act(async () => button?.click())
+    expect(state.addOCI).toHaveBeenCalledWith('oci://ghcr.io/stefanprodan/charts', expect.anything())
+    expect(state.associateSource).not.toHaveBeenCalled()
+  })
+
+  it('does not add an already configured URL under a second alias', async () => {
+    state.searchCharts = [chart]
+    state.repositories = [{ name: 'existing', url: `${recordedURL}/` }]
+    await renderDialog()
+    await search()
+    expect(document.body.textContent).toContain('Already configured.')
+    expect(document.querySelector('button[aria-label^="Add source:"]')).toBeNull()
+  })
+
+  it('does not let non-owners add discovered sources', async () => {
+    state.searchCharts = [chart]
+    state.isOwner = false
+    await renderDialog()
+    await search()
+    expect(document.querySelector<HTMLButtonElement>('button[aria-label^="Add source:"]')?.disabled).toBe(true)
+  })
 })

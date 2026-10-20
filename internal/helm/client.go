@@ -3128,7 +3128,7 @@ func (c *Client) ListRepositories() ([]HelmRepository, error) {
 	repoFile := c.settings.RepositoryConfig
 	f, err := repo.LoadFile(repoFile)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return []HelmRepository{}, nil
 		}
 		return nil, fmt.Errorf("failed to load repo file: %w", err)
@@ -4065,6 +4065,7 @@ type artifactHubRepo struct {
 	Official          bool   `json:"official"`
 	VerifiedPublisher bool   `json:"verified_publisher"`
 	OrganizationName  string `json:"organization_name,omitempty"`
+	UserAlias         string `json:"user_alias,omitempty"`
 	DisplayName       string `json:"organization_display_name,omitempty"`
 }
 
@@ -4126,6 +4127,7 @@ func convertArtifactHubPackage(pkg artifactHubPackage) ArtifactHubChart {
 			Official:          pkg.Repository.Official,
 			VerifiedPublisher: pkg.Repository.VerifiedPublisher,
 			OrganizationName:  pkg.Repository.OrganizationName,
+			UserAlias:         pkg.Repository.UserAlias,
 		},
 	}
 

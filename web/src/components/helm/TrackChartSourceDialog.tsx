@@ -4,6 +4,7 @@ import { AlertTriangle, Link2, Plus, Trash2, X } from 'lucide-react'
 import { Input } from '@skyhook-io/k8s-ui'
 import { useAddHelmRepository, useAddOCISource, useCapabilities, useCloudRole, useClusterInfo, useHelmOCISources, useHelmRepositories, useHelmSourceStatus, useRemoveOCISource, useSetHelmSource, useRadarFeature } from '../../api/client'
 import { OperatorManagedNotice } from '../settings/OperatorManagedNotice'
+import { ArtifactHubSourceSearch } from './ArtifactHubSourceSearch'
 import type { ChartSourceStatus, HelmRepository, UpgradeInfo, SourceUpgradeSelection } from '../../types'
 
 interface TrackChartSourceDialogProps {
@@ -146,7 +147,7 @@ export function TrackChartSourceDialog({ operationError, onSelectUpgradeSource, 
   return <DialogPortal ariaLabelledBy={titleId} open={open} onClose={onClose} className="max-w-2xl w-full">
     <div className="flex items-start gap-3 p-4 border-b border-theme-border">
       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-theme-hover"><Link2 className="w-5 h-5" /></div>
-      <div className="flex-1 min-w-0"><h3 id={titleId} className="text-lg font-semibold">Track chart source</h3><p className="text-sm text-theme-text-secondary mt-1">Tell Radar which repository or OCI source this release was installed from. Upgrades then come only from that source.</p></div>
+      <div className="flex-1 min-w-0"><h3 id={titleId} className="text-lg font-semibold">Track chart source</h3><p className="text-sm text-theme-text-secondary mt-1">Choose a source for the next upgrade, or verify and record the original source.</p></div>
       <button onClick={onClose} aria-label="Close" className="p-1 rounded hover:bg-theme-elevated"><X className="w-5 h-5" /></button>
     </div>
     <div className="p-4 space-y-4">
@@ -190,6 +191,15 @@ export function TrackChartSourceDialog({ operationError, onSelectUpgradeSource, 
         <div className="space-y-2">{status.candidates.filter(candidate => !status.confirmed || !recorded || (candidate.type === recorded.type && (candidate.url ?? candidate.reference) === (recorded.url ?? recorded.reference))).map(candidate => <button key={`${candidate.type}:${candidate.url ?? candidate.reference}`} onClick={() => setSource.mutate(candidate, { onSuccess: onClose })} disabled={setSource.isPending || statusFetching || status.changing} className="w-full text-left rounded-lg border border-theme-border px-3 py-2 hover:border-accent disabled:opacity-50"><span className="text-xs uppercase text-theme-text-tertiary">{candidate.type}</span><span className="block font-mono text-sm break-all">{candidate.url ?? candidate.reference}</span><span className="text-xs text-accent">Record as original source</span></button>)}</div>
         {status.candidates.length > 1 && <p className="text-xs text-amber-600 mt-2">Multiple sources list this chart name and version. Select the original source; Radar compares the stored chart before recording it.</p>}
       </div>}
+      {open && chartName && sourceFeature.support === 'supported' && <ArtifactHubSourceSearch key={`${namespace}/${releaseName}/${chartName}`} chartName={chartName}
+        disabled={Boolean(!canEditSources || repositoriesLoading || statusFetching || !status || status.changing || addRepository.isPending || addOCI.isPending)}
+        isConfigured={source => source.type === 'oci'
+          ? (ociSources ?? []).some(prefix => prefix.replace(/\/+$/, '') === source.prefix)
+          : (repositories ?? []).some(repository => repository.url.replace(/\/+$/, '') === source.url)}
+        onAdd={(chart, source) => {
+          if (source.type === 'oci') addOCI.mutate(source.prefix, { onSuccess: () => { void refetchStatus() } })
+          else addRepository.mutate({ name: recordedRepositoryName(chart.repository.name, repositories ?? []), url: source.url }, { onSuccess: () => { void refetchStatus() } })
+        }} />}
       <form onSubmit={addRepositoryAndAssociate} className="space-y-2">
         <p className="text-xs uppercase tracking-wide text-theme-text-tertiary">Add chart repository</p>
 		<div className="grid grid-cols-1 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.8fr)_auto] gap-2"><Input value={repositoryName} onChange={event => setRepositoryName(event.target.value)} placeholder="Repository name" disabled={!canEditSources} /><Input value={repositoryURL} onChange={event => setRepositoryURL(event.target.value)} placeholder="https://charts.example.com" disabled={!canEditSources} /><button type="submit" disabled={!canEditSources || !repositoryName.trim() || !isValidHelmRepositoryURL(repositoryURL) || addRepository.isPending} className="btn-brand inline-flex items-center justify-center gap-1 px-3 py-2"><Plus className="w-4 h-4" /> Add</button></div>

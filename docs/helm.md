@@ -136,6 +136,8 @@ Radar identifies a chart by its repository URL and chart name. Local repository 
 
 Normal upgrades use the saved source. If no source is confirmed, use **Choose chart source** in the release drawer. The picker shows the last recorded source first, followed by other configured sources. A name match is a suggestion, not proof of where the release was installed from.
 
+If you do not know the public repository address, choose **Search ArtifactHub** in the picker. This sends the chart name to ArtifactHub only after you click. Results show exact chart-name matches, repository addresses and publisher information when available. Add a repository or register an OCI source, then use the existing source confirmation or upgrade preview controls. Search results and ArtifactHub badges do not establish the installed chart's origin. Private sources can still be added manually.
+
 You can associate an original source when its installed package matches the chart Helm stored. Older source records may need confirmation again if they lack a chart binding or a later Helm command changed the chart. This comparison cannot establish the origin of identical copies or verify subchart bodies Helm omitted from release storage.
 
 Values-only edits can use the chart Helm stored. If Helm omitted dependencies from an umbrella chart, record its original source so Radar can restore the exact installed package before editing values.

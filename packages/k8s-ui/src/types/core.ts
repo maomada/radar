@@ -1239,6 +1239,7 @@ export interface ArtifactHubRepository {
   official?: boolean
   verifiedPublisher?: boolean
   organizationName?: string
+  userAlias?: string
 }
 
 // ArtifactHub security report summary

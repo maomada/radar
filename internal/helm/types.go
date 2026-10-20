@@ -468,6 +468,7 @@ type ArtifactHubRepository struct {
 	Official          bool   `json:"official,omitempty"`
 	VerifiedPublisher bool   `json:"verifiedPublisher,omitempty"`
 	OrganizationName  string `json:"organizationName,omitempty"`
+	UserAlias         string `json:"userAlias,omitempty"`
 }
 
 // ArtifactHubSecurity contains security report summary
