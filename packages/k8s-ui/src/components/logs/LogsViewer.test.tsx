@@ -29,6 +29,23 @@ class ApiError extends Error {
 
 const NO_EARLIER_RUN = 'This container has not restarted, so there is no earlier run to show.'
 
+it('keeps received logs visible and reports a node failure until streaming is restarted', async () => {
+  const fetchLogs = vi.fn(async () => ({ app: '' }))
+  await renderViewer(fetchLogs, true)
+  await act(async () => FakeEventSource.last?.emit('connected', {}))
+  await act(async () => FakeEventSource.last?.emit('log', { timestamp: '2026-10-20T10:00:00Z', content: 'before failure', container: 'app' }))
+  // The buffer batches streamed records before rendering them.
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 100)) })
+  await act(async () => FakeEventSource.last?.emit('error', { error: 'Kubernetes did not return this container\'s logs', error_code: 'logs_unavailable' }))
+  expect(element.querySelector('[role="alert"]')?.textContent).toContain('Kubernetes did not return')
+  expect(element.textContent).toContain('Previously loaded logs remain below.')
+  expect(element.textContent).toContain('OTHER 1')
+  expect(FakeEventSource.last?.closed).toBe(true)
+  await act(async () => button('Stream').click())
+  await act(async () => FakeEventSource.last?.emit('connected', {}))
+  expect(element.querySelector('[role="alert"]')).toBeNull()
+})
+
 let root: Root
 let element: HTMLDivElement
 beforeEach(() => {

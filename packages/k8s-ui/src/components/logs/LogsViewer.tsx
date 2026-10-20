@@ -241,6 +241,9 @@ export function LogsViewer({
   const streamAnswer = isClusterAnswerCode(streamErrorCode) ? streamError : null
 
   return (
+    <div className="flex h-full min-h-0 flex-col">
+    {(fetchError || streamError) && entries.length > 0 && <div role="alert" className="shrink-0 border-b border-theme-border bg-theme-surface px-3 py-2 text-xs text-theme-text-secondary">{fetchError || streamError} · Previously loaded logs remain below.</div>}
+    <div className="min-h-0 flex-1">
     <LogCore
       entries={entries}
       isFollowing={isFollowing}
@@ -250,7 +253,7 @@ export function LogsViewer({
       missingLineCount={missingLineCount}
       getRetainedEntries={getRetainedEntries}
       isLoading={isLoading || isConnecting}
-      errorMessage={fetchError || (entries.length === 0 && !emptyMessage && !streamAnswer ? streamError : null)}
+      errorMessage={entries.length === 0 ? fetchError || (!emptyMessage && !streamAnswer ? streamError : null) : null}
       isStreaming={isStreaming}
       onStartStream={createStream ? handleStartStreaming : undefined}
       onStopStream={handleStopStreaming}
@@ -262,5 +265,7 @@ export function LogsViewer({
       forceDark={forceDark}
       defaultDark={defaultDark}
     />
+    </div>
+    </div>
   )
 }
