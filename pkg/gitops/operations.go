@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -820,36 +821,37 @@ func RollbackArgoApp(ctx context.Context, dynClient dynamic.Interface, namespace
 // explicit operation marker records rollback intent; a later sync replaces
 // that evidence.
 func ArgoSuccessfulRollback(app *unstructured.Unstructured) (revision, username string) {
-	targets, revisions, username := argoCompletedRollbackRevisions(app)
-	if len(revisions) == 0 || !slices.Equal(targets, revisions) {
+	targets, revisions, username, sourcesMismatch := argoCompletedRollbackRevisions(app)
+	if len(revisions) == 0 || !slices.Equal(targets, revisions) || sourcesMismatch {
 		return "", ""
 	}
 	return strings.Join(revisions, ", "), username
 }
 
 // ArgoRollbackRevisionMismatch returns the requested and applied revisions when
-// a completed, marked rollback deployed different revisions. A successful
+// a completed, marked rollback deployed different sources or revisions. The
+// returned revisions can be equal when only sources differ. A successful
 // operation phase alone does not prove the controller honored the target.
 func ArgoRollbackRevisionMismatch(app *unstructured.Unstructured) (target, applied string) {
-	targets, revisions, _ := argoCompletedRollbackRevisions(app)
-	if len(targets) == 0 || len(revisions) == 0 || slices.Equal(targets, revisions) {
+	targets, revisions, _, sourcesMismatch := argoCompletedRollbackRevisions(app)
+	if len(targets) == 0 || len(revisions) == 0 || (slices.Equal(targets, revisions) && !sourcesMismatch) {
 		return "", ""
 	}
 	return strings.Join(targets, ", "), strings.Join(revisions, ", ")
 }
 
-func argoCompletedRollbackRevisions(app *unstructured.Unstructured) (targets, revisions []string, username string) {
+func argoCompletedRollbackRevisions(app *unstructured.Unstructured) (targets, revisions []string, username string, sourcesMismatch bool) {
 	phase, _, _ := unstructured.NestedString(app.Object, "status", "operationState", "phase")
 	if phase != "Succeeded" || argoOperationInProgress(app) {
-		return nil, nil, ""
+		return nil, nil, "", false
 	}
 	operation, _, _ := unstructured.NestedMap(app.Object, "status", "operationState", "operation")
 	if !argoOperationHasInfo(operation, argoRollbackInfoName, "true") {
-		return nil, nil, ""
+		return nil, nil, "", false
 	}
 	dryRun, _, _ := unstructured.NestedBool(operation, "sync", "dryRun")
 	if dryRun {
-		return nil, nil, ""
+		return nil, nil, "", false
 	}
 	targets, _, _ = unstructured.NestedStringSlice(operation, "sync", "revisions")
 	revisions, _, _ = unstructured.NestedStringSlice(app.Object, "status", "operationState", "syncResult", "revisions")
@@ -861,7 +863,21 @@ func argoCompletedRollbackRevisions(app *unstructured.Unstructured) (targets, re
 		}
 	}
 	username, _, _ = unstructured.NestedString(operation, "initiatedBy", "username")
-	return targets, revisions, username
+	sync, _, _ := unstructured.NestedMap(operation, "sync")
+	result, _, _ := unstructured.NestedMap(app.Object, "status", "operationState", "syncResult")
+	targetSources, resultSources := argoSyncSources(sync), argoSyncSources(result)
+	sourcesMismatch = len(targetSources) > 0 && len(resultSources) > 0 && !reflect.DeepEqual(targetSources, resultSources)
+	return targets, revisions, username, sourcesMismatch
+}
+
+func argoSyncSources(sync map[string]any) []any {
+	if sources, _ := sync["sources"].([]any); len(sources) > 0 {
+		return sources
+	}
+	if !jsonValueIsZero(sync["source"]) {
+		return []any{sync["source"]}
+	}
+	return nil
 }
 
 // Argo merge-patches operation state, so omitted fields from a completed

@@ -605,18 +605,22 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 		} else if phase == "Running" {
 			out = append(out, Issue{Severity: SeverityInfo, Scope: ScopeOperation, Reason: "Running", Message: "A sync operation is currently running.", Action: "Wait for completion or terminate if it is stuck."})
 		} else if target, applied := gitops.ArgoRollbackRevisionMismatch(root); target != "" {
-			cause := "Argo CD applied a different revision than the rollback requested."
+			message := "Last rollback deployed different sources or revisions than requested."
+			if target != applied {
+				message = "Last rollback deployed different sources or revisions than requested: " + applied + " instead of " + target + "."
+			}
+			cause := "Argo CD applied different sources or revisions than the rollback requested."
 			action := "Sync the intended revision manually, then check the result."
 			sync, _, _ := unstructured.NestedMap(root.Object, "status", "operationState", "operation", "sync")
 			if sync["revisions"] != nil || sync["sources"] != nil {
-				cause = "Argo CD before 2.12 ignores a multi-source history entry's revisions and syncs the current ones."
+				cause = "Argo CD 2.11 can ignore a multi-source history entry's sources and revisions and sync the current ones."
 				action = "Check the Argo CD controller version, then sync the intended revision manually."
 			}
 			out = append(out, Issue{
 				Severity: SeverityWarning,
 				Scope:    ScopeOperation,
 				Reason:   "RollbackRevisionMismatch",
-				Message:  "Last rollback deployed " + applied + " instead of the requested " + target + ".",
+				Message:  message,
 				Cause:    cause,
 				Action:   action,
 			})
@@ -2142,7 +2146,7 @@ func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured) *Issue {
 			Scope:    ScopeOperation,
 			Reason:   "RolledBack",
 			Message:  message + ".",
-			Cause:    "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git " + revisionLabel + " and undoes the rollback.",
+			Cause:    "Auto-sync is off, so Argo won't deploy a new revision on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current " + revisionLabel + " and can undo the rollback.",
 		}
 	}
 	return &Issue{

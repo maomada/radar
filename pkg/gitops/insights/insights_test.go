@@ -835,7 +835,7 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 		{
 			name: "multi-source result names every revision", reason: "RolledBack",
 			message: "Last rollback deployed rev-a, rev-b by alice.",
-			cause:   "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git revisions and undoes the rollback.",
+			cause:   "Auto-sync is off, so Argo won't deploy a new revision on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current revisions and can undo the rollback.",
 			mutate: func(u *unstructured.Unstructured) {
 				unstructured.RemoveNestedField(u.Object, "status", "operationState", "syncResult", "revision")
 				_ = unstructured.SetNestedStringSlice(u.Object, []string{"rev-a", "rev-b"}, "status", "operationState", "syncResult", "revisions")
@@ -869,7 +869,7 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 		},
 		{
 			name: "marker with a different applied revision warns", reason: "RollbackRevisionMismatch",
-			message: "Last rollback deployed rev-new instead of the requested rev-old.",
+			message: "Last rollback deployed different sources or revisions than requested: rev-new instead of rev-old.",
 			mutate: func(u *unstructured.Unstructured) {
 				_ = unstructured.SetNestedField(u.Object, "rev-new", "status", "operationState", "syncResult", "revision")
 			},
@@ -925,7 +925,7 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 			if tc.reason == "RolledBack" {
 				wantCause := tc.cause
 				if wantCause == "" {
-					wantCause = "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git revision and undoes the rollback."
+					wantCause = "Auto-sync is off, so Argo won't deploy a new revision on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current revision and can undo the rollback."
 				}
 				if issue.Cause != wantCause {
 					t.Fatalf("cause = %q, want %q", issue.Cause, wantCause)
@@ -2245,10 +2245,10 @@ func TestBuildIssuesArgoRollbackRevisionMismatch(t *testing.T) {
 					t.Fatalf("expected one mismatch warning, got %+v", issues)
 				}
 				issue := issues[0]
-				if issue.Reason != "RollbackRevisionMismatch" || issue.Severity != SeverityWarning || issue.Scope != ScopeOperation || issue.Message != "Last rollback deployed new-a, new-b instead of the requested old-a, old-b." {
+				if issue.Reason != "RollbackRevisionMismatch" || issue.Severity != SeverityWarning || issue.Scope != ScopeOperation || issue.Message != "Last rollback deployed different sources or revisions than requested: new-a, new-b instead of old-a, old-b." {
 					t.Fatalf("unexpected mismatch warning: %+v", issue)
 				}
-				if issue.Cause != "Argo CD before 2.12 ignores a multi-source history entry's revisions and syncs the current ones." || issue.Action != "Check the Argo CD controller version, then sync the intended revision manually." {
+				if issue.Cause != "Argo CD 2.11 can ignore a multi-source history entry's sources and revisions and sync the current ones." || issue.Action != "Check the Argo CD controller version, then sync the intended revision manually." {
 					t.Fatalf("unexpected recovery advice: %+v", issue)
 				}
 			})
@@ -2272,7 +2272,7 @@ func TestBuildIssuesArgoSingleSourceRollbackMismatchDoesNotBlameMultiSource(t *t
 	if len(issues) != 1 || issues[0].Reason != "RollbackRevisionMismatch" {
 		t.Fatalf("expected one mismatch warning, got %+v", issues)
 	}
-	if issues[0].Cause != "Argo CD applied a different revision than the rollback requested." || issues[0].Action != "Sync the intended revision manually, then check the result." {
+	if issues[0].Cause != "Argo CD applied different sources or revisions than the rollback requested." || issues[0].Action != "Sync the intended revision manually, then check the result." {
 		t.Fatalf("single-source mismatch advice = %+v", issues[0])
 	}
 }
@@ -2293,6 +2293,28 @@ func TestBuildHistoryArgoMultiSourceWarning(t *testing.T) {
 			history := BuildHistory(root)
 			if len(history) != 1 || history[0].MultiSource != tc.want {
 				t.Fatalf("history = %+v, want multiSource=%v", history, tc.want)
+			}
+		})
+	}
+}
+
+func TestBuildIssuesArgoRollbackSourceMismatch(t *testing.T) {
+	for _, syncStatus := range []string{"Synced", "OutOfSync"} {
+		t.Run(syncStatus, func(t *testing.T) {
+			root := argoApp(map[string]any{
+				"sync": map[string]any{"status": syncStatus},
+				"operationState": map[string]any{
+					"phase": "Succeeded",
+					"operation": map[string]any{
+						"info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}},
+						"sync": map[string]any{"revisions": []any{"same"}, "sources": []any{map[string]any{"repoURL": "repo", "path": "historical"}}},
+					},
+					"syncResult": map[string]any{"revisions": []any{"same"}, "sources": []any{map[string]any{"repoURL": "repo", "path": "current"}}, "source": map[string]any{"repoURL": ""}},
+				},
+			})
+			issues := buildIssues(root, nil, "argocd", nil)
+			if len(issues) != 1 || issues[0].Reason != "RollbackRevisionMismatch" || issues[0].Severity != SeverityWarning || issues[0].Message != "Last rollback deployed different sources or revisions than requested." {
+				t.Fatalf("expected source mismatch warning instead of success: %+v", issues)
 			}
 		})
 	}
