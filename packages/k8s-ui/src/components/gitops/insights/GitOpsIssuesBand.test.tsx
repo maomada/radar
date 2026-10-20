@@ -8,9 +8,9 @@ const guard: GitOpsIssue = {
   severity: 'critical',
   scope: 'condition',
   reason: 'AutoSyncBlockedEmpty',
-  message: 'Auto-sync blocked: the rendered desired state is empty',
+  message: 'Auto-sync blocked: the render includes none of the managed resources',
   rawMessage: 'Skipping sync attempt to [8088f4c]: auto-sync will wipe out all resources',
-  cause: 'Argo CD refuses to auto-sync because the render includes none of the resources this Application manages, so a sync would prune them all.',
+  cause: 'Argo CD blocked auto-sync because the render includes none of the resources this Application manages.',
   action: 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation.',
 }
 

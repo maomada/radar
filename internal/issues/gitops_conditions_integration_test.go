@@ -81,7 +81,7 @@ func TestGitOpsConditionsFixtureThroughIssues(t *testing.T) {
 			}
 			switch row.Reason {
 			case "AutoSyncBlockedEmpty":
-				if row.ActionPrimary == "" || row.ActionSecondaryTitle != "If the empty render is intended" || len(row.ActionSecondary) != 2 || row.Action != row.ActionPrimary+" "+strings.Join(row.ActionSecondary, " ") {
+				if row.ActionPrimary == "" || row.ActionSecondaryTitle != "If removing all managed resources is intended" || len(row.ActionSecondary) != 2 || row.Action != row.ActionPrimary+" "+strings.Join(row.ActionSecondary, " ") {
 					t.Fatalf("lost split or complete guidance: %+v", row)
 				}
 				wire, err := json.Marshal(response)

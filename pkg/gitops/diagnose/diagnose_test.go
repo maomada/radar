@@ -303,18 +303,18 @@ func TestActionForFluxReason(t *testing.T) {
 
 func TestParseArgoOperationError_EmptyAutoSync(t *testing.T) {
 	got := ParseArgoOperationError("Skipping sync attempt to [abc123]: auto-sync will wipe out all resources")
-	if !strings.Contains(got.Cause, "the render includes none of the resources this Application manages") {
+	if got.Cause != "Argo CD blocked auto-sync because the render includes none of the resources this Application manages." {
 		t.Fatalf("missing empty-state cause: %+v", got)
 	}
 	// The list row shows the summary; a leading revision SHA would push the
 	// meaning past the truncation point.
-	if got.Reason != ReasonAutoSyncBlockedEmpty || !strings.HasPrefix(got.Summary, "Auto-sync blocked") || strings.Contains(got.Summary, "abc123") {
+	if got.Reason != ReasonAutoSyncBlockedEmpty || got.Summary != "Auto-sync blocked: the render includes none of the managed resources" || strings.Contains(got.Summary, "abc123") {
 		t.Fatalf("summary must lead with the meaning: %+v", got)
 	}
 	if !strings.Contains(got.Action, "A sync with Prune enabled could delete all of them") {
 		t.Fatalf("guard advice must warn against a manual sync: %q", got.Action)
 	}
-	if got.ActionSecondaryTitle != "If the empty render is intended" || len(got.ActionSecondary) != 2 || got.Action != got.ActionPrimary+" "+strings.Join(got.ActionSecondary, " ") {
+	if got.ActionSecondaryTitle != "If removing all managed resources is intended" || len(got.ActionSecondary) != 2 || got.Action != got.ActionPrimary+" "+strings.Join(got.ActionSecondary, " ") {
 		t.Fatalf("must retain complete guidance plus its presentation: %+v", got)
 	}
 	if !strings.Contains(got.ActionSecondary[0], "resources finalizer decides") || !strings.Contains(got.ActionSecondary[0], "ApplicationSet generator") || !strings.Contains(got.ActionSecondary[1], "syncPolicy.automated.allowEmpty: true") || !strings.Contains(got.ActionSecondary[1], "all future syncs") {
@@ -389,7 +389,7 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	}
 	for _, want := range []string{
 		"To leave it with Application live-shared-a, remove it from this Application's source.",
-		"To move it here, first turn off auto-sync on Application live-shared-a and do not sync it manually during the move.",
+		"To move it here, first note whether Application live-shared-a has auto-sync on, and turn it off if so. Do not sync it manually during the move.",
 		"For an ApplicationSet or parent-managed Application, disable auto-sync in the template or Git so it stays off.",
 	} {
 		if !strings.Contains(one, want) {
@@ -398,14 +398,14 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	}
 	last := -1
 	for _, step := range []string{
-		"first turn off auto-sync on Application live-shared-a",
+		"first note whether Application live-shared-a has auto-sync on, and turn it off if so",
 		"disable auto-sync in the template or Git so it stays off",
 		"Finish or terminate any running or retrying operation on Application live-shared-a",
 		"turning off auto-sync does not stop it",
 		"Then sync this Application",
 		"confirm Argo CD lists this Application as the resource's tracker",
 		"remove it from the source of Application live-shared-a",
-		"turn auto-sync back on for Application live-shared-a",
+		"restore Application live-shared-a's previous auto-sync setting",
 	} {
 		at := strings.Index(one, step)
 		if at <= last {

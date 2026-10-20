@@ -961,7 +961,7 @@ func TestDetectArgoAppProblems_EmptyAutoSyncCondition(t *testing.T) {
 				t.Errorf("lost condition evidence: %+v", d)
 			}
 			// Issue lists truncate the message; the revision SHA must not lead it.
-			if !strings.HasPrefix(d.Message, "Auto-sync blocked: the rendered desired state is empty") {
+			if !strings.HasPrefix(d.Message, "Auto-sync blocked: the render includes none of the managed resources") {
 				t.Errorf("message must lead with the meaning: %q", d.Message)
 			}
 			if !strings.Contains(d.Cause, "the render includes none of the resources this Application manages") || !strings.Contains(d.Action, "A sync with Prune enabled") || !strings.Contains(d.Action, "syncPolicy.automated.allowEmpty: true") || !strings.Contains(d.Action, "ApplicationSet") || !strings.Contains(d.Action, "source path") || strings.Contains(d.Action, "retry") {

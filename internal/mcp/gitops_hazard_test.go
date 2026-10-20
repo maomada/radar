@@ -68,7 +68,7 @@ func TestGitOpsEmptyRenderHazardRemainsSelfContainedInMCP(t *testing.T) {
 			}
 		case "AutoSyncBlockedEmpty":
 			foundGuard = true
-			if issue.ActionPrimary == "" || issue.ActionSecondaryTitle != "If the empty render is intended" || len(issue.ActionSecondary) != 2 || issue.Action != issue.ActionPrimary+" "+strings.Join(issue.ActionSecondary, " ") {
+			if issue.ActionPrimary == "" || issue.ActionSecondaryTitle != "If removing all managed resources is intended" || len(issue.ActionSecondary) != 2 || issue.Action != issue.ActionPrimary+" "+strings.Join(issue.ActionSecondary, " ") {
 				t.Fatalf("MCP must retain split and complete guard guidance: %+v", issue)
 			}
 			if !strings.Contains(issue.Action, "ApplicationSet generator") || !strings.Contains(issue.Action, "resources finalizer decides") || !strings.Contains(issue.Action, "syncPolicy.automated.allowEmpty: true") || !strings.Contains(issue.Action, "all future syncs") {

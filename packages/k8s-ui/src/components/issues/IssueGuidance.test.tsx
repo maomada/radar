@@ -15,11 +15,11 @@ const secondary = [
   'If this Application should go away: remove it from the ApplicationSet generator if generated; while the generator still emits it, the ApplicationSet recreates it. For a plain Application, delete the Application (its resources finalizer decides whether managed resources are pruned).',
   'If it should render empty: set syncPolicy.automated.allowEmpty: true in the Application or its ApplicationSet template. This turns off the empty-render guard for all future syncs.',
 ]
-const title = 'If the empty render is intended'
-const cause = 'Argo CD refuses to auto-sync because the render includes none of the resources this Application manages, so a sync would prune them all.'
+const title = 'If removing all managed resources is intended'
+const cause = 'Argo CD blocked auto-sync because the render includes none of the resources this Application manages.'
 const guard: GitOpsIssue = {
   severity: 'critical', scope: 'condition', reason: 'AutoSyncBlockedEmpty',
-  message: 'Auto-sync blocked: the rendered desired state is empty', cause,
+  message: 'Auto-sync blocked: the render includes none of the managed resources', cause,
   action: [primary, ...secondary].join(' '), actionPrimary: primary,
   actionSecondaryTitle: title, actionSecondary: secondary,
 }
