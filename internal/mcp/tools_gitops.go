@@ -124,7 +124,7 @@ func handleManageGitOps(ctx context.Context, req *mcp.CallToolRequest, input man
 		if input.DryRun != nil && *input.DryRun {
 			result.Message = fmt.Sprintf("Rollback dry-run to history #%d initiated for ArgoCD Application %s/%s — preview only; no changes will be applied", *input.HistoryID, input.Namespace, input.Name)
 		} else {
-			result.Message += ". Once it succeeds, the application stays on that revision with auto-sync off until you sync or use manage_gitops with tool=argocd and action=resume."
+			result.Message += ". Auto-sync is off. Later changes can still cause drift. Syncing or using manage_gitops with tool=argocd and action=resume deploys current Git and can undo the rollback."
 		}
 	}
 

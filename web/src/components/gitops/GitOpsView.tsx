@@ -900,6 +900,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
             appLabel={`${namespace}/${name}`}
             revision={rollbackTarget?.revision || ''}
             historyId={rollbackTarget?.id}
+            multiSource={rollbackTarget?.multiSource}
             pending={argoRollback.isPending}
             onCancel={() => setRollbackTarget(null)}
             onConfirm={(opts) => {

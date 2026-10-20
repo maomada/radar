@@ -237,6 +237,7 @@ export interface GitOpsHistoryItem {
   // (false when it records no source). Absent on the current-operation row,
   // and on every row from a Radar that predates the field.
   rollbackable?: boolean
+  multiSource?: boolean
 }
 
 export interface GitOpsCapabilities {

@@ -3,6 +3,7 @@ package insights
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -801,7 +802,7 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 		"syncResult": map[string]any{"revision": "rev-old"},
 	}, "status", "operationState")
 
-	wantRollback := "Rolled back to rev-old by radar."
+	wantRollback := "Last rollback deployed rev-old by radar."
 	cases := []struct {
 		name    string
 		mutate  func(*unstructured.Unstructured)
@@ -826,15 +827,15 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 		},
 		{
 			name: "unknown user omitted", reason: "RolledBack",
-			message: "Rolled back to rev-old.",
+			message: "Last rollback deployed rev-old.",
 			mutate: func(u *unstructured.Unstructured) {
 				unstructured.RemoveNestedField(u.Object, "status", "operationState", "operation", "initiatedBy")
 			},
 		},
 		{
 			name: "multi-source result names every revision", reason: "RolledBack",
-			message: "Rolled back to rev-a, rev-b by alice.",
-			cause:   "It stays on these revisions with auto-sync off until you sync or enable auto-sync.",
+			message: "Last rollback deployed rev-a, rev-b by alice.",
+			cause:   "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git revisions and undoes the rollback.",
 			mutate: func(u *unstructured.Unstructured) {
 				unstructured.RemoveNestedField(u.Object, "status", "operationState", "syncResult", "revision")
 				_ = unstructured.SetNestedStringSlice(u.Object, []string{"rev-a", "rev-b"}, "status", "operationState", "syncResult", "revisions")
@@ -867,7 +868,8 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 			},
 		},
 		{
-			name: "marker with a different applied revision is not proof", reason: "ManualDrift",
+			name: "marker with a different applied revision warns", reason: "RollbackRevisionMismatch",
+			message: "Last rollback deployed rev-new instead of the requested rev-old.",
 			mutate: func(u *unstructured.Unstructured) {
 				_ = unstructured.SetNestedField(u.Object, "rev-new", "status", "operationState", "syncResult", "revision")
 			},
@@ -923,7 +925,7 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 			if tc.reason == "RolledBack" {
 				wantCause := tc.cause
 				if wantCause == "" {
-					wantCause = "It stays on this revision with auto-sync off until you sync or enable auto-sync."
+					wantCause = "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git revision and undoes the rollback."
 				}
 				if issue.Cause != wantCause {
 					t.Fatalf("cause = %q, want %q", issue.Cause, wantCause)
@@ -1078,6 +1080,9 @@ func TestBuildHistoryArgo_MultiSourceEntry(t *testing.T) {
 		}
 	}
 	entry := hist[1]
+	if !entry.MultiSource {
+		t.Error("multi-source history must carry the controller compatibility warning")
+	}
 	if entry.ID != "0" || entry.Source != "https://github.com/org/app · guestbook (+1 more)" {
 		t.Errorf("entry = %+v, want id 0 and the first source plus a count", entry)
 	}
@@ -2240,5 +2245,81 @@ func TestInlineHelmReleaseSummaryKeepsDeclaredSource(t *testing.T) {
 	}}
 	if got := buildSummary(root, "fluxcd").Source; got != "HelmRepository/repo" {
 		t.Fatalf("source summary = %q", got)
+	}
+}
+
+func TestBuildIssuesArgoRollbackRevisionMismatch(t *testing.T) {
+	for _, syncStatus := range []string{"Synced", "OutOfSync"} {
+		for _, automated := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/automated=%v", syncStatus, automated), func(t *testing.T) {
+				root := argoApp(map[string]any{
+					"sync": map[string]any{"status": syncStatus},
+					"operationState": map[string]any{
+						"phase": "Succeeded",
+						"operation": map[string]any{
+							"info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}},
+							"sync": map[string]any{"revisions": []any{"old-a", "old-b"}},
+						},
+						"syncResult": map[string]any{"revisions": []any{"new-a", "new-b"}},
+					},
+				})
+				if automated {
+					_ = unstructured.SetNestedMap(root.Object, map[string]any{}, "spec", "syncPolicy", "automated")
+				}
+				issues := buildIssues(root, nil, "argocd", nil)
+				if len(issues) != 1 {
+					t.Fatalf("expected one mismatch warning, got %+v", issues)
+				}
+				issue := issues[0]
+				if issue.Reason != "RollbackRevisionMismatch" || issue.Severity != SeverityWarning || issue.Scope != ScopeOperation || issue.Message != "Last rollback deployed new-a, new-b instead of the requested old-a, old-b." {
+					t.Fatalf("unexpected mismatch warning: %+v", issue)
+				}
+				if issue.Cause != "Argo CD before 2.12 ignores a multi-source history entry's revisions and syncs the current ones." || issue.Action != "Check the Argo CD controller version, then sync the intended revision manually." {
+					t.Fatalf("unexpected recovery advice: %+v", issue)
+				}
+			})
+		}
+	}
+}
+
+func TestBuildIssuesArgoSingleSourceRollbackMismatchDoesNotBlameMultiSource(t *testing.T) {
+	root := argoApp(map[string]any{
+		"sync": map[string]any{"status": "Synced"},
+		"operationState": map[string]any{
+			"phase": "Succeeded",
+			"operation": map[string]any{
+				"info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}},
+				"sync": map[string]any{"revision": "old"},
+			},
+			"syncResult": map[string]any{"revision": "new"},
+		},
+	})
+	issues := buildIssues(root, nil, "argocd", nil)
+	if len(issues) != 1 || issues[0].Reason != "RollbackRevisionMismatch" {
+		t.Fatalf("expected one mismatch warning, got %+v", issues)
+	}
+	if issues[0].Cause != "Argo CD applied a different revision than the rollback requested." || issues[0].Action != "Sync the intended revision manually, then check the result." {
+		t.Fatalf("single-source mismatch advice = %+v", issues[0])
+	}
+}
+
+func TestBuildHistoryArgoMultiSourceWarning(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		entry map[string]any
+		want  bool
+	}{
+		{name: "singular source", entry: map[string]any{"revision": "a,b", "source": map[string]any{"path": "app"}}},
+		{name: "sources array with one source", entry: map[string]any{"sources": []any{map[string]any{"path": "app"}}}, want: true},
+		{name: "revisions array with one revision", entry: map[string]any{"revisions": []any{"a"}}, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.entry["id"] = int64(0)
+			root := argoApp(map[string]any{"history": []any{tc.entry}})
+			history := BuildHistory(root)
+			if len(history) != 1 || history[0].MultiSource != tc.want {
+				t.Fatalf("history = %+v, want multiSource=%v", history, tc.want)
+			}
+		})
 	}
 }

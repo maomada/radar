@@ -10,6 +10,7 @@ import { GitOpsView } from './GitOpsView'
 const harness = vi.hoisted(() => ({
   rollback: vi.fn(),
   showError: vi.fn(),
+  multiSource: undefined as boolean | undefined,
   confirm: undefined as undefined | ((opts: { prune: boolean; dryRun: boolean }) => void),
 }))
 
@@ -37,10 +38,13 @@ vi.mock('@skyhook-io/k8s-ui', async (importOriginal) => {
       <div>{props.renderTabBody({ tab: 'activity', fullscreen: false })}{props.children}</div>
     ),
     GitOpsActivityInsightView: (props: { onRollback?: (item: GitOpsHistoryItem) => void; rollbackUpgrade?: unknown }) => (
-      <button type="button" disabled={!!props.rollbackUpgrade} onClick={() => props.onRollback?.({ id: '0', revision: 'aaa111' })}>Rollback</button>
+      <button type="button" disabled={!!props.rollbackUpgrade} onClick={() => props.onRollback?.({ id: '0', revision: 'aaa111', multiSource: true })}>Rollback</button>
     ),
-    RollbackDialog: (props: { open: boolean; onConfirm: (opts: { prune: boolean; dryRun: boolean }) => void }) => {
-      if (props.open) harness.confirm = props.onConfirm
+    RollbackDialog: (props: { open: boolean; multiSource?: boolean; onConfirm: (opts: { prune: boolean; dryRun: boolean }) => void }) => {
+      if (props.open) {
+        harness.confirm = props.onConfirm
+        harness.multiSource = props.multiSource
+      }
       return props.open ? <div role="dialog">Roll back?</div> : null
     },
   }
@@ -79,6 +83,7 @@ beforeEach(async () => {
   harness.rollback.mockClear()
   harness.showError.mockClear()
   harness.confirm = undefined
+  harness.multiSource = undefined
   // /api/capabilities and /version-check stay pending until a test answers.
   vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -125,4 +130,11 @@ it('sends history id 0 once capabilities advertise argoRollbackSync', async () =
   await act(async () => rollbackButton().click())
   await act(async () => harness.confirm!({ prune: false, dryRun: false }))
   expect(harness.rollback).toHaveBeenCalledWith(expect.objectContaining({ namespace: 'argocd', name: 'guestbook', id: 0 }), expect.any(Object))
+})
+
+it('passes the selected multi-source history entry to the rollback confirmation', async () => {
+  await act(async () => { client.setQueryData(['capabilities'], { features: { argoRollbackSync: true } }) })
+  await settle()
+  await act(async () => rollbackButton().click())
+  expect(harness.multiSource).toBe(true)
 })

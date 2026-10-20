@@ -8,8 +8,8 @@ function insight(rolledBack: boolean): GitOpsInsight {
     summary: { tool: 'argocd', kind: 'Application', namespace: 'argocd', name: 'demo', autoSyncMode: 'Manual', operationPhase: 'Succeeded' },
     issues: rolledBack ? [{
       reason: 'RolledBack', scope: 'operation', severity: 'info',
-      message: `Rolled back to ${'a'.repeat(40)} by alice.`,
-      cause: 'It stays on this revision with auto-sync off until you sync or enable auto-sync.',
+      message: `Last rollback deployed ${'a'.repeat(40)} by alice.`,
+      cause: "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git revision and undoes the rollback.",
     }] : [],
     changes: [{
       ref: { group: 'apps', kind: 'Deployment', namespace: 'default', name: 'demo' },
@@ -22,8 +22,22 @@ describe('rollback insights', () => {
   it('puts the consequence on a separate line from the full revision', () => {
     const html = renderToString(<GitOpsIssuesBand issues={insight(true).issues} />)
     expect(html).toContain('a'.repeat(40))
-    expect(html).toMatch(/<span class="[^"]*whitespace-normal break-words">Rolled back to/)
-    expect(html).toMatch(/<p class="[^"]*whitespace-normal break-words">It stays on this revision with auto-sync off until you sync or enable auto-sync\.<\/p>/)
+    expect(html).toMatch(/<span class="[^"]*whitespace-normal break-words">Last rollback deployed/)
+    expect(html).toMatch(/<p class="[^"]*whitespace-normal break-words">Auto-sync is off/)
+    expect(html).toContain('Changes made since the rollback can also show as drift.')
+  })
+
+  it('shows the mismatch revisions, compatibility explanation, and recovery advice in full', () => {
+    const message = `Last rollback deployed ${'b'.repeat(40)} instead of the requested ${'a'.repeat(40)}.`
+    const cause = "Argo CD before 2.12 ignores a multi-source history entry's revisions and syncs the current ones."
+    const action = 'Check the Argo CD controller version, then sync the intended revision manually.'
+    const html = renderToString(<GitOpsIssuesBand issues={[{
+      reason: 'RollbackRevisionMismatch', scope: 'operation', severity: 'warning', message, cause, action,
+    }]} />)
+    expect(html).toMatch(/<span class="[^"]*whitespace-normal break-words">Last rollback deployed/)
+    expect(html).toContain(message)
+    expect(html).toMatch(/<p class="[^"]*whitespace-normal break-words">Argo CD before 2.12/)
+    expect(html).toContain(action)
   })
 
   it('explains that resource Sync can undo the rollback', () => {

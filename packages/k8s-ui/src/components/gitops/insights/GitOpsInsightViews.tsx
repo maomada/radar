@@ -593,6 +593,7 @@ function GitOpsCompactIssueStack({ issues, onSelectIssue }: { issues: GitOpsIssu
   const [expanded, setExpanded] = useState(false)
   if (issues.length === 0) return null
   const headline = issues[0]!
+  const rollbackOutcome = headline.reason === 'RolledBack' || headline.reason === 'RollbackRevisionMismatch'
   const remaining = issues.length - 1
   const tone = severityTone(headline.severity)
   const headlineRef = headline.refs?.[0]
@@ -620,7 +621,7 @@ function GitOpsCompactIssueStack({ issues, onSelectIssue }: { issues: GitOpsIssu
         <div className="flex w-full items-center gap-2">
           {tone.icon}
           <span className={clsx('shrink-0 font-semibold', tone.text)}>{headline.reason}</span>
-          <span className={clsx('min-w-0 flex-1 text-theme-text-secondary', headline.reason === 'RolledBack' ? 'whitespace-normal break-words' : 'truncate')}>{headline.message}</span>
+          <span className={clsx('min-w-0 flex-1 text-theme-text-secondary', rollbackOutcome ? 'whitespace-normal break-words' : 'truncate')}>{headline.message}</span>
           {/* Inline count when there are more issues behind the headline.
               Lightweight text — pairs with the chevron as a single disclosure
               unit instead of a separator-bordered count button. */}
@@ -640,7 +641,10 @@ function GitOpsCompactIssueStack({ issues, onSelectIssue }: { issues: GitOpsIssu
           {canExpand && <CollapseChevron open={expanded} className="h-3.5 w-3.5" />}
         </div>
         {headline.cause && (
-          <p className={clsx('pl-[22px] text-[11px] text-theme-text-tertiary', headline.reason === 'RolledBack' ? 'whitespace-normal break-words' : 'truncate')}>{headline.cause}</p>
+          <p className={clsx('pl-[22px] text-[11px] text-theme-text-tertiary', rollbackOutcome ? 'whitespace-normal break-words' : 'truncate')}>{headline.cause}</p>
+        )}
+        {headline.reason === 'RollbackRevisionMismatch' && headline.action && (
+          <p className="pl-[22px] text-[11px] text-theme-text-tertiary whitespace-normal break-words">{headline.action}</p>
         )}
       </button>
       {canExpand && (

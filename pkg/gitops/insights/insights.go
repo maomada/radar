@@ -287,6 +287,7 @@ type HistoryItem struct {
 	// RollbackArgoApp accepts it (gitops.ArgoHistoryEntryRollbackable). Nil on
 	// rows it doesn't apply to, such as the current operation and Flux.
 	Rollbackable *bool `json:"rollbackable,omitempty"`
+	MultiSource  bool  `json:"multiSource,omitempty"`
 }
 
 type Capabilities struct {
@@ -605,6 +606,22 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			out = append(out, *blocked)
 		} else if phase == "Running" {
 			out = append(out, Issue{Severity: SeverityInfo, Scope: ScopeOperation, Reason: "Running", Message: "A sync operation is currently running.", Action: "Wait for completion or terminate if it is stuck."})
+		} else if target, applied := gitops.ArgoRollbackRevisionMismatch(root); target != "" {
+			cause := "Argo CD applied a different revision than the rollback requested."
+			action := "Sync the intended revision manually, then check the result."
+			sync, _, _ := unstructured.NestedMap(root.Object, "status", "operationState", "operation", "sync")
+			if sync["revisions"] != nil || sync["sources"] != nil {
+				cause = "Argo CD before 2.12 ignores a multi-source history entry's revisions and syncs the current ones."
+				action = "Check the Argo CD controller version, then sync the intended revision manually."
+			}
+			out = append(out, Issue{
+				Severity: SeverityWarning,
+				Scope:    ScopeOperation,
+				Reason:   "RollbackRevisionMismatch",
+				Message:  "Last rollback deployed " + applied + " instead of the requested " + target + ".",
+				Cause:    cause,
+				Action:   action,
+			})
 		} else if stuck := detectStuckDriftLoop(root); stuck != nil {
 			// Stuck-drift-loop detector: the user's "this is stuck forever and
 			// nothing tells me why" case. Argo reports the last sync as
@@ -1450,7 +1467,9 @@ func buildHistory(root *unstructured.Unstructured, tool string) []HistoryItem {
 				}
 			}
 			rollbackable := gitops.ArgoHistoryEntryRollbackable(m)
-			out = append(out, HistoryItem{ID: id, Revision: argoRevisionLabel(m), DeployedAt: gitops.StringValue(m["deployedAt"]), Source: argoSourceLabel(m), InitiatedBy: initiatedBy, Rollbackable: &rollbackable})
+			sources, _, _ := unstructured.NestedSlice(m, "sources")
+			revisions, _, _ := unstructured.NestedStringSlice(m, "revisions")
+			out = append(out, HistoryItem{ID: id, Revision: argoRevisionLabel(m), DeployedAt: gitops.StringValue(m["deployedAt"]), Source: argoSourceLabel(m), InitiatedBy: initiatedBy, Rollbackable: &rollbackable, MultiSource: len(sources) > 0 || len(revisions) > 0})
 		}
 		if op, ok, _ := unstructured.NestedMap(root.Object, "status", "operationState"); ok {
 			initiatedBy := ""
@@ -2128,7 +2147,7 @@ func detectStuckDriftLoop(root *unstructured.Unstructured) *Issue {
 // detectManualDriftWithoutAutoSync emits a warning when an Argo Application
 // is OutOfSync but auto-sync is disabled. The user otherwise has no signal
 // that the drift won't resolve on its own. A proven successful rollback
-// instead explains why the app stays on that revision.
+// instead records the last rollback without claiming the live state is unchanged.
 //
 // Returns nil when conditions don't match — caller appends only on hit.
 func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured) *Issue {
@@ -2143,20 +2162,20 @@ func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured) *Issue {
 		return nil
 	}
 	if revision, username := gitops.ArgoSuccessfulRollback(root); revision != "" {
-		message := "Rolled back to " + revision
+		message := "Last rollback deployed " + revision
 		if username != "" {
 			message += " by " + username
 		}
-		revisionLabel := "this revision"
+		revisionLabel := "revision"
 		if revisions, _, _ := unstructured.NestedStringSlice(root.Object, "status", "operationState", "syncResult", "revisions"); len(revisions) > 1 {
-			revisionLabel = "these revisions"
+			revisionLabel = "revisions"
 		}
 		return &Issue{
 			Severity: SeverityInfo,
 			Scope:    ScopeOperation,
 			Reason:   "RolledBack",
 			Message:  message + ".",
-			Cause:    "It stays on " + revisionLabel + " with auto-sync off until you sync or enable auto-sync.",
+			Cause:    "Auto-sync is off, so Argo won't deploy Git again on its own. Changes made since the rollback can also show as drift. Syncing or enabling auto-sync deploys the current Git " + revisionLabel + " and undoes the rollback.",
 		}
 	}
 	return &Issue{
