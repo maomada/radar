@@ -144,6 +144,9 @@ func (s scanSession) Object(ref resourceid.Ref) ownership.ObjectRead {
 	switch {
 	case s.ambiguous(gk):
 		return unavailable(ref, readreason.ReadError)
+	case !served && s.w.Partial:
+		// The group discovery missed may serve it.
+		return unavailable(ref, readreason.ReadError)
 	case !served:
 		return unavailable(ref, readreason.KindUnknown)
 	case namespaced && ref.Namespace == "":
