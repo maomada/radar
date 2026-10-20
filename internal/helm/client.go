@@ -29,6 +29,7 @@ import (
 	pkgauth "github.com/skyhook-io/radar/pkg/auth"
 	"github.com/skyhook-io/radar/pkg/gitops"
 	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/skyhook-io/radar/pkg/prom"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -3175,17 +3176,34 @@ func (c *Client) UpdateRepository(repoName string) error {
 	// Create chart repository and download index
 	chartRepo, err := repo.NewChartRepository(repoEntry, getter.All(c.settings))
 	if err != nil {
-		return fmt.Errorf("failed to create chart repository: %w", err)
+		return fmt.Errorf("failed to create chart repository %q: %s", repoName, prom.RedactURLs(err.Error()))
 	}
 
-	chartRepo.CachePath = c.settings.RepositoryCache
-
-	_, err = chartRepo.DownloadIndexFile()
+	if err := os.MkdirAll(c.settings.RepositoryCache, 0o755); err != nil {
+		return fmt.Errorf("prepare repository cache: %w", err)
+	}
+	stageDir, err := os.MkdirTemp(c.settings.RepositoryCache, ".radar-repository-")
 	if err != nil {
-		return fmt.Errorf("failed to download index: %w", err)
+		return fmt.Errorf("stage repository index: %w", err)
+	}
+	defer os.RemoveAll(stageDir)
+	chartRepo.CachePath = stageDir
+
+	stagedIndex, err := chartRepo.DownloadIndexFile()
+	if err != nil {
+		return fmt.Errorf("failed to download index for repository %q: %s", repoName, prom.RedactURLs(err.Error()))
 	}
 
-	return nil
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	current, err := repo.LoadFile(repoFile)
+	if err != nil {
+		return fmt.Errorf("reload repository configuration: %w", err)
+	}
+	if entry := current.Get(repoName); entry == nil || *entry != *repoEntry {
+		return fmt.Errorf("%w: repository %q changed while refreshing; retry the request", errRepositoryConflict, repoName)
+	}
+	return publishStagedRepositoryCache(stageDir, stagedIndex, c.settings.RepositoryCache)
 }
 
 // SearchCharts searches for charts across all repositories

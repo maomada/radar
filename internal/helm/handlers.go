@@ -1095,7 +1095,7 @@ func (h *Handlers) handleUpdateRepository(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := client.UpdateRepository(repoName); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeChartSourceOperationError(w, err, "refresh-repository", "", repoName)
 		return
 	}
 
