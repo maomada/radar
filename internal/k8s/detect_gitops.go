@@ -378,8 +378,8 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 			setDetectionOnset(&dd, now, outOfSyncAt)
 			dd.Action = "Review the drift in Changes, then Sync the application (or enable auto-sync) if the drift is unintended."
 			if revision, _ := gitops.ArgoSuccessfulRollback(app); revision != "" {
-				dd.Message = "Last rollback deployed " + revision + "; Git points to a different revision and auto-sync is off."
-				dd.Action = "Syncing or enabling auto-sync deploys Git again and undoes the rollback. Fix or revert Git first, or keep holding with auto-sync off. Review Changes for any changes made since the rollback."
+				dd.Message = "Last rollback deployed " + revision + "; the live state differs from the desired state and auto-sync is off."
+				dd.Action = "Syncing or enabling auto-sync applies the current source and can undo the rollback. Fix or revert the source first, or keep auto-sync off. Review Changes for later edits."
 			}
 			out = append(out, dd)
 		}

@@ -24,13 +24,14 @@ export interface RollbackDialogProps {
   appLabel: string
   revision: string
   historyId?: string
+  source?: string
   multiSource?: boolean
   pending?: boolean
   onCancel: () => void
   onConfirm: (opts: { prune: boolean; dryRun: boolean }) => void
 }
 
-export function RollbackDialog({ open, appLabel, revision, historyId, multiSource, pending, onCancel, onConfirm }: RollbackDialogProps) {
+export function RollbackDialog({ open, appLabel, revision, historyId, source, multiSource, pending, onCancel, onConfirm }: RollbackDialogProps) {
   const titleId = useId()
   const [prune, setPrune] = useState(false)
   const [dryRun, setDryRun] = useState(false)
@@ -66,6 +67,12 @@ export function RollbackDialog({ open, appLabel, revision, historyId, multiSourc
               <span className="block truncate font-mono text-theme-text-primary">{revision || '-'}</span>
             </Tooltip>
           </dd>
+          {source && (
+            <>
+              <dt className="text-theme-text-tertiary">Source</dt>
+              <dd className="min-w-0 break-words text-theme-text-primary">{source}</dd>
+            </>
+          )}
           {historyId && (
             <>
               <dt className="text-theme-text-tertiary">History ID</dt>
@@ -74,6 +81,7 @@ export function RollbackDialog({ open, appLabel, revision, historyId, multiSourc
           )}
         </dl>
         <div className="space-y-2">
+          <p className="text-xs text-theme-text-tertiary">Uses the Application's current sync options. Sync hooks don't run.</p>
           <label className="flex items-start gap-2">
             <input
               type="checkbox"
@@ -83,8 +91,8 @@ export function RollbackDialog({ open, appLabel, revision, historyId, multiSourc
               className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-sky-500 disabled:cursor-not-allowed"
             />
             <div className="min-w-0">
-              <div className="text-xs text-theme-text-primary">Prune resources added since this revision</div>
-              <div className="text-[11px] text-theme-text-tertiary">Off by default — leaves any resources created after this revision untouched.</div>
+              <div className="text-xs text-theme-text-primary">Delete tracked resources that aren't in the rollback target</div>
+              <div className="text-[11px] text-theme-text-tertiary">Off by default. The target's resources are still applied; other tracked resources are kept.</div>
             </div>
           </label>
           <label className="flex items-start gap-2">
