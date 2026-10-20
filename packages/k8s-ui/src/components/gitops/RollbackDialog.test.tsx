@@ -24,7 +24,7 @@ describe('RollbackDialog confirmation', () => {
       <RollbackDialog open appLabel="argocd/demo" revision="abc123" historyId="0" onCancel={() => {}} onConfirm={onConfirm} />,
     ))
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(dialog.textContent).toContain('Auto-sync is off. Later changes can still cause drift. Syncing or enabling auto-sync deploys current Git and can undo the rollback.')
+    expect(dialog.textContent).toContain('Auto-sync is off. Later changes can still cause drift. Syncing or enabling auto-sync deploys the current revision and can undo the rollback.')
     const dryRun = dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
     await act(async () => dryRun.click())
     expect(dialog.textContent).toContain('Argo will preview syncing this application to a previous revision without applying changes.')
@@ -42,7 +42,7 @@ describe('RollbackDialog confirmation', () => {
       <RollbackDialog open appLabel="argocd/demo" revision="aaa111, bbb222" multiSource={multiSource} onCancel={() => {}} onConfirm={() => {}} />,
     ))
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
-    const note = 'Rolling back a multi-source Application needs Argo CD 2.12 or later. A 2.11 controller ignores the history entry’s revisions and syncs the current ones.'
+    const note = 'Rolling back a multi-source Application needs Argo CD 2.12 or later. A 2.11 controller ignores the history entry’s sources and revisions and syncs the current ones.'
     expect(dialog.textContent?.includes(note)).toBe(multiSource)
   })
 

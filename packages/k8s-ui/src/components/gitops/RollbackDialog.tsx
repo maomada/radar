@@ -52,11 +52,11 @@ export function RollbackDialog({ open, appLabel, revision, historyId, multiSourc
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           {dryRun
             ? 'Argo will preview syncing this application to a previous revision without applying changes.'
-            : 'Argo will sync this application to a previous revision. Auto-sync is off. Later changes can still cause drift. Syncing or enabling auto-sync deploys current Git and can undo the rollback.'}
+            : 'Argo will sync this application to a previous revision. Auto-sync is off. Later changes can still cause drift. Syncing or enabling auto-sync deploys the current revision and can undo the rollback.'}
         </div>
         {multiSource && (
           <p className="text-xs text-warning-text">
-            Rolling back a multi-source Application needs Argo CD 2.12 or later. A 2.11 controller ignores the history entry’s revisions and syncs the current ones.
+            Rolling back a multi-source Application needs Argo CD 2.12 or later. A 2.11 controller ignores the history entry’s sources and revisions and syncs the current ones.
           </p>
         )}
         <dl className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">

@@ -2153,3 +2153,72 @@ func TestArgoRollbackRevisionMismatch(t *testing.T) {
 		})
 	}
 }
+
+func TestArgoRollbackSourceComparison(t *testing.T) {
+	source := map[string]any{
+		"repoURL": "https://example.com/repo", "path": "historical", "targetRevision": "main",
+		"helm": map[string]any{"parameters": []any{map[string]any{"name": "replicas", "value": "2"}}},
+	}
+	for _, multi := range []bool{false, true} {
+		for _, tc := range []struct {
+			name                       string
+			field                      string
+			value                      any
+			missingResult, placeholder bool
+			mismatch                   bool
+		}{
+			{name: "identical"},
+			{name: "path differs at same revision", field: "path", value: "current", mismatch: true},
+			{name: "repo differs", field: "repoURL", value: "https://example.com/other", mismatch: true},
+			{name: "chart differs", field: "chart", value: "other", mismatch: true},
+			{name: "target revision differs", field: "targetRevision", value: "other", mismatch: true},
+			{name: "helm values differ", field: "helm", value: map[string]any{"parameters": []any{map[string]any{"name": "replicas", "value": "3"}}}, mismatch: true},
+			{name: "kustomize differs", field: "kustomize", value: map[string]any{"namePrefix": "other"}, mismatch: true},
+			{name: "directory differs", field: "directory", value: map[string]any{"recurse": true}, mismatch: true},
+			{name: "plugin differs", field: "plugin", value: map[string]any{"name": "other"}, mismatch: true},
+			{name: "missing result sources", missingResult: true},
+			{name: "zero single source placeholder", placeholder: true},
+			{name: "missing plural result with placeholder", missingResult: true, placeholder: true},
+			{name: "placeholder does not hide plural mismatch", placeholder: true, field: "path", value: "current", mismatch: true},
+		} {
+			t.Run(fmt.Sprintf("multi=%v/%s", multi, tc.name), func(t *testing.T) {
+				sync := map[string]any{"revision": "same"}
+				result := map[string]any{"revision": "same"}
+				appliedSource := (&unstructured.Unstructured{Object: source}).DeepCopy().Object
+				if tc.field != "" {
+					appliedSource[tc.field] = tc.value
+				}
+				if multi {
+					sync = map[string]any{"revisions": []any{"same", "values"}, "sources": []any{source, map[string]any{"repoURL": "https://example.com/values", "ref": "values"}}}
+					result = map[string]any{"revisions": []any{"same", "values"}}
+					if !tc.missingResult {
+						result["sources"] = []any{appliedSource, map[string]any{"repoURL": "https://example.com/values", "ref": "values"}}
+					}
+					if tc.placeholder {
+						sync["source"] = map[string]any{}
+						result["source"] = map[string]any{"repoURL": ""}
+					}
+				} else {
+					sync["source"] = source
+					if !tc.missingResult {
+						result["source"] = appliedSource
+					}
+				}
+				app := argoAppForTest("argocd", "demo", nil)
+				_ = unstructured.SetNestedMap(app.Object, map[string]any{
+					"phase":      "Succeeded",
+					"operation":  map[string]any{"sync": sync, "info": []any{map[string]any{"name": argoRollbackInfoName, "value": "true"}}},
+					"syncResult": result,
+				}, "status", "operationState")
+				target, applied := ArgoRollbackRevisionMismatch(app)
+				if got := target != "" && applied != ""; got != tc.mismatch {
+					t.Errorf("mismatch = (%q, %q), want mismatch %v", target, applied, tc.mismatch)
+				}
+				revision, _ := ArgoSuccessfulRollback(app)
+				if got := revision != ""; got == tc.mismatch {
+					t.Errorf("successful rollback = %q, want success %v", revision, !tc.mismatch)
+				}
+			})
+		}
+	}
+}
