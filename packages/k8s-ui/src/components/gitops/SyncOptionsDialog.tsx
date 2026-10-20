@@ -47,7 +47,7 @@ export interface SyncOptionsDialogProps {
   appLabel: string
   resource?: GitOpsInsightRef
   // The Application's spec.syncPolicy.syncOptions. Without it the toggles
-  // start off and an edit replaces whatever the Application sets.
+  // are disabled and the sync inherits the Application's options.
   applicationSyncOptions?: string[]
   pending?: boolean
   autoSyncEnabled?: boolean
@@ -72,6 +72,7 @@ export interface ResourceValidationResult {
 
 export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOptions, pending, autoSyncEnabled, validationPending, operationInProgress, validationResult, validationError, onCancel, onConfirm, onValidate, onValidationReset }: SyncOptionsDialogProps) {
   const titleId = useId()
+  const syncOptionsUnknown = applicationSyncOptions === undefined
   const liveAppOptions = applicationSyncOptions ?? EMPTY_OPTIONS
   // Joined so a caller passing a fresh array each render isn't a change.
   const liveAppOptionsKey = liveAppOptions.join('\n')
@@ -129,14 +130,16 @@ export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOpt
 
   // Omitting the options means "the Application's current ones", which is
   // what the toggles show only while the snapshot is still current.
-  const optionEdits = { applicationSyncOptions: appOptions, keepApplicationSyncOptions, sendUnchanged: appOptions.join('\n') !== liveAppOptionsKey }
+  const optionEdits = syncOptionsUnknown
+    ? { replace: false, serverSideApply: false }
+    : { replace, serverSideApply, applicationSyncOptions: appOptions, keepApplicationSyncOptions, sendUnchanged: appOptions.join('\n') !== liveAppOptionsKey }
 
   function submit() {
-    onConfirm(buildArgoSyncOpts({ resourceMode: !!resource, revision, prune, dryRun: richResourceValidation ? false : dryRun, force, applyOnly, replace, serverSideApply, ...optionEdits }))
+    onConfirm(buildArgoSyncOpts({ resourceMode: !!resource, revision, prune, dryRun: richResourceValidation ? false : dryRun, force, applyOnly, ...optionEdits }))
   }
 
   function validate() {
-    onValidate?.(buildArgoSyncOpts({ resourceMode: true, revision, prune, dryRun: true, force, applyOnly, replace, serverSideApply, ...optionEdits }))
+    onValidate?.(buildArgoSyncOpts({ resourceMode: true, revision, prune, dryRun: true, force, applyOnly, ...optionEdits }))
   }
 
   function updateValidationOption(setter: (value: boolean) => void, value: boolean) {
@@ -206,10 +209,10 @@ export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOpt
           <legend className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-theme-text-tertiary">Advanced</legend>
           {!resource && <Toggle label="Apply only" checked={applyOnly} onChange={setApplyOnly} disabled={optionsDisabled} hint="Skip PreSync / PostSync / SyncFail hooks." />}
           <Toggle label="Force" checked={force} onChange={(value) => updateValidationOption(setForce, value)} disabled={optionsDisabled} hint="Use kubectl --force; required for some immutable-field changes." />
-          <Toggle label="Replace" checked={replace} onChange={(value) => updateSyncOption(setReplace, value)} disabled={optionsDisabled} hint={`kubectl replace instead of apply (drops fields not in source).${appReplace ? FROM_APPLICATION : ''}`} />
-          <Toggle label="Server-side apply" checked={serverSideApply} onChange={(value) => updateSyncOption(setServerSideApply, value)} disabled={optionsDisabled} hint={`Use the K8s server-side apply mechanism for ownership tracking.${appServerSideApply ? FROM_APPLICATION : ''}`} />
-          {applicationSyncOptions === undefined && (
-            <p className="text-xs text-theme-text-tertiary">The Application's own sync options aren't shown here. Changing Replace or Server-side apply replaces them for this sync.</p>
+          <Toggle label="Replace" checked={replace} onChange={(value) => updateSyncOption(setReplace, value)} disabled={optionsDisabled || syncOptionsUnknown} hint={`kubectl replace instead of apply (drops fields not in source).${appReplace ? FROM_APPLICATION : ''}`} />
+          <Toggle label="Server-side apply" checked={serverSideApply} onChange={(value) => updateSyncOption(setServerSideApply, value)} disabled={optionsDisabled || syncOptionsUnknown} hint={`Use the K8s server-side apply mechanism for ownership tracking.${appServerSideApply ? FROM_APPLICATION : ''}`} />
+          {syncOptionsUnknown && (
+            <p className="text-xs text-theme-text-tertiary">This sync uses the Application's own sync options. This view can't show them, so Replace and Server-side apply can't be changed here.</p>
           )}
           {otherAppOptions.length > 0 && (
             <Toggle

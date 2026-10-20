@@ -47,9 +47,58 @@ it('starts with prune off and submits nothing for the options, so the Applicatio
   await render()
   expect(toggle('Prune').checked).toBe(false)
   expect(toggle('Server-side apply').checked).toBe(true)
+  expect(toggle('Server-side apply').disabled).toBe(false)
   expect(toggle('Replace').checked).toBe(false)
+  expect(toggle('Replace').disabled).toBe(false)
   await click(button('Sync now'))
   expect(confirmed).toEqual([{ revision: undefined, prune: false, dryRun: false, force: false, applyOnly: false }])
+})
+
+it('disables unknown sync options and inherits them when confirming', async () => {
+  await render({ applicationSyncOptions: undefined })
+  expect(toggle('Replace').disabled).toBe(true)
+  expect(toggle('Server-side apply').disabled).toBe(true)
+  expect(document.body.textContent).toContain("This sync uses the Application's own sync options. This view can't show them, so Replace and Server-side apply can't be changed here.")
+  await click(toggle('Replace'))
+  await click(toggle('Server-side apply'))
+  await click(toggle('Prune'))
+  await click(button('Sync now'))
+  expect(confirmed).toEqual([{ revision: undefined, prune: true, dryRun: false, force: false, applyOnly: false }])
+})
+
+it('inherits unknown sync options for selective sync and its dry-run, even after earlier edits', async () => {
+  const props = {
+    resource: { kind: 'Deployment', group: 'apps', namespace: 'guestbook', name: 'web' },
+    onValidate: (opts: ArgoSyncOpts) => validated.push(opts),
+  }
+  await render(props)
+  await click(toggle('Replace'))
+  await render({ ...props, applicationSyncOptions: undefined })
+  expect(toggle('Replace').disabled).toBe(true)
+  expect(toggle('Server-side apply').disabled).toBe(true)
+  await click(button('Dry-run'))
+  await click(button('Sync resource'))
+  expect(validated).toEqual([{ revision: undefined, prune: false, dryRun: true, force: false, applyOnly: false }])
+  expect(confirmed).toEqual([{ revision: undefined, prune: false, dryRun: false, force: false, applyOnly: false }])
+})
+
+it('keeps toggles editable when the Application has an explicitly empty option list', async () => {
+  await render({ applicationSyncOptions: [] })
+  expect(toggle('Replace').disabled).toBe(false)
+  expect(toggle('Replace').checked).toBe(false)
+  expect(toggle('Server-side apply').disabled).toBe(false)
+  expect(toggle('Server-side apply').checked).toBe(false)
+  expect(document.body.textContent).not.toContain("This view can't show them")
+  await click(button('Sync now'))
+  expect(confirmed[0]).not.toHaveProperty('syncOptions')
+  await click(toggle('Replace'))
+  await click(toggle('Server-side apply'))
+  await click(button('Sync now'))
+  expect(confirmed[1].syncOptions).toEqual(['Replace=true', 'ServerSideApply=true'])
+  await click(toggle('Replace'))
+  await click(toggle('Server-side apply'))
+  await click(button('Sync now'))
+  expect(confirmed[2]).not.toHaveProperty('syncOptions')
 })
 
 it("sends the Application's options with one edit when a toggle changes", async () => {
