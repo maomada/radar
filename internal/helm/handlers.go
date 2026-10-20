@@ -33,6 +33,10 @@ func IsForbiddenError(err error) bool {
 // caller. Helm stores releases as Secrets, so a denial is the caller's
 // Kubernetes RBAC, not a server fault.
 func writeReleaseReadError(w http.ResponseWriter, err error) {
+	if sourceErrorCode(err) != "" {
+		writeChartSourceOperationError(w, err, "read-release", "", "")
+		return
+	}
 	if isReleaseReadForbidden(err) {
 		writeError(w, http.StatusForbidden, "insufficient permissions to read this Helm release: "+err.Error())
 		return
@@ -70,7 +74,7 @@ func decodeApplyValuesRequest(body io.Reader) (ApplyValuesRequest, error) {
 	if err := json.NewDecoder(body).Decode(&req); err != nil {
 		return req, fmt.Errorf("invalid request body: %s", err.Error())
 	}
-	if req.Version != "" || req.Repository != "" {
+	if req.Version != "" || req.Repository != "" || req.SourceUpgrade != nil {
 		return req, errors.New("version and repository are not supported when applying values; use the upgrade endpoint to change the chart version")
 	}
 	return req, nil
@@ -136,12 +140,16 @@ func (h *Handlers) RegisterRoutes(r chi.Router) {
 		r.Get("/releases/{namespace}/{name}/upgrade-info", h.handleCheckUpgrade)
 		r.Get("/releases/{namespace}/{name}/versions", h.handleAvailableVersions)
 		r.Get("/releases/{namespace}/{name}/source", h.handleSourceStatus)
+		r.Get("/releases/{namespace}/{name}/source/versions", h.handleSourceVersions)
 		r.Get("/upgrade-check", h.handleBatchUpgradeCheck)
 		// Actions (write operations)
 		r.Post("/releases/{namespace}/{name}/rollback", h.handleRollback)
 		r.Post("/releases/{namespace}/{name}/rollback-stream", h.handleRollbackStream)
 		r.Post("/releases/{namespace}/{name}/upgrade", h.handleUpgrade)
 		r.Post("/releases/{namespace}/{name}/upgrade-stream", h.handleUpgradeStream)
+		r.Post("/releases/{namespace}/{name}/source/upgrade", h.handleUpgrade)
+		r.Post("/releases/{namespace}/{name}/source/upgrade-stream", h.handleUpgradeStream)
+		r.Post("/releases/{namespace}/{name}/source/preview", h.handlePreviewValues)
 		r.Post("/releases/{namespace}/{name}/values/preview", h.handlePreviewValues)
 		r.Put("/releases/{namespace}/{name}/values", h.handleApplyValues)
 		r.Put("/releases/{namespace}/{name}/source", h.handleSetSource)
@@ -242,7 +250,7 @@ func (h *Handlers) handleListReleases(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(r.Context().Err(), context.Canceled) {
 			return // the caller left; this is not a Helm failure
 		}
-		if IsForbiddenError(err) {
+		if ReleaseReadDeniedForCaller(err) {
 			writeError(w, http.StatusForbidden, "insufficient permissions to list Helm releases")
 			return
 		}
@@ -760,19 +768,23 @@ func (h *Handlers) handleUpgrade(w http.ResponseWriter, r *http.Request) {
 	}
 	repositoryName := r.URL.Query().Get("repository")
 
-	auth.AuditLog(r, namespace, name)
-	var upgradeErr error
-	if user := auth.UserFromContext(r.Context()); user != nil {
-		upgradeErr = client.UpgradeAsUser(namespace, name, version, repositoryName, user.Username, user.Groups)
-	} else {
-		upgradeErr = client.Upgrade(namespace, name, version, repositoryName)
+	req, err := decodeUpgradeRequest(r.Body)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid upgrade request")
+		return
 	}
+	if !validSourceUpgradeRoute(w, r, req) {
+		return
+	}
+	auth.AuditLog(r, namespace, name)
+	username, groups := userCreds(r)
+	upgradeErr := client.upgradeRequestAsUser(namespace, name, version, repositoryName, req, username, groups, func(string, string, string) {})
 	if err := upgradeErr; err != nil {
 		if IsForbiddenError(err) {
 			writeError(w, http.StatusForbidden, "insufficient permissions to upgrade Helm release")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeChartSourceOperationError(w, err, "upgrade", namespace, name)
 		return
 	}
 
@@ -801,12 +813,15 @@ func (h *Handlers) handleUpgradeStream(w http.ResponseWriter, r *http.Request) {
 	}
 	repositoryName := r.URL.Query().Get("repository")
 
-	editedValues, err := decodeOptionalApplyValuesRequest(r.Body)
+	req, err := decodeUpgradeRequest(r.Body)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
+	if !validSourceUpgradeRoute(w, r, req) {
+		return
+	}
 	// Set up SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -820,27 +835,13 @@ func (h *Handlers) handleUpgradeStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	progressCh := make(chan InstallProgress, 10)
-	defer close(progressCh)
+	// An upgrade may finish after the client disconnects; the receiver must not close the producer's channel.
 
 	auth.AuditLog(r, namespace, name)
 	resultCh := make(chan error, 1)
 	go func() {
-		user := auth.UserFromContext(r.Context())
-		// Use != nil, not len > 0: an explicit empty map ({}) means
-		// "clear all my overrides" and must NOT fall back to carry-over.
-		if editedValues != nil {
-			if user != nil {
-				resultCh <- client.UpgradeWithValuesProgressAsUser(namespace, name, version, repositoryName, editedValues, user.Username, user.Groups, progressCh)
-				return
-			}
-			resultCh <- client.UpgradeWithValuesProgress(namespace, name, version, repositoryName, editedValues, progressCh)
-			return
-		}
-		if user != nil {
-			resultCh <- client.UpgradeWithProgressAsUser(namespace, name, version, repositoryName, user.Username, user.Groups, progressCh)
-			return
-		}
-		resultCh <- client.UpgradeWithProgress(namespace, name, version, repositoryName, progressCh)
+		username, groups := userCreds(r)
+		resultCh <- client.upgradeRequestAsUser(namespace, name, version, repositoryName, req, username, groups, progressSender(progressCh))
 	}()
 
 	for {
@@ -864,8 +865,9 @@ func (h *Handlers) handleUpgradeStream(w http.ResponseWriter, r *http.Request) {
 		case err := <-resultCh:
 			if err != nil {
 				event := map[string]any{
-					"type":    "error",
-					"message": err.Error(),
+					"type":      "error",
+					"message":   err.Error(),
+					"errorCode": sourceErrorCode(err),
 				}
 				data, _ := json.Marshal(event)
 				w.Write([]byte("data: " + string(data) + "\n\n"))
@@ -909,10 +911,25 @@ func (h *Handlers) handlePreviewValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !validSourceUpgradeRoute(w, r, req) {
+		return
+	}
 	username, groups := userCreds(r)
-	preview, err := client.PreviewValuesChangeAsUser(namespace, name, req.Values, req.Version, req.Repository, username, groups)
+	var preview *ValuesPreviewResponse
+	var err error
+	if req.SourceUpgrade != nil {
+		cfg, cfgErr := client.getActionConfigForUser(namespace, username, groups)
+		if cfgErr != nil {
+			writeReleaseReadError(w, cfgErr)
+			return
+		}
+		preview, err = client.sourceUpgradeWith(cfg, name, req.Version, req.Values, *req.SourceUpgrade, true, func(string, string, string) {})
+	} else {
+		preview, err = client.PreviewValuesChangeAsUser(namespace, name, req.Values, req.Version, req.Repository, username, groups)
+	}
+
 	if err != nil {
-		writeReleaseReadError(w, err)
+		writeChartSourceOperationError(w, err, "preview-upgrade", namespace, name)
 		return
 	}
 
@@ -952,7 +969,7 @@ func (h *Handlers) handleApplyValues(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusForbidden, "insufficient permissions to apply Helm values")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeChartSourceOperationError(w, err, "apply-values", namespace, name)
 		return
 	}
 
@@ -1030,11 +1047,13 @@ func (h *Handlers) handleAddRepository(w http.ResponseWriter, r *http.Request) {
 
 func chartSourceErrorStatus(err error) int {
 	switch {
+	case errors.Is(err, errSourceUnavailable):
+		return http.StatusServiceUnavailable
 	case errors.Is(err, driver.ErrReleaseNotFound):
 		return http.StatusNotFound
 	case isReleaseReadForbidden(err):
 		return http.StatusForbidden
-	case errors.Is(err, errRepositoryConflict), errors.Is(err, errReleaseChanging):
+	case errors.Is(err, errRepositoryConflict), errors.Is(err, errReleaseChanging), errors.Is(err, errSourceRequired), errors.Is(err, errSourceConflict), errors.Is(err, errSourceAlreadyConfirmed):
 		return http.StatusConflict
 	case errors.Is(err, errInvalidChartSource), errors.Is(err, errInvalidRepositoryRequest):
 		return http.StatusBadRequest
@@ -1047,6 +1066,10 @@ func writeChartSourceOperationError(w http.ResponseWriter, err error, action, na
 	status := chartSourceErrorStatus(err)
 	if status >= 500 {
 		log.Printf("[helm] %s %q/%q failed: %v", action, namespace, releaseName, err)
+	}
+	if code := sourceErrorCode(err); code != "" {
+		writeErrorPayload(w, status, map[string]string{"error": err.Error(), "errorCode": code})
+		return
 	}
 	writeError(w, status, err.Error())
 }
@@ -1072,7 +1095,7 @@ func (h *Handlers) handleUpdateRepository(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := client.UpdateRepository(repoName); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeChartSourceOperationError(w, err, "refresh-repository", "", repoName)
 		return
 	}
 
@@ -1415,6 +1438,11 @@ func writeJSON(w http.ResponseWriter, data any) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
+	writeErrorPayload(w, status, map[string]string{"error": message})
+}
+
+func writeErrorPayload(w http.ResponseWriter, status int, payload map[string]string) {
+	message := payload["error"]
 	if status >= 500 && k8s.MarkDisconnectedIfClusterUnreachable(message) {
 		status = http.StatusServiceUnavailable
 	}
@@ -1423,22 +1451,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	json.NewEncoder(w).Encode(payload)
 }
 
-// writeErrorCode is writeError with a stable machine-readable error_code
-// in the response body so the frontend + MCP clients can branch on the error
-// type without parsing the human message.
 func writeErrorCode(w http.ResponseWriter, status int, code, message string) {
-	if status >= 500 {
-		errorlog.Record("helm", "error", "%s", message)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":      message,
-		"error_code": code,
-	})
+	writeErrorPayload(w, status, map[string]string{"error": message, "error_code": code})
 }
 
 // ============================================================================

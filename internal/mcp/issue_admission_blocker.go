@@ -33,6 +33,12 @@ const admissionOrderFetchLimit = 10
 // seconds, from the controller) and Radar's receipt time for the policy change.
 const admissionOnsetSlop = 30 * time.Second
 
+// admissionRecordLag is how far a policy add's recorded time may trail the
+// object's creationTimestamp and still date the creation. An add recorded
+// from an informer's (re)list can trail it by up to 30s (isSyncAdd); clock
+// skew between Radar and the API server is the rest of the allowance.
+const admissionRecordLag = 5 * time.Second
+
 const (
 	admissionBlockerRankReason    = "the object named by the admission rejection"
 	admissionLimitRangeRankReason = "a LimitRange in the rejecting namespace (LimitRange rejections name none)"
@@ -50,6 +56,41 @@ type admissionBlockerEvidence struct {
 	// was not saturated, and RBAC hid nothing. Only then may an empty list be
 	// stated as "no recorded change".
 	complete bool
+}
+
+// policyCreatedAt returns a cached ResourceQuota or LimitRange's
+// creationTimestamp; ok=false when it isn't cached or isn't one of those kinds.
+var policyCreatedAt = func(kind, namespace, name string) (time.Time, bool) {
+	cache := k8s.GetResourceCache()
+	if cache == nil {
+		return time.Time{}, false
+	}
+	switch kind {
+	case "ResourceQuota":
+		if l := cache.ResourceQuotas(); l != nil {
+			if o, err := l.ResourceQuotas(namespace).Get(name); err == nil {
+				return o.CreationTimestamp.Time, true
+			}
+		}
+	case "LimitRange":
+		if l := cache.LimitRanges(); l != nil {
+			if o, err := l.LimitRanges(namespace).Get(name); err == nil {
+				return o.CreationTimestamp.Time, true
+			}
+		}
+	}
+	return time.Time{}, false
+}
+
+// creationTimeKnown reports whether a policy change's recorded time dates it:
+// false for an add recorded well after the object was created, as one listed
+// when its informer (re)synced is.
+func creationTimeKnown(c issuesapi.RecentChange) bool {
+	if c.ChangeType != "add" {
+		return true
+	}
+	created, ok := policyCreatedAt(c.Kind, c.Namespace, c.Name)
+	return !ok || changeTime(c).Sub(created) <= admissionRecordLag
 }
 
 func isAdmissionIssue(iss *issuesapi.Issue) bool {
@@ -83,9 +124,10 @@ func admissionBlockerForIssue(ctx context.Context, iss *issuesapi.Issue, window 
 			res, err = meaningfulchanges.Recent(ctx, meaningfulchanges.Query{
 				Namespaces: []string{namespace}, Kinds: []string{kind},
 				Since: window, Limit: admissionOrderFetchLimit, FieldLimit: correlationFieldLimit,
+				Viewer: recentChangeViewer(ctx),
 			})
 		} else {
-			res, err = meaningfulchanges.RecentForResourceDetailed(ctx, kind, namespace, name, window, admissionOrderFetchLimit, correlationFieldLimit)
+			res, err = meaningfulchanges.RecentForResourceDetailed(ctx, kind, namespace, name, window, admissionOrderFetchLimit, correlationFieldLimit, recentChangeViewer(ctx))
 		}
 		if err != nil {
 			log.Printf("[mcp] admission blocker correlation failed for %s %s/%s: %v", kind, namespace, name, err)
@@ -162,9 +204,10 @@ func admissionBlockerForIssue(ctx context.Context, iss *issuesapi.Issue, window 
 // states which side changed last, and withdraws a "started at resource
 // creation" timing that the policy change contradicts. subject holds the
 // workload side's visible changes; subjectComplete says an empty subject list
-// is a true "no recorded change". It returns false, leaving the issue
-// untouched, when neither side has a visible change.
-func attachAdmissionBlocker(iss *issuesapi.Issue, ev *admissionBlockerEvidence, subject []issuesapi.RecentChange, subjectComplete bool, window time.Duration) bool {
+// is a true "no recorded change". absenceKnown says Radar has observed long
+// enough for a side with no recorded change to count as unchanged. It returns
+// false, leaving the issue untouched, when neither side has a visible change.
+func attachAdmissionBlocker(iss *issuesapi.Issue, ev *admissionBlockerEvidence, subject []issuesapi.RecentChange, subjectComplete, absenceKnown bool, window time.Duration) bool {
 	refs := append([]issuesapi.RecentChange{}, ev.changes[:min(len(ev.changes), admissionBlockerMaxChanges)]...)
 	refs = append(refs, subject[:min(len(subject), correlationChangeCap-len(refs))]...)
 	if len(refs) == 0 {
@@ -172,7 +215,7 @@ func attachAdmissionBlocker(iss *issuesapi.Issue, ev *admissionBlockerEvidence, 
 	}
 	iss.CorrelatedChanges = refs
 
-	sentence, policyChangedLast := admissionChangeOrder(iss, ev, subject, subjectComplete, window)
+	sentence, policyChangedLast := admissionChangeOrder(iss, ev, subject, subjectComplete, absenceKnown, window)
 	if sentence == "" {
 		return true
 	}
@@ -199,7 +242,10 @@ func attachAdmissionBlocker(iss *issuesapi.Issue, ev *admissionBlockerEvidence, 
 // admissionChangeOrder states which side of an admission rejection changed
 // last, from recorded changes only. Empty when neither side has a recorded
 // change, or when the side without one may have changes Radar did not see.
-func admissionChangeOrder(iss *issuesapi.Issue, ev *admissionBlockerEvidence, subject []issuesapi.RecentChange, subjectComplete bool, windowDur time.Duration) (string, bool) {
+// When both sides have one, each record shows that side was being watched by
+// then, so the order holds however young the store is; a side with none
+// counts as unchanged only when absenceKnown.
+func admissionChangeOrder(iss *issuesapi.Issue, ev *admissionBlockerEvidence, subject []issuesapi.RecentChange, subjectComplete, absenceKnown bool, windowDur time.Duration) (string, bool) {
 	workload := iss.Kind + " " + iss.Name
 	// The workload object only, as in newestWorkloadChange.
 	var newestSubject *issuesapi.RecentChange
@@ -218,10 +264,11 @@ func admissionChangeOrder(iss *issuesapi.Issue, ev *admissionBlockerEvidence, su
 		// there would reverse it.
 		policy := ev.changes[0]
 		if changeTime(policy).Equal(changeTime(*newestSubject)) {
-			return "", false // whole-second timestamps can't order them
+			// Change times are Radar's whole-second receipt times.
+			return fmt.Sprintf("%s and %s: Radar recorded both in the same second, so it can't tell which changed last.", describeChange(policy), describeChange(*newestSubject)), false
 		}
 		if changeTime(policy).After(changeTime(*newestSubject)) {
-			if !subjectComplete {
+			if !subjectComplete || !creationTimeKnown(policy) {
 				return "", false
 			}
 			return fmt.Sprintf("%s, after %s: the %s changed last.", describeChange(policy), describeChange(*newestSubject), policy.Kind), true
@@ -230,10 +277,10 @@ func admissionChangeOrder(iss *issuesapi.Issue, ev *admissionBlockerEvidence, su
 			return "", false
 		}
 		return fmt.Sprintf("%s, after %s: the workload changed last.", describeChange(*newestSubject), describeChange(policy)), false
-	case len(ev.changes) > 0 && subjectComplete:
+	case len(ev.changes) > 0 && subjectComplete && absenceKnown && creationTimeKnown(ev.changes[0]):
 		policy := ev.changes[0]
 		return fmt.Sprintf("%s; %s has no recorded change in the last %s: the %s changed last.", describeChange(policy), workload, window, policy.Kind), true
-	case newestSubject != nil && ev.complete:
+	case newestSubject != nil && ev.complete && absenceKnown:
 		return fmt.Sprintf("%s; %s: the workload changed last.", describeChange(*newestSubject), ev.unchanged(window)), false
 	}
 	return "", false
@@ -253,15 +300,19 @@ func newestWorkloadChange(iss *issuesapi.Issue, subject []issuesapi.RecentChange
 }
 
 // newestPolicyCreation is the time of the newest recorded creation among the
-// policy-side changes.
+// policy-side changes; ok=false when there is none or its recorded time
+// doesn't date it.
 func newestPolicyCreation(changes []issuesapi.RecentChange) (time.Time, bool) {
-	var newest time.Time
-	for _, c := range changes {
-		if c.ChangeType == "add" && changeTime(c).After(newest) {
-			newest = changeTime(c)
+	var newest *issuesapi.RecentChange
+	for i, c := range changes {
+		if c.ChangeType == "add" && (newest == nil || changeTime(c).After(changeTime(*newest))) {
+			newest = &changes[i]
 		}
 	}
-	return newest, !newest.IsZero()
+	if newest == nil || !creationTimeKnown(*newest) {
+		return time.Time{}, false
+	}
+	return changeTime(*newest), true
 }
 
 func describeChange(c issuesapi.RecentChange) string {

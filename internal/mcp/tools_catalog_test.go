@@ -270,8 +270,11 @@ func TestManageGitOpsSyncOptionsDescription(t *testing.T) {
 func TestToolCatalogContextBudget(t *testing.T) {
 	// These caps guard against description accretion, not against new tools or
 	// load-bearing routing and uncertainty contracts. Raise them deliberately.
+	// The manage_node drain contract (a 'partial' drain, with pods still on the
+	// node in errors/pendingPods/skippedPods, is not safe to take down) is one
+	// such uncertainty boundary.
 	const (
-		maxCatalogBytes         = 59450
+		maxCatalogBytes         = 61780
 		maxToolDescriptionBytes = 3000
 	)
 

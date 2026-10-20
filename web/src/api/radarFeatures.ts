@@ -51,6 +51,7 @@ export const RADAR_FEATURES = {
   // sync options when the request omits them, and prunes when it omits prune,
   // so useArgoSync sends both explicitly unless this is supported.
   argoSyncInheritance: { label: "Syncs that keep the Application's sync options", flag: 'argoSyncInheritance', flagShippedWithEndpoint: true },
+  helmSourceIdentity: { label: 'Helm source selection', flag: 'helmSourceIdentity', flagShippedWithEndpoint: true },
 } as const satisfies Record<string, RadarFeatureSpec>
 
 export type RadarFeature = keyof typeof RADAR_FEATURES

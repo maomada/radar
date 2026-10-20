@@ -118,10 +118,10 @@ type Server struct {
 	// nsPreferences holds each user's active-namespace pick from the in-app
 	// switcher. Key shape: "<username>\x00<contextName>" when auth is enabled,
 	// "\x00<contextName>" when auth is disabled. Cleared on context switch
-	// (new cluster ⇒ old picks meaningless). The pick is a per-user view
-	// filter — intersected with the user's RBAC-allowed namespaces at read
-	// time. Picking does NOT narrow the shared informer cache (would corrupt
-	// other users' views).
+	// (new cluster ⇒ old picks meaningless). The pick is a remembered per-user
+	// UI preference: the namespace-scope GET echoes it and the UI sends it on
+	// its reads, but data reads never inherit it. Picking does NOT narrow the
+	// shared informer cache (would corrupt other users' views).
 	nsPreferences sync.Map
 
 	// scopeMutationMu serializes a forced (--namespace-scope) namespace change so
@@ -136,7 +136,7 @@ type Server struct {
 	rootHintOnce sync.Once
 
 	// nsPickMu serializes namespace-pick mutations: the POST handler's
-	// persist+set pair and the read-path stale-pick prune. Without it, a
+	// persist+set pair and the preference GET's stale-pick prune. Without it, a
 	// prune computed from a stale snapshot can land after a user's fresh
 	// pick and silently revert it.
 	nsPickMu sync.Mutex
@@ -206,7 +206,7 @@ type Config struct {
 	TrustedOrigins          []string                    // Extra origins allowed to make changes, from ParseTrustedOrigins
 	StaticFS                embed.FS                    // Embedded frontend files
 	StaticRoot              string                      // Path within StaticFS
-	MCPHandler              http.Handler                // MCP server handler (nil = MCP disabled)
+	MCPHandler              http.Handler                // Full MCP server handler (nil = full endpoint disabled)
 	MCPReadOnlyHandler      http.Handler                // public read-only MCP handler (read tools only)
 	MCPInvestigationHandler http.Handler                // internal read-only MCP handler with evidence correlation
 	InvestigationRefs       *investigationrefs.Registry // shared private evidence issuance ledger
@@ -519,7 +519,8 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 		// 60s timeout group. The run keeps going server-side after disconnect.
 		r.Get("/diagnose/runs/{id}/stream", s.handleDiagnoseRunStream)
 
-		// Node drain — outside 60s timeout group (drain may need minutes for PDB backoff)
+		// Node drain — outside the 60s timeout group: it may wait minutes for PDB backoff
+		// and, by default, for the evicted pods to finish terminating.
 		r.Post("/nodes/{name}/drain", s.handleDrainNode)
 
 		// Cloud Connect prepare/start — outside the 60s timeout group. prepare
@@ -935,12 +936,18 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 	// MCP server (Model Context Protocol for AI tools)
 	if s.mcpHandler != nil {
 		r.Mount("/mcp", s.mcpHandler)
+	} else {
+		r.Mount("/mcp", http.NotFoundHandler())
 	}
 	if s.mcpReadOnlyHandler != nil {
 		r.Mount("/mcp-readonly", s.mcpReadOnlyHandler)
+	} else {
+		r.Mount("/mcp-readonly", http.NotFoundHandler())
 	}
 	if s.mcpInvestigationHandler != nil {
 		r.Mount("/mcp-investigation", s.mcpInvestigationHandler)
+	} else {
+		r.Mount("/mcp-investigation", http.NotFoundHandler())
 	}
 
 	// OAuth discovery probes from MCP HTTP clients. Without this, the frontend
@@ -1378,7 +1385,8 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 	responseCaps := *caps
 	caps = &responseCaps
 
-	caps.MCPEnabled = s.mcpHandler != nil
+	caps.MCPEnabled = s.mcpEnabled()
+	caps.MCPReadOnly = s.mcpReadOnly()
 	caps.Deployment = k8s.DeploymentInfo{Mode: deploymentMode()}
 	caps.CloudConnect = s.cloudConnectCapability()
 	caps.Features = k8s.FeatureCapabilities{
@@ -1397,6 +1405,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		GitOpsWriteEvidence:   true,
 		ArgoRollbackSync:      true,
 		ArgoSyncInheritance:   true,
+		HelmSourceIdentity:    true,
 	}
 	caps.AuthEnabled = s.authConfig.Enabled()
 	caps.ConfigManagement = s.configManagement()
@@ -1507,14 +1516,15 @@ func mergeNamespaceCapability(global, namespaced, checkErrored bool) bool {
 // or an empty non-nil slice when the user has no namespace access.
 // Use readscope.NoNamespaceAccess() to check the no-access case.
 //
-// If the request omits an explicit namespace filter, falls back to the user's
-// in-app namespace pick (from the namespace switcher). The pick is treated as
-// a view filter — it's still intersected with the user's RBAC-allowed
-// namespaces in getUserNamespaces.
+// A request that names no namespaces reads everything the caller may see:
+// data reads never inherit a stored view selection. The namespace picker's
+// selection is a remembered UI preference that the UI sends explicitly, so a
+// caller acting as the same user for another purpose (Radar Hub's fan-outs,
+// background pollers seeded by --namespaces) isn't silently narrowed by a
+// pick made while browsing. The --namespace-scope clamp still applies — it is
+// the real extent of the cache.
 func (s *Server) parseNamespacesForUser(r *http.Request) []string {
 	namespaces := parseNamespaces(r.URL.Query())
-	pickFallback := false
-	pickCtx := ""
 	if k8s.ForceNamespaceScope {
 		target := k8s.GetNamespaceScopeTarget()
 		if target == "" {
@@ -1528,38 +1538,7 @@ func (s *Server) parseNamespacesForUser(r *http.Request) []string {
 			return []string{}
 		}
 	}
-	if namespaces == nil {
-		// No explicit filter — use the user's saved picks if any, pruned of
-		// namespaces that were deleted from the cluster since the pick was made.
-		// When every pick is stale, fall through with no filter so the user sees
-		// the full cluster instead of a silently-empty UI. Read the pick and its
-		// context as one snapshot so the empty-fallback clear below commits
-		// against the same context, not one switched in mid-request.
-		s.loadSavedNamespacePreference(r)
-		if ctx, picks := s.getActiveNamespaceForUserInContext(r); len(picks) > 0 {
-			picks = s.pruneDeletedNamespacePicks(r, ctx, picks)
-			if len(picks) > 0 {
-				namespaces = picks
-				pickFallback = true
-				pickCtx = ctx
-			}
-		}
-	}
-	filtered, discoveryFailed := s.getUserNamespacesWithStatus(r, namespaces)
-	// If picks lost RBAC mid-session, the filter shrinks the set. When the
-	// intersection is empty every read returns []; recover by dropping the
-	// stale pick entirely and recomputing as if no filter were set, so the
-	// user sees their full RBAC ceiling instead of a silently-empty UI.
-	// Symmetric with handleGetNamespaceScope's partial-revocation eviction.
-	// namespaces holds the pruned picks this fallback filtered on; clear only
-	// if it's still the live pick, so a stale read can't wipe a concurrent
-	// POST or clear across a context switch. A failed access check is empty
-	// for the wrong reason and must not cost the user their pick.
-	if pickFallback && !discoveryFailed && readscope.NoNamespaceAccess(filtered) {
-		s.commitPickMutation(r, pickCtx, namespaces, nil, false)
-		filtered = s.getUserNamespaces(r, nil)
-	}
-	return filtered
+	return s.getUserNamespaces(r, namespaces)
 }
 
 // resolveHelmNamespaces decides which namespaces a Helm list (releases, upgrade
@@ -5997,6 +5976,10 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	var updated config.Config
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
 		s.writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := config.ValidateMCPFile(updated); err != nil {
+		s.writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	normalizedCurrency, err := config.NormalizeOpenCostCurrency(updated.OpenCostCurrency)

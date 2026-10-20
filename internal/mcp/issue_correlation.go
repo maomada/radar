@@ -35,15 +35,16 @@ const (
 	correlationFieldLimit = 5
 )
 
-// correlationMinObservation is the least watch time that justifies a "no
-// recent changes" claim. Below it (fresh start, recent restart) the marker is
-// omitted entirely — a 90-second-old store asserting anything about the past
-// hour would be fiction.
+// correlationMinObservation is the least watch time that justifies a claim
+// resting on the absence of a change: the no_recent_changes marker, or an
+// admission order inferred from one side having no recorded change. Below it
+// (fresh start, recent restart) deferred informers may still be filling, so
+// only recorded changes are reported.
 const correlationMinObservation = 5 * time.Minute
 
 // correlationWindow returns the truthful claim window: the default lookback
 // clamped to how long this process's store has actually been observing.
-// Returns 0 when observation is too short to claim anything.
+// Returns 0 when no store is observing.
 func correlationWindow() time.Duration {
 	window := meaningfulchanges.DefaultSince
 	start := timeline.ObservationStart()
@@ -52,9 +53,6 @@ func correlationWindow() time.Duration {
 	}
 	if observed := time.Since(start); observed < window {
 		window = observed
-	}
-	if window < correlationMinObservation {
-		return 0
 	}
 	return window
 }
@@ -72,7 +70,7 @@ func correlationWindow() time.Duration {
 func attachIssueChangeCorrelation(ctx context.Context, resp *issues.ListResponse) {
 	window := correlationWindow()
 	if window == 0 {
-		return // not enough observation to claim anything, in either direction
+		return // no store observing
 	}
 	checked := 0
 	for _, severity := range []issuesapi.Severity{issuesapi.SeverityCritical, issuesapi.SeverityWarning} {
@@ -142,8 +140,9 @@ func correlateIssue(ctx context.Context, iss *issuesapi.Issue, window time.Durat
 	// all are unknown, not "no changes".
 	subjectComplete := subjectTracked && !result.FetchSaturated && !rbacHidden && !sourcesWithheld &&
 		correlationHistoryComplete(obj, iss.Namespace, result.History)
+	absenceKnown := window >= correlationMinObservation
 	if blocker := admissionBlockerForIssue(ctx, iss, window); blocker != nil &&
-		attachAdmissionBlocker(iss, blocker, changes, subjectComplete, window) {
+		attachAdmissionBlocker(iss, blocker, changes, subjectComplete, absenceKnown, window) {
 		iss.CorrelatedChangesIncomplete = result.FetchSaturated || blocker.saturated
 		return
 	}
@@ -151,7 +150,7 @@ func correlateIssue(ctx context.Context, iss *issuesapi.Issue, window time.Durat
 		return
 	}
 	if len(changes) == 0 {
-		if !subjectComplete {
+		if !subjectComplete || !absenceKnown {
 			return
 		}
 		iss.NoRecentChanges = &issuesapi.NoRecentChangesMarker{
@@ -171,7 +170,7 @@ func correlateIssue(ctx context.Context, iss *issuesapi.Issue, window time.Durat
 // every object was created after the point where its history becomes
 // complete, so nothing about it can have been evicted. Only a cached workload
 // is dated, from its own creation time (a grouped issue's
-// resource_created_at can be a newer member's); its referenced ConfigMaps
+// resource_created_at can be a newer member's); its referenced ConfigMaps and Secrets
 // must be new too, and one missing from the cache is not known to be new.
 func correlationHistoryComplete(obj any, namespace string, coverage issuesapi.HistoryCoverage) bool {
 	if !coverage.Incomplete {
@@ -182,12 +181,32 @@ func correlationHistoryComplete(obj any, namespace string, coverage issuesapi.Hi
 		return false
 	}
 	cache := k8s.GetResourceCache()
-	for _, name := range meaningfulchanges.DirectConfigMapNames(obj) {
-		if cache == nil || cache.ConfigMaps() == nil {
+	for _, ref := range meaningfulchanges.DirectConfigReferences(obj) {
+		if cache == nil {
 			return false
 		}
-		cm, err := cache.ConfigMaps().ConfigMaps(namespace).Get(name)
-		if err != nil || !cm.CreationTimestamp.After(coverage.CompleteSince) {
+		var created metav1.Time
+		switch ref.Kind {
+		case "ConfigMap":
+			if cache.ConfigMaps() == nil {
+				return false
+			}
+			cm, err := cache.ConfigMaps().ConfigMaps(namespace).Get(ref.Name)
+			if err != nil {
+				return false
+			}
+			created = cm.CreationTimestamp
+		case "Secret":
+			if cache.Secrets() == nil {
+				return false
+			}
+			secret, err := cache.Secrets().Secrets(namespace).Get(ref.Name)
+			if err != nil {
+				return false
+			}
+			created = secret.CreationTimestamp
+		}
+		if !created.After(coverage.CompleteSince) {
 			return false
 		}
 	}
@@ -232,36 +251,41 @@ func helmIssueChangesForCorrelation(ctx context.Context, iss *issuesapi.Issue, w
 }
 
 // correlationChangesForIssue also reports whether sources were withheld from
-// the caller, and returns the workload object whose ConfigMaps were
+// the caller or could not be determined, and returns the workload object whose ConfigMaps and Secrets were
 // correlated, or nil.
 func correlationChangesForIssue(ctx context.Context, iss *issuesapi.Issue, window time.Duration, limit int) (meaningfulchanges.RecentResult, bool, any, error) {
 	if meaningfulchanges.WorkloadKind(iss.Kind) {
 		// Workload subjects also correlate against their directly referenced
-		// ConfigMaps; obj==nil degrades to workload-only changes.
+		// ConfigMaps and Secrets; obj==nil degrades to workload-only changes.
 		obj := workloadObjectFromCache(iss.Kind, iss.Namespace, iss.Name)
 		result, sourcesWithheld, err := meaningfulchanges.RecentForWorkloadAndConfigMapsAuthorizedDetailed(
 			ctx, obj, iss.Kind, iss.Namespace, iss.Name,
-			window, limit, correlationFieldLimit, configMapSourceFilter(ctx, iss.Namespace),
+			window, limit, correlationFieldLimit, configSourceFilter(ctx, iss.Namespace), recentChangeViewer(ctx),
 		)
+		// A Rollout whose template can't be read (an unsupported or missing
+		// workloadRef target) has unknown sources, so absence proves nothing.
+		if strings.EqualFold(iss.Kind, "Rollout") && !meaningfulchanges.ConfigReferencesKnown(obj) {
+			sourcesWithheld = true
+		}
 		return result, sourcesWithheld, obj, err
 	}
 	result, err := meaningfulchanges.RecentForResourceDetailed(
 		ctx, iss.Kind, iss.Namespace, iss.Name,
-		window, limit, correlationFieldLimit,
+		window, limit, correlationFieldLimit, recentChangeViewer(ctx),
 	)
 	return result, false, nil, err
 }
 
-// configMapSourceFilter skips a workload's referenced ConfigMaps the caller
+// configSourceFilter skips a workload's referenced ConfigMaps and Secrets the caller
 // can't read before they are queried, so neither their rows nor their fetch
 // saturation reach the caller. nil when auth is off.
-func configMapSourceFilter(ctx context.Context, namespace string) func(kind, name string) bool {
+func configSourceFilter(ctx context.Context, namespace string) func(kind, name string) bool {
 	allow := recentChangeReadFilter(ctx)
 	if allow == nil {
 		return nil
 	}
 	return func(kind, _ string) bool {
-		return kind != "ConfigMap" || allow(issuesapi.RecentChange{Kind: "ConfigMap", APIVersion: "v1", Namespace: namespace})
+		return (kind != "ConfigMap" && kind != "Secret") || allow(issuesapi.RecentChange{Kind: kind, APIVersion: "v1", Namespace: namespace})
 	}
 }
 
@@ -288,6 +312,10 @@ func workloadObjectFromCache(kind, namespace, name string) any {
 			if o, err := l.DaemonSets(namespace).Get(name); err == nil {
 				return o
 			}
+		}
+	case "rollout":
+		if o, err := cache.GetDynamicWithGroup(context.Background(), "Rollout", namespace, name, "argoproj.io"); err == nil {
+			return o
 		}
 	}
 	return nil
