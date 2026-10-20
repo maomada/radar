@@ -120,3 +120,18 @@ it('names every source in a denied HelmChart chain with its own verbs', () => {
   } } }, false)['sync-with-source']
   expect(reason).toBe("Your role can't read or patch source GitRepository sources/repo or patch source HelmChart charts/shared.")
 })
+
+it.each(['rbac_denied', 'admission_denied'])('keeps partial source requests visible for %s toast errors', error_code => {
+  const note = 'Reconcile already requested for HelmRepository charts/repo, HelmChart charts/shared.'
+  const raw = `failed to reconcile HelmRelease apps/web: refused. ${note}`
+  const error = new GitOpsActionError({ error: raw, error_code, summary: 'Rejected by admission webhook freeze: frozen', verb: 'patch', ...kustomization, note }, 403)
+  const summary = error_code === 'rbac_denied' ? "Your role can't patch Flux Kustomization web in apps." : 'Rejected by admission webhook freeze: frozen'
+  expect(error.message).toBe(`${summary} ${note}`)
+  expect(error.rawDetail).toBe(raw)
+})
+
+it('does not duplicate the partial-write note in unstructured errors', () => {
+  const note = 'Reconcile already requested for HelmRepository charts/repo.'
+  const raw = `failed to reconcile source: timed out. ${note}`
+  expect(new GitOpsActionError({ error: raw, note }, 504).message).toBe(raw)
+})

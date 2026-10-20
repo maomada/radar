@@ -524,8 +524,10 @@ func TestGitOpsCapabilitiesHelmChartNotReadyAffectsOnlySyncWithSource(t *testing
 		name        string
 		chartErr    error
 		unsupported bool
+		explicit    bool
 	}{
 		{name: "not created yet", unsupported: true},
+		{name: "explicit chart missing", unsupported: true, explicit: true},
 		{name: "read failed", chartErr: apierrors.NewInternalError(errors.New("etcd timeout"))},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -534,6 +536,9 @@ func TestGitOpsCapabilitiesHelmChartNotReadyAffectsOnlySyncWithSource(t *testing
 				"metadata": map[string]any{"name": "web", "namespace": "apps"},
 				"spec":     map[string]any{"chart": map[string]any{"spec": map[string]any{"chart": "web", "sourceRef": map[string]any{"kind": "HelmRepository", "name": "repo"}}}},
 			}}
+			if tc.explicit {
+				hr.Object["spec"] = map[string]any{"chartRef": map[string]any{"kind": "HelmChart", "name": "shared", "namespace": "charts"}}
+			}
 			client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), hr)
 			if tc.chartErr != nil {
 				client.PrependReactor("get", "helmcharts", func(ktesting.Action) (bool, runtime.Object, error) {
@@ -555,11 +560,42 @@ func TestGitOpsCapabilitiesHelmChartNotReadyAffectsOnlySyncWithSource(t *testing
 			if sync.Allowed != nil || sync.Unsupported != tc.unsupported {
 				t.Fatalf("sync-with-source = %+v", sync)
 			}
-			if tc.unsupported && !strings.Contains(sync.Reason, "Flux hasn't created HelmChart apps/apps-web yet") {
+			if tc.explicit && sync.Reason != "HelmChart charts/shared was not found. Check the chart reference and that the object exists." {
+				t.Fatalf("explicit chart reason = %q", sync.Reason)
+			}
+			if tc.unsupported && !tc.explicit && !strings.Contains(sync.Reason, "Flux hasn't created HelmChart apps/apps-web yet") {
 				t.Fatalf("missing chart reason = %q", sync.Reason)
 			}
 			if !tc.unsupported && sync.Reason != unknownPermissionReason {
 				t.Fatalf("failed read reason = %q", sync.Reason)
+			}
+		})
+	}
+}
+
+func TestWriteGitOpsPartialSourceErrorPreservesStatusAndNote(t *testing.T) {
+	gvr := schema.GroupVersionResource{Group: "source.toolkit.fluxcd.io", Resource: "helmcharts"}
+	for _, tc := range []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{"rbac", apierrors.NewForbidden(gvr.GroupResource(), "shared", errors.New(`User "alice" cannot patch resource "helmcharts"`)), http.StatusForbidden, "rbac_denied"},
+		{"admission", apierrors.NewForbidden(gvr.GroupResource(), "shared", errors.New(`admission webhook "freeze" denied the request: frozen`)), http.StatusForbidden, "admission_denied"},
+		{"not found", apierrors.NewNotFound(gvr.GroupResource(), "shared"), http.StatusNotFound, ""},
+		{"timeout", context.DeadlineExceeded, http.StatusGatewayTimeout, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := &gitops.PartialSyncError{Requested: []gitops.SourceRef{{Kind: "HelmRepository", Namespace: "charts", Name: "repo"}}, Err: gitops.ClassifyPermissionError(tc.err, "patch", gvr, "charts", "shared")}
+			w := httptest.NewRecorder()
+			(&Server{}).writeGitOpsError(w, err, "flux", "sync-with-source", "apps", "demo")
+			var body map[string]string
+			if decodeErr := json.Unmarshal(w.Body.Bytes(), &body); decodeErr != nil {
+				t.Fatal(decodeErr)
+			}
+			if w.Code != tc.status || body["error_code"] != tc.code || body["note"] != "Reconcile already requested for HelmRepository charts/repo." || !strings.Contains(body["error"], body["note"]) {
+				t.Fatalf("status=%d body=%v", w.Code, body)
 			}
 		})
 	}

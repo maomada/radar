@@ -60,7 +60,7 @@ export class GitOpsActionError extends Error {
     const message: string = body.error_code === 'rbac_denied'
       ? gitOpsDenialMessage([denialFromBody(body)])
       : body.error_code === 'admission_denied' ? body.summary : raw
-    super(message)
+    super(body.note && message !== raw ? `${message} ${body.note}` : message)
     this.name = 'GitOpsActionError'
     if (message !== raw) this.rawDetail = raw
   }

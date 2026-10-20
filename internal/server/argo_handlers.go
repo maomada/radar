@@ -282,14 +282,19 @@ func (s *Server) writeGitOpsError(w http.ResponseWriter, err error, module, acti
 	} else {
 		log.Printf("[%s] %s %s/%s -> %d: %v", module, action, sanitizeForLog(namespace), sanitizeForLog(name), status, err)
 	}
+	fields := map[string]string{}
+	var partial *gitops.PartialSyncError
+	if errors.As(err, &partial) {
+		fields["note"] = partial.Note()
+	}
 	var denied *gitops.PermissionDenied
 	if errors.As(err, &denied) {
-		s.writeError(w, status, msg, map[string]string{"error_code": "rbac_denied", "verb": denied.Verb, "group": denied.Group, "resource": denied.Resource, "namespace": denied.Namespace, "name": denied.Name, "kind": denied.Kind})
+		s.writeError(w, status, msg, map[string]string{"error_code": "rbac_denied", "verb": denied.Verb, "group": denied.Group, "resource": denied.Resource, "namespace": denied.Namespace, "name": denied.Name, "kind": denied.Kind}, fields)
 		return
 	}
 	if admission != nil {
-		s.writeError(w, status, msg, map[string]string{"error_code": "admission_denied", "summary": admission.Summary()})
+		s.writeError(w, status, msg, map[string]string{"error_code": "admission_denied", "summary": admission.Summary()}, fields)
 		return
 	}
-	s.writeError(w, status, msg)
+	s.writeError(w, status, msg, fields)
 }

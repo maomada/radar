@@ -136,8 +136,10 @@ read and still reports a missing `patch`. Sync with source on an object with no 
 (for example, a Kustomization without `sourceRef`)
 reports `unsupported` with a reason, and the action itself answers 400.
 Disabled controls explain the denied permission. Controls stay enabled while the first check loads or fails. Failed refetches
-preserve the last known permissions; only a confirmed denial disables an action. Lifecycle restrictions still
-apply; Refresh and Terminate remain available during deletion when permitted.
+preserve each action's last confirmed permissions for up to two minutes; after
+that, the action becomes unknown and permits an attempt. Only a recent confirmed
+denial disables an action. Lifecycle restrictions still apply; Refresh and
+Terminate remain available during deletion when permitted.
 A connected Radar without the `gitOpsActionCapabilities` feature flag retains
 its existing action controls.
 
@@ -149,6 +151,9 @@ ValidatingAdmissionPolicy, return 403 with `error_code: "admission_denied"` and
 a `summary` naming the policy, whatever status the policy chose (a
 ValidatingAdmissionPolicy defaults to 422 Invalid). Only `rbac_denied` is ever
 presented as a role problem; any other error shows the server's message.
+If a Sync with source patch fails after earlier source patches succeeded, the error
+names each object whose reconcile was already requested. This note stays visible
+in the UI and accompanies structured MCP errors; it does not imply controller completion.
 `manage_gitops` returns the same denied tuple, or the admission summary, as a tool error.
 No action gains permissions from the capability endpoint. In Radar Cloud, the
 chart's owner-only write add-on grants `get`/`patch` on Argo CD Applications

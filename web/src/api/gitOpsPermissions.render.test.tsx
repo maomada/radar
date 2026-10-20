@@ -26,6 +26,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount())
   client.clear()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 })
@@ -76,4 +77,41 @@ it('replaces a previous result with an unsupported one instead of retaining it',
 it('does not fetch Argo capabilities for a KubeVela Application', async () => {
   await render('core.oam.dev')
   expect(fetcher.mock.calls.some(([url]) => String(url).includes('/gitops/capabilities/'))).toBe(false)
+})
+
+it.each(['unknown', 'failed', 'pending'])('expires a denial after two minutes of %s checks', async mode => {
+  vi.useFakeTimers()
+  const denial = { allowed: false, denied: [{ verb: 'patch', resource: 'applications', group: 'argoproj.io', namespace: 'argocd' }] }
+  answer = async () => Response.json({ actions: { sync: denial } })
+  await render()
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(element.querySelector('button')!.disabled).toBe(true)
+  answer = mode === 'failed'
+    ? async () => { throw new Error('offline') }
+    : mode === 'pending'
+      ? () => new Promise<Response>(() => {})
+      : async () => Response.json({ actions: { sync: { reason: 'Review unavailable' } } })
+  await act(async () => { await vi.advanceTimersByTimeAsync(119_998) })
+  expect(element.querySelector('button')!.disabled).toBe(true)
+  await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+  expect(query.data?.actions.sync.allowed).toBeUndefined()
+  expect(query.permissions?.sync.allowed).toBeUndefined()
+  expect(query.disabledReasons.sync).toBeUndefined()
+  expect(element.querySelector('button')!.disabled).toBe(false)
+})
+
+it('refreshes confirmation times separately for each action', async () => {
+  vi.useFakeTimers()
+  const denied = { allowed: false, denied: [{ verb: 'patch', resource: 'applications', group: 'argoproj.io', namespace: 'argocd' }] }
+  answer = async () => Response.json({ actions: { sync: denied, refresh: denied } })
+  await render()
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  answer = async () => Response.json({ actions: { sync: { reason: 'Review unavailable' }, refresh: denied } })
+  await act(async () => { await vi.advanceTimersByTimeAsync(120_000) })
+  expect(query.disabledReasons.sync).toBeUndefined()
+  expect(query.disabledReasons.refresh).toContain("Your role can't")
+  answer = async () => Response.json({ actions: { sync: { allowed: true }, refresh: { reason: 'Review unavailable' } } })
+  await act(async () => { await query.refetch(); await vi.advanceTimersByTimeAsync(1) })
+  expect(query.permissions?.sync.allowed).toBe(true)
+  expect(query.disabledReasons.sync).toBeUndefined()
 })

@@ -143,10 +143,37 @@ func TestManageGitOpsDenialAfterSourcesReconciledKeepsNote(t *testing.T) {
 	if !sourcePatched || !result.IsError || body["error_code"] != "rbac_denied" {
 		t.Fatalf("sourcePatched=%v result=%+v", sourcePatched, body)
 	}
-	if note, _ := body["note"].(string); !strings.Contains(note, "sources were reconciled") {
+	if note, _ := body["note"].(string); note != "Reconcile already requested for GitRepository apps/repo." {
 		t.Fatalf("denial lost the partial-write note: %+v", body)
 	}
 	if strings.Contains(body["error"].(string), "opaque-user") {
 		t.Fatalf("denial leaked the apiserver user: %+v", body)
+	}
+}
+
+func TestManageGitOpsMiddleSourceDenialNamesRequestedObjects(t *testing.T) {
+	for _, deniedResource := range []string{"helmcharts", "helmreleases"} {
+		t.Run(deniedResource, func(t *testing.T) {
+			hr := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "helm.toolkit.fluxcd.io/v2", "kind": "HelmRelease", "metadata": map[string]any{"name": "demo", "namespace": "apps"}, "spec": map[string]any{"chartRef": map[string]any{"kind": "HelmChart", "name": "shared", "namespace": "charts"}}}}
+			chart := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "source.toolkit.fluxcd.io/v1", "kind": "HelmChart", "metadata": map[string]any{"name": "shared", "namespace": "charts"}, "spec": map[string]any{"sourceRef": map[string]any{"kind": "HelmRepository", "name": "repo"}}}}
+			repo := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "source.toolkit.fluxcd.io/v1", "kind": "HelmRepository", "metadata": map[string]any{"name": "repo", "namespace": "charts"}}}
+			gvr := schema.GroupVersionResource{Group: "helm.toolkit.fluxcd.io", Version: "v2", Resource: "helmreleases"}
+			dyn := setupMCPDynamicResource(t, gvr, "HelmReleaseList", k8s.APIResource{Group: gvr.Group, Version: gvr.Version, Kind: "HelmRelease", Name: gvr.Resource, Namespaced: true}, hr, chart, repo)
+			dyn.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", deniedResource, func(action ktesting.Action) (bool, runtime.Object, error) {
+				return true, nil, apierrors.NewForbidden(action.GetResource().GroupResource(), "demo", errors.New(`admission webhook "freeze" denied the request: frozen`))
+			})
+			result, _, err := handleManageGitOps(context.Background(), nil, manageGitOpsInput{Action: "sync-with-source", Tool: "fluxcd", Kind: "helmrelease", Namespace: "apps", Name: "demo"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			body := decodeToolResult(t, result)
+			want := "Reconcile already requested for HelmRepository charts/repo"
+			if deniedResource == "helmreleases" {
+				want += ", HelmChart charts/shared"
+			}
+			if !result.IsError || body["error_code"] != "admission_denied" || body["note"] != want+"." {
+				t.Fatalf("partial denial=%+v", body)
+			}
+		})
 	}
 }

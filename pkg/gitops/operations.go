@@ -65,10 +65,26 @@ var (
 	// ErrSyncWithSourceUnsupported means there is no reconcilable source. HTTP 400.
 	ErrSyncWithSourceUnsupported = errors.New("sync with source is not supported for this resource")
 	// ErrSourcesReconciled marks a sync-with-source whose sources were patched
-	// before the target's own patch failed, so callers can say so alongside a
-	// structured denial.
-	ErrSourcesReconciled = errors.New("its sources were reconciled")
+	// before a later patch failed, so callers can report the partial requests.
+	ErrSourcesReconciled = errors.New("source reconcile already requested")
 )
+
+// PartialSyncError records accepted reconcile requests, not controller completion.
+type PartialSyncError struct {
+	Requested []SourceRef
+	Err       error
+}
+
+func (e *PartialSyncError) Error() string        { return e.Err.Error() + ". " + e.Note() }
+func (e *PartialSyncError) Unwrap() error        { return e.Err }
+func (e *PartialSyncError) Is(target error) bool { return target == ErrSourcesReconciled }
+func (e *PartialSyncError) Note() string {
+	objects := make([]string, 0, len(e.Requested))
+	for _, ref := range e.Requested {
+		objects = append(objects, fmt.Sprintf("%s %s/%s", ref.Kind, ref.Namespace, ref.Name))
+	}
+	return "Reconcile already requested for " + strings.Join(objects, ", ") + "."
+}
 
 type syncWithSourceUnsupported string
 
@@ -937,17 +953,24 @@ func SyncFluxWithSource(ctx context.Context, dynClient dynamic.Interface, kind, 
 		}, nil
 	}
 
+	var requested []SourceRef
+	withRequested := func(err error) error {
+		if len(requested) == 0 {
+			return err
+		}
+		return &PartialSyncError{Requested: requested, Err: err}
+	}
 	for _, l := range chain {
 		if err := mergePatch(ctx, dynClient, l.Entry.GVR, l.Namespace, l.Name, reconcilePatch); err != nil {
 			if apierrors.IsNotFound(err) {
-				return OperationResult{}, sourceNotPatchable(l.Entry.Kind, l.Namespace, l.Name, err)
+				return OperationResult{}, withRequested(sourceNotPatchable(l.Entry.Kind, l.Namespace, l.Name, err))
 			}
-			return OperationResult{}, fmt.Errorf("failed to reconcile source %s %s/%s: %w", l.Entry.Kind, l.Namespace, l.Name, err)
+			return OperationResult{}, withRequested(fmt.Errorf("failed to reconcile source %s %s/%s: %w", l.Entry.Kind, l.Namespace, l.Name, err))
 		}
+		requested = append(requested, SourceRef{Kind: l.Entry.Kind, Namespace: l.Namespace, Name: l.Name})
 	}
 	if err := mergePatch(ctx, dynClient, entry.GVR, namespace, name, reconcilePatch); err != nil {
-		return OperationResult{}, fmt.Errorf("failed to reconcile %s %s/%s (note: %w): %w",
-			entry.Kind, namespace, name, ErrSourcesReconciled, err)
+		return OperationResult{}, withRequested(fmt.Errorf("failed to reconcile %s %s/%s: %w", entry.Kind, namespace, name, err))
 	}
 
 	steps := make([]string, 0, len(chain))

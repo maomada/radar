@@ -125,8 +125,9 @@ func handleManageGitOps(ctx context.Context, req *mcp.CallToolRequest, input man
 			body = map[string]any{"error": admission.Summary(), "error_code": "admission_denied"}
 		}
 		if body != nil {
-			if errors.Is(err, gitops.ErrSourcesReconciled) {
-				body["note"] = "Its sources were reconciled before this was refused."
+			var partial *gitops.PartialSyncError
+			if errors.As(err, &partial) {
+				body["note"] = partial.Note()
 			}
 			response, _, marshalErr := toJSONResult(body)
 			if marshalErr != nil {

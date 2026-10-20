@@ -176,11 +176,13 @@ func gitOpsCapabilities(ctx context.Context, client dynamic.Interface, kind, nam
 					delete(required, "sync-with-source")
 					actions["sync-with-source"] = gitOpsActionCapability{Unsupported: true, Reason: err.Error() + "."}
 				case apierrors.IsNotFound(err) && len(chain) > 0:
-					// Flux generates an inline chart's HelmChart; until it does,
-					// there is no source to reconcile.
 					delete(required, "sync-with-source")
 					link := chain[0]
-					actions["sync-with-source"] = gitOpsActionCapability{Unsupported: true, Reason: fmt.Sprintf("Flux hasn't created %s %s/%s yet, so there's no source to reconcile.", link.Entry.Kind, link.Namespace, link.Name)}
+					reason := fmt.Sprintf("%s %s/%s was not found. Check the chart reference and that the object exists.", link.Entry.Kind, link.Namespace, link.Name)
+					if _, explicit, _ := unstructured.NestedMap(obj.Object, "spec", "chartRef"); !explicit {
+						reason = fmt.Sprintf("Flux hasn't created %s %s/%s yet, so there's no source to reconcile.", link.Entry.Kind, link.Namespace, link.Name)
+					}
+					actions["sync-with-source"] = gitOpsActionCapability{Unsupported: true, Reason: reason}
 				case err != nil:
 					delete(required, "sync-with-source")
 					actions["sync-with-source"] = gitOpsActionCapability{Reason: unknownPermissionReason}

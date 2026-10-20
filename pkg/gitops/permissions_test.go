@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -169,6 +170,20 @@ func TestFluxSyncChainPermissionDenials(t *testing.T) {
 				if !apierrors.IsForbidden(err) || !errors.As(err, &denied) || denied.Verb != verb || denied.Group != target.group || denied.Resource != target.resource || denied.Namespace != target.namespace || denied.Name != target.name || denied.Kind != target.kind {
 					t.Fatalf("denial=%+v err=%v", denied, err)
 				}
+				var partial *PartialSyncError
+				wantPartial := verb == "patch" && target.kind != "HelmRepository"
+				if errors.Is(err, ErrSourcesReconciled) != wantPartial || errors.As(err, &partial) != wantPartial {
+					t.Fatalf("partial requests missing or unexpected: %v", err)
+				}
+				if wantPartial {
+					want := []SourceRef{{Kind: "HelmRepository", Namespace: "charts", Name: "repo"}}
+					if target.kind == "HelmRelease" {
+						want = append(want, SourceRef{Kind: "HelmChart", Namespace: "charts", Name: "shared"})
+					}
+					if !slices.Equal(partial.Requested, want) || !strings.Contains(err.Error(), partial.Note()) {
+						t.Fatalf("requested=%+v want=%+v err=%v", partial.Requested, want, err)
+					}
+				}
 				if verb == "get" {
 					for _, action := range client.Actions() {
 						if action.GetVerb() == "patch" {
@@ -178,5 +193,41 @@ func TestFluxSyncChainPermissionDenials(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestFluxSyncPartialSourceFailure(t *testing.T) {
+	for _, failure := range []error{
+		apierrors.NewNotFound(schema.GroupResource{Group: "source.toolkit.fluxcd.io", Resource: "helmcharts"}, "shared"),
+		apierrors.NewForbidden(schema.GroupResource{Group: "source.toolkit.fluxcd.io", Resource: "helmcharts"}, "shared", errors.New(`admission webhook "freeze" denied the request: frozen`)),
+		context.DeadlineExceeded,
+	} {
+		t.Run(failure.Error(), func(t *testing.T) {
+			hr := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "helm.toolkit.fluxcd.io/v2", "kind": "HelmRelease", "metadata": map[string]any{"name": "demo", "namespace": "apps"}, "spec": map[string]any{"chartRef": map[string]any{"kind": "HelmChart", "name": "shared", "namespace": "charts"}}}}
+			chart := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "source.toolkit.fluxcd.io/v1", "kind": "HelmChart", "metadata": map[string]any{"name": "shared", "namespace": "charts"}, "spec": map[string]any{"sourceRef": map[string]any{"kind": "HelmRepository", "name": "repo"}}}}
+			repo := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "source.toolkit.fluxcd.io/v1", "kind": "HelmRepository", "metadata": map[string]any{"name": "repo", "namespace": "charts"}}}
+			client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), hr, chart, repo)
+			client.PrependReactor("patch", "helmcharts", func(ktesting.Action) (bool, runtime.Object, error) { return true, nil, failure })
+			_, err := SyncFluxWithSource(context.Background(), client, "helmrelease", "apps", "demo")
+			var partial *PartialSyncError
+			if !errors.Is(err, ErrSourcesReconciled) || !errors.Is(err, failure) || !errors.As(err, &partial) {
+				t.Fatalf("lost partial effect or leaf error: %v", err)
+			}
+			if want := []SourceRef{{Kind: "HelmRepository", Namespace: "charts", Name: "repo"}}; !slices.Equal(partial.Requested, want) {
+				t.Fatalf("requested=%+v, want %+v", partial.Requested, want)
+			}
+			if partial.Note() != "Reconcile already requested for HelmRepository charts/repo." {
+				t.Fatal(partial.Note())
+			}
+			updated, getErr := client.Resource(schema.GroupVersionResource{Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "helmrepositories"}).Namespace("charts").Get(context.Background(), "repo", metav1.GetOptions{})
+			if getErr != nil || updated.GetAnnotations()["reconcile.fluxcd.io/requestedAt"] == "" {
+				t.Fatalf("repository request was not written: %v %v", updated, getErr)
+			}
+			for _, action := range client.Actions() {
+				if action.GetVerb() == "patch" && action.GetResource().Resource == "helmreleases" {
+					t.Fatal("consumer patched after source failure")
+				}
+			}
+		})
 	}
 }
