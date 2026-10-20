@@ -46,7 +46,7 @@ const (
 // settled reads ref from the cache and from the API server until both say
 // the same: absent, or present in the same state. It reports what the API
 // server says, and false if they never agreed.
-func (st settle) settled(ref resourceid.Ref, cache ownership.Session, api apiRead) (ownershiptest.Object, bool, bool) {
+func (st settle) settled(ref resourceid.Ref, cache ownership.ReadSession, api apiRead) (ownershiptest.Object, bool, bool) {
 	for try := range st.tries {
 		if try > 0 {
 			time.Sleep(st.pause)
@@ -83,7 +83,7 @@ func changedSince(listed map[resourceid.Ref]ownershiptest.Object, ref resourceid
 // disputed or listed object in the domain it leaves out must not name it now;
 // and the gaps must be the expected ones. Objects created after the list and
 // never disputed aren't checked.
-func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]ownershiptest.Object, cache ownership.Session, api apiRead) outcome {
+func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]ownershiptest.Object, cache ownership.ReadSession, api apiRead) outcome {
 	if d.Coverage || len(d.Objects) == 0 {
 		return unresolved
 	}
@@ -146,7 +146,7 @@ func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]o
 // recheckResolution is recheck for a ResolveOwner difference: once the owner
 // has caught up, the cache's resolution must be what the owner's current
 // state implies. The dependent need not have changed.
-func (st settle) recheckResolution(want, got ownership.OwnerResolution, dependent ownership.Observation, ref metav1.OwnerReference, listed map[resourceid.Ref]ownershiptest.Object, cache ownership.Session, api apiRead) outcome {
+func (st settle) recheckResolution(want, got ownership.OwnerResolution, dependent ownership.Observation, ref metav1.OwnerReference, listed map[resourceid.Ref]ownershiptest.Object, cache ownership.ReadSession, api apiRead) outcome {
 	if want.Ref != got.Ref || want.Ref == (resourceid.Ref{}) || want.Gap != got.Gap {
 		return unresolved
 	}

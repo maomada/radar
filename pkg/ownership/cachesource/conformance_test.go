@@ -28,8 +28,8 @@ func conform(t *testing.T, w ownershiptest.World) {
 	before := r.storedObjects()
 	got := begin(t, r.source())
 	ownershiptest.Conform(t, want, got, ownershiptest.QueriesFor(w))
-	if err := got.Validate(); err != nil {
-		t.Fatalf("a quiet cache's session failed Validate: %v", err)
+	if err := got.ValidateStores(); err != nil {
+		t.Fatalf("a quiet cache's session failed ValidateStores: %v", err)
 	}
 	resolveAlike(t, w, want, got)
 	if after := r.storedObjects(); !reflect.DeepEqual(before, after) {
@@ -40,7 +40,7 @@ func conform(t *testing.T, w ownershiptest.World) {
 // resolveAlike checks that ResolveOwner judges every owner reference of every
 // object in w the same over both sessions: the cache source changes nothing a
 // rule can see.
-func resolveAlike(t *testing.T, w ownershiptest.World, want, got ownership.Session) {
+func resolveAlike(t *testing.T, w ownershiptest.World, want, got ownership.ReadSession) {
 	t.Helper()
 	for _, o := range w.Objects {
 		dependent := want.Object(o.Ref)

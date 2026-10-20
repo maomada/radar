@@ -58,9 +58,7 @@ type Observation struct {
 	// observations of the same object.
 	ResourceVersion string
 	// OwnerReferences are the object's own, in order and unvalidated.
-	OwnerReferences   []metav1.OwnerReference
-	DeletionTimestamp *metav1.Time
-	Finalizers        []string
+	OwnerReferences []metav1.OwnerReference
 }
 
 // Gap is what a read could not establish: Kind in Namespace, or cluster-wide

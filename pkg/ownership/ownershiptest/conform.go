@@ -127,7 +127,7 @@ func (d Difference) String() string {
 
 // Differences returns every question on which got answers differently from
 // want.
-func Differences(want, got ownership.Session, q Queries) []Difference {
+func Differences(want, got ownership.ReadSession, q Queries) []Difference {
 	var diffs []Difference
 	for _, ref := range q.Refs {
 		if w, g := want.Object(ref), got.Object(ref); !sameRead(w, g) {
@@ -159,7 +159,7 @@ func Differences(want, got ownership.Session, q Queries) []Difference {
 
 // Conform fails t for every question on which got answers differently from
 // want. It returns the number of differences.
-func Conform(t testing.TB, want, got ownership.Session, q Queries) int {
+func Conform(t testing.TB, want, got ownership.ReadSession, q Queries) int {
 	t.Helper()
 	diffs := Differences(want, got, q)
 	const shown = 20
@@ -211,20 +211,12 @@ func sameCandidates(a, b ownership.CandidateRead) bool {
 }
 
 // SameObservation reports whether two observations are of the same object
-// in the same state, comparing timestamps by instant.
+// in the same state.
 func SameObservation(a, b ownership.Observation) bool {
 	return sameObservation(a, b)
 }
 
 func sameObservation(a, b ownership.Observation) bool {
-	at, bt := a.DeletionTimestamp, b.DeletionTimestamp
-	if (at == nil) != (bt == nil) || at != nil && !at.Equal(bt) {
-		return false
-	}
-	a.DeletionTimestamp, b.DeletionTimestamp = nil, nil
-	if len(a.Finalizers) == 0 && len(b.Finalizers) == 0 {
-		a.Finalizers, b.Finalizers = nil, nil
-	}
 	if len(a.OwnerReferences) == 0 && len(b.OwnerReferences) == 0 {
 		a.OwnerReferences, b.OwnerReferences = nil, nil
 	}
@@ -263,9 +255,5 @@ func describeObservation(o ownership.Observation) string {
 		}
 		owners = append(owners, fmt.Sprintf("%s %s/%s %s%s", ref.APIVersion, ref.Kind, ref.Name, ref.UID, flags))
 	}
-	deleting := ""
-	if o.DeletionTimestamp != nil {
-		deleting = " deleting " + o.DeletionTimestamp.UTC().Format("15:04:05")
-	}
-	return fmt.Sprintf("%v@%s uid=%s rv=%s owners=[%s] finalizers=%v%s", o.Ref, o.APIVersion, o.UID, o.ResourceVersion, strings.Join(owners, "; "), o.Finalizers, deleting)
+	return fmt.Sprintf("%v@%s uid=%s rv=%s owners=[%s]", o.Ref, o.APIVersion, o.UID, o.ResourceVersion, strings.Join(owners, "; "))
 }

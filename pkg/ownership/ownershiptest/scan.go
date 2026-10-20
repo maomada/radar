@@ -19,7 +19,7 @@ func Scan(w World) ownership.Source {
 
 type scanSource struct{ w World }
 
-func (s scanSource) Begin() (ownership.Session, error) {
+func (s scanSource) Begin() (ownership.ReadSession, error) {
 	session := scanSession{w: s.w, catalog: ownership.NewCatalog(s.w.Resources, !s.w.Partial), byRef: map[resourceid.Ref]Object{}, byKind: map[resourceid.GroupKind][]Object{}}
 	for _, o := range s.w.Objects {
 		session.byRef[o.Ref] = o
@@ -46,7 +46,7 @@ type scanSession struct {
 
 func (s scanSession) Catalog() *ownership.Catalog { return s.catalog }
 
-func (s scanSession) Validate() error { return nil }
+func (s scanSession) ValidateStores() error { return nil }
 
 // scope says whether discovery serves gk and whether it is namespaced.
 func (s scanSession) scope(gk resourceid.GroupKind) (namespaced, served bool) {
@@ -296,13 +296,9 @@ func observation(o Object) ownership.Observation {
 		APIVersion:      o.APIVersion,
 		UID:             o.UID,
 		ResourceVersion: o.ResourceVersion,
-		Finalizers:      slices.Clone(o.Finalizers),
 	}
 	for _, ref := range o.Owners {
 		obs.OwnerReferences = append(obs.OwnerReferences, *ref.DeepCopy())
-	}
-	if o.DeletionTimestamp != nil {
-		obs.DeletionTimestamp = o.DeletionTimestamp.DeepCopy()
 	}
 	return obs
 }

@@ -159,7 +159,7 @@ func (s *session) typedCandidates(q *search, b resourceid.Builtin) {
 	}
 }
 
-func (s *session) dynamicCandidates(q *search, kind ownership.Kind) {
+func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 	gk := kind.GroupKind
 	if s.caches.Dynamic == nil {
 		q.gapEverywhere(gk, kind.Namespaced, readreason.RadarKindNotCollected)
@@ -305,7 +305,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.Kind) {
 // unwatchedReason reports a kind none of whose served versions is watched,
 // and why, as of the session's first look: most kinds a cluster serves aren't
 // watched, and every search would otherwise ask again.
-func (s *session) unwatchedReason(kind ownership.Kind, versions []schema.GroupVersionResource) (readreason.Code, bool) {
+func (s *session) unwatchedReason(kind ownership.CatalogKind, versions []schema.GroupVersionResource) (readreason.Code, bool) {
 	gr := schema.GroupResource{Group: kind.Group, Resource: kind.Resource}
 	if reason, seen := s.unwatched[gr]; seen {
 		return reason, reason != ""

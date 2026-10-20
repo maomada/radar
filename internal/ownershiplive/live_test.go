@@ -284,8 +284,8 @@ func TestLiveParity(t *testing.T) {
 					fmt.Sprintf("%s: listed %v %v %+v, cache %v %v %+v", question, a.State, a.Ref, a.Gap, b.State, b.Ref, b.Gap))
 			}
 		}
-		if err := got.Validate(); err != nil {
-			t.Errorf("pass %d: Validate: %v", pass, err)
+		if err := got.ValidateStores(); err != nil {
+			t.Errorf("pass %d: ValidateStores: %v", pass, err)
 		}
 		t.Logf("pass %d: %d objects; %d questions (%d objects, %d UIDs × %d domains) and %d owner references resolved; %d differ: %d confirmed by a change the API server shows, %d caught up with no change shown, %d wrong or not settled",
 			pass, len(w.Objects), len(q.Refs)+len(q.UIDs)*len(q.Domains), len(q.Refs), len(q.UIDs), len(q.Domains), resolutions,

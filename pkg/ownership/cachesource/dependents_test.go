@@ -148,7 +148,7 @@ func TestOwnerCandidatesCompareVersionsWatchedInDifferentScopes(t *testing.T) {
 			if !slices.Equal(found, tc.wantFound) || !slices.Equal(widgetGaps, tc.wantGaps) {
 				t.Fatalf("Widgets %v, gaps %+v; want %v, %+v", found, widgetGaps, tc.wantFound, tc.wantGaps)
 			}
-			if err := s.Validate(); err != nil {
+			if err := s.ValidateStores(); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -207,7 +207,7 @@ func TestOwnerCandidatesIgnoreAnAmbiguousKindNothingCollects(t *testing.T) {
 
 // A search while a cluster-wide watch takes over from namespace ones must
 // not answer from the unloaded replacement, and a session that read the old
-// store must fail Validate.
+// store must fail ValidateStores.
 func TestOwnerCandidatesThroughAPromotion(t *testing.T) {
 	f, p := newPromotionFixture(t)
 	source := f.source()
@@ -216,8 +216,8 @@ func TestOwnerCandidatesThroughAPromotion(t *testing.T) {
 		t.Fatalf("from alpha's watch = %+v", got)
 	}
 	p.run(t, f, true)
-	if err := before.Validate(); !errors.Is(err, ownership.ErrStoreReplaced) {
-		t.Fatalf("Validate after the replacement = %v, want ErrStoreReplaced", err)
+	if err := before.ValidateStores(); !errors.Is(err, ownership.ErrStoreReplaced) {
+		t.Fatalf("ValidateStores after the replacement = %v, want ErrStoreReplaced", err)
 	}
 	during := begin(t, source)
 	for _, domain := range []ownership.Domain{ownership.InNamespace("alpha"), ownership.Everywhere()} {
@@ -287,7 +287,7 @@ func TestOwnerCandidatesDoNoIO(t *testing.T) {
 			s.OwnerCandidates(uid, domain, 0)
 		}
 	}
-	if err := s.Validate(); err != nil {
+	if err := s.ValidateStores(); err != nil {
 		t.Fatal(err)
 	}
 	if after := len(f.typed.Actions()) + len(f.dynamic.Actions()); after != before {
@@ -354,8 +354,8 @@ func TestOwnerCandidatesNegativeFailsValidateOnceItsStoreIsReplaced(t *testing.T
 		t.Fatalf("a search alpha's loaded watch answers = %+v", got)
 	}
 	p.run(t, f, true)
-	if err := s.Validate(); !errors.Is(err, ownership.ErrStoreReplaced) {
-		t.Fatalf("Validate after the store behind an empty answer was replaced = %v, want ErrStoreReplaced", err)
+	if err := s.ValidateStores(); !errors.Is(err, ownership.ErrStoreReplaced) {
+		t.Fatalf("ValidateStores after the store behind an empty answer was replaced = %v, want ErrStoreReplaced", err)
 	}
 }
 

@@ -16,19 +16,19 @@ import (
 var quick = settle{tries: 3, pause: time.Millisecond}
 
 // candidateDrop drops every candidate: a broken owner index.
-type candidateDrop struct{ ownership.Session }
+type candidateDrop struct{ ownership.ReadSession }
 
 func (c candidateDrop) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := c.Session.OwnerCandidates(uid, d, limit)
+	r := c.ReadSession.OwnerCandidates(uid, d, limit)
 	r.Candidates = nil
 	return r
 }
 
 // inventedUID returns every candidate under a UID it doesn't have.
-type inventedUID struct{ ownership.Session }
+type inventedUID struct{ ownership.ReadSession }
 
 func (c inventedUID) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := c.Session.OwnerCandidates(uid, d, limit)
+	r := c.ReadSession.OwnerCandidates(uid, d, limit)
 	for i := range r.Candidates {
 		r.Candidates[i].UID = "invented"
 	}
@@ -37,7 +37,7 @@ func (c inventedUID) OwnerCandidates(uid types.UID, d ownership.Domain, limit in
 
 // falseAbsence reports one object absent, always or only the first time.
 type falseAbsence struct {
-	ownership.Session
+	ownership.ReadSession
 	ref   resourceid.Ref
 	once  bool
 	calls *int
@@ -50,27 +50,27 @@ func (f falseAbsence) Object(ref resourceid.Ref) ownership.ObjectRead {
 			return ownership.ObjectRead{State: ownership.Absent}
 		}
 	}
-	return f.Session.Object(ref)
+	return f.ReadSession.Object(ref)
 }
 
 // extraCandidate adds an object to every search's candidates, as an index
 // that ignores the domain would.
 type extraCandidate struct {
-	ownership.Session
+	ownership.ReadSession
 	extra ownership.Observation
 }
 
 func (e extraCandidate) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := e.Session.OwnerCandidates(uid, d, limit)
+	r := e.ReadSession.OwnerCandidates(uid, d, limit)
 	r.Candidates = append(r.Candidates, e.extra)
 	return r
 }
 
 // twice returns every candidate twice.
-type twice struct{ ownership.Session }
+type twice struct{ ownership.ReadSession }
 
 func (c twice) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := c.Session.OwnerCandidates(uid, d, limit)
+	r := c.ReadSession.OwnerCandidates(uid, d, limit)
 	r.Candidates = append(r.Candidates, r.Candidates...)
 	return r
 }
@@ -78,13 +78,13 @@ func (c twice) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) own
 // dropsLater answers the first search right, and leaves one object out of
 // every later one.
 type dropsLater struct {
-	ownership.Session
+	ownership.ReadSession
 	drop  resourceid.Ref
 	calls *int
 }
 
 func (l dropsLater) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := l.Session.OwnerCandidates(uid, d, limit)
+	r := l.ReadSession.OwnerCandidates(uid, d, limit)
 	if *l.calls++; *l.calls > 1 {
 		r.Candidates = slices.DeleteFunc(r.Candidates, func(c ownership.Observation) bool { return c.Ref == l.drop })
 	}
@@ -93,12 +93,12 @@ func (l dropsLater) OwnerCandidates(uid types.UID, d ownership.Domain, limit int
 
 // earlyGap adds a gap to the first search only.
 type earlyGap struct {
-	ownership.Session
+	ownership.ReadSession
 	calls *int
 }
 
 func (e earlyGap) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := e.Session.OwnerCandidates(uid, d, limit)
+	r := e.ReadSession.OwnerCandidates(uid, d, limit)
 	if *e.calls++; *e.calls == 1 {
 		r.Gaps = append(r.Gaps, ownership.Gap{Kind: resourceid.GroupKind{Kind: "Pod"}, Namespace: "beta", Reason: "kind_sync_pending"})
 	}
@@ -107,12 +107,12 @@ func (e earlyGap) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) 
 
 // laterGap adds a gap to every search after the first.
 type laterGap struct {
-	ownership.Session
+	ownership.ReadSession
 	calls *int
 }
 
 func (l laterGap) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := l.Session.OwnerCandidates(uid, d, limit)
+	r := l.ReadSession.OwnerCandidates(uid, d, limit)
 	if *l.calls++; *l.calls > 1 {
 		r.Gaps = append(r.Gaps, ownership.Gap{Kind: resourceid.GroupKind{Kind: "Pod"}, Namespace: "beta", Reason: "kind_sync_pending"})
 	}
@@ -122,17 +122,17 @@ func (l laterGap) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) 
 // lagging answers from an older view of the cluster until it has been asked
 // twice, as a cache does while its watch catches up.
 type lagging struct {
-	ownership.Session
-	old   ownership.Session
+	ownership.ReadSession
+	old   ownership.ReadSession
 	calls *int
 }
 
-func (l lagging) view() ownership.Session {
+func (l lagging) view() ownership.ReadSession {
 	*l.calls++
 	if *l.calls <= 2 {
 		return l.old
 	}
-	return l.Session
+	return l.ReadSession
 }
 
 func (l lagging) Object(ref resourceid.Ref) ownership.ObjectRead { return l.view().Object(ref) }
@@ -169,7 +169,7 @@ func listedOf(w ownershiptest.World) map[resourceid.Ref]ownershiptest.Object {
 	return out
 }
 
-func begin(t *testing.T, w ownershiptest.World) ownership.Session {
+func begin(t *testing.T, w ownershiptest.World) ownership.ReadSession {
 	t.Helper()
 	s, err := ownershiptest.Scan(w).Begin()
 	if err != nil {
@@ -196,7 +196,7 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		now   ownershiptest.World
-		cache func(now ownership.Session) ownership.Session
+		cache func(now ownership.ReadSession) ownership.ReadSession
 		// want is each question's outcome.
 		want map[string]outcome
 		// listed, when set, is what the list saw instead of the ReplicaSet
@@ -215,53 +215,53 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 		// with nothing changed since the list the cache had merely been
 		// behind.
 		{"the cache was behind the list", world(rs, orphaned),
-			func(now ownership.Session) ownership.Session { return lagging{now, begin(t, listed), new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession { return lagging{now, begin(t, listed), new(int)} },
 			map[string]outcome{"Object": caughtUp, "OwnerCandidates": caughtUp}, &behindList},
 		// The cache's own absence is not evidence: the API server still has it.
 		{"the cache keeps reporting the Pod absent", world(rs, pod),
-			func(now ownership.Session) ownership.Session { return falseAbsence{now, pod.Ref, false, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession { return falseAbsence{now, pod.Ref, false, new(int)} },
 			map[string]outcome{"Object": unresolved}, nil},
 		// Right once asked again, with nothing changed: not a confirmed
 		// change, whatever made the first answer wrong.
 		{"the cache reports the Pod absent once", world(rs, pod),
-			func(now ownership.Session) ownership.Session { return falseAbsence{now, pod.Ref, true, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession { return falseAbsence{now, pod.Ref, true, new(int)} },
 			map[string]outcome{"Object": caughtUp}, nil},
 		// A write that kept the Pod's owner doesn't excuse a missing
 		// candidate.
 		{"a status write, and the index drops the Pod", world(rs, updated),
-			func(now ownership.Session) ownership.Session { return candidateDrop{now} },
+			func(now ownership.ReadSession) ownership.ReadSession { return candidateDrop{now} },
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
 		// Membership right, copy wrong.
 		{"a candidate under a UID it doesn't have", world(rs, updated),
-			func(now ownership.Session) ownership.Session { return inventedUID{now} },
+			func(now ownership.ReadSession) ownership.ReadSession { return inventedUID{now} },
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
 		// A Pod outside the searched namespace, named in a search for alpha.
 		{"a candidate outside the domain", world(rs, updated, elsewhere),
-			func(now ownership.Session) ownership.Session {
+			func(now ownership.ReadSession) ownership.ReadSession {
 				return extraCandidate{now, ownershiptest.Observe(elsewhere)}
 			},
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
 		// Every copy right, but one object named twice, with or without a
 		// write since the list.
 		{"a candidate returned twice", world(rs, pod),
-			func(now ownership.Session) ownership.Session { return twice{now} },
+			func(now ownership.ReadSession) ownership.ReadSession { return twice{now} },
 			map[string]outcome{"OwnerCandidates": unresolved}, nil},
 		{"a candidate returned twice after a write", world(rs, updated),
-			func(now ownership.Session) ownership.Session { return twice{now} },
+			func(now ownership.ReadSession) ownership.ReadSession { return twice{now} },
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
 		// The sibling agreed at first and was never disputed; asked again,
 		// the search drops it.
 		{"a candidate that agreed, dropped when asked again", world(rs, updated, sibling),
-			func(now ownership.Session) ownership.Session { return dropsLater{now, sibling.Ref, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession { return dropsLater{now, sibling.Ref, new(int)} },
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, &listedWithSibling},
 		// Asked again, the search covers less than the expected answer.
 		{"the fresh answer leaves more unread", world(rs, updated),
-			func(now ownership.Session) ownership.Session { return laterGap{now, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession { return laterGap{now, new(int)} },
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
 		// A coverage difference fails even when it's gone by the time the
 		// question is asked again: the caches are loaded before comparing.
 		{"a coverage difference that passes", world(rs, updated),
-			func(now ownership.Session) ownership.Session { return earlyGap{now, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession { return earlyGap{now, new(int)} },
 			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
 		// Discovery went partial while the Pod changed: a coverage difference
 		// beside an object one, never explained by the object.
@@ -346,7 +346,7 @@ func TestRecheckResolutionNeedsOnlyTheOwnerToChange(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		now   ownershiptest.World
-		cache ownership.Session
+		cache ownership.ReadSession
 		want  outcome
 	}{
 		{"the owner was recreated", world(recreated, pod), nil, confirmed},

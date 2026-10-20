@@ -61,7 +61,7 @@ func New(current func() Caches) *Source {
 // Begin opens a session over the current caches. Open one per request, not
 // one per item: a session's first read of a custom kind lists every dynamic
 // watch, which costs milliseconds with thousands of watched namespaces.
-func (s *Source) Begin() (ownership.Session, error) {
+func (s *Source) Begin() (ownership.ReadSession, error) {
 	caches := s.current()
 	if caches.Typed == nil || caches.retired() {
 		return nil, ownership.ErrNotConnected
@@ -110,7 +110,7 @@ type session struct {
 	versions map[schema.GroupResource][]schema.GroupVersionResource
 	// unconsulted holds, for each resource the session reads, the versions
 	// the catalog serves that weren't watched when it chose its versions. One
-	// watched later may hold what the others lack, so Validate checks them.
+	// watched later may hold what the others lack, so ValidateStores checks them.
 	// A version it chose, watched only elsewhere then, that starts serving a
 	// namespace after the session read there is not checked: like a version
 	// still loading there, it may hold a later update the answer lacks.
@@ -232,7 +232,7 @@ func (s *session) unansweredReason(versions []schema.GroupVersionResource, names
 // most stable first: the watched versions the catalog serves. With none
 // watched it is the most stable served version, whose observation says why.
 // The list holds for the session.
-func (s *session) servingVersions(kind ownership.Kind) []schema.GroupVersionResource {
+func (s *session) servingVersions(kind ownership.CatalogKind) []schema.GroupVersionResource {
 	gr := schema.GroupResource{Group: kind.Group, Resource: kind.Resource}
 	if versions, chosen := s.versions[gr]; chosen {
 		return versions
@@ -277,7 +277,7 @@ func (s *session) record(gvr schema.GroupVersionResource, namespace string, serv
 	s.served[key] = server
 }
 
-func (s *session) Validate() error {
+func (s *session) ValidateStores() error {
 	if s.caches.replacedBy(s.current()) || s.caches.retired() {
 		return ownership.ErrCachesReplaced
 	}
@@ -400,16 +400,12 @@ func observe(ref resourceid.Ref, apiVersion string, obj apiruntime.Object) owner
 		APIVersion:      apiVersion,
 		UID:             m.GetUID(),
 		ResourceVersion: m.GetResourceVersion(),
-		Finalizers:      slices.Clone(m.GetFinalizers()),
 	}
 	if refs := m.GetOwnerReferences(); len(refs) > 0 {
 		o.OwnerReferences = make([]metav1.OwnerReference, len(refs))
 		for i := range refs {
 			refs[i].DeepCopyInto(&o.OwnerReferences[i])
 		}
-	}
-	if ts := m.GetDeletionTimestamp(); ts != nil {
-		o.DeletionTimestamp = ts.DeepCopy()
 	}
 	return ownership.ObjectRead{State: ownership.Present, Object: o}
 }
