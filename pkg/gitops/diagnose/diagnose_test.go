@@ -303,7 +303,7 @@ func TestActionForFluxReason(t *testing.T) {
 
 func TestParseArgoOperationError_EmptyAutoSync(t *testing.T) {
 	got := ParseArgoOperationError("Skipping sync attempt to [abc123]: auto-sync will wipe out all resources")
-	if !strings.Contains(got.Cause, "empty desired state") || !strings.Contains(got.Cause, "prune") {
+	if !strings.Contains(got.Cause, "the render includes none of the resources this Application manages") {
 		t.Fatalf("missing empty-state cause: %+v", got)
 	}
 	// The list row shows the summary; a leading revision SHA would push the
@@ -311,7 +311,7 @@ func TestParseArgoOperationError_EmptyAutoSync(t *testing.T) {
 	if got.Reason != ReasonAutoSyncBlockedEmpty || !strings.HasPrefix(got.Summary, "Auto-sync blocked") || strings.Contains(got.Summary, "abc123") {
 		t.Fatalf("summary must lead with the meaning: %+v", got)
 	}
-	if !strings.Contains(got.Action, "A sync with Prune enabled would delete every managed resource") {
+	if !strings.Contains(got.Action, "A sync with Prune enabled could delete all of them") {
 		t.Fatalf("guard advice must warn against a manual sync: %q", got.Action)
 	}
 	if got.ActionSecondaryTitle != "If the empty render is intended" || len(got.ActionSecondary) != 2 || got.Action != got.ActionPrimary+" "+strings.Join(got.ActionSecondary, " ") {
@@ -342,13 +342,13 @@ func TestEmptyAutoSyncAdviceOrderAndSafety(t *testing.T) {
 	action := ParseArgoOperationError("Skipping sync attempt to [abc]: auto-sync will wipe out all resources").Action
 	source := strings.Index(action, "source path")
 	generator := strings.Index(action, "remove it from the ApplicationSet generator")
-	recreation := strings.Index(action, "deleting a generated Application alone gets it recreated")
+	recreation := strings.Index(action, "while the generator still emits it, the ApplicationSet recreates it")
 	removal := strings.Index(action, "delete the Application")
 	allow := strings.Index(action, "allowEmpty: true")
 	if source < 0 || generator <= source || recreation <= generator || removal <= recreation || allow <= removal {
 		t.Fatalf("expected source checks, generator removal and recreation warning, plain Application deletion, then allowEmpty: %s", action)
 	}
-	for _, required := range []string{"A sync with Prune enabled would delete every managed resource", "targetRevision", "Helm values", "include/exclude", "resources finalizer", "remove it from the ApplicationSet generator", "all future syncs", "If it should render empty"} {
+	for _, required := range []string{"A sync with Prune enabled could delete all of them", "Prune=false", "Prune=confirm", "targetRevision", "Helm values", "include/exclude", "resources finalizer", "remove it from the ApplicationSet generator", "all future syncs", "If it should render empty"} {
 		if !strings.Contains(action, required) {
 			t.Errorf("missing %q: %s", required, action)
 		}
@@ -390,6 +390,7 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	for _, want := range []string{
 		"To leave it with Application live-shared-a, remove it from this Application's source.",
 		"To move it here, first turn off auto-sync on Application live-shared-a and do not sync it manually during the move.",
+		"For an ApplicationSet or parent-managed Application, disable auto-sync in the template or Git so it stays off.",
 	} {
 		if !strings.Contains(one, want) {
 			t.Fatalf("ownership advice missing %q: %q", want, one)
@@ -398,7 +399,10 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	last := -1
 	for _, step := range []string{
 		"first turn off auto-sync on Application live-shared-a",
-		"sync this Application",
+		"disable auto-sync in the template or Git so it stays off",
+		"Finish or terminate any running or retrying operation on Application live-shared-a",
+		"turning off auto-sync does not stop it",
+		"Then sync this Application",
 		"confirm Argo CD lists this Application as the resource's tracker",
 		"remove it from the source of Application live-shared-a",
 		"turn auto-sync back on for Application live-shared-a",
@@ -434,7 +438,7 @@ func TestArgoSyncHazardActionSharedTrackingIsTemporary(t *testing.T) {
 		{"unparseable", "another Application"},
 	} {
 		got := ArgoSyncHazardAction(false, []string{tc.message})
-		if !strings.Contains(got, "a sync would take over their tracking until "+tc.owner+" syncs again") || !strings.Contains(got, "remove them from this Application's source before syncing") {
+		if !strings.Contains(got, "A successful sync can take over their tracking unless it uses FailOnSharedResource=true") || !strings.Contains(got, "While "+tc.owner+" still declares them, its next successful sync can take tracking back") || !strings.Contains(got, "remove them from this Application's source before syncing") {
 			t.Errorf("must explain temporary tracking and how to leave ownership unchanged: %q", got)
 		}
 	}
@@ -442,10 +446,10 @@ func TestArgoSyncHazardActionSharedTrackingIsTemporary(t *testing.T) {
 
 func TestOrphanedResourceWarningActionSaysWhereToLook(t *testing.T) {
 	got := ArgoConditionAction("OrphanedResourceWarning", "argocd/live-orphan", []string{"Application has 3 orphaned resources"})
-	if !strings.Contains(got, `"argocd app resources argocd/live-orphan --orphaned"`) || !strings.Contains(got, "Argo CD UI") || !strings.Contains(got, "spec.orphanedResources.ignore") {
+	if !strings.Contains(got, "Argo CD doesn't associate with any Application") || !strings.Contains(got, `"argocd app resources argocd/live-orphan --orphaned"`) || !strings.Contains(got, "Argo CD UI") || !strings.Contains(got, "spec.orphanedResources.ignore") {
 		t.Fatalf("orphan guidance must say where to see which resources: %q", got)
 	}
-	if generic := ActionForCondition("OrphanedResourceWarning"); strings.Contains(generic, "argocd app") || strings.Contains(generic, "  ") || !strings.Contains(generic, "Argo CD UI") {
+	if generic := ActionForCondition("OrphanedResourceWarning"); strings.Contains(generic, "argocd app") || strings.Contains(generic, "  ") || !strings.Contains(generic, "Argo CD UI") || !strings.Contains(generic, "Argo CD doesn't associate with any Application") {
 		t.Fatalf("generic orphan guidance without an app name: %q", generic)
 	}
 }
@@ -459,8 +463,8 @@ func TestArgoSyncHazardAction(t *testing.T) {
 		contains string
 	}{
 		{"plain drift", false, nil, ""},
-		{"empty render", true, nil, "The current render is empty. A sync with Prune enabled would delete every managed resource."},
-		{"empty render outranks shared", true, shared, "The current render is empty. A sync with Prune enabled would delete every managed resource."},
+		{"empty render", true, nil, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
+		{"empty render outranks shared", true, shared, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
 		{"shared", false, shared, "also tracked by Application live-shared-a"},
 		{"shared, owner unknown", false, []string{"unparseable"}, "also tracked by another Application"},
 	} {

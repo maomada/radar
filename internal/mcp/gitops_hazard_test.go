@@ -78,7 +78,7 @@ func TestGitOpsEmptyRenderHazardRemainsSelfContainedInMCP(t *testing.T) {
 		if issue.Reason != "OperationFailed" {
 			continue
 		}
-		const hazard = "The current render is empty. A sync with Prune enabled would delete every managed resource."
+		const hazard = "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."
 		if !strings.Contains(issue.Action, hazard) || !strings.Contains(issue.Action, "Check the source path") || issue.RemediationKind != "" {
 			t.Fatalf("MCP issue lost self-contained hazard guidance: %+v", issue)
 		}

@@ -1871,7 +1871,7 @@ func TestBuildIssuesArgoEmptyAutoSyncAdvice(t *testing.T) {
 			for _, d := range got {
 				if d.Reason == "AutoSyncBlockedEmpty" {
 					found = true
-					if d.Scope != ScopeCondition || !strings.Contains(d.Cause, "empty desired state") || !strings.Contains(d.Action, "A sync with Prune enabled") || !strings.Contains(d.Action, "allowEmpty") || strings.Contains(d.Action, "retry") || d.Remediation != nil {
+					if d.Scope != ScopeCondition || !strings.Contains(d.Cause, "the render includes none of the resources this Application manages") || !strings.Contains(d.Action, "A sync with Prune enabled") || !strings.Contains(d.Action, "allowEmpty") || strings.Contains(d.Action, "retry") || d.Remediation != nil {
 						t.Fatalf("expected condition-only safe advice, got %+v", d)
 					}
 					if !strings.HasPrefix(d.Message, "Auto-sync blocked") || d.RawMessage != message {
@@ -1970,7 +1970,7 @@ func TestBuildIssuesArgoDriftAdviceRespectsSyncHazards(t *testing.T) {
 	}{
 		{"manual, shared", "ManualDrift", "also tracked by Application payments", nil, map[string]any{"conditions": shared}},
 		{"self-heal off, shared", "SelfHealDisabled", "also tracked by Application payments", map[string]any{"prune": true}, map[string]any{"conditions": shared}},
-		{"manual, empty render", "ManualDrift", "The current render is empty. A sync with Prune enabled would delete every managed resource.", nil, map[string]any{"resources": prunedResources()}},
+		{"manual, empty render", "ManualDrift", "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation.", nil, map[string]any{"resources": prunedResources()}},
 		{"manual, plain drift", "ManualDrift", "click Sync", nil, map[string]any{}},
 	} {
 		status := map[string]any{"sync": map[string]any{"status": "OutOfSync"}}
@@ -2068,11 +2068,11 @@ func TestBuildIssuesArgoSyncHazardDisarmsRetryAdvice(t *testing.T) {
 			"sync": map[string]any{"status": "OutOfSync"}, "resources": prunedResources(),
 			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},
 			"conditions":     []any{guard},
-		}, "The current render is empty. A sync with Prune enabled would delete every managed resource."},
+		}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
 		{"failed namespace sync, everything else extraneous", map[string]any{
 			"sync": map[string]any{"status": "Synced"}, "resources": prunedResources(),
 			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},
-		}, "The current render is empty. A sync with Prune enabled would delete every managed resource."},
+		}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
 		{"failed namespace sync with shared resources", map[string]any{
 			"sync":           map[string]any{"status": "OutOfSync"},
 			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},

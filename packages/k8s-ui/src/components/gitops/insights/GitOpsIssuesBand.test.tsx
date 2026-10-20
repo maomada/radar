@@ -10,8 +10,8 @@ const guard: GitOpsIssue = {
   reason: 'AutoSyncBlockedEmpty',
   message: 'Auto-sync blocked: the rendered desired state is empty',
   rawMessage: 'Skipping sync attempt to [8088f4c]: auto-sync will wipe out all resources',
-  cause: 'Argo CD refuses to auto-sync because syncing to an empty desired state would prune every managed resource.',
-  action: 'A sync with Prune enabled would delete every managed resource.',
+  cause: 'Argo CD refuses to auto-sync because the render includes none of the resources this Application manages, so a sync would prune them all.',
+  action: 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation.',
 }
 
 // The band's top row is the most severe issue. Its next step must be visible
@@ -54,7 +54,7 @@ const failedSync: GitOpsIssue = {
   action: 'Open Activity for operation details.',
 }
 const causeAdvice = 'so Argo creates it on sync'
-const emptyRenderHazard = 'The current render is empty. A sync with Prune enabled would delete every managed resource. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first.'
+const emptyRenderHazard = 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first.'
 const emptyRenderReference = 'See the empty-render guard below before syncing.'
 
 describe('GitOpsIssuesBand failure card', () => {
@@ -93,7 +93,7 @@ describe('GitOpsIssuesBand failure card', () => {
   })
 
   it('keeps shared-ownership hazards unchanged', () => {
-    const hazard = 'Resolve shared ownership before syncing: some resources are also tracked by Application payments, and a sync would take over their tracking until Application payments syncs again.'
+    const hazard = 'Resolve shared ownership before syncing: some resources are also tracked by Application payments. A successful sync can take over their tracking unless it uses FailOnSharedResource=true. While Application payments still declares them, its next successful sync can take tracking back.'
     const shared: GitOpsIssue = { severity: 'warning', scope: 'condition', reason: 'SharedResourceWarning', message: 'Shared resource' }
     const html = renderToString(<GitOpsIssuesBand issues={[{ ...failedSync, hazard }, shared]} />)
     expect(html).toContain(hazard)

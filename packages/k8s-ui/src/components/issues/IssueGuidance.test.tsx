@@ -10,13 +10,13 @@ import type { Issue } from './types'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-const primary = 'A sync with Prune enabled would delete every managed resource. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings — an empty render is usually one of these.'
+const primary = 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first.'
 const secondary = [
-  'If this Application should go away: remove it from the ApplicationSet generator if generated; deleting a generated Application alone gets it recreated. For a plain Application, delete the Application (its resources finalizer decides whether managed resources are pruned).',
+  'If this Application should go away: remove it from the ApplicationSet generator if generated; while the generator still emits it, the ApplicationSet recreates it. For a plain Application, delete the Application (its resources finalizer decides whether managed resources are pruned).',
   'If it should render empty: set syncPolicy.automated.allowEmpty: true in the Application or its ApplicationSet template. This turns off the empty-render guard for all future syncs.',
 ]
 const title = 'If the empty render is intended'
-const cause = 'Argo CD refuses to auto-sync because syncing to an empty desired state would prune every managed resource.'
+const cause = 'Argo CD refuses to auto-sync because the render includes none of the resources this Application manages, so a sync would prune them all.'
 const guard: GitOpsIssue = {
   severity: 'critical', scope: 'condition', reason: 'AutoSyncBlockedEmpty',
   message: 'Auto-sync blocked: the rendered desired state is empty', cause,

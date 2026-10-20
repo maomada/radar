@@ -964,7 +964,7 @@ func TestDetectArgoAppProblems_EmptyAutoSyncCondition(t *testing.T) {
 			if !strings.HasPrefix(d.Message, "Auto-sync blocked: the rendered desired state is empty") {
 				t.Errorf("message must lead with the meaning: %q", d.Message)
 			}
-			if !strings.Contains(d.Cause, "empty desired state") || !strings.Contains(d.Action, "A sync with Prune enabled") || !strings.Contains(d.Action, "syncPolicy.automated.allowEmpty: true") || !strings.Contains(d.Action, "ApplicationSet") || !strings.Contains(d.Action, "source path") || strings.Contains(d.Action, "retry") {
+			if !strings.Contains(d.Cause, "the render includes none of the resources this Application manages") || !strings.Contains(d.Action, "A sync with Prune enabled") || !strings.Contains(d.Action, "syncPolicy.automated.allowEmpty: true") || !strings.Contains(d.Action, "ApplicationSet") || !strings.Contains(d.Action, "source path") || strings.Contains(d.Action, "retry") {
 				t.Errorf("missing safe, specific advice: %+v", d)
 			}
 			if d.RemediationKind != "" || d.RemediationTarget != "" {
@@ -1139,7 +1139,7 @@ func TestDetectArgoAppProblems_ManualDriftAdviceRespectsSyncHazards(t *testing.T
 		{"shared resources", "also tracked by Application payments", func(app *unstructured.Unstructured) {
 			_ = unstructured.SetNestedSlice(app.Object, []any{map[string]any{"type": "SharedResourceWarning", "message": "Deployment/web is part of applications argocd/billing and payments"}}, "status", "conditions")
 		}},
-		{"empty render", "The current render is empty. A sync with Prune enabled would delete every managed resource.", func(app *unstructured.Unstructured) {
+		{"empty render", "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation.", func(app *unstructured.Unstructured) {
 			_ = unstructured.SetNestedSlice(app.Object, argoPrunedResources(), "status", "resources")
 		}},
 	} {
@@ -1210,7 +1210,7 @@ func TestDetectArgoAppProblems_SyncHazardDisarmsRetryAdvice(t *testing.T) {
 		want            string
 	}{
 		{"failed namespace sync, then an empty render", `namespaces "demo" not found`, true,
-			[]any{map[string]any{"type": "SyncError", "message": "Skipping sync attempt to [new]: auto-sync will wipe out all resources"}}, "The current render is empty. A sync with Prune enabled would delete every managed resource."},
+			[]any{map[string]any{"type": "SyncError", "message": "Skipping sync attempt to [new]: auto-sync will wipe out all resources"}}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
 		{"failed namespace sync with shared resources", `namespaces "demo" not found`, false, []any{shared}, "also tracked by Application payments"},
 		{"failed-attempt condition carrying the namespace fix, shared", "", false,
 			[]any{map[string]any{"type": "SyncError", "message": `Failed sync attempt to x: namespaces "demo" not found`}, shared}, "also tracked by Application payments"},
