@@ -54,9 +54,6 @@ func TestCatalogMarksAKindServedByTwoResourcesAmbiguous(t *testing.T) {
 		if _, found := c.Kind(widget); found || !c.Ambiguous(widget) || c.Serves(widget, "v1") {
 			t.Fatalf("Widget must be ambiguous, never resolved to one resource: found=%v ambiguous=%v", found, c.Ambiguous(widget))
 		}
-		if got := c.AmbiguousKinds(); !slices.Equal(got, []resourceid.GroupKind{widget}) {
-			t.Fatalf("AmbiguousKinds = %v", got)
-		}
 		if len(c.DependentKinds()) != 0 {
 			t.Fatal("an ambiguous kind must not join the dependent kinds as one of its resources")
 		}

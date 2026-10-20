@@ -99,12 +99,6 @@ func (c *Catalog) Ambiguous(gk resourceid.GroupKind) bool {
 	return found
 }
 
-// AmbiguousKinds returns the kinds two resources of one group serve, sorted
-// by group and kind. They are in no other answer of the catalog.
-func (c *Catalog) AmbiguousKinds() []resourceid.GroupKind {
-	return slices.Clone(c.ambiguous)
-}
-
 // Serves reports whether version is a version serving gk.
 func (c *Catalog) Serves(gk resourceid.GroupKind, version string) bool {
 	k, ok := c.kinds[gk]

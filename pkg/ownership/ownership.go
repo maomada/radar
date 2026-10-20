@@ -28,10 +28,11 @@ type Session interface {
 	// Object reads one object. It does no I/O and waits for nothing.
 	Object(ref resourceid.Ref) ObjectRead
 	// Validate returns nil if every store the session read is still the one
-	// serving what it served then; otherwise ErrCachesReplaced or
-	// ErrStoreReplaced. It says the reads came from live stores, not that
-	// they are still current. An answer built in a session must pass Validate
-	// before it is used.
+	// serving what it served then, and no version of a resource it read, left
+	// unread because nothing watched it then, is watched now; otherwise
+	// ErrCachesReplaced or ErrStoreReplaced. It says the reads came from live
+	// stores, not that they are still current. An answer built in a session
+	// must pass Validate before it is used.
 	Validate() error
 }
 
@@ -39,9 +40,13 @@ var (
 	// ErrNotConnected: there are no caches to read.
 	ErrNotConnected = errors.New("ownership: no cluster connection to read")
 	// ErrCachesReplaced: the caches were stopped or replaced after the session
-	// began, as when Radar switches clusters or rebuilds its cache.
+	// began, as when Radar switches clusters or rebuilds its cache. A cache
+	// that was missing when the session began and is there now, as while
+	// Radar starts, replaced nothing the session read.
 	ErrCachesReplaced = errors.New("ownership: the caches were replaced during the read")
 	// ErrStoreReplaced: a store the session read was replaced by another
-	// watch, as when a cluster-wide watch takes over from namespace ones.
+	// watch, as when a cluster-wide watch takes over from namespace ones, or a
+	// version of a resource it read is watched now that wasn't when the
+	// session chose which versions to read, and may hold a later update.
 	ErrStoreReplaced = errors.New("ownership: a store was replaced during the read")
 )
