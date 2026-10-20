@@ -1,4 +1,5 @@
 import { canonicalResourceGroup } from '@skyhook-io/k8s-ui/utils/api-resources'
+import { pluralize } from '@skyhook-io/k8s-ui/utils/pluralize'
 import { knownKindForPluralWithGroup, pluralToKind } from '@skyhook-io/k8s-ui/utils/navigation'
 import { useEffect, useRef, useCallback, useMemo } from 'react'
 import type { KueueAdmissionResponse } from '@skyhook-io/k8s-ui/types/scheduling'
@@ -22,7 +23,7 @@ import type {
   YamlSchemaLoadResult,
 } from '@skyhook-io/k8s-ui'
 import { useQuery, useMutation, useQueryClient, skipToken, type QueryClient } from '@tanstack/react-query'
-import { showApiError, showApiSuccess } from '../components/ui/Toast'
+import { showApiError, showApiSuccess, showApiNotice } from '../components/ui/Toast'
 import { useIsAuthEnabled, useNamespacedCapabilities } from '../contexts/CapabilitiesContext'
 import type {
   Topology,
@@ -5627,6 +5628,9 @@ export function useDrainNode() {
         errors?: string[];
         pendingPods?: string[];
         waitedForDeletion?: boolean;
+        outcome?: DrainCompletionOutcome;
+        unconfirmedPods?: string[];
+        verificationError?: string;
       },
       variables,
     ) => {
@@ -5636,11 +5640,13 @@ export function useDrainNode() {
       });
       queryClient.invalidateQueries({ queryKey: ["topology"] });
 
-      const { title, detail, failed } = describeDrainResult(data);
-      if (failed) {
+      const { title, detail, type } = describeDrainResult(data);
+      if (type === "error") {
         showApiError(title, detail);
-      } else {
+      } else if (type === "success") {
         showApiSuccess(title, detail);
+      } else {
+        showApiNotice(title, detail, type);
       }
     },
   });
@@ -5654,102 +5660,86 @@ function listWithOverflow(items: string[]): string {
   return rest > 0 ? `${shown.join("; ")}; +${rest} more` : shown.join("; ");
 }
 
-/**
- * The trailing line of the drain summary, stating what the result means for taking the
- * node down. Only a drain that waited, failed nothing, and skipped nothing but DaemonSet
- * pods may call the node drained; anything else still has pods on it.
- */
-function drainClosingLine(r: {
-  evicted: number;
-  waited: boolean;
-  pending: number;
-  failed: number;
-  leftOnNode: number;
-}): string {
-  if (r.pending > 0) {
-    return "Those pods are still on the node. The node remains cordoned — do not take it down until they are gone.";
-  }
-  if (r.waited && r.evicted > 0) {
-    return r.failed === 0 && r.leftOnNode === 0
-      ? "All evicted pods have terminated. The node is drained and remains cordoned."
-      : "All evicted pods have terminated. The node remains cordoned.";
-  }
-  if (r.evicted > 0) {
-    return "Evictions were accepted; those pods may still be terminating. The node remains cordoned.";
-  }
-  return "The node remains cordoned.";
-}
+export type DrainCompletionOutcome = "complete" | "incomplete" | "unconfirmed" | "started";
 
-/**
- * Turns the drain response into a legible summary: evicted, skipped (with reasons),
- * failed, and — when the drain waited — any evicted pods still on the node. Lists are
- * capped so the toast stays readable on nodes with many pods.
- */
-export function describeDrainResult(data: {
+interface DrainResultData {
   evictedPods?: string[];
   skippedPods?: DrainPlanPod[];
   errors?: string[];
   pendingPods?: string[];
+  unconfirmedPods?: string[];
+  verificationError?: string;
   waitedForDeletion?: boolean;
-}): { title: string; detail: string; failed: boolean } {
-  const evicted = data?.evictedPods?.length ?? 0;
-  const skipped = data?.skippedPods ?? [];
-  const errors = data?.errors ?? [];
-  const pending = data?.pendingPods ?? [];
-  const waited = data?.waitedForDeletion ?? false;
-  // A Radar that predates the daemonSet flag reports none, so every skip counts as left on
-  // the node and the toast never over-claims.
-  const leftOnNode = skipped.filter((p) => !p.daemonSet).length;
+  outcome?: DrainCompletionOutcome;
+}
+
+export function describeDrainResult(data: DrainResultData): {
+  title: string;
+  detail: string;
+  failed: boolean;
+  type: "success" | "error" | "warning" | "info";
+  outcome: DrainCompletionOutcome;
+} {
+  const evicted = data.evictedPods?.length ?? 0;
+  const skipped = data.skippedPods ?? [];
+  const errors = data.errors ?? [];
+  const pending = data.pendingPods ?? [];
+  const unconfirmed = data.unconfirmedPods ?? [];
+  const blocking = skipped.filter((pod) => pod.expectedSkip === false);
+  const unknownSkips = skipped.filter((pod) => pod.expectedSkip === undefined);
+  const expected = skipped.filter((pod) => pod.expectedSkip);
+  // Older backends have no completion outcome or expected-skip metadata.
+  const outcome = data.outcome ?? (
+    errors.length > 0 || pending.length > 0 || blocking.length > 0 ? "incomplete" :
+    unconfirmed.length > 0 || data.verificationError ? "unconfirmed" :
+    evicted > 0 && !data.waitedForDeletion ? "started" :
+    unknownSkips.length > 0 ? "unconfirmed" : "complete"
+  );
   const parts: string[] = [];
-  if (skipped.length > 0) {
-    parts.push(
-      `Skipped ${skipped.length}: ${listWithOverflow(
-        skipped.map((p) => `${p.namespace}/${p.name} (${p.reason})`),
-      )}`,
-    );
-  }
   if (errors.length > 0) {
-    parts.push(`Failed ${errors.length}: ${listWithOverflow(errors)}`);
+    parts.push(`Failed evictions ${errors.length}: ${listWithOverflow(errors)}`);
   }
   if (pending.length > 0) {
     parts.push(`Still on the node ${pending.length}: ${listWithOverflow(pending)}`);
   }
-  parts.push(
-    drainClosingLine({
-      evicted,
-      waited,
-      pending: pending.length,
-      failed: errors.length,
-      leftOnNode,
-    }),
-  );
-  const detail = parts.join("\n");
-  if (errors.length > 0) {
-    return {
-      title: `Drain finished with ${errors.length} failed eviction(s): ${evicted} evicted, ${skipped.length} skipped`,
-      detail,
-      failed: true,
-    };
+  const describePod = (pod: DrainPlanPod) => `${pod.namespace}/${pod.name} (${pod.reason})`;
+  if (blocking.length > 0) {
+    parts.push(`Skipped pods requiring attention ${blocking.length}: ${listWithOverflow(blocking.map(describePod))}`);
   }
-  if (pending.length > 0) {
-    return {
-      title: `Drain incomplete: ${evicted} evicted, ${pending.length} still on the node, ${skipped.length} skipped`,
-      detail,
-      failed: true,
-    };
+  if (unknownSkips.length > 0) {
+    parts.push(`Skipped pods requiring review ${unknownSkips.length}: ${listWithOverflow(unknownSkips.map(describePod))}`);
   }
-  if (leftOnNode > 0) {
-    return {
-      title: `Drain finished: ${evicted} evicted, ${skipped.length} skipped (${leftOnNode} left on the node)`,
-      detail,
-      failed: false,
-    };
+  if (unconfirmed.length > 0) {
+    parts.push(`Deletion unconfirmed ${unconfirmed.length}: ${listWithOverflow(unconfirmed)}`);
   }
-  return {
-    title: `Node drained: ${evicted} evicted, ${skipped.length} skipped`,
-    detail,
-    failed: false,
+  if (data.verificationError) {
+    parts.push(`Could not verify pod deletion: ${data.verificationError}`);
+  }
+  if (outcome === "started") {
+    parts.push("Eviction requests were accepted; pod deletion has not been confirmed.");
+  } else if (data.waitedForDeletion && evicted > 0 && pending.length === 0 && unconfirmed.length === 0 && !data.verificationError) {
+    parts.push("All evicted pods have left the node.");
+  }
+  if (expected.length > 0) {
+    parts.push(`Left in place by design: ${pluralize(expected.length, "pod")}.`);
+  }
+  parts.push("The node remains cordoned.");
+  if (outcome === "incomplete" || outcome === "unconfirmed") {
+    if (blocking.length > 0) parts.push("Review the skipped workloads and drain options before retrying.");
+    if (pending.length > 0) parts.push("Check the remaining pods before retrying.");
+    if (errors.length > 0) parts.push("Resolve the failed evictions before retrying.");
+    if (unconfirmed.length > 0 || data.verificationError || unknownSkips.length > 0) parts.push("Check the node's pods to confirm what remains.");
+    parts.push("Do not take the node down until required workloads are removed.");
+  }
+  const titles: Record<DrainCompletionOutcome, string> = {
+    complete: evicted > 0 ? `Drain complete: ${pluralize(evicted, "pod")} removed` : "Nothing to evict",
+    incomplete: errors.length > 0 ? `Drain incomplete: ${errors.length} failed evictions` :
+      `Drain incomplete: ${pluralize(pending.length + blocking.length, "pod")} left on the node`,
+    unconfirmed: "Could not confirm drain completion",
+    started: `Evictions started: ${evicted} accepted`,
   };
+  const type = outcome === "complete" ? "success" : outcome === "started" ? "info" : errors.length > 0 ? "error" : "warning";
+  return { title: titles[outcome], detail: parts.join("\n"), failed: outcome === "incomplete" || outcome === "unconfirmed", type, outcome };
 }
 
 // ============================================================================

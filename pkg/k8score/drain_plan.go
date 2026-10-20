@@ -42,16 +42,12 @@ type PodDrainDecision struct {
 	// not be listed (see DrainPlan.PDBError).
 	PDBChecked  bool `json:"pdbChecked"`
 	Terminating bool `json:"terminating"`
-	// DaemonSet is true for a pod managed by a DaemonSet. Such pods are always skipped and
-	// are expected to stay on a drained node; any other skipped pod is still running there,
-	// so callers must not report the node as drained.
-	DaemonSet bool `json:"daemonSet,omitempty"`
+	// ExpectedSkip distinguishes normal drain exclusions from protected workloads.
+	ExpectedSkip bool `json:"expectedSkip"`
 }
 
-// LeftOnNode reports whether a skipped pod keeps the node from being drained: every skipped
-// pod except a DaemonSet's, which a drain leaves in place by design.
-func (d PodDrainDecision) LeftOnNode() bool {
-	return d.Outcome == DrainOutcomeSkip && !d.DaemonSet
+func (d PodDrainDecision) BlocksDrain() bool {
+	return d.Outcome == DrainOutcomeSkip && !d.ExpectedSkip
 }
 
 // ClassifyPodForDrain decides, without touching the cluster, what DrainNode would do with pod
@@ -69,14 +65,16 @@ func ClassifyPodForDrain(pod corev1.Pod, opts DrainOptions, pdbs []policyv1.PodD
 	}
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		d.ExpectedSkip = true
 		return skip(fmt.Sprintf("pod is %s; nothing to evict", string(pod.Status.Phase)))
 	}
 	if _, isMirror := pod.Annotations[corev1.MirrorPodAnnotationKey]; isMirror {
+		d.ExpectedSkip = true
 		return skip("static (mirror) pod managed by the kubelet; cannot be evicted")
 	}
 	controller := metav1.GetControllerOf(&pod)
 	if controller != nil && controller.Kind == "DaemonSet" {
-		d.DaemonSet = true
+		d.ExpectedSkip = true
 		if opts.IgnoreDaemonSets {
 			return skip("managed by a DaemonSet; the DaemonSet controller would recreate it on this node")
 		}

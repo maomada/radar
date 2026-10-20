@@ -203,8 +203,7 @@ func (s *Server) handleDrainNode(w http.ResponseWriter, r *http.Request) {
 	// DeleteEmptyDirData defaults true (matching kubectl drain --delete-emptydir-data).
 	// Most pods use emptyDir for tmp/caches; without this, drain skips almost everything.
 	opts := drainOptionsFromRequest(req, true)
-	// Wait for the evicted pods to actually be gone by default, so "drained" means the node
-	// is empty (kubectl parity). Callers that only want the evictions started opt out with
+	// Wait for required workload removals by default. Callers that only want evictions started opt out with
 	// waitForDeletion:false.
 	opts.WaitForDeletion = req.WaitForDeletion == nil || *req.WaitForDeletion
 
@@ -230,12 +229,8 @@ func (s *Server) handleDrainNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(result.Errors) > 0 || len(result.PendingPods) > 0 {
-		log.Printf("[node-ops] Drain node %s incomplete: %d evicted, %d still on the node after the wait, %d errors: %v",
-			nodeName, len(result.EvictedPods), len(result.PendingPods), len(result.Errors), result.Errors)
-	} else {
-		log.Printf("[node-ops] Drain node %s completed: %d pods evicted", nodeName, len(result.EvictedPods))
-	}
+	log.Printf("[node-ops] Drain node %s %s: %d accepted, %d pending, %d unconfirmed, errors=%v, verificationError=%q",
+		nodeName, result.CompletionOutcome(), len(result.EvictedPods), len(result.PendingPods), len(result.UnconfirmedPods), result.Errors, result.VerificationError)
 
 	s.writeJSON(w, result)
 }

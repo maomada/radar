@@ -2,6 +2,7 @@ package k8score
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +17,47 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	k8stesting "k8s.io/client-go/testing"
 )
+
+func TestDrainNodeDistinguishesFailedVerificationFromPresence(t *testing.T) {
+	for _, recoverList := range []bool{false, true} {
+		t.Run(fmt.Sprintf("recover=%t", recoverList), func(t *testing.T) {
+			shortenDrainPoll(t)
+			pod := drainTestPod("web-1")
+			pod.UID = "old-web-uid"
+			client := fake.NewSimpleClientset(&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "worker-1"}}, &pod)
+			lists := 0
+			client.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+				lists++
+				if lists == 1 {
+					return false, nil, nil
+				}
+				if recoverList && lists > 2 {
+					return true, &corev1.PodList{}, nil
+				}
+				return true, nil, fmt.Errorf("pod listing unavailable")
+			})
+			acceptEvictions(client, func() {
+				if err := client.Tracker().Delete(corev1.SchemeGroupVersion.WithResource("pods"), pod.Namespace, pod.Name); err != nil {
+					t.Fatal(err)
+				}
+			})
+			result, err := DrainNode(context.Background(), client, "worker-1", DrainOptions{WaitForDeletion: true, Timeout: 50 * time.Millisecond})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.PendingPods) != 0 {
+				t.Fatalf("a failed read is not observed presence: %+v", result)
+			}
+			if recoverList {
+				if result.Outcome != DrainComplete || result.VerificationError != "" || len(result.UnconfirmedPods) != 0 {
+					t.Fatalf("recovered read must clear uncertainty: %+v", result)
+				}
+			} else if result.Outcome != DrainUnconfirmed || result.VerificationError != "pod listing unavailable" || len(result.UnconfirmedPods) != 1 || result.UnconfirmedPods[0] != "shop/web-1" {
+				t.Fatalf("missing verification evidence: %+v", result)
+			}
+		})
+	}
+}
 
 func TestDrainTimeout(t *testing.T) {
 	tests := []struct {

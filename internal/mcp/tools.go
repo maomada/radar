@@ -642,11 +642,9 @@ func registerTools(server *mcp.Server, includeWrites bool, paramRegistry *toolPa
 
 	addToolWithRegistry(paramRegistry, server, &mcp.Tool{
 		Name: "manage_node",
-		Description: "Perform operations on a Kubernetes node: 'cordon' marks it unschedulable, 'uncordon' schedulable " +
-			"again, 'drain' cordons it and evicts non-DaemonSet pods, by default waiting until they are deleted " +
-			"(kubectl parity). A drain returns status 'partial' while any pod is still on the node: a failed eviction " +
-			"('errors'), an evicted pod present at the timeout ('pendingPods'), or a skipped non-DaemonSet pod " +
-			"('skippedPods', with reasons). Do not take the node down on a 'partial' drain.",
+		Description: "Cordon, uncordon or drain a node. Drain waits for deletion. " +
+			"outcome: complete/incomplete/unconfirmed/started. started: status ok; incomplete/unconfirmed: partial. " +
+			"expectedSkip: normal exclusions. Complete does not certify shutdown safety.",
 		Annotations: writeTool,
 	}, logToolCall("manage_node", handleManageNode))
 }

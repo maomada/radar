@@ -9,6 +9,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/skyhook-io/radar/internal/k8s"
@@ -131,7 +132,7 @@ func TestApplyMCPTerminalWorkflowEmptyStateWithArchiveLogs(t *testing.T) {
 }
 
 func TestDescribeNodeDrain(t *testing.T) {
-	daemonSetSkip := k8score.PodDrainDecision{Namespace: "kube-system", Name: "agent", Outcome: k8score.DrainOutcomeSkip, Reason: "managed by a DaemonSet", DaemonSet: true}
+	daemonSetSkip := k8score.PodDrainDecision{Namespace: "kube-system", Name: "agent", Outcome: k8score.DrainOutcomeSkip, Reason: "managed by a DaemonSet", ExpectedSkip: true}
 	bareSkip := k8score.PodDrainDecision{Namespace: "shop", Name: "debug", Outcome: k8score.DrainOutcomeSkip, Reason: "not managed by a controller"}
 
 	tests := []struct {
@@ -145,26 +146,26 @@ func TestDescribeNodeDrain(t *testing.T) {
 			name:        "a skipped bare pod is still on the node",
 			result:      k8s.DrainResult{EvictedPods: []string{"shop/web-1"}, SkippedPods: []k8score.PodDrainDecision{bareSkip}, WaitedForDeletion: true},
 			wantStatus:  "partial",
-			wantContain: []string{"1 pods skipped and still on the node", "do not take it down"},
+			wantContain: []string{"Skipped pods requiring attention: 1", "Do not take the node down"},
 			wantAbsent:  []string{"confirmed gone"},
 		},
 		{
 			name:        "DaemonSet pods do not stop the node being drained",
 			result:      k8s.DrainResult{EvictedPods: []string{"shop/web-1"}, SkippedPods: []k8score.PodDrainDecision{daemonSetSkip}, WaitedForDeletion: true},
 			wantStatus:  "ok",
-			wantContain: []string{"1 pods evicted and confirmed gone", "1 DaemonSet pods left in place"},
+			wantContain: []string{"1 pod removed and confirmed gone", "Pods left in place by design: 1"},
 		},
 		{
 			name:        "failed evictions are partial",
 			result:      k8s.DrainResult{EvictedPods: []string{"shop/web-1"}, Errors: []string{"shop/db-1: refused"}, WaitedForDeletion: true},
 			wantStatus:  "partial",
-			wantContain: []string{"1 evictions failed"},
+			wantContain: []string{"Failed evictions: 1"},
 		},
 		{
 			name:        "pending pods are partial",
 			result:      k8s.DrainResult{EvictedPods: []string{"shop/web-1"}, PendingPods: []string{"shop/web-1"}, WaitedForDeletion: true},
 			wantStatus:  "partial",
-			wantContain: []string{"1 evicted pods still on the node"},
+			wantContain: []string{"Evicted pods still on the node: 1"},
 		},
 		{
 			name:        "nothing to evict says so",
@@ -177,7 +178,7 @@ func TestDescribeNodeDrain(t *testing.T) {
 			name:        "not waiting keeps the terminating caveat",
 			result:      k8s.DrainResult{EvictedPods: []string{"shop/web-1"}},
 			wantStatus:  "ok",
-			wantContain: []string{"1 evictions accepted; pods may still be terminating"},
+			wantContain: []string{"1 accepted; pod deletion has not been confirmed"},
 		},
 	}
 	for _, tt := range tests {
@@ -207,5 +208,29 @@ func TestSkippedPodsForMCPKeepsReasons(t *testing.T) {
 	}
 	if got := skippedPodsForMCP(nil); got == nil || len(got) != 0 {
 		t.Fatalf("no skips must serialize as an empty list, got %#v", got)
+	}
+}
+
+func TestDescribeNodeDrainExpectedExclusionsAndUnknownState(t *testing.T) {
+	for _, mutate := range []func(*corev1.Pod){
+		func(p *corev1.Pod) { p.Status.Phase = corev1.PodSucceeded },
+		func(p *corev1.Pod) { p.Status.Phase = corev1.PodFailed },
+		func(p *corev1.Pod) { p.Annotations = map[string]string{corev1.MirrorPodAnnotationKey: "static"} },
+	} {
+		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "excluded", Namespace: "system"}}
+		mutate(&pod)
+		decision := k8score.ClassifyPodForDrain(pod, k8score.DrainOptions{IgnoreDaemonSets: true}, nil)
+		status, message := describeNodeDrain("worker", &k8s.DrainResult{SkippedPods: []k8score.PodDrainDecision{decision}})
+		if status != "ok" || !strings.Contains(message, "left in place by design") || strings.Contains(message, "Do not take the node down") {
+			t.Fatalf("expected exclusion became a blocker: %s %s", status, message)
+		}
+	}
+	status, message := describeNodeDrain("worker", &k8s.DrainResult{EvictedPods: []string{"shop/web"}, WaitedForDeletion: true, UnconfirmedPods: []string{"shop/web"}, VerificationError: "pod listing unavailable"})
+	if status != "partial" || !strings.Contains(message, "Could not confirm") || !strings.Contains(message, "pod listing unavailable") || strings.Contains(message, "still on the node") {
+		t.Fatalf("wrong unknown result: %s %s", status, message)
+	}
+	status, message = describeNodeDrain("worker", &k8s.DrainResult{EvictedPods: []string{"shop/web"}})
+	if status != "ok" || !strings.HasPrefix(message, "Evictions started") || strings.Contains(message, "Drain complete") {
+		t.Fatalf("admission-only result overclaims: %s %s", status, message)
 	}
 }

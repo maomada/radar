@@ -19,8 +19,7 @@ export interface DrainPlanPod {
   pdb?: string
   pdbChecked: boolean
   terminating?: boolean
-  // Managed by a DaemonSet: always skipped, and expected to stay on a drained node.
-  daemonSet?: boolean
+  expectedSkip?: boolean
 }
 
 export interface DrainPlan {
@@ -97,8 +96,8 @@ const OUTCOME_LABEL: Record<DrainOutcome, string> = {
 
 const ESTIMATE_CAVEAT =
   'An estimate, not a guarantee: the drain re-lists live state when it runs, and pods, budgets and permissions can change until then. ' +
-  'The drain then waits for the evicted pods to leave the node. Evictions a budget refuses are retried until the drain deadline ' +
-  '(2 minutes, shared by all evictions and that wait); a pod covered by more than one budget is refused outright.'
+  'Drain normally waits up to 2 minutes for evictions and pod deletion, retrying when a disruption budget temporarily blocks eviction. ' +
+  'Older Radar versions may return before pods are deleted. A pod covered by more than one budget is refused outright.'
 
 interface DrainPlanContentProps {
   nodeName: string
@@ -220,7 +219,9 @@ export function DrainPlanContent({
                 {current.pods.map((p) => (
                   <tr key={`${p.namespace}/${p.name}`} className="border-b border-theme-border last:border-b-0 align-top">
                     <td className="px-2 py-1.5 whitespace-nowrap">
-                      <Badge severity={OUTCOME_SEVERITY[p.outcome]} size="sm">{OUTCOME_LABEL[p.outcome]}</Badge>
+                      <Badge severity={p.outcome === 'skip' && p.expectedSkip === false ? 'warning' : OUTCOME_SEVERITY[p.outcome]} size="sm">
+                        {p.outcome === 'skip' && p.expectedSkip !== undefined ? p.expectedSkip ? 'left by design' : 'requires attention' : OUTCOME_LABEL[p.outcome]}
+                      </Badge>
                     </td>
                     <td className="px-2 py-1.5 font-mono whitespace-nowrap text-theme-text-primary">
                       {p.namespace}/{p.name}

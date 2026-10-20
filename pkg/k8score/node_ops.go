@@ -49,18 +49,19 @@ type DrainOptions struct {
 
 // DrainResult reports what happened during a drain operation.
 type DrainResult struct {
-	EvictedPods []string           `json:"evictedPods"`
-	SkippedPods []PodDrainDecision `json:"skippedPods,omitempty"` // pods left alone and why
-	Errors      []string           `json:"errors,omitempty"`
+	EvictedPods []string               `json:"evictedPods"`
+	SkippedPods []PodDrainDecision     `json:"skippedPods,omitempty"` // pods left alone and why
+	Errors      []string               `json:"errors,omitempty"`
+	Outcome     DrainCompletionOutcome `json:"outcome"`
 	// WaitedForDeletion is true when the drain waited for the evicted pods to actually be
 	// deleted. When false, EvictedPods lists pods whose eviction was merely accepted and
 	// which may still be terminating.
 	WaitedForDeletion bool `json:"waitedForDeletion"`
-	// PendingPods are evicted pods still on the node when the drain deadline passed (or
-	// that could not be confirmed gone because the node's pods could not be listed). Only
-	// populated when the drain waited; an empty list after a wait means every evicted pod
-	// is gone. Skipped pods and failed evictions are reported separately and are not here.
+	// PendingPods were observed on the node in the final successful verification.
 	PendingPods []string `json:"pendingPods,omitempty"`
+	// UnconfirmedPods could not be checked in the final verification.
+	UnconfirmedPods   []string `json:"unconfirmedPods,omitempty"`
+	VerificationError string   `json:"verificationError,omitempty"`
 }
 
 // drainedPod identifies a pod whose eviction was accepted, so the wait phase can tell an
@@ -139,6 +140,7 @@ func DrainNode(ctx context.Context, client kubernetes.Interface, nodeName string
 	logSkippedPods(nodeName, result.SkippedPods)
 
 	if len(toEvict) == 0 {
+		result.Outcome = result.CompletionOutcome()
 		return result, nil
 	}
 
@@ -152,9 +154,16 @@ func DrainNode(ctx context.Context, client kubernetes.Interface, nodeName string
 	// SIGKILLs pods mid-shutdown, the exact thing draining is meant to avoid.
 	if opts.WaitForDeletion && len(evicted) > 0 {
 		result.WaitedForDeletion = true
-		result.PendingPods = pendingPodNames(waitForPodsGone(drainCtx, client, nodeName, evicted))
+		remaining, verificationErr := waitForPodsGone(drainCtx, client, nodeName, evicted)
+		if verificationErr != nil {
+			result.UnconfirmedPods = pendingPodNames(remaining)
+			result.VerificationError = verificationErr.Error()
+		} else {
+			result.PendingPods = pendingPodNames(remaining)
+		}
 	}
 
+	result.Outcome = result.CompletionOutcome()
 	return result, nil
 }
 
@@ -214,25 +223,27 @@ func pendingPodNames(pods []drainedPod) []string {
 }
 
 // waitForPodsGone blocks until every pod in evicted has left the node or ctx is done, and
-// returns those still present at that point. A pod counts as gone once it is absent from the
+// returns remaining pod identities and any final verification error. A pod counts as gone once it is absent from the
 // node's pod list or has reappeared under a new UID (the old instance was deleted). Once ctx
 // is done, one last list runs under its own short timeout (see drainFinalCheckTimeout).
-func waitForPodsGone(ctx context.Context, client kubernetes.Interface, nodeName string, evicted []drainedPod) []drainedPod {
+func waitForPodsGone(ctx context.Context, client kubernetes.Interface, nodeName string, evicted []drainedPod) ([]drainedPod, error) {
 	remaining := make(map[types.UID]drainedPod, len(evicted))
 	for _, p := range evicted {
 		remaining[p.uid] = p
 	}
 
 	if pollUntilPodsGone(ctx, client, nodeName, remaining) {
-		return nil
+		return nil, nil
 	}
 
 	finalCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), drainFinalCheckTimeout)
 	defer cancel()
-	if pruneDepartedPods(finalCtx, client, nodeName, remaining) {
-		return nil
+	if gone, err := pruneDepartedPods(finalCtx, client, nodeName, remaining); err != nil {
+		return mapValues(remaining), err
+	} else if gone {
+		return nil, nil
 	}
-	return mapValues(remaining)
+	return mapValues(remaining), nil
 }
 
 // pollUntilPodsGone re-lists the node's pods until remaining is empty (returning true) or ctx
@@ -241,7 +252,7 @@ func pollUntilPodsGone(ctx context.Context, client kubernetes.Interface, nodeNam
 	if ctx.Err() != nil {
 		return false
 	}
-	if pruneDepartedPods(ctx, client, nodeName, remaining) {
+	if gone, _ := pruneDepartedPods(ctx, client, nodeName, remaining); gone {
 		return true
 	}
 
@@ -252,7 +263,7 @@ func pollUntilPodsGone(ctx context.Context, client kubernetes.Interface, nodeNam
 		case <-ctx.Done():
 			return false
 		case <-ticker.C:
-			if pruneDepartedPods(ctx, client, nodeName, remaining) {
+			if gone, _ := pruneDepartedPods(ctx, client, nodeName, remaining); gone {
 				return true
 			}
 		}
@@ -262,12 +273,12 @@ func pollUntilPodsGone(ctx context.Context, client kubernetes.Interface, nodeNam
 // pruneDepartedPods drops from remaining every pod no longer present on the node and reports
 // whether the set is now empty. A failed list leaves the set untouched, so a transient error
 // costs one poll interval rather than a false "still here".
-func pruneDepartedPods(ctx context.Context, client kubernetes.Interface, nodeName string, remaining map[types.UID]drainedPod) bool {
+func pruneDepartedPods(ctx context.Context, client kubernetes.Interface, nodeName string, remaining map[types.UID]drainedPod) (bool, error) {
 	list, err := client.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		FieldSelector: "spec.nodeName=" + nodeName,
 	})
 	if err != nil {
-		return false
+		return false, err
 	}
 	present := make(map[types.UID]struct{}, len(list.Items))
 	for i := range list.Items {
@@ -278,7 +289,7 @@ func pruneDepartedPods(ctx context.Context, client kubernetes.Interface, nodeNam
 			delete(remaining, uid)
 		}
 	}
-	return len(remaining) == 0
+	return len(remaining) == 0, nil
 }
 
 // mapValues returns the values of m in unspecified order.
