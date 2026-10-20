@@ -40,6 +40,7 @@ class ToastManager {
   private static instance: ToastManager
   private showErrorFn: ((message: string, detail?: string, rawDetail?: string) => void) | null = null
   private showSuccessFn: ((message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) => void) | null = null
+  private showToastFn: ToastContextType['showToast'] | null = null
 
   static getInstance(): ToastManager {
     if (!ToastManager.instance) {
@@ -48,14 +49,16 @@ class ToastManager {
     return ToastManager.instance
   }
 
-  register(showError: typeof this.showErrorFn, showSuccess: typeof this.showSuccessFn) {
+  register(showError: typeof this.showErrorFn, showSuccess: typeof this.showSuccessFn, showToast: ToastContextType['showToast']) {
     this.showErrorFn = showError
     this.showSuccessFn = showSuccess
+    this.showToastFn = showToast
   }
 
   unregister() {
     this.showErrorFn = null
     this.showSuccessFn = null
+    this.showToastFn = null
   }
 
   showError(message: string, detail?: string, rawDetail?: string) {
@@ -64,6 +67,10 @@ class ToastManager {
 
   showSuccess(message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) {
     this.showSuccessFn ? this.showSuccessFn(message, detail, action, onDetailClick) : console.log('[Toast]', message, detail)
+  }
+
+  showNotice(message: string, detail: string | undefined, type: 'warning' | 'info') {
+    this.showToastFn ? this.showToastFn(message, { detail, type }) : console.warn('[Toast]', message, detail)
   }
 }
 
@@ -75,6 +82,10 @@ export function showApiError(message: string, detail?: string, rawDetail?: strin
 
 export function showApiSuccess(message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) {
   toastManager.showSuccess(message, detail, action, onDetailClick)
+}
+
+export function showApiNotice(message: string, detail: string | undefined, type: 'warning' | 'info') {
+  toastManager.showNotice(message, detail, type)
 }
 
 export function useToast() {
@@ -138,9 +149,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   // Wire up singleton for use outside React components
   useEffect(() => {
-    toastManager.register(showError, showSuccess)
+    toastManager.register(showError, showSuccess, showToast)
     return () => toastManager.unregister()
-  }, [showError, showSuccess])
+  }, [showError, showSuccess, showToast])
 
   return (
     <ToastContext.Provider value={{ showToast, showCopied, showError, showSuccess }}>
@@ -257,7 +268,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
             </button>
           ) : (
             <p className={clsx('mt-1 text-xs break-words', isError ? 'text-red-300/80' : isSuccess ? 'text-emerald-300/80' : 'text-theme-text-secondary')}>
-              {toast.detail.split(' ').map((word, index) => <Fragment key={index}><span className="inline-block max-w-full [overflow-wrap:anywhere]">{word}</span>{' '}</Fragment>)}
+              {toast.detail.split('\n').map((line, lineIndex) => <Fragment key={lineIndex}>{lineIndex > 0 && <br />}{line.split(' ').map((word, index) => <Fragment key={index}><span className="inline-block max-w-full [overflow-wrap:anywhere]">{word}</span>{' '}</Fragment>)}</Fragment>)}
             </p>
           )
         )}
