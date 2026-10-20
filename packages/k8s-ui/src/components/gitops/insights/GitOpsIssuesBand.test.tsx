@@ -93,7 +93,7 @@ describe('GitOpsIssuesBand failure card', () => {
   })
 
   it('keeps shared-ownership hazards unchanged', () => {
-    const hazard = 'Resolve shared ownership before syncing: some resources are also tracked by Application payments, and a sync would take them over.'
+    const hazard = 'Resolve shared ownership before syncing: some resources are also tracked by Application payments, and a sync would take over their tracking until Application payments syncs again.'
     const shared: GitOpsIssue = { severity: 'warning', scope: 'condition', reason: 'SharedResourceWarning', message: 'Shared resource' }
     const html = renderToString(<GitOpsIssuesBand issues={[{ ...failedSync, hazard }, shared]} />)
     expect(html).toContain(hazard)

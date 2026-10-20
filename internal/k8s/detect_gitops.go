@@ -243,14 +243,12 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 			manualDriftFor = outOfSyncFor
 		}
 
+		// Running or Suspended does not resolve shared or orphaned resources.
+		out = append(out, argoResourceWarningProblems(app, now)...)
+
 		if strings.EqualFold(phase, "Running") {
 			continue
 		}
-
-		// Ownership warnings hold regardless of health: one paused Rollout step
-		// makes a whole Application Suspended without resolving a shared
-		// resource.
-		out = append(out, argoResourceWarningProblems(app, now)...)
 
 		operationFailed := strings.EqualFold(phase, "Failed") || strings.EqualFold(phase, "Error")
 		ct, cmsg, rawCondition, transitionAt, hasTransition, hasCondition := argoErrorCondition(app, now)

@@ -136,7 +136,7 @@ func ParseArgoOperationError(msg string) ParsedFailure {
 		out.ActionPrimary = "A sync with Prune enabled would delete every managed resource. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings — an empty render is usually one of these."
 		out.ActionSecondaryTitle = "If the empty render is intended"
 		out.ActionSecondary = []string{
-			"If this Application should go away: delete the Application (its resources finalizer decides whether managed resources are pruned), or remove it from the ApplicationSet generator.",
+			"If this Application should go away: remove it from the ApplicationSet generator if generated; deleting a generated Application alone gets it recreated. For a plain Application, delete the Application (its resources finalizer decides whether managed resources are pruned).",
 			"If it should render empty: set syncPolicy.automated.allowEmpty: true in the Application or its ApplicationSet template. This turns off the empty-render guard for all future syncs.",
 		}
 		out.Action = out.ActionPrimary + " " + strings.Join(out.ActionSecondary, " ")
@@ -311,14 +311,13 @@ func ArgoSyncHazardAction(prunesEverything bool, sharedResourceMessages []string
 	if owners := ArgoSharedResourceOwners(sharedResourceMessages); len(owners) > 0 {
 		owner = applicationList(owners)
 	}
-	return "Resolve shared ownership before syncing: some resources are also tracked by " + owner + ", and a sync would take them over. If they should stay with " + owner + ", remove them from this Application's source before syncing."
+	return "Resolve shared ownership before syncing: some resources are also tracked by " + owner + ", and a sync would take over their tracking until " + owner + " syncs again. If they should stay with " + owner + ", remove them from this Application's source before syncing."
 }
 
-// sharedResourceAdvice orders the steps so neither Application deletes the
-// resource. Argo names the Application that tracks it now; removing it from
-// that one's source first lets its next pruning sync delete it.
+// Pause the current tracker so it cannot take tracking back before its source
+// drops the resource and then prune it.
 func sharedResourceAdvice(owner string) string {
-	return "To leave it with " + owner + ", remove it from this Application's source. To move it here, sync this Application first so it takes over tracking, then remove it from the source of " + owner + "; removing it there first lets a pruning sync of " + owner + " delete it."
+	return "To leave it with " + owner + ", remove it from this Application's source. To move it here, first turn off auto-sync on " + owner + " and do not sync it manually during the move. Then sync this Application, confirm Argo CD lists this Application as the resource's tracker, remove it from the source of " + owner + ", then turn auto-sync back on for " + owner + "."
 }
 
 func orphanedResourceAction(cliHint string) string {

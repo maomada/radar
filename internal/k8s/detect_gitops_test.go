@@ -991,10 +991,13 @@ func TestDetectArgoAppProblems_ResourceWarnings(t *testing.T) {
 		{"Healthy", "OutOfSync", "", "OutOfSync", 3},
 		{"Healthy", "OutOfSync", "Failed", "OperationFailed", 3},
 		{"Suspended", "OutOfSync", "", "", 3},
-		{"Degraded", "OutOfSync", "Running", "", 0},
+		{"Degraded", "OutOfSync", "Running", "", 3},
 	} {
 		t.Run(tc.health+"/"+tc.sync+"/"+tc.phase, func(t *testing.T) {
 			app := argoApp("warnings", "argocd", tc.health, tc.sync, tc.phase, true, append(append([]any{}, conditions...), conditions[0]))
+			if tc.phase == "Running" {
+				_ = unstructured.SetNestedSlice(app.Object, append(append([]any{}, conditions...), map[string]any{"type": "ComparisonError", "message": "transient source failure"}), "status", "conditions")
+			}
 			if tc.phase == "Failed" {
 				_ = unstructured.SetNestedField(app.Object, "sync failed", "status", "operationState", "message")
 			}
@@ -1009,6 +1012,9 @@ func TestDetectArgoAppProblems_ResourceWarnings(t *testing.T) {
 			for _, d := range got {
 				if d.Reason == tc.primary {
 					continue
+				}
+				if d.Reason != "SharedResourceWarning" && d.Reason != "OrphanedResourceWarning" && d.Reason != "RepeatedResourceWarning" {
+					t.Fatalf("transient problem must stay suppressed: %+v", d)
 				}
 				wantSeverity := "warning"
 				if d.Reason == "RepeatedResourceWarning" {

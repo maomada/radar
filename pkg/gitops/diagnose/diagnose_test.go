@@ -340,9 +340,13 @@ func TestParseArgoOperationError_EmptyAutoSyncPrecision(t *testing.T) {
 
 func TestEmptyAutoSyncAdviceOrderAndSafety(t *testing.T) {
 	action := ParseArgoOperationError("Skipping sync attempt to [abc]: auto-sync will wipe out all resources").Action
-	source, removal, allow := strings.Index(action, "source path"), strings.Index(action, "delete the Application"), strings.Index(action, "allowEmpty: true")
-	if source < 0 || removal <= source || allow <= removal {
-		t.Fatalf("intent then likely causes then removal then allowEmpty: %s", action)
+	source := strings.Index(action, "source path")
+	generator := strings.Index(action, "remove it from the ApplicationSet generator")
+	recreation := strings.Index(action, "deleting a generated Application alone gets it recreated")
+	removal := strings.Index(action, "delete the Application")
+	allow := strings.Index(action, "allowEmpty: true")
+	if source < 0 || generator <= source || recreation <= generator || removal <= recreation || allow <= removal {
+		t.Fatalf("expected source checks, generator removal and recreation warning, plain Application deletion, then allowEmpty: %s", action)
 	}
 	for _, required := range []string{"A sync with Prune enabled would delete every managed resource", "targetRevision", "Helm values", "include/exclude", "resources finalizer", "remove it from the ApplicationSet generator", "all future syncs", "If it should render empty"} {
 		if !strings.Contains(action, required) {
@@ -383,17 +387,27 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	if !strings.HasPrefix(one, "Also tracked by Application live-shared-a. ") {
 		t.Fatalf("expected the other owner named: %q", one)
 	}
-	// Argo names the Application that tracks the resource now. Removing it from
-	// that source first would let its pruning sync delete the resource, so the
-	// advice must say which side to remove it from, and in what order.
 	for _, want := range []string{
 		"To leave it with Application live-shared-a, remove it from this Application's source.",
-		"sync this Application first so it takes over tracking, then remove it from the source of Application live-shared-a",
-		"removing it there first lets a pruning sync of Application live-shared-a delete it",
+		"To move it here, first turn off auto-sync on Application live-shared-a and do not sync it manually during the move.",
 	} {
 		if !strings.Contains(one, want) {
 			t.Fatalf("ownership advice missing %q: %q", want, one)
 		}
+	}
+	last := -1
+	for _, step := range []string{
+		"first turn off auto-sync on Application live-shared-a",
+		"sync this Application",
+		"confirm Argo CD lists this Application as the resource's tracker",
+		"remove it from the source of Application live-shared-a",
+		"turn auto-sync back on for Application live-shared-a",
+	} {
+		at := strings.Index(one, step)
+		if at <= last {
+			t.Fatalf("missing or misordered move step %q: %q", step, one)
+		}
+		last = at
 	}
 	if strings.Contains(one, "remove it from the others") {
 		t.Fatalf("advice must not leave the side to remove it from ambiguous: %q", one)
@@ -411,6 +425,18 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	}
 	if got := ArgoConditionAction("SharedResourceWarning", "argocd/b", []string{"unparseable"}); got != ActionForCondition("SharedResourceWarning") {
 		t.Fatalf("unparseable message must fall back to generic advice: %q", got)
+	}
+}
+
+func TestArgoSyncHazardActionSharedTrackingIsTemporary(t *testing.T) {
+	for _, tc := range []struct{ message, owner string }{
+		{"Deployment/web is part of applications argocd/billing and payments", "Application payments"},
+		{"unparseable", "another Application"},
+	} {
+		got := ArgoSyncHazardAction(false, []string{tc.message})
+		if !strings.Contains(got, "a sync would take over their tracking until "+tc.owner+" syncs again") || !strings.Contains(got, "remove them from this Application's source before syncing") {
+			t.Errorf("must explain temporary tracking and how to leave ownership unchanged: %q", got)
+		}
 	}
 }
 
