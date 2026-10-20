@@ -54,6 +54,33 @@ it('starts with prune off and submits nothing for the options, so the Applicatio
   expect(confirmed).toEqual([{ revision: undefined, prune: false, dryRun: false, force: false, applyOnly: false }])
 })
 
+it('hides the revision for multi-source Applications and syncs their target revisions', async () => {
+  await render({ multiSource: true })
+  expect(document.body.textContent).not.toContain('Revision (optional)')
+  expect(document.body.textContent).toContain("Each source uses its own targetRevision.")
+  await click(button('Sync now'))
+  expect(confirmed[0].revision).toBeUndefined()
+})
+
+it('omits an entered revision if the Application becomes multi-source while open', async () => {
+  await render()
+  const revision = document.querySelector('input:not([type="checkbox"])') as HTMLInputElement
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(revision, 'release-1')
+    revision.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await render({ multiSource: true })
+  await click(button('Sync now'))
+  expect(confirmed[0].revision).toBeUndefined()
+})
+
+it('explains selective sync hooks, dependencies and namespace management without denying wave ordering', async () => {
+  await render({ resource: { kind: 'Deployment', group: 'apps', namespace: 'guestbook', name: 'web' } })
+  expect(document.body.textContent).toContain('Syncs only the selected resources, without hooks. Dependencies outside the selection are not synced. Application namespace creation options still apply.')
+  expect(document.body.textContent).not.toContain('Only this resource will be applied')
+  expect(document.body.textContent).not.toContain('bypasses hooks and normal sync-wave ordering')
+})
+
 it('disables unknown sync options and inherits them when confirming', async () => {
   await render({ applicationSyncOptions: undefined })
   expect(toggle('Replace').disabled).toBe(true)

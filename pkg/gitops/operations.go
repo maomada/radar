@@ -45,7 +45,7 @@ const (
 )
 
 // Every operation Radar starts carries ArgoInitiatedViaInfo in operation.info
-// (Argo CD shows it with the operation), next to initiatedBy.username. The
+// (stored in the Application JSON/YAML), next to initiatedBy.username. The
 // validation dry-run adds argoValidationInfoName to find its own result.
 const (
 	ArgoInitiatedViaInfo  = "Initiated via"
@@ -72,6 +72,9 @@ var (
 	// ErrInvalidResourceSelection: a requested selective sync contains an
 	// incomplete resource identity. HTTP 400.
 	ErrInvalidResourceSelection = errors.New("invalid resource selection")
+	// ErrInvalidRevision: a scalar revision cannot select per-source revisions
+	// for a multi-source Application. HTTP 400.
+	ErrInvalidRevision = errors.New("invalid revision")
 	// ErrHistoryEntryNotFound: the requested rollback target id isn't in
 	// status.history. HTTP 404.
 	ErrHistoryEntryNotFound = errors.New("history entry not found")
@@ -444,6 +447,9 @@ func syncArgoApp(ctx context.Context, dynClient dynamic.Interface, namespace, na
 		if argoOperationInProgress(app) {
 			return nil, fmt.Errorf("sync operation already in progress for %s/%s: %w", namespace, name, ErrOperationInProgress)
 		}
+		if sources, _, _ := unstructured.NestedSlice(app.Object, "spec", "sources"); len(sources) > 0 && opts.Revision != "" {
+			return nil, fmt.Errorf("cannot override revision for multi-source Application %s/%s; omit revision to use each source's targetRevision: %w", namespace, name, ErrInvalidRevision)
+		}
 		patch := argoOperationPatch(app, argoSyncOperation(ctx, app, opts, validationID))
 		if !dryRun {
 			patch["metadata"] = map[string]any{
@@ -475,10 +481,10 @@ func syncArgoApp(ctx context.Context, dynClient dynamic.Interface, namespace, na
 // edit to spec.source(s) after that doesn't change what the waiting sync
 // deploys (except on an Argo CD 2.11 controller, which takes a multi-source
 // Application's sources from its spec). Unlike argocd-server, which asks its
-// repo-server to resolve the revision to a commit at request time, Radar has
-// no repo-server to ask: the revision (the caller's, or the source's
-// targetRevision when empty) is resolved by the controller when the sync
-// runs.
+// repo-server to resolve the revision to a commit or chart version at request
+// time, Radar has no repo-server to ask: the revision (the caller's for a
+// single-source Application, or each source's targetRevision when omitted)
+// is resolved by the controller when the sync runs.
 //
 // The Application's spec.syncPolicy.retry is copied too, except for Radar's
 // own validation dry-run, whose result would otherwise wait out the backoff.

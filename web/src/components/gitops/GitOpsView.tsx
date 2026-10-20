@@ -331,6 +331,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
       <SyncOptionsDialog
         open={!!syncDialogRow}
         appLabel={syncDialogRow ? `${syncDialogRow.namespace}/${syncDialogRow.name}` : ''}
+        multiSource={Array.isArray(syncDialogRow?.raw?.spec?.sources) && syncDialogRow.raw.spec.sources.length > 0}
         applicationSyncOptions={argoApplicationSyncOptions(syncDialogRow?.raw)}
         pending={argoSync.isPending}
         onCancel={() => setSyncDialogRow(null)}
@@ -872,6 +873,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
           <SyncOptionsDialog
             open={!!syncDialogTarget}
             appLabel={`${namespace}/${name}`}
+            multiSource={Array.isArray(resourceQ.data?.spec?.sources) && resourceQ.data.spec.sources.length > 0}
             resource={syncDialogTarget?.scope === 'resource' ? syncDialogTarget.resource : undefined}
             applicationSyncOptions={appSyncOptions}
             pending={argoSync.isPending}

@@ -14,8 +14,7 @@ import type { GitOpsInsightRef } from '../../types/gitops-insights'
 // or the hub-proxied equivalent /c/{ctrl}/api/argo/...).
 //
 // Prune starts off, as in Argo CD's UI and CLI, and is always sent. Resource
-// sync fixes prune off and omits revision/apply-only so selecting one object
-// cannot opt into deletion behavior.
+// sync does not prune and omits revision/apply-only.
 //
 // Sync options start from the Application's own (applicationSyncOptions). A
 // sync whose options the user leaves alone sends none, so Radar applies the
@@ -45,6 +44,7 @@ export interface ArgoSyncOpts {
 export interface SyncOptionsDialogProps {
   open: boolean
   appLabel: string
+  multiSource?: boolean
   resource?: GitOpsInsightRef
   // The Application's spec.syncPolicy.syncOptions. Without it the toggles
   // are disabled and the sync inherits the Application's options.
@@ -70,7 +70,7 @@ export interface ResourceValidationResult {
   }
 }
 
-export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOptions, pending, autoSyncEnabled, validationPending, operationInProgress, validationResult, validationError, onCancel, onConfirm, onValidate, onValidationReset }: SyncOptionsDialogProps) {
+export function SyncOptionsDialog({ open, appLabel, multiSource, resource, applicationSyncOptions, pending, autoSyncEnabled, validationPending, operationInProgress, validationResult, validationError, onCancel, onConfirm, onValidate, onValidationReset }: SyncOptionsDialogProps) {
   const titleId = useId()
   const syncOptionsUnknown = applicationSyncOptions === undefined
   const liveAppOptions = applicationSyncOptions ?? EMPTY_OPTIONS
@@ -135,7 +135,7 @@ export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOpt
     : { replace, serverSideApply, applicationSyncOptions: appOptions, keepApplicationSyncOptions, sendUnchanged: appOptions.join('\n') !== liveAppOptionsKey }
 
   function submit() {
-    onConfirm(buildArgoSyncOpts({ resourceMode: !!resource, revision, prune, dryRun: richResourceValidation ? false : dryRun, force, applyOnly, ...optionEdits }))
+    onConfirm(buildArgoSyncOpts({ resourceMode: !!resource, revision: multiSource ? '' : revision, prune, dryRun: richResourceValidation ? false : dryRun, force, applyOnly, ...optionEdits }))
   }
 
   function validate() {
@@ -168,7 +168,7 @@ export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOpt
                   {resource.kind} / {resource.namespace ? `${resource.namespace}/` : ''}{resource.name}
                 </div>
                 <p className="mt-1 text-[11px] leading-relaxed text-theme-text-secondary">
-                  Only this resource will be applied. Selective sync bypasses hooks and normal sync-wave ordering; use a full application sync when this resource depends on them.
+                  Syncs only the selected resources, without hooks. Dependencies outside the selection are not synced. Application namespace creation options still apply.
                 </p>
                 {autoSyncEnabled && (
                   <p className="mt-2 border-t border-amber-500/20 pt-2 text-[11px] leading-relaxed text-theme-text-secondary">
@@ -179,7 +179,7 @@ export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOpt
             </div>
           </div>
         )}
-        {!resource && (
+        {!resource && !multiSource && (
           <label className="block">
             <span className="text-xs font-medium text-theme-text-secondary">Revision (optional)</span>
             <Input
@@ -193,6 +193,9 @@ export function SyncOptionsDialog({ open, appLabel, resource, applicationSyncOpt
               Branch, tag, or commit SHA. Leave empty to use the Application's targetRevision.
             </span>
           </label>
+        )}
+        {!resource && multiSource && (
+          <p className="text-xs text-theme-text-tertiary">Each source uses its own targetRevision.</p>
         )}
 
         {/* Common (Prune / Dry run) sit above a divider; Advanced toggles

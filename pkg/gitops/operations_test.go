@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -1679,6 +1680,43 @@ func TestArgoOperationsInheritSyncOptionsAndRetry(t *testing.T) {
 			t.Fatalf("rollback retry = %#v, want none", got)
 		}
 	})
+}
+
+func TestSyncArgoAppRevision(t *testing.T) {
+	for _, sourceCount := range []int{0, 1, 2} {
+		for _, revision := range []string{"", "release-1"} {
+			for _, dryRun := range []bool{false, true} {
+				t.Run(fmt.Sprintf("sources=%d/revision=%s/dryRun=%t", sourceCount, revision, dryRun), func(t *testing.T) {
+					app := argoAppForTest("argocd", "demo", func(obj map[string]any) {
+						sources := make([]any, sourceCount)
+						for i := range sources {
+							sources[i] = map[string]any{"repoURL": "https://example.com/repo", "targetRevision": "main"}
+						}
+						obj["spec"].(map[string]any)["sources"] = sources
+					})
+					client := newFakeArgo(app)
+					_, err := SyncArgoApp(context.Background(), client, "argocd", "demo", ArgoSyncOptions{Revision: revision, DryRun: &dryRun})
+					if sourceCount > 0 && revision != "" {
+						if !errors.Is(err, ErrInvalidRevision) || !strings.Contains(err.Error(), "multi-source") {
+							t.Fatalf("error = %v, want invalid revision for a multi-source Application", err)
+						}
+						for _, action := range client.Actions() {
+							if action.GetVerb() != "get" {
+								t.Fatalf("rejected sync wrote to the Application: %v", action)
+							}
+						}
+						return
+					}
+					if err != nil {
+						t.Fatalf("SyncArgoApp: %v", err)
+					}
+					if got := nestedMap(captureLastPatch(t, client), "operation", "sync")["revision"]; got != revision {
+						t.Fatalf("revision = %v, want %q", got, revision)
+					}
+				})
+			}
+		}
+	}
 }
 
 // The sync fixes the Application's source(s) when it is requested, as

@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ArgoActionHandlers, GitOpsInsight, GitOpsInsightRef } from '@skyhook-io/k8s-ui'
+import type { ArgoActionHandlers, GitOpsInsight, GitOpsInsightRef, GitOpsRow, GitOpsRowAction } from '@skyhook-io/k8s-ui'
 import { GitOpsView } from './GitOpsView'
 
 // The requests the Sync dialog builds, sent by the real useArgoSync and
@@ -16,7 +16,7 @@ const app = {
   apiVersion: 'argoproj.io/v1alpha1',
   kind: 'Application',
   metadata: { name: 'guestbook', namespace: 'argocd' },
-  spec: { project: 'default', source: {}, destination: {}, syncPolicy: { syncOptions: APP_OPTIONS } },
+  spec: { project: 'default', source: {}, sources: undefined as Array<{ repoURL: string; targetRevision: string }> | undefined, destination: {}, syncPolicy: { syncOptions: APP_OPTIONS } },
   status: { sync: { status: 'OutOfSync' }, health: { status: 'Healthy' } },
 }
 const insight = {
@@ -29,6 +29,9 @@ vi.mock('@skyhook-io/k8s-ui', async (importOriginal) => {
   return {
     ...actual,
     useToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showToast: vi.fn() }),
+    GitOpsTableView: (props: { onRowAction: (row: GitOpsRow, action: GitOpsRowAction) => void }) => (
+      <button type="button" onClick={() => props.onRowAction(actual.normalizeArgoApplication(app), 'sync')}>Open sync</button>
+    ),
     GitOpsDetailLayout: (props: { argo?: ArgoActionHandlers; renderTabBody: (ctx: { tab: 'changes'; fullscreen: boolean }) => React.ReactNode; children?: React.ReactNode }) => (
       <div>
         <button type="button" onClick={() => props.argo?.onSyncRequested()}>Open sync</button>
@@ -87,11 +90,7 @@ beforeEach(async () => {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
-  await act(async () => root.render(
-    <MemoryRouter initialEntries={['/gitops/detail/applications/argocd/guestbook?apiGroup=argoproj.io']}>
-      <QueryClientProvider client={client}><GitOpsView namespaces={[]} onOpenResource={() => {}} /></QueryClientProvider>
-    </MemoryRouter>,
-  ))
+  await renderView('/gitops/detail/applications/argocd/guestbook?apiGroup=argoproj.io')
 })
 
 afterEach(async () => {
@@ -99,9 +98,18 @@ afterEach(async () => {
   client.clear()
   host.remove()
   document.body.innerHTML = ''
+  app.spec.sources = undefined
   vi.unstubAllGlobals()
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 })
+
+async function renderView(path: string) {
+  await act(async () => root.render(
+    <MemoryRouter key={path} initialEntries={[path]}>
+      <QueryClientProvider client={client}><GitOpsView namespaces={[]} onOpenResource={() => {}} /></QueryClientProvider>
+    </MemoryRouter>,
+  ))
+}
 
 const settle = async () => { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) }) }
 const button = (label: string) => [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === label)!
@@ -174,4 +182,21 @@ it('treats a Radar whose capabilities have not loaded as older', async () => {
   await click(button('Open sync'))
   await click(button('Sync now'))
   expect(requests[0].body).toMatchObject({ prune: false, syncOptions: APP_OPTIONS })
+})
+
+it.each([
+  '/gitops',
+  '/gitops/detail/applications/argocd/guestbook?apiGroup=argoproj.io',
+])('uses each source target revision when syncing from %s', async (path) => {
+  app.spec.sources = [
+    { repoURL: 'https://example.com/app', targetRevision: 'main' },
+    { repoURL: 'https://example.com/values', targetRevision: 'v1' },
+  ]
+  await renderView(path)
+  await click(button('Open sync'))
+  expect(document.body.textContent).not.toContain('Revision (optional)')
+  expect(document.body.textContent).toContain('Each source uses its own targetRevision.')
+  await click(button('Sync now'))
+  expect(requests).toHaveLength(1)
+  expect(requests[0].body).not.toHaveProperty('revision')
 })
