@@ -11,6 +11,7 @@ const harness = vi.hoisted(() => ({
   rollback: vi.fn(),
   showError: vi.fn(),
   multiSource: undefined as boolean | undefined,
+  source: undefined as string | undefined,
   confirm: undefined as undefined | ((opts: { prune: boolean; dryRun: boolean }) => void),
 }))
 
@@ -38,12 +39,13 @@ vi.mock('@skyhook-io/k8s-ui', async (importOriginal) => {
       <div>{props.renderTabBody({ tab: 'activity', fullscreen: false })}{props.children}</div>
     ),
     GitOpsActivityInsightView: (props: { onRollback?: (item: GitOpsHistoryItem) => void; rollbackUpgrade?: unknown }) => (
-      <button type="button" disabled={!!props.rollbackUpgrade} onClick={() => props.onRollback?.({ id: '0', revision: 'aaa111', multiSource: true })}>Rollback</button>
+      <button type="button" disabled={!!props.rollbackUpgrade} onClick={() => props.onRollback?.({ id: '0', revision: 'aaa111', source: 'guestbook (+1 more)', multiSource: true })}>Rollback</button>
     ),
-    RollbackDialog: (props: { open: boolean; multiSource?: boolean; onConfirm: (opts: { prune: boolean; dryRun: boolean }) => void }) => {
+    RollbackDialog: (props: { open: boolean; source?: string; multiSource?: boolean; onConfirm: (opts: { prune: boolean; dryRun: boolean }) => void }) => {
       if (props.open) {
         harness.confirm = props.onConfirm
         harness.multiSource = props.multiSource
+        harness.source = props.source
       }
       return props.open ? <div role="dialog">Roll back?</div> : null
     },
@@ -84,6 +86,7 @@ beforeEach(async () => {
   harness.showError.mockClear()
   harness.confirm = undefined
   harness.multiSource = undefined
+  harness.source = undefined
   // /api/capabilities and /version-check stay pending until a test answers.
   vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -137,4 +140,5 @@ it('passes the selected multi-source history entry to the rollback confirmation'
   await settle()
   await act(async () => rollbackButton().click())
   expect(harness.multiSource).toBe(true)
+  expect(harness.source).toBe('guestbook (+1 more)')
 })

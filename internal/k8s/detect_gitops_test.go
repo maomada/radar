@@ -701,10 +701,10 @@ func TestDetectArgoAppProblems_ManualDriftGate(t *testing.T) {
 		if !ok || d.Severity != "warning" || !d.OnsetAt.Equal(base) || d.DurationSeconds != int64((25*time.Hour).Seconds()) {
 			t.Fatalf("rollback must retain the manual-drift warning identity and timing: %+v", got)
 		}
-		if d.Message != "Last rollback deployed rev-old; Git points to a different revision and auto-sync is off." {
+		if d.Message != "Last rollback deployed rev-old; the live state differs from the desired state and auto-sync is off." {
 			t.Errorf("message = %q", d.Message)
 		}
-		if d.Action != "Syncing or enabling auto-sync deploys Git again and undoes the rollback. Fix or revert Git first, or keep holding with auto-sync off. Review Changes for any changes made since the rollback." {
+		if d.Action != "Syncing or enabling auto-sync applies the current source and can undo the rollback. Fix or revert the source first, or keep auto-sync off. Review Changes for later edits." {
 			t.Errorf("action = %q", d.Action)
 		}
 	})

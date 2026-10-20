@@ -278,7 +278,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// node in errors/pendingPods/skippedPods, is not safe to take down) is one
 	// such uncertainty boundary.
 	const (
-		maxCatalogBytes         = 61816
+		maxCatalogBytes         = 61880
 		maxToolDescriptionBytes = 3000
 	)
 
