@@ -88,10 +88,6 @@ type Run struct {
 	Model     string           // immutable — optional model override ("" = agent default)
 	Effort    string           // immutable — optional reasoning effort (Codex; "" = default)
 	ManagedBy string           // immutable — GitOps/Helm owner of the target ("" = none), for the Apply warning
-	// IssueID is the issue the run was started from ("" = started from the
-	// resource itself). Radar never reads it; the UI uses it to offer an alert
-	// on that exact issue.
-	IssueID   string
 	Health    *ResourceHealthSignal
 	CreatedAt time.Time
 	// OwnerPID is the process that owns this run's lifecycle. Persisted so a
@@ -107,6 +103,10 @@ type Run struct {
 	status    string // running | done | error | stopped | stale
 	sessionID string
 	preview   string // last root cause, for the list
+	// issueID is the issue the run was started from ("" = started from the
+	// resource itself, or asked for by more than one issue). Radar never reads
+	// it; the UI uses it to offer an alert on that exact issue.
+	issueID   string
 	updatedAt time.Time
 	events    []RunEvent
 	// hydrated marks that r.events holds the run's full log. Runs created live
@@ -295,10 +295,10 @@ func (m *RunManager) loadPersisted() {
 		r := &Run{
 			ID: s.ID, Kind: s.Kind, Group: s.Group, Namespace: s.Namespace, Name: s.Name,
 			Context: s.Context, Agent: s.Agent, Profile: s.Profile,
-			Model: s.Model, Effort: s.Effort, ManagedBy: s.ManagedBy, IssueID: s.IssueID,
+			Model: s.Model, Effort: s.Effort, ManagedBy: s.ManagedBy,
 			Health: s.Health, CreatedAt: s.CreatedAt, OwnerPID: s.OwnerPID,
 			store:  m.store,
-			status: s.Status, sessionID: s.SessionID, preview: s.Preview,
+			status: s.Status, sessionID: s.SessionID, preview: s.Preview, issueID: s.IssueID,
 			updatedAt: s.UpdatedAt,
 			subs:      map[int]chan RunEvent{},
 		}
@@ -513,7 +513,7 @@ func (m *RunManager) Start(kind, group, namespace, name, agent string, profile E
 		if r.matchesTarget(kind, group, namespace, name, cur, agent, profile, model, effort) &&
 			r.snapshotStatus() == "running" {
 			m.mu.Unlock()
-			return r.Summary(), nil
+			return r.focusFor(issueID), nil
 		}
 	}
 	if m.countInFlightLocked() >= m.maxConcurrent {
@@ -524,10 +524,10 @@ func (m *RunManager) Start(kind, group, namespace, name, agent string, profile E
 	r := &Run{
 		ID: id, Kind: kind, Group: group, Namespace: namespace,
 		Name: name, Context: cur, Agent: agent, WorkDir: m.runWorkDir(id), Profile: profile,
-		Model: model, Effort: effort, ManagedBy: managedBy, IssueID: issueID, Health: health, CreatedAt: nowUTC(),
+		Model: model, Effort: effort, ManagedBy: managedBy, Health: health, CreatedAt: nowUTC(),
 		OwnerPID: os.Getpid(),
 		store:    m.store,
-		status:   "running", inFlight: true, updatedAt: nowUTC(),
+		status:   "running", inFlight: true, updatedAt: nowUTC(), issueID: issueID,
 		hydrated: true, // born live — its full log is in memory by construction
 		subs:     map[int]chan RunEvent{},
 	}
@@ -1298,7 +1298,7 @@ func (r *Run) summaryLocked() RunSummary {
 	return RunSummary{
 		ID: r.ID, Kind: r.Kind, Group: r.Group, Namespace: r.Namespace, Name: r.Name,
 		Context: r.Context, Agent: r.Agent, Profile: r.Profile,
-		Model: r.Model, Effort: r.Effort, ManagedBy: r.ManagedBy, IssueID: r.IssueID,
+		Model: r.Model, Effort: r.Effort, ManagedBy: r.ManagedBy, IssueID: r.issueID,
 		Health: r.Health,
 		Status: r.status, SessionID: r.sessionID, OwnerPID: r.OwnerPID,
 		Preview: r.preview, CreatedAt: r.CreatedAt, UpdatedAt: r.updatedAt,
@@ -1419,6 +1419,22 @@ func (r *Run) matchesTarget(kind, group, namespace, name, ctx, agent string, pro
 	return r.Kind == kind && r.Group == group && r.Namespace == namespace && r.Name == name &&
 		r.Context == ctx && r.Agent == agent && r.Profile == profile &&
 		r.Model == model && r.Effort == effort
+}
+
+// focusFor returns a live run that a new start request is joining. The run
+// keeps one issue attribution, so a request from a different issue drops it:
+// Findings then offers no alert rather than one for the wrong issue. A request
+// from the resource itself names no issue and leaves it as it is.
+func (r *Run) focusFor(issueID string) RunSummary {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if issueID != "" && r.issueID != "" && r.issueID != issueID {
+		r.issueID = ""
+		if r.store != nil {
+			r.store.SaveRun(r.summaryLocked())
+		}
+	}
+	return r.summaryLocked()
 }
 
 func (r *Run) snapshotStatus() string {
