@@ -1,6 +1,7 @@
 import { formatMemoryBytes } from '@skyhook-io/k8s-ui/utils/format'
 import { isForbiddenError, useAutoPromConnect, useCloudRole, usePrometheusPVCUsage, usePrometheusStatus } from '../../api/client'
 import { useNavCustomization } from '../../context/NavCustomization'
+import { previousSettingsNote, usePreviousIntegrationSettings } from '../../hooks/usePreviousIntegrationSettings'
 
 export function PVCUsageBar({ namespace, name }: { namespace: string; name: string }) {
   // PVC detail can be the first Prometheus-backed surface a user opens; without
@@ -32,29 +33,41 @@ export function PVCUsageBar({ namespace, name }: { namespace: string; name: stri
     unavailable = 'Loading usage measurements…'
   } else if (usage.status === 'no_series') {
     unavailable = 'No usage measurements reported for this volume.'
+  } else if (usage.status === 'ambiguous_scope') {
+    unavailable = 'Prometheus has volume stats with this name from more than one cluster. Radar cannot tell which belong to this cluster. Used space is unknown.'
+  } else if (usage.status === 'scope_mismatch') {
+    unavailable = 'Radar could not match this volume’s stats to this cluster. Used space is unknown.'
   } else if (usage.status === 'invalid_data') {
     unavailable = 'Volume usage measurements are invalid. Used space is unknown.'
   } else if (!usage.hasData) {
     unavailable = 'Usage measurements are unavailable.'
   }
 
+  const scopeFailure = isConnected && !error && !statusError && (usage?.status === 'ambiguous_scope' || usage?.status === 'scope_mismatch')
   const denied = isForbiddenError(error) || isForbiddenError(statusError)
   const waiting = !denied && !statusError && (!status || status.discovering || (isConnected && !usage && !error))
+  const offers = usePreviousIntegrationSettings(canConfigure && !waiting && !denied && !statusError && !isConnected)
+  const previousNote = offers.metrics ? previousSettingsNote('metrics', offers.metrics) : undefined
   const guidance = denied
     ? 'Ask your operator to review your metrics access.'
-    : !canConfigure && !roleLoading
-      ? !isConnected || statusError
-        ? 'Ask your operator to check the metrics connection for this cluster.'
-        : 'Ask your operator to check metrics availability for this volume.'
-      : undefined
+    : scopeFailure
+      ? usage.status === 'ambiguous_scope'
+        ? 'An operator can set this cluster’s exact metrics labels with --prometheus-cluster-label, or traffic.prometheusClusterLabels in Helm. These scope controls are not available in Settings or Desktop.'
+        : 'Ask your operator to align cluster labels across kube-state-metrics, workload metrics and volume stats. --prometheus-cluster-label (Helm: traffic.prometheusClusterLabels) affects all these charts; its labels must exist on every affected source. For a backend dedicated to this cluster, an operator can use --prometheus-single-cluster instead. These scope controls are not available in Settings or Desktop.'
+      : !canConfigure && !roleLoading
+        ? !isConnected || statusError
+          ? 'Ask your operator to check the metrics connection for this cluster.'
+          : 'Ask your operator to check metrics availability for this volume.'
+        : undefined
 
   if (unavailable || !usage) {
     return (
       <section aria-label="PVC usage" className="rounded-lg border border-theme-border bg-theme-surface/30 p-3">
         <div className="text-xs font-medium text-theme-text-secondary uppercase tracking-wide mb-1">Usage</div>
         <p className="text-sm text-theme-text-tertiary">{unavailable}</p>
+        {previousNote && <p className="mt-2 text-xs text-theme-text-secondary">{previousNote}</p>}
         {!waiting && (
-          canConfigure && !denied ? (
+          canConfigure && !denied && !scopeFailure ? (
             <button
               type="button"
               className="mt-2 text-xs text-accent hover:underline"
@@ -102,4 +115,3 @@ export function PVCUsageBar({ namespace, name }: { namespace: string; name: stri
     </section>
   )
 }
-

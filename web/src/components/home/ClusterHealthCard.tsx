@@ -12,7 +12,7 @@ import { useCapabilitiesContext } from '../../contexts/CapabilitiesContext'
 import { MCPSetupDialog } from './MCPSetupDialog'
 import { assetUrl, pluralize, parseContextName } from '@skyhook-io/k8s-ui'
 import { Tooltip } from '../ui/Tooltip'
-import { routePath } from '../../api/config'
+import { mcpEndpointUrl } from '../../api/config'
 import { parseMajorMinor } from '../../utils/version'
 import gkeIcon from '../../assets/platform-icons/google_kubernetes_engine.png'
 import eksIcon from '../../assets/platform-icons/aws_eks.png'
@@ -152,7 +152,7 @@ export function ClusterHealthCard({
   const mcpEnabled = caps.mcpEnabled
   const isCloud = deployment.mode === 'cloud'
   const isInCluster = deployment.mode === 'in-cluster' || deployment.mode === 'cloud'
-  const mcpUrl = `${window.location.origin}${routePath('/mcp')}`
+  const mcpUrl = mcpEndpointUrl(caps.mcpReadOnly)
   // In Cloud, MCP is org-wide and PAT-authed (api.radarhq.io/mcp). The OSS
   // "this binary is your local MCP server" framing is wrong there — Cloud
   // surfaces MCP from the hub Home dashboard instead.
@@ -177,8 +177,12 @@ export function ClusterHealthCard({
 
   // Nodes ring segments
   const cordonedCount = counts.nodes.cordoned ?? 0
+  const removingCount = counts.nodes.removing ?? 0
+  const removingUnhealthyCount = counts.nodes.removingUnhealthy ?? 0
   const nodesRingSegments = [
     { value: counts.nodes.ready, color: '#22c55e' },
+    { value: removingCount - removingUnhealthyCount, color: 'var(--text-secondary)' },
+    { value: removingUnhealthyCount, color: 'var(--color-error)' },
     { value: cordonedCount, color: '#eab308' }, // amber for cordoned
     { value: counts.nodes.notReady, color: '#ef4444' },
   ]
@@ -312,7 +316,7 @@ export function ClusterHealthCard({
               >
                 <Radio className="w-3.5 h-3.5 text-purple-400 animate-pulse shrink-0" />
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1 text-left">
-                  <span className="text-xs font-medium text-purple-400">MCP Server Live</span>
+                  <span className="text-xs font-medium text-purple-400">{caps.mcpReadOnly ? 'MCP Server Live (read-only)' : 'MCP Server Live'}</span>
                   <Tooltip content={mcpUrl} wrapperClassName="min-w-0">
                   <span className="text-[10px] text-theme-text-tertiary truncate font-mono">
                     HTTP · {mcpUrl}
@@ -322,7 +326,7 @@ export function ClusterHealthCard({
                 <Info className="w-3.5 h-3.5 text-purple-400/60 shrink-0" />
               </button>
             )}
-            <MCPSetupDialog open={mcpDialogOpen} onClose={() => setMcpDialogOpen(false)} mcpUrl={mcpUrl} />
+            <MCPSetupDialog open={mcpDialogOpen} onClose={() => setMcpDialogOpen(false)} mcpUrl={mcpUrl} readOnly={caps.mcpReadOnly} />
           </div>
 
           {/* Center: Three health rings */}
@@ -393,6 +397,9 @@ export function ClusterHealthCard({
                   <span className="text-green-500">{counts.nodes.ready} ready</span>
                   {cordonedCount > 0 && (
                     <span className="text-yellow-500">{cordonedCount} cordoned</span>
+                  )}
+                  {removingCount > 0 && (
+                    <span className="text-theme-text-secondary">{removingCount} removing{removingUnhealthyCount > 0 ? ` (${removingUnhealthyCount} unhealthy)` : ''}</span>
                   )}
                   {counts.nodes.notReady > 0 && (
                     <span className="text-red-500">{counts.nodes.notReady} not ready</span>

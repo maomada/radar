@@ -182,3 +182,13 @@ export * from './CNPGObjectStoreRenderer'
 export * from './CNPGDeclarativeRenderer'
 
 export { KueueWorkloadRenderer } from './KueueWorkloadRenderer'
+
+export { LocalQueueRenderer, ClusterQueueRenderer } from './KueueQueueRenderers'
+
+export { AdmissionCheckRenderer, ProvisioningRequestRenderer } from './KueueProvisioningRenderers'
+
+export { RayServiceRenderer } from './RayServiceRenderer'
+
+export { RayClusterRenderer } from './RayClusterRenderer'
+
+export { RayJobRenderer } from './RayJobRenderer'

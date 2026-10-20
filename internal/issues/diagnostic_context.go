@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/pkg/issuesapi"
@@ -230,10 +231,13 @@ func enrichDiagnosticContextAuthorized(shaped, flat, grouped []Issue, p Provider
 		var b diagnosticContextBuilder
 		i := &out[idx]
 		if i.DiagnosticContext != nil {
+			// Facts set from the detection itself; the rest is rebuilt here.
 			for _, fact := range i.DiagnosticContext.Facts {
-				if fact.Type == factNodeStartupCorroboration {
+				switch fact.Type {
+				case factNodeStartupCorroboration:
 					b.add(issuesapi.DiagnosticRoleContext, fact)
-					break
+				case factNetworkPolicyIsolates:
+					b.add(issuesapi.DiagnosticRoleCandidate, fact)
 				}
 			}
 		}
@@ -836,28 +840,7 @@ func hpaBlockedOnMetricFamily(i Issue, family string) bool {
 // exact condition transitions can lag or retrigger; topology plus category is
 // the evidence for this deliberately medium-confidence relationship.
 func addNodeBlastRadiusContext(b *diagnosticContextBuilder, node Issue, edges *[]incidentEdge, np nodeBlastRadiusProvider, flatByResource map[string][]Issue, groupedByID map[string]Issue) {
-	// A node can hit several pressures at once (memory + disk + PID); those
-	// detections share the node_not_ready ID and group into one issue that keeps
-	// only one representative Reason. Union the attributable categories across ALL
-	// of the node's detected reasons so a multi-pressure node links every pressure's
-	// pods (OOM under memory, stuck-creation under disk/PID), not just the
-	// representative's. (The flat node rows for both pressures sit under the node's
-	// resource key whether we were handed the grouped issue or a flat one.)
-	attributable := map[issuesapi.Category]bool{}
-	for _, f := range flatByResource[issueResourceKey(node)] {
-		if f.Kind == "Node" && f.Category == issuesapi.CategoryNodeNotReady {
-			for c := range nodeReasonAttributable[f.Reason] {
-				attributable[c] = true
-			}
-		}
-	}
-	// Fallback to the issue's own reason if no flat node rows are indexed under
-	// this key (defensive — normally the detections are present).
-	if len(attributable) == 0 {
-		for c := range nodeReasonAttributable[node.Reason] {
-			attributable[c] = true
-		}
-	}
+	attributable := nodeReasonAttributable[node.Reason]
 	if len(attributable) == 0 {
 		return
 	}
@@ -973,6 +956,9 @@ func isBlockedInitContainer(i Issue) bool {
 }
 
 func restartCauseFact(i Issue) (issuesapi.DiagnosticFact, bool) {
+	if l := i.RestartLoop; l != nil {
+		return issuesapi.DiagnosticFact{Type: factRestartCause, Message: restartLoopEvidenceMessage(l)}, true
+	}
 	if i.RestartCount <= 0 && i.LastTerminatedReason == "" {
 		return issuesapi.DiagnosticFact{}, false
 	}
@@ -990,6 +976,50 @@ func restartCauseFact(i Issue) (issuesapi.DiagnosticFact, bool) {
 		Type:    factRestartCause,
 		Message: "Container restart evidence: " + strings.Join(parts, ", ") + ".",
 	}, true
+}
+
+// restartLoopEvidenceMessage states what was observed for a looping container.
+// Probe failures are listed beside the restarts, never as their cause.
+func restartLoopEvidenceMessage(l *issuesapi.RestartLoop) string {
+	parts := []string{
+		fmt.Sprintf("container=%s", l.Container),
+		fmt.Sprintf("restartCount=%d", l.RestartCount),
+	}
+	last := fmt.Sprintf("lastExitCode=%d", l.LastExitCode)
+	if l.LastReason != "" {
+		last += fmt.Sprintf(" (%s)", l.LastReason)
+	}
+	if !l.LastFinishedAt.IsZero() {
+		last += " at " + l.LastFinishedAt.UTC().Format(time.RFC3339)
+	}
+	switch {
+	case !l.LastStartedAt.IsZero() && !l.LastFinishedAt.IsZero():
+		last += fmt.Sprintf(" after running %s", l.LastFinishedAt.Sub(l.LastStartedAt).Round(time.Second))
+	case !l.LastFinishedAt.IsZero():
+		last += " without starting"
+	}
+	parts = append(parts, last)
+	if l.WorkloadPods > 0 {
+		parts = append(parts, fmt.Sprintf("loopingPods=%d/%d", l.LoopingPods, l.WorkloadPods))
+	}
+	for _, p := range []struct {
+		name string
+		pf   *issuesapi.ProbeFailure
+	}{{"startup", l.StartupProbeFailure}, {"liveness", l.LivenessProbeFailure}, {"readiness", l.ReadinessProbeFailure}} {
+		if p.pf == nil {
+			continue
+		}
+		obs := fmt.Sprintf("%s probe failure last seen %s", p.name, p.pf.LastSeen.UTC().Format(time.RFC3339))
+		if p.pf.Message != "" {
+			obs += fmt.Sprintf(" (%q)", p.pf.Message)
+		}
+		parts = append(parts, obs)
+	}
+	msg := "Restart loop evidence: " + strings.Join(parts, ", ") + "."
+	if l.SeverityReason != "" {
+		msg += " Severity " + l.SeverityReason + "."
+	}
+	return msg
 }
 
 func diagnosticMessage(i Issue) string {

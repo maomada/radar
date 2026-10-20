@@ -313,8 +313,9 @@ Separately from that: a Radar per cluster gives you a view per cluster. Each
 watches only its own cluster and carries its own upgrades, ingress and auth
 config, with no cross-cluster search or combined issue list across them. If you
 want several clusters in one view, that is what
-[Radar Cloud](https://radarhq.io) is for, and its agent dials out so there is no
-per-cluster ingress to wire up.
+[Radar Cloud](https://radarhq.io) is for. You still run Radar in each cluster,
+but it dials out to the control plane, so there is no per-cluster ingress to
+wire up.
 
 ### With ingress basic authentication
 
@@ -445,13 +446,13 @@ Radar doesn't attach image-pull secrets to debug containers or pods — ephemera
 
 ### CRD Permissions
 
-Radar reads CRDs from many popular tools. Each CRD group can be toggled individually:
+Radar reads CRDs from many popular tools. Common CRD groups can be toggled individually:
 
 ```yaml
 rbac:
   crdGroups:
-    all: false          # Wildcard — grant read access to ALL API groups
-    # Individual groups (all default to true):
+    all: false          # get/list/watch on every API group and resource, including Secrets
+    # Individual groups (default true unless noted):
     argo: true          # argoproj.io
     calico: true        # projectcalico.org, crd.projectcalico.org
     certManager: true   # cert-manager.io
@@ -468,13 +469,21 @@ rbac:
   additionalRules: []       # Arbitrary extra ClusterRole rules
 ```
 
+Radar's NetworkPolicy check (an issue when a policy leaves every pod behind a Service with no allowed inbound traffic) also reads the policies of other engines that can allow what a core NetworkPolicy denies: Cilium, Calico, Antrea (`rbac.crdGroups.antrea`), EKS VPC CNI (`rbac.crdGroups.awsNetworkPolicy`) and `policy.networking.k8s.io`. If one of those APIs is served but Radar can't read it, the check stays silent for the Services it might cover, so keep these groups enabled.
+
 Calico access is read-only (`get`, `list`, and `watch`) for both API groups and is enabled by default. Set `rbac.crdGroups.calico=false` to disable it. If chart-managed Calico access is disabled, grant only the resources you need through `rbac.additionalRules`; both groups may be required while a cluster exposes modern and legacy Calico APIs.
+
+The chart grants cluster-wide `get/list/watch` on VictoriaMetrics VMAgent, VMCluster and VMSingle whenever it grants cluster-wide Secrets reads: `rbac.secrets: true`, `rbac.helm: true`, auth enabled (`auth.mode != none`), or cloud mode. These objects can carry inline credentials, so they share the same grant decision as Secrets; there is no separate VictoriaMetrics setting. All other VictoriaMetrics kinds are excluded from this rule. See the [chart reference](../deploy/helm/radar/README.md#crd-access) for exclusions and wildcard grants.
+
+Radar decides what it can read at startup, so RBAC changes take effect when the Radar pod restarts. `helm upgrade` rolls the pod whenever `rbac` values change; restart Radar yourself after changing its RBAC outside Helm.
 
 ### Graceful RBAC Degradation
 
 You see what you have access to — Radar doesn't require cluster-admin. Whatever your ServiceAccount (or the impersonated user, when auth is enabled) can list, Radar shows. Resource types you can't list show an actionable denied-state instead of a misleading "0 / None found": for a core cluster-scoped kind (Node, PV, StorageClass, and the like) your identity can't read, Radar shows a copyable `ClusterRole` + `ClusterRoleBinding` request to hand to a cluster admin (reason `rbac_denied`), and distinguishes that from a kind Radar's own ServiceAccount can't read, where a user-level grant wouldn't help (reason `unavailable`, no snippet). The "Your access on this cluster" dialog lists the core cluster-scoped kinds being hidden alongside your effective rules. Namespaces you can't access don't appear.
 
 A namespace-scoped ServiceAccount (RoleBinding without a ClusterRole) is fully supported — Radar detects this at startup and works within the permitted namespace.
+
+**Stalled API requests.** If a read from the Kubernetes API stalls without the connection resetting (for example, a proxy whose upstream dropped silently), Radar ends it after 60 seconds with no data and retries, instead of freezing that resource's data until a restart. Slow transfers that keep making progress are never cut, and log streams, exec and port-forward are unaffected.
 
 **RBAC granularity (auth enabled):**
 
@@ -581,8 +590,9 @@ Cleanup runs hourly + once at startup. Confirm it's keeping up via `/api/diagnos
 - The DSN is read from a Secret; never put it in Helm values or `config.json`.
 - Restart the Radar Deployment after rotating the Secret because Kubernetes does not refresh environment variables in running containers.
 - There is no built-in import path from SQLite to PostgreSQL. Migrating historical events is not supported.
-- Radar treats an unreachable PostgreSQL as fatal rather than falling back to an in-memory timeline, so a pod that cannot reach the database starts in disconnected mode and serves errors instead of cluster data. This is deliberate: silently degrading to memory would hand you a timeline that disappears on the next restart, without saying so. It also means the database is on Radar's startup path — treat its availability accordingly, and prefer one that lives close to the cluster.
-- Recovery after a database outage is not automatic. Once PostgreSQL is reachable again, either use the retry action in the UI or restart the pod. Verified TLS modes: `require` and `verify-full`.
+- An unreachable PostgreSQL costs you the timeline, not the rest of Radar. Cluster views keep working, the Timeline page says the database can't be reached and points to the logs, which have the connection error (so does the diagnostics overlay), and Radar reconnects on its own once the database answers. Radar logs when the database becomes unreachable, how soon it tries again, and when it answers again, naming the database's host, port, name and user (never the password) with the driver's error; search the logs for `[timeline]`. Events that occur while it is down are not recorded and are not recovered later; the dropped count in diagnostics shows how many. Radar never falls back to an in-memory timeline, because that looks healthy and then loses everything on the next restart.
+- Because the rest of Radar keeps working and `/api/health` stays healthy, an outage is easy to miss. Alert on Radar's `/metrics` instead: `radar_timeline_available` is `0` while the database can't be reached (checked at most every 5s, with a 2s limit on each check), and `radar_timeline_dropped_events_total{reason="store_unavailable"}` and `{reason="store_failed"}` count the changes lost to it. For example, `radar_timeline_available == 0` held for 5 minutes. The reason itself is not in the metrics, because it names the database host; it is in the Timeline page and the diagnostics overlay.
+- Verified TLS modes: `require` and `verify-full`.
 
 ## Configuration Reference
 
@@ -623,7 +633,7 @@ See [Helm Chart README](../deploy/helm/radar/README.md) for all available values
 | `rbac.viewWebhooks` | Show admission webhook configurations | `false` |
 | `rbac.viewNodeRuntime` | Inspect kubelet metrics and effective configuration for upgrade impact | `false` |
 | `rbac.traffic` | Read Hubble TLS certs | `true` |
-| `rbac.crdGroups.all` | Wildcard CRD read access | `false` |
+| `rbac.crdGroups.all` | `get/list/watch` on every API group and resource, including core Secrets; overrides per-group flags | `false` |
 
 **Response compression:** Radar gzip-compresses HTTP responses by default (streaming endpoints like SSE are excluded). The level defaults to `1` (best speed), since on large clusters peak response size coincides with peak CPU. Set the `RADAR_COMPRESS_LEVEL` environment variable (via the chart's pod `env`) to `0` to disable, or `2`-`9` to trade CPU for smaller bodies on bandwidth-bound deployments.
 
@@ -643,16 +653,73 @@ kubectl get ingress -n radar -o yaml
 kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx
 ```
 
-If the UI loads through an ingress but pod exec does not connect, ensure the ingress forwards WebSocket upgrades and preserves the browser-facing `Host` header. Preserving `Host` is the compatibility requirement across browsers and proxies; Fetch Metadata is an additional signal only when both sides forward it. Radar logs rejected handshakes with both `Origin` and `Host`.
+If the UI loads through an ingress but pod exec does not connect, ensure the ingress forwards WebSocket upgrades. If it does and exec still fails, see the next section: the terminal uses the same address check as changes.
+
+### Node drain requests time out
+
+Drain waits for pod deletion by default. The default deadline is two minutes for
+eviction retries and deletion waiting together, followed by a final verification
+read of up to five seconds. Configure every proxy and client on this path to allow
+at least 150 seconds for the default. If you send an explicit drain timeout, allow
+more than that value plus five seconds and network latency.
+
+For ingress-nginx, add these annotations to your Radar Ingress, or set them under
+the Helm chart's `ingress.annotations` values:
+
+```yaml
+nginx.ingress.kubernetes.io/proxy-read-timeout: "150"
+nginx.ingress.kubernetes.io/proxy-send-timeout: "150"
+```
+
+These are the ingress-nginx controller's [timeout annotations](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#custom-timeouts).
+Other ingress controllers and load balancers have their own request or upstream
+response timeout settings. Set each layer explicitly; extending Radar's deadline
+cannot override a shorter limit in front of it.
+
+A browser, proxy or MCP timeout does not prove the drain failed or that nothing
+changed. Evictions may have been accepted already. Check the node's pods before
+retrying or shutting it down. API callers can use `waitForDeletion: false` and MCP
+callers `wait_for_deletion: false` for admission-only behavior, but must then
+verify deletion separately. See [MCP drain timeouts](mcp.md#node-drain-timeouts).
+
+### Changes fail with "Radar refused this request"
+
+If you can browse, but every action that changes the cluster (apply, delete, scale, restart, drain, Argo CD or Flux sync) fails with *Radar refused this request because it came from ...*, the proxy in front of Radar is rewriting the `Host` header. The pod terminal does not connect, and a few views that load data with POST, such as application cost, fail the same way. Radar accepts these only from a page served at its own address, so that another website you have open cannot act through your browser, and a rewritten `Host` hides that address. The message names both addresses: where the request came from, and the `Host` Radar received.
+
+Fix it either way:
+
+- Configure the proxy to keep the original `Host` header.
+- Tell Radar the address you open it at. In the Helm chart:
+
+  ```yaml
+  trustedOrigins:
+    - http://radar.internal
+  ```
+
+  Outside Helm, set `RADAR_TRUSTED_ORIGINS` or pass `--trusted-origins`. Use the scheme and host exactly as they appear in your browser's address bar, with the port if there is one. Separate several with commas.
+
+  A trusted origin can do everything Radar's own page can: read, make changes and open pod terminals (and, on a local install, the local terminal). List only addresses that serve Radar. This setting does not cover the MCP endpoint at `/mcp`, which has its own `RADAR_MCP_TRUSTED_ORIGINS`.
+
+A page served from any other address cannot call Radar's API at all, reads included. That covers another port on `localhost`, because browsers treat all ports on a host as one site. If you run your own browser tool that calls Radar's API, for example a dashboard on `http://localhost:3000`, add its address to trusted origins the same way. curl, scripts and MCP clients are not affected.
+
+This read check relies on the `Sec-Fetch-Site` header, which browsers send only to HTTPS addresses and to `localhost`. If you open Radar over plain HTTP at any other address, a page on another site can still make Radar answer a read, though it cannot see the answer. Changes stay protected either way. Serve Radar over HTTPS to close that gap.
+
+Radar logs each refusal with the headers it received:
+
+```bash
+kubectl logs -n radar -l app.kubernetes.io/name=radar | grep '\[origin\] refused'
+```
 
 ### Metrics charts show "Prometheus not connected"
 
-Radar discovers Prometheus in the background as soon as it connects to the cluster (and again after every context switch), by listing Services and probing the ones that look like a PromQL backend at their in-cluster address. While that runs the charts show "Discovering Prometheus…"; once it ends without a connection, the charts and **Settings → Overview → Metrics** show why:
+Radar discovers Prometheus in the background as soon as it connects to the cluster (and again after every context switch), by listing Services and probing the ones that look like a PromQL backend at their in-cluster address. When it can watch Services in every namespace it reads them from its own cache instead of listing them from the API. Discovery also runs again in the background, without a timer, when Radar has no connection and a Prometheus-like Service is created or one of its Pods becomes Ready (so a Prometheus installed after Radar connects on its own), and when the connected endpoint stops answering queries or its port-forward closes. While that runs the charts show "Discovering Prometheus…"; once it ends without a connection, the charts and **Settings → Overview → Metrics** show why:
 
 - *no Prometheus service found in cluster* — nothing matched the well-known names or labels. Set `traffic.prometheusUrl`.
-- *no Prometheus service reachable in cluster* — a candidate exists but its Service address did not answer from Radar's pod. In-cluster Radar does not fall back to port-forwarding, so anything that blocks Radar's namespace from the monitoring namespace shows up exactly like this. Allow the traffic, or point `traffic.prometheusUrl` at an address that is reachable.
+- *No working Prometheus endpoint found. Candidate services could not be reached* — candidates exist but their Service addresses did not answer from Radar's pod. In-cluster Radar does not fall back to port-forwarding. Check endpoint health and network access, or configure a reachable `traffic.prometheusUrl`. This does not mean Prometheus is absent.
 - *Prometheus candidate monitoring/prometheus-server:9090 was unreachable, and NetworkPolicy monitoring/… isolates ingress to its pods with no rule admitting radar/…* — Radar found the reason. When a probe fails at the network level, Radar evaluates the core `NetworkPolicy` objects it can see in its own namespace and the candidate's against its own pod and the candidate's published endpoints, and names the policies only when they deny the connection outright (an egress denial on Radar's side is reported the same way). It stays silent whenever the answer is uncertain: `MY_POD_NAME`/`MY_POD_NAMESPACE` unset, a namespace-scoped install that cannot list policies in the candidate's namespace, an endpoint it cannot resolve, a `hostNetwork` pod, or a probe that was refused rather than unreachable. Two limits: this is the policy's declared intent — a CNI that does not enforce NetworkPolicy (kindnet) will still pass the traffic — and Cilium/Calico CRD policies are not evaluated.
 - *Prometheus headers are configured but no Prometheus URL is set* — see `traffic.prometheusHeadersFromEnv` above.
+
+For CLI/Desktop connection failures, see [local integration connections](configuration.md#local-integration-connections).
 
 ### Basic auth prompt not appearing
 

@@ -1,14 +1,18 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError, debugNamespaceLog, fetchJSON, isForbiddenError, isKindSyncFailed, isStillLoadingError, useCapabilities, useNamespaceCapabilities, useResources, useSecretCertExpiry, useTopPodMetrics, useTopNodeMetrics, useBulkDeleteResources, useBulkRestartWorkloads, useBulkScaleWorkloads, useAudit } from '../../api/client'
 import { isBadgeWorthy } from '../../utils/auditBadges'
 import type { AuditBadgeMessage } from '@skyhook-io/k8s-ui'
 import { apiUrl, getAuthHeaders, getCredentialsMode, stripBasename } from '../../api/config'
+import { readErrorBody } from '../../api/httpErrors'
 import { useAPIResources } from '../../api/apiResources'
 import { useConnection } from '../../context/ConnectionContext'
-import { initNavigationMap, getSecretStoreProviderType } from '@skyhook-io/k8s-ui'
+import { getSecretStoreProviderType } from '@skyhook-io/k8s-ui'
 import { usePinnedKinds } from '../../hooks/useFavorites'
+import { useResourceCounts } from '../../hooks/useResourceCounts'
+import { useCNPGSidebarWorkspace } from '../cnpg/useCNPGSidebarWorkspace'
+import { renderResourceKindList, resourceKindListMode, useResourceHostFeatures } from '../../integrations/resourceHosts'
 import { useOpenLogs, useOpenWorkloadLogs } from '../dock'
 import {
   canBulkRestartKind,
@@ -25,13 +29,6 @@ import { apiVersionToGroup, kindToPluralWithGroup, type NavigateToResource } fro
 import { CreateResourceDialog } from '../shared/CreateResourceDialog'
 import { getSkeletonYaml } from '../../utils/skeleton-yaml'
 
-interface ResourceCountsResponse {
-  counts: Record<string, number>
-  forbidden?: string[]
-  reasons?: Record<string, string>
-  unavailable?: string[]
-}
-
 interface ResourcesViewProps {
   namespaces: string[]
   selectedResource?: SelectedResource | null
@@ -39,6 +36,9 @@ interface ResourcesViewProps {
   onResourceClickYaml?: NavigateToResource
   onKindChange?: () => void
   onClearNamespaces?: () => void
+  rememberedKindSearch?: (kind: { name: string; group: string }) => string | undefined
+  onKindFiltersChange?: (kind: { name: string; group: string }, search: string) => void
+  onApplyNamespacesToAllSections?: (namespaces: string[]) => Promise<unknown> | void
 }
 
 type SelectedKindInfo = { name: string; kind: string; group: string } | null
@@ -74,12 +74,13 @@ function hasResourceCount(counts: Record<string, number> | undefined, key: strin
   return Object.prototype.hasOwnProperty.call(counts ?? {}, key)
 }
 
-export function ResourcesView({ namespaces, selectedResource, onResourceClick, onResourceClickYaml, onKindChange, onClearNamespaces }: ResourcesViewProps) {
+export function ResourcesView({ namespaces, selectedResource, onResourceClick, onResourceClickYaml, onKindChange, onClearNamespaces, rememberedKindSearch, onKindFiltersChange, onApplyNamespacesToAllSections }: ResourcesViewProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { connection } = useConnection()
 
-  const { data: capabilities } = useCapabilities()
+  const { data: capabilities, isPending: capabilitiesPending } = useCapabilities()
+  const hostFeatures = useResourceHostFeatures()
   const namespaceForCapabilities = namespaces.length === 1 ? namespaces[0] : undefined
   const { data: namespaceCapabilities } = useNamespaceCapabilities(namespaceForCapabilities, capabilities)
   const namespaceCapabilityNames = useMemo(() => namespaces.length > 1 ? [...namespaces].sort() : [], [namespaces])
@@ -108,13 +109,9 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
   // API resources discovery
   const { data: apiResources } = useAPIResources()
 
-  // Initialize navigation kind↔plural maps from discovered API resources
-  useEffect(() => {
-    if (apiResources) initNavigationMap(apiResources)
-  }, [apiResources])
-
   // Track the selected kind from the k8s-ui component
   const [selectedKind, setSelectedKind] = useState<SelectedKindInfo>(null)
+  const cnpgSidebarWorkspace = useCNPGSidebarWorkspace({ apiResources, namespaces, withMetrics: selectedKind?.group === 'postgresql.cnpg.io' })
   const workloadWrites = namespaces.length === 0
     ? capabilities?.workloadWrites
     : namespaces.length === 1
@@ -125,37 +122,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
 
   // Lightweight resource counts for sidebar badges (~2KB instead of ~608MB)
   const namespacesParam = namespaces.join(',')
-  const { data: countsData, isError: countsIsError } = useQuery({
-    queryKey: ['resource-counts', namespacesParam],
-    queryFn: async () => {
-      const params = new URLSearchParams()
-      if (namespaces.length > 0) params.set('namespaces', namespacesParam)
-      const startedAt = performance.now()
-      debugNamespaceLog('resources:counts-fetch-start', { namespaces, params: params.toString() })
-      try {
-        return await fetchJSON<ResourceCountsResponse>(`/resource-counts?${params}`)
-      } finally {
-        debugNamespaceLog('resources:counts-fetch-end', {
-          namespaces,
-          params: params.toString(),
-          durationMs: Math.round(performance.now() - startedAt),
-        })
-      }
-    },
-    staleTime: 10000,
-    // SSE invalidation isn't running while connecting, and mid-sync counts
-    // are what unlatch guarded kinds as their informers finish — poll fast
-    // during the shell, settle to the safety net once connected.
-    refetchInterval: connection.state === 'connecting' ? 3000 : 60000,
-    // During the first seconds of the progressive shell the endpoint 503s
-    // (cluster_connecting) until the mid-sync cache handle exists; keep the
-    // query pending rather than parking it in error state, which would
-    // unlatch the large-list guard at the connected flip.
-    retry: (failureCount: number, error: Error) =>
-      isStillLoadingError(error) ? true : failureCount < 3,
-    retryDelay: (failureCount: number, error: Error) =>
-      isStillLoadingError(error) ? 2000 : Math.min(1000 * 2 ** failureCount, 30000),
-  })
+  const { data: countsData, isError: countsIsError } = useResourceCounts(namespaces)
 
   // Determine if selected kind is a CRD (only CRDs should send ?group= to backend)
   const isSelectedCrd = useMemo(() => {
@@ -296,7 +263,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
         durationMs: Math.round(performance.now() - startedAt),
       })
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        const errorData = await readErrorBody(res)
         throw new ApiError(errorData.error || `Failed to fetch ${selectedKind.name}`, res.status, errorData)
       }
       const body = await res.json()
@@ -313,7 +280,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
         printerTable: sanitizePrinterTable(body),
       }
     },
-    enabled: !!selectedKind && !selectedKindQueryBlocked,
+    enabled: !!selectedKind && !selectedKindQueryBlocked && resourceKindListMode(selectedKind, hostFeatures, capabilitiesPending) === 'table',
     staleTime: 30000,
     refetchInterval: 120000, // Safety net — SSE k8s_event drives near-real-time invalidation
     retry: (failureCount: number, error: Error) => {
@@ -347,7 +314,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
   const { data: topNodeMetrics } = useTopNodeMetrics({ enabled: topNodeMetricsEnabled })
 
   // Certificate expiry
-  const { data: certExpiry, isError: certExpiryError } = useSecretCertExpiry()
+  const { data: certExpiry, isError: certExpiryError } = useSecretCertExpiry(namespaces)
 
   // An ExternalSecret names a store; only the store says which backend it reads
   // from. Two list calls per page beat one lookup per row, and the column shows
@@ -417,6 +384,17 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
     setCreateDialogOpen(true)
   }, [])
 
+  const renderKindView = useCallback(
+    (kind: SelectedKindInfo) => renderResourceKindList(kind, hostFeatures, capabilitiesPending, {
+      namespaces,
+      inspected: selectedResource ?? null,
+      onInspect: (resource) => onResourceClick?.(resource),
+      onClearNamespaces: onClearNamespaces ?? (() => {}),
+      onCreate: handleCreateResource,
+    }),
+    [hostFeatures, capabilitiesPending, namespaces, selectedResource, onResourceClick, onClearNamespaces, handleCreateResource],
+  )
+
   return (
     <>
     <BaseResourcesView
@@ -427,6 +405,9 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
       onResourceClickYaml={onResourceClickYaml}
       onKindChange={onKindChange}
       onClearNamespaces={onClearNamespaces}
+      rememberedKindSearch={rememberedKindSearch}
+      onKindFiltersChange={onKindFiltersChange}
+      onApplyNamespacesToAllSections={onApplyNamespacesToAllSections}
       // Injected data
       apiResources={apiResources}
       // Lightweight counts for sidebar (replaces 233 parallel queries)
@@ -439,6 +420,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
       connectionState={connection.state === 'connecting' && connection.syncStatus ? 'syncing' : connection.state}
       largeListGuard={largeListGuard}
       onSelectedKindChange={setSelectedKind}
+      sidebarCategoryWorkspaces={cnpgSidebarWorkspace}
       topPodMetrics={topPodMetrics}
       topNodeMetrics={topNodeMetrics}
       certExpiry={certExpiry}
@@ -465,6 +447,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
       onOpenWorkloadLogs={openWorkloadLogs}
       // Create resource
       onCreateResource={handleCreateResource}
+      renderKindView={renderKindView}
       // Bulk operations
       onBulkDelete={(items, options) => bulkDeleteMutation.mutate({ items, force: options?.force }, { onSuccess: options?.onSuccess })}
       isBulkDeleting={bulkDeleteMutation.isPending}

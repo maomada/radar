@@ -61,8 +61,8 @@ var catalogOrder = []Category{
 	// Configuration
 	CategoryMissingConfigRef, CategoryInvalidConfiguration, CategoryPDBBlocksEvictions, CategorySecretSyncFailed,
 	// Networking
-	CategoryServiceNoEndpoints, CategoryIngressBackendMissing, CategoryIngressClassMissing, CategoryLoadBalancerPending,
-	CategoryGatewayNotReady, CategoryGatewayRouteInvalid, CategoryDNSFailure,
+	CategoryServiceNoEndpoints, CategoryServiceMixedBackends, CategoryIngressBackendMissing, CategoryIngressClassMissing, CategoryLoadBalancerPending,
+	CategoryGatewayNotReady, CategoryGatewayRouteInvalid, CategoryDNSFailure, CategoryNetworkPolicyDenied,
 	// Storage
 	CategoryPVCPending, CategoryPVCLost, CategoryPVFailed, CategoryPVCResizeFailed,
 	CategoryVolumeMountFailed, CategoryVolumeAccessModeConflict,
@@ -86,9 +86,7 @@ var catalogOrder = []Category{
 // imply Radar detects something it can't (you can't hide what never fires).
 // When a detector lands, move the category into catalogOrder + categoryDescription
 // and drop it from here. TestCatalogComplete enforces both directions.
-var categoriesWithoutDetector = map[Category]bool{
-	CategoryNetworkPolicyBlock: true,
-}
+var categoriesWithoutDetector = map[Category]bool{}
 
 var categoryDescription = map[Category]string{
 	// Scheduling
@@ -100,7 +98,7 @@ var categoryDescription = map[Category]string{
 	CategoryContainerWaiting:    "A container is stuck Waiting and never reached Running — blocked on config, secrets, volumes, its image, or a pod sandbox / IP from the CNI.",
 	CategoryInitContainerFailed: "An init container is failing or looping, so the main containers never start.",
 	// Runtime
-	CategoryCrashLoop:         "A container keeps crashing and restarting (CrashLoopBackOff) — it exits non-zero shortly after starting.",
+	CategoryCrashLoop:         "A container keeps exiting and being restarted (CrashLoopBackOff or repeated restarts) — it crashes, fails a liveness or startup probe, or its process exits, whatever the exit code.",
 	CategoryOOMKilled:         "A container was OOMKilled — it hit its own memory limit, or the node ran out of memory. Check usage vs limits and node memory pressure before raising limits.",
 	CategoryLivenessProbeFail: "The liveness probe keeps failing, so the kubelet repeatedly restarts the container.",
 	CategoryReadinessFailed:   "The readiness probe is failing, so the pod is kept out of Service endpoints and receives no traffic.",
@@ -115,11 +113,13 @@ var categoryDescription = map[Category]string{
 	CategorySecretSyncFailed:     "An external secret sync (e.g. External Secrets Operator) failed to materialize a Secret.",
 	// Networking
 	CategoryServiceNoEndpoints:    "A Service has no ready endpoints — its selector matches no ready pods, so traffic to it fails.",
+	CategoryServiceMixedBackends:  "A Service's selector matches pods of workloads that don't all serve it (different applications, or a port some don't declare), so part of its traffic reaches pods that may not serve it.",
 	CategoryIngressBackendMissing: "An Ingress points at a Service that doesn't exist — incoming requests get 503s.",
 	CategoryIngressClassMissing:   "An Ingress names an IngressClass that doesn't exist, so no matching controller can serve it.",
 	CategoryLoadBalancerPending:   "A LoadBalancer Service is stuck Pending — the cloud controller hasn't provisioned an external IP.",
 	CategoryGatewayNotReady:       "A Gateway (Gateway API) isn't accepted or programmed — its listeners aren't serving.",
 	CategoryGatewayRouteInvalid:   "An HTTPRoute (or other route) was rejected or not accepted by its parent Gateway.",
+	CategoryNetworkPolicyDenied:   "A NetworkPolicy leaves a Service's pods with no allowed inbound traffic, so new connections to it would be dropped where the network plugin enforces the policy. Existing connections can keep working, so this often shows no symptom at first.",
 	CategoryDNSFailure:            "CoreDNS's Corefile has a rule (an NXDOMAIN template or a rewrite) that can override Kubernetes service DNS — a misconfiguration that risks breaking in-cluster name resolution.",
 	// Storage
 	CategoryPVCPending:               "A PersistentVolumeClaim is stuck Pending — no matching volume and provisioning hasn't completed.",
@@ -136,10 +136,10 @@ var categoryDescription = map[Category]string{
 	CategoryHPALimitedOrFailed: "A HorizontalPodAutoscaler can't scale — missing metrics, pinned at max replicas, or scaling errors.",
 	// Security
 	CategoryRBACForbidden:        "A workload can't create its pods — its controller's ServiceAccount is denied pod creation by RBAC.",
-	CategoryCertificateNotReady:  "A cert-manager Certificate isn't issued — issuance is failing or still pending.",
+	CategoryCertificateNotReady:  "A certificate isn't usable or soon won't be — cert-manager issuance is failing or pending, or a certificate (including CloudNativePG's operator-managed ones) is expiring or has expired.",
 	CategoryPodSecurityViolation: "Pod Security admission is rejecting pods — they violate the namespace's enforced Pod Security Standard.",
 	// Control plane
-	CategoryTerminationStuck:      "A resource is stuck Terminating past the cleanup window — a finalizer's owning controller is unhealthy.",
+	CategoryTerminationStuck:      "A resource is stuck Terminating past the cleanup window — a finalizer hasn't been released, often because its controller is down, missing, or failing its cleanup.",
 	CategoryNodeNotReady:          "A node is NotReady — its kubelet isn't reporting healthy, putting the pods on it at risk.",
 	CategoryAPIServiceUnavailable: "An aggregated APIService is unavailable — its backing extension API server isn't responding.",
 	CategoryNodeProvisioningFail:  "Node provisioning failed — the autoscaler or Karpenter couldn't bring up a node.",
@@ -152,7 +152,7 @@ var categoryDescription = map[Category]string{
 	CategoryGitOpsOutOfSync:       "Live state has drifted from Git — the GitOps app is OutOfSync.",
 	CategoryGitOpsHealthDegraded:  "A GitOps app's managed resources are unhealthy or missing.",
 	CategoryGitOpsStale:           "A GitOps app's sync/drift verdict is frozen — the application-controller is down or backed up re-comparing.",
-	CategoryHelmReleaseFailed:     "A native Helm release is failed or stuck pending — its latest install, upgrade, or rollback did not complete cleanly.",
+	CategoryHelmReleaseFailed:     "A native Helm release is failed or stuck — its latest install, upgrade, rollback, or uninstall did not complete cleanly.",
 	CategoryWebhookBackendDown:    "An admission webhook points at a backend Service that doesn't exist — matching requests are blocked (failurePolicy=Fail) or silently bypassed (Ignore).",
 	CategoryControlPlaneNotReady:  "A managed control plane (Cluster API) isn't ready — the cluster's control plane is unhealthy or still provisioning.",
 	CategoryMachineNotReady:       "A Cluster API Machine isn't ready — the underlying instance failed to join or is unhealthy.",

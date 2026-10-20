@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
 import { DURATION_TOAST_EXIT } from '../../utils/animation'
-import { Check, Terminal, X, AlertTriangle } from 'lucide-react'
+import { Check, Terminal, X, AlertTriangle, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 
 interface Toast {
@@ -36,6 +36,7 @@ class ToastManager {
   private static instance: ToastManager
   private showErrorFn: ((message: string, detail?: string) => void) | null = null
   private showSuccessFn: ((message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) => void) | null = null
+  private showToastFn: ToastContextType['showToast'] | null = null
 
   static getInstance(): ToastManager {
     if (!ToastManager.instance) {
@@ -44,14 +45,16 @@ class ToastManager {
     return ToastManager.instance
   }
 
-  register(showError: typeof this.showErrorFn, showSuccess: typeof this.showSuccessFn) {
+  register(showError: typeof this.showErrorFn, showSuccess: typeof this.showSuccessFn, showToast: ToastContextType['showToast']) {
     this.showErrorFn = showError
     this.showSuccessFn = showSuccess
+    this.showToastFn = showToast
   }
 
   unregister() {
     this.showErrorFn = null
     this.showSuccessFn = null
+    this.showToastFn = null
   }
 
   showError(message: string, detail?: string) {
@@ -60,6 +63,10 @@ class ToastManager {
 
   showSuccess(message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) {
     this.showSuccessFn ? this.showSuccessFn(message, detail, action, onDetailClick) : console.log('[Toast]', message, detail)
+  }
+
+  showNotice(message: string, detail: string | undefined, type: 'warning' | 'info') {
+    this.showToastFn ? this.showToastFn(message, { detail, type }) : console.warn('[Toast]', message, detail)
   }
 }
 
@@ -71,6 +78,10 @@ export function showApiError(message: string, detail?: string) {
 
 export function showApiSuccess(message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) {
   toastManager.showSuccess(message, detail, action, onDetailClick)
+}
+
+export function showApiNotice(message: string, detail: string | undefined, type: 'warning' | 'info') {
+  toastManager.showNotice(message, detail, type)
 }
 
 export function useToast() {
@@ -138,9 +149,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   // Wire up singleton for use outside React components
   useEffect(() => {
-    toastManager.register(showError, showSuccess)
+    toastManager.register(showError, showSuccess, showToast)
     return () => toastManager.unregister()
-  }, [showError, showSuccess])
+  }, [showError, showSuccess, showToast])
 
   return (
     <ToastContext.Provider value={{ showToast, showCopied, showError, showSuccess }}>
@@ -172,6 +183,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   const isError = toast.type === 'error'
   const isSuccess = toast.type === 'success'
+  const isNotice = toast.type === 'info' || toast.type === 'warning'
 
   return (
     <div
@@ -191,10 +203,15 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       <div className={clsx(
         'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
         isError ? 'bg-red-500/20' :
-        isSuccess ? 'bg-emerald-500/20' : 'bg-blue-500/20'
+        isSuccess ? 'bg-emerald-500/20' :
+        toast.type === 'warning' ? 'bg-amber-500/20' : 'bg-blue-500/20'
       )}>
         {isError ? (
           <AlertTriangle className="w-4 h-4 text-red-400" />
+        ) : toast.type === 'warning' ? (
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+        ) : toast.type === 'info' ? (
+          <Info className="w-4 h-4 text-blue-400" />
         ) : toast.command ? (
           <Terminal className={clsx('w-4 h-4', isSuccess ? 'text-emerald-400' : 'text-blue-400')} />
         ) : (
@@ -208,7 +225,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
           <span className={clsx('text-sm font-medium', isError ? 'text-red-200' : isSuccess ? 'text-emerald-50' : 'text-theme-text-primary')}>
             {toast.message}
           </span>
-          {!isError && !toast.action && <Check className={clsx('w-3.5 h-3.5 shrink-0', isSuccess ? 'text-emerald-400' : 'text-green-400')} />}
+          {!isError && !isNotice && !toast.action && <Check className={clsx('w-3.5 h-3.5 shrink-0', isSuccess ? 'text-emerald-400' : 'text-green-400')} />}
         </div>
         {toast.detail && (
           toast.onDetailClick ? (
@@ -227,7 +244,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
               {toast.detail}
             </button>
           ) : (
-            <p className={clsx('mt-1 text-xs break-words', isError ? 'text-red-300/80' : isSuccess ? 'text-emerald-300/80' : 'text-theme-text-secondary')}>
+            <p className={clsx('mt-1 text-xs break-words whitespace-pre-line', isError ? 'text-red-300/80' : isSuccess ? 'text-emerald-300/80' : 'text-theme-text-secondary')}>
               {toast.detail}
             </p>
           )

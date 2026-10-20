@@ -20,30 +20,32 @@ import (
 // Re-export types from pkg/timeline so callers don't need to change imports.
 type (
 	// Core types
-	EventSource      = pkgtimeline.EventSource
-	EventType        = pkgtimeline.EventType
-	HealthState      = pkgtimeline.HealthState
-	GroupingMode     = pkgtimeline.GroupingMode
-	TimelineEvent    = pkgtimeline.TimelineEvent
-	EventGroup       = pkgtimeline.EventGroup
-	TimelineResponse = pkgtimeline.TimelineResponse
-	TimelineMeta     = pkgtimeline.TimelineMeta
-	FilterPreset     = pkgtimeline.FilterPreset
+	EventSource   = pkgtimeline.EventSource
+	EventType     = pkgtimeline.EventType
+	HealthState   = pkgtimeline.HealthState
+	TimelineEvent = pkgtimeline.TimelineEvent
+	FilterPreset  = pkgtimeline.FilterPreset
 
 	// Store types
-	EventStore     = pkgtimeline.EventStore
-	QueryOptions   = pkgtimeline.QueryOptions
-	StoreStats     = pkgtimeline.StoreStats
-	CompiledFilter = pkgtimeline.CompiledFilter
+	EventStore       = pkgtimeline.EventStore
+	QueryOptions     = pkgtimeline.QueryOptions
+	ResourceScope    = pkgtimeline.ResourceScope
+	IdentityQuery    = pkgtimeline.IdentityQuery
+	Identity         = pkgtimeline.Identity
+	SequenceOrder    = pkgtimeline.SequenceOrder
+	StoreStats       = pkgtimeline.StoreStats
+	CompiledFilter   = pkgtimeline.CompiledFilter
+	EvictionBoundary = pkgtimeline.EvictionBoundary
 
 	// Config types
 	StoreType   = pkgtimeline.StoreType
 	StoreConfig = pkgtimeline.StoreConfig
 
 	// k8score alias chain
-	OwnerInfo   = pkgtimeline.OwnerInfo
-	DiffInfo    = pkgtimeline.DiffInfo
-	FieldChange = pkgtimeline.FieldChange
+	OwnerInfo     = pkgtimeline.OwnerInfo
+	OwnerEvidence = pkgtimeline.OwnerEvidence
+	DiffInfo      = pkgtimeline.DiffInfo
+	FieldChange   = pkgtimeline.FieldChange
 
 	// Tombstone cache types
 	TombstoneCache = pkgtimeline.TombstoneCache
@@ -52,10 +54,19 @@ type (
 
 // Re-export constants from pkg/timeline.
 const (
+	// Owner evidence and scope
+	OwnerObserved      = pkgtimeline.OwnerObserved
+	OwnerReconstructed = pkgtimeline.OwnerReconstructed
+	OwnerEnriched      = pkgtimeline.OwnerEnriched
+	OwnerMissed        = pkgtimeline.OwnerMissed
+	OwnerUnidentified  = pkgtimeline.OwnerUnidentified
+
 	// EventSource constants
-	SourceInformer   = pkgtimeline.SourceInformer
-	SourceK8sEvent   = pkgtimeline.SourceK8sEvent
-	SourceHistorical = pkgtimeline.SourceHistorical
+	SourceInformer          = pkgtimeline.SourceInformer
+	SequenceOrderAscending  = pkgtimeline.SequenceOrderAscending
+	SequenceOrderDescending = pkgtimeline.SequenceOrderDescending
+	SourceK8sEvent          = pkgtimeline.SourceK8sEvent
+	SourceHistorical        = pkgtimeline.SourceHistorical
 
 	// EventType constants
 	EventTypeAdd     = pkgtimeline.EventTypeAdd
@@ -75,10 +86,6 @@ const (
 	HealthUnknown   = pkgtimeline.HealthUnknown
 
 	// GroupingMode constants
-	GroupByNone      = pkgtimeline.GroupByNone
-	GroupByOwner     = pkgtimeline.GroupByOwner
-	GroupByApp       = pkgtimeline.GroupByApp
-	GroupByNamespace = pkgtimeline.GroupByNamespace
 
 	// StoreType constants
 	StoreTypeMemory   = pkgtimeline.StoreTypeMemory
@@ -93,9 +100,6 @@ func DefaultQueryOptions() QueryOptions             { return pkgtimeline.Default
 func DefaultStoreConfig() StoreConfig               { return pkgtimeline.DefaultStoreConfig() }
 func CompileFilter(preset *FilterPreset) (*CompiledFilter, error) {
 	return pkgtimeline.CompileFilter(preset)
-}
-func ResourceKey(kind, namespace, name string) string {
-	return pkgtimeline.ResourceKey(kind, namespace, name)
 }
 func SeenResourceKey(clusterContext, group, kind, namespace, name string) string {
 	return pkgtimeline.SeenResourceKey(clusterContext, group, kind, namespace, name)
@@ -115,7 +119,6 @@ func K8sEventSubject(event *corev1.Event) resourceid.Reference {
 func NewHistoricalEvent(clusterContext, kind, apiVersion, namespace, name string, ts time.Time, reason, message string, healthState HealthState, owner *OwnerInfo, labels map[string]string) TimelineEvent {
 	return pkgtimeline.NewHistoricalEvent(clusterContext, kind, apiVersion, namespace, name, ts, reason, message, healthState, owner, labels)
 }
-func ExtractOwner(obj any) *OwnerInfo         { return pkgtimeline.ExtractOwner(obj) }
 func ExtractLabels(obj any) map[string]string { return pkgtimeline.ExtractLabels(obj) }
 func ExtractTombstoneEntry(obj any) (TombstoneEntry, bool) {
 	return pkgtimeline.ExtractTombstoneEntry(obj)
@@ -148,8 +151,6 @@ var (
 	globalStoreErr    error
 
 	// Event broadcast for SSE
-	subscribers   []chan TimelineEvent
-	subscribersMu sync.RWMutex
 )
 
 // InitStore initializes the global event store
@@ -205,20 +206,22 @@ func InitStore(cfg StoreConfig) error {
 				globalStoreErr = fmt.Errorf("PostgreSQL timeline store requires a DSN")
 				return
 			}
-			store, err := NewPostgresStore(cfg.DSN)
-			if err != nil {
-				globalStoreErr = fmt.Errorf("PostgreSQL timeline store failed to initialize: %w", err)
-				return
-			}
-			setGlobalStore(store)
-			if cfg.RetentionAge > 0 {
-				store.StartCleanupLoop(cfg.RetentionAge, time.Hour, 0)
-				log.Printf("Initialized PostgreSQL timeline store (retention: %s)", cfg.RetentionAge)
-			} else {
-				log.Printf("Initialized PostgreSQL timeline store (retention: disabled — events table will grow unbounded)")
+			if !openPostgresStore(cfg) {
+				// A database outage costs the timeline, not the cluster views.
+				// Aborting here takes down workloads, logs and everything else
+				// that never touches this store. Leaving it unset is the state
+				// every caller already handles, and the worker reopens it when
+				// the database answers. Still no fall back to memory: that one
+				// looks healthy and loses history on the next restart.
+				startPostgresReconnect(cfg)
 			}
 		}
-		observationStartNanos.Store(time.Now().UnixNano())
+		// Only claim observation coverage once a store exists. A degraded start
+		// records nothing until it reconnects, and marking it here would tell
+		// consumers history covers a window that is empty.
+		if GetStore() != nil {
+			observationStartNanos.Store(time.Now().UnixNano())
+		}
 	})
 	return globalStoreErr
 }
@@ -309,6 +312,17 @@ func SetObservationStartForTest(t time.Time) {
 	observationStartNanos.Store(t.UnixNano())
 }
 
+// HistoryEvictedThrough returns the store's EvictionBoundary, or zero when the
+// store deletes nothing or none is initialized. With ObservationStart it bounds
+// what the store can answer completely: every event this process recorded
+// after both times is still kept.
+func HistoryEvictedThrough() time.Time {
+	if boundary, ok := GetStore().(EvictionBoundary); ok {
+		return boundary.EvictedThrough()
+	}
+	return time.Time{}
+}
+
 // GetStore returns the global event store instance.
 func GetStore() EventStore {
 	globalStoreMu.Lock()
@@ -331,18 +345,26 @@ func ResetStore() {
 	globalStoreInitMu.Lock()
 	defer globalStoreInitMu.Unlock()
 
-	globalStoreMu.Lock()
-	defer globalStoreMu.Unlock()
+	stopPostgresReconnect()
 
-	if globalStore != nil {
-		if err := globalStore.Close(); err != nil {
-			log.Printf("Warning: error closing event store: %v", err)
-		}
-		globalStore = nil
-	}
+	globalStoreMu.Lock()
+	store := globalStore
+	globalStore = nil
 	observationStartNanos.Store(0)
 	globalStoreOnce = sync.Once{}
 	globalStoreErr = nil
+	globalStoreMu.Unlock()
+
+	// Closed outside the lock: Close waits for the store's background writer,
+	// and a write failing there calls back into GetStore.
+	if store != nil {
+		if err := store.Close(); err != nil {
+			log.Printf("Warning: error closing event store: %v", err)
+		}
+	}
+	// Again once the store is cleared: a write failing against the old store
+	// between the two can start a watch on it.
+	stopPostgresOutageWatch()
 }
 
 // ReinitStore reinitializes the event store after a context switch.
@@ -376,80 +398,4 @@ func QueryEvents(ctx context.Context, opts QueryOptions) ([]TimelineEvent, error
 		return nil, fmt.Errorf("event store not initialized")
 	}
 	return store.Query(ctx, opts)
-}
-
-// QueryGrouped is a convenience function to query grouped events from the global store
-func QueryGrouped(ctx context.Context, opts QueryOptions) (*TimelineResponse, error) {
-	store := GetStore()
-	if store == nil {
-		return nil, fmt.Errorf("event store not initialized")
-	}
-	return store.QueryGrouped(ctx, opts)
-}
-
-// Subscribe registers a channel to receive new timeline events.
-// The caller is responsible for reading from the channel to avoid blocking.
-// Returns a function to unsubscribe.
-func Subscribe() (chan TimelineEvent, func()) {
-	ch := make(chan TimelineEvent, 100)
-	subscribersMu.Lock()
-	subscribers = append(subscribers, ch)
-	subscribersMu.Unlock()
-
-	unsubscribe := func() {
-		subscribersMu.Lock()
-		defer subscribersMu.Unlock()
-		for i, sub := range subscribers {
-			if sub == ch {
-				subscribers = append(subscribers[:i], subscribers[i+1:]...)
-				close(ch)
-				break
-			}
-		}
-	}
-
-	return ch, unsubscribe
-}
-
-// broadcastEvent sends an event to all subscribers (non-blocking)
-func broadcastEvent(event TimelineEvent) {
-	subscribersMu.RLock()
-	defer subscribersMu.RUnlock()
-
-	for _, ch := range subscribers {
-		select {
-		case ch <- event:
-		default:
-			// Channel full, skip (subscriber not keeping up)
-			RecordDrop(event.Kind, event.Namespace, event.Name, DropReasonSubscriberFull, string(event.EventType), event.ClusterContext)
-		}
-	}
-}
-
-// RecordEventWithBroadcast records an event and broadcasts it to subscribers
-func RecordEventWithBroadcast(ctx context.Context, event TimelineEvent) error {
-	store := GetStore()
-	if store == nil {
-		return fmt.Errorf("event store not initialized")
-	}
-	if err := store.Append(ctx, event); err != nil {
-		return err
-	}
-	broadcastEvent(event)
-	return nil
-}
-
-// RecordEventsWithBroadcast records multiple events and broadcasts them to subscribers
-func RecordEventsWithBroadcast(ctx context.Context, events []TimelineEvent) error {
-	store := GetStore()
-	if store == nil {
-		return fmt.Errorf("event store not initialized")
-	}
-	if err := store.AppendBatch(ctx, events); err != nil {
-		return err
-	}
-	for _, event := range events {
-		broadcastEvent(event)
-	}
-	return nil
 }

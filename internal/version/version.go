@@ -94,6 +94,29 @@ func IsDesktop() bool {
 	return isDesktop
 }
 
+// InstallMethodName reports how this binary was installed, for usage reports.
+func InstallMethodName() string {
+	return string(detectInstallMethod())
+}
+
+// BuildChannelName reports the release channel of the running build.
+func BuildChannelName() string {
+	return string(buildChannel(Current))
+}
+
+// LocalInstalledAt returns when Radar first ran on this machine (the creation
+// time of ~/.radar) as Unix seconds, or 0 when the platform can't tell.
+func LocalInstalledAt() int64 {
+	return radarDirBirthtime()
+}
+
+// IsDevelopmentBuild reports whether this is an unreleased build (source,
+// git-describe, or "dev"). Such builds must never send usage reports: their
+// installs are Skyhook's own and would pollute the data.
+func IsDevelopmentBuild() bool {
+	return buildChannel(Current) == buildChannelDevelopment
+}
+
 // CheckForUpdate checks GitHub for the latest release
 func CheckForUpdate(_ context.Context) *UpdateInfo {
 	if buildChannel(Current) == buildChannelDevelopment {
@@ -414,13 +437,33 @@ func detectInstallMethod() InstallMethod {
 		return InstallDesktop
 	}
 
-	exe, err := os.Executable()
+	exe, err := executablePath()
 	if err != nil {
 		log.Printf("[version] Could not determine executable path: %v", err)
 		return InstallDirect
 	}
 
 	return detectInstallMethodFromPath(exe)
+}
+
+// executablePath returns this binary's path with symlinks resolved. Package
+// managers expose a stable link (e.g. /opt/homebrew/bin/radar) into a versioned
+// install directory, and only the resolved path shows which one installed it.
+func executablePath() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return resolveSymlinks(exe), nil
+}
+
+// resolveSymlinks returns path with symlinks resolved, or path unchanged when
+// it cannot be resolved.
+func resolveSymlinks(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return path
 }
 
 // detectInstallMethodFromPath determines install method from a binary path.
@@ -450,18 +493,21 @@ func detectInstallMethodFromPath(exe string) InstallMethod {
 // getUpdateCommand returns the command to update based on install method.
 // Desktop returns empty since updates are handled in-app.
 func getUpdateCommand(method InstallMethod) string {
-	return getUpdateCommandForOS(method, runtime.GOOS)
+	// With no path, Homebrew installs get the tap command.
+	exe, _ := executablePath()
+	return getUpdateCommandForOS(method, runtime.GOOS, exe)
 }
 
 // getUpdateCommandForOS returns the update command for a given install method
 // and OS. For InstallDirect, the install one-liner is idempotent — re-running
 // it upgrades an existing binary in place. Returns "" for any GOOS that the
 // public install script doesn't support, so the frontend falls through to the
-// GitHub release-download link.
-func getUpdateCommandForOS(method InstallMethod, goos string) string {
+// GitHub release-download link. exe is the resolved binary path, used to pick
+// the Homebrew formula.
+func getUpdateCommandForOS(method InstallMethod, goos, exe string) string {
 	switch method {
 	case InstallHomebrew:
-		return "brew upgrade skyhook-io/tap/radar"
+		return homebrewUpgradeCommand(exe)
 	case InstallKrew:
 		return "kubectl krew upgrade radar"
 	case InstallScoop:
@@ -480,4 +526,16 @@ func getUpdateCommandForOS(method InstallMethod, goos string) string {
 	default:
 		return ""
 	}
+}
+
+// homebrewUpgradeCommand names the formula that installed exe. Radar ships in
+// homebrew-core as kubectl-radar and in the skyhook-io tap as radar; the Cellar
+// directory in the resolved path tells them apart. Paths without a Cellar
+// directory fall back to the tap formula.
+func homebrewUpgradeCommand(exe string) string {
+	path := strings.ToLower(filepath.ToSlash(exe))
+	if strings.Contains(path, "/cellar/kubectl-radar/") {
+		return "brew upgrade kubectl-radar"
+	}
+	return "brew upgrade skyhook-io/tap/radar"
 }

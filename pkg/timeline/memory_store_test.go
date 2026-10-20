@@ -481,75 +481,6 @@ func TestMemoryStore_GetEvent(t *testing.T) {
 	}
 }
 
-func TestMemoryStore_GetChangesForOwner(t *testing.T) {
-	store := NewMemoryStore(100)
-	ctx := context.Background()
-
-	events := []TimelineEvent{
-		{
-			ID: "owner-1", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-1",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-		{
-			ID: "owner-2", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-2",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "other-deploy"},
-		},
-		{
-			ID: "owner-3", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-3",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-	}
-	_ = store.AppendBatch(ctx, events)
-
-	// Query for pods owned by my-deploy
-	result, err := store.GetChangesForOwner(ctx, "Deployment", "default", "my-deploy", "", time.Time{}, 10)
-	if err != nil {
-		t.Fatalf("GetChangesForOwner failed: %v", err)
-	}
-	if len(result) != 2 {
-		t.Errorf("Expected 2 events for owner my-deploy, got %d", len(result))
-	}
-}
-
-func TestMemoryStore_QueryGrouped_ByOwner(t *testing.T) {
-	store := NewMemoryStore(100)
-	ctx := context.Background()
-
-	events := []TimelineEvent{
-		{ID: "group-1", Timestamp: time.Now(), Kind: "Deployment", Namespace: "default", Name: "my-deploy", EventType: EventTypeAdd, Source: SourceInformer},
-		{
-			ID: "group-2", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-1",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-		{
-			ID: "group-3", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-2",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-	}
-	_ = store.AppendBatch(ctx, events)
-
-	// Query grouped by owner
-	result, err := store.QueryGrouped(ctx, QueryOptions{
-		GroupBy:        GroupByOwner,
-		Limit:          10,
-		IncludeManaged: true,
-	})
-	if err != nil {
-		t.Fatalf("QueryGrouped failed: %v", err)
-	}
-	if len(result.Groups) != 1 {
-		t.Errorf("Expected 1 group, got %d", len(result.Groups))
-	}
-	if result.Groups[0].Name != "my-deploy" {
-		t.Errorf("Expected group name 'my-deploy', got '%s'", result.Groups[0].Name)
-	}
-}
-
 func TestMemoryStore_IncludeManaged(t *testing.T) {
 	store := NewMemoryStore(100)
 	ctx := context.Background()
@@ -678,5 +609,49 @@ func TestNewDegradedMemoryStore_ReportsDegraded(t *testing.T) {
 	healthy := NewMemoryStore(100)
 	if hs := healthy.Stats(); hs.Degraded || hs.DegradedReason != "" {
 		t.Fatalf("plain memory store must not report degraded, got %+v", hs)
+	}
+}
+
+// The ring evicts by arrival, not event time, so the boundary must be the
+// newest timestamp among evicted events: an event that arrived first but
+// carries a later timestamp keeps the boundary there after older-timestamped
+// events are evicted behind it.
+func TestMemoryStore_EvictedThroughIsNewestEvictedTimestamp(t *testing.T) {
+	store := NewMemoryStore(3)
+	ctx := context.Background()
+	base := time.Now().Add(-time.Hour)
+	appendAt := func(id string, offset time.Duration) {
+		t.Helper()
+		if err := store.Append(ctx, TimelineEvent{
+			ID: id, Timestamp: base.Add(offset), Source: SourceInformer,
+			Kind: "Deployment", Namespace: "default", Name: id, EventType: EventTypeUpdate,
+		}); err != nil {
+			t.Fatalf("Append %s: %v", id, err)
+		}
+	}
+
+	appendAt("late-stamp", 10*time.Second)
+	appendAt("a", 0)
+	appendAt("b", 5*time.Second)
+	if got := store.EvictedThrough(); !got.IsZero() {
+		t.Fatalf("EvictedThrough before any eviction = %v, want zero", got)
+	}
+
+	appendAt("c", time.Second) // evicts late-stamp
+	if got, want := store.EvictedThrough(), base.Add(10*time.Second); !got.Equal(want) {
+		t.Fatalf("EvictedThrough = %v, want the evicted event's time %v", got, want)
+	}
+	appendAt("d", 2*time.Second) // evicts a, an older timestamp
+	if got, want := store.EvictedThrough(), base.Add(10*time.Second); !got.Equal(want) {
+		t.Fatalf("EvictedThrough moved back to %v after evicting an older event, want %v", got, want)
+	}
+
+	// Every event newer than the boundary is still held.
+	events, err := store.Query(ctx, QueryOptions{Since: store.EvictedThrough(), Limit: 10})
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("no held event is newer than the boundary here, got %+v", events)
 	}
 }

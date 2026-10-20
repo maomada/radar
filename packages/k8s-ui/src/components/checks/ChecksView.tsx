@@ -16,6 +16,7 @@ import {
   SEVERITY_TEXT_CLASS,
 } from './severity'
 import { useAnimatedUnmount } from '../../hooks/useAnimatedUnmount'
+import { CopyableCommand } from '../trace/TracePanel'
 import { TRANSITION_MENU, overlayExitMs, overlayTransitionStyle } from '../../utils/animation'
 import { CORE_RESOURCES } from '../../utils/api-resources'
 
@@ -28,6 +29,9 @@ const AUDIT_INPUT_LABELS = new Map<string, string>([
   ['replicaset-ownership', 'ReplicaSet ownership'],
   ['configmap-references', 'ConfigMap references'],
   ['secret-references', 'Secret references'],
+  ['pvc-consumers', 'PVC consumers'],
+  ['pv-deletion-events', 'PV deletion events'],
+  ['pv-release-time', 'PV release time'],
 ])
 
 // Leading severity glyph, one per tier of the 4-tier ladder: critical = octagon,
@@ -101,6 +105,9 @@ export interface ChecksViewProps {
    *  tab governs hiding there). Operate on the whole check, fleet-wide. */
   onHideCheck?: (checkID: string, title: string) => void
   onHideCategory?: (category: string) => void
+  /** Per-resource opt-out annotation the source Radar honors. Omit when it
+   *  doesn't, so the card never suggests an annotation that does nothing. */
+  ignoreChecksAnnotation?: string
 }
 
 // A check rolled up across every cluster it fires on — one row of the fleet
@@ -122,7 +129,7 @@ const CHECKS_FILTER_SCHEMA = defineFilterSchema({
   q: { param: 'q', type: 'text' },
 })
 
-export function ChecksView({ checks, catalog, anyData, evaluated, missingInputs = [], resourceHref, onResourceClick, clusterLabel, clusterLabelById, clusterFilter: clusterFilterProp, onClusterFilterChange, emptyAction, onHideCheck, onHideCategory }: ChecksViewProps) {
+export function ChecksView({ checks, catalog, anyData, evaluated, missingInputs = [], resourceHref, onResourceClick, clusterLabel, clusterLabelById, clusterFilter: clusterFilterProp, onClusterFilterChange, emptyAction, onHideCheck, onHideCategory, ignoreChecksAnnotation }: ChecksViewProps) {
   // Severity / category / framework / search live in the URL (shareable,
   // bookmarkable audit links) via the shared filter-state contract. The cluster
   // facet is deliberately NOT here — it's a host-controlled seam (see
@@ -285,7 +292,7 @@ export function ChecksView({ checks, catalog, anyData, evaluated, missingInputs 
               placeholder="Search checks…"
               value={search}
               onChange={(e) => filters.setString('q', e.target.value)}
-              className="w-64 rounded-lg border border-theme-border-light bg-theme-base py-1.5 pl-9 pr-8 text-sm text-theme-text-primary placeholder-theme-text-disabled focus:outline-none focus:ring-2 focus:ring-[var(--color-radar-accent)]"
+              className="w-64 rounded-lg border border-theme-border-light bg-theme-base py-1.5 pl-9 pr-8 text-sm text-theme-text-primary placeholder-theme-text-disabled focus:outline-none focus:ring-2 focus:ring-[var(--color-radar-accent,var(--accent))]"
             />
             {search && (
               <button
@@ -340,7 +347,7 @@ export function ChecksView({ checks, catalog, anyData, evaluated, missingInputs 
                 return (
                   <span
                     key={id}
-                    className="inline-flex items-center gap-1 rounded-full border border-[var(--color-radar-accent)]/30 bg-[var(--color-radar-accent)]/10 py-1 pl-2.5 pr-1 text-xs text-theme-text-primary"
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--color-radar-accent,var(--accent))]/30 bg-[var(--color-radar-accent,var(--accent))]/10 py-1 pl-2.5 pr-1 text-xs text-theme-text-primary"
                   >
                     <span className="min-w-0 max-w-[12rem] truncate">
                       <ClusterName name={label} />
@@ -430,6 +437,7 @@ export function ChecksView({ checks, catalog, anyData, evaluated, missingInputs 
               onResourceClick={onResourceClick}
               onHideCheck={onHideCheck}
               onHideCategory={onHideCategory}
+              ignoreChecksAnnotation={ignoreChecksAnnotation}
             />
           ))}
         </ol>
@@ -520,7 +528,7 @@ function CheckReferenceLinks({ references }: { references: CheckReference[] }) {
           href={r.url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-radar-accent)] hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-radar-accent,var(--accent))] hover:underline"
         >
           {r.label}
           <ExternalLink className="h-3 w-3" />
@@ -594,7 +602,7 @@ export function CheckCardShell({
             onToggle()
           }
         }}
-        className={`group flex cursor-pointer items-center gap-3 border-l-[3px] py-3 pl-3 pr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent)]/40 ${open ? SEVERITY_HEADER_BAND_CLASS[sev] : SEVERITY_RAIL_CLASS[sev]}`}
+        className={`group flex cursor-pointer items-center gap-3 border-l-[3px] py-3 pl-3 pr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent,var(--accent))]/40 ${open ? SEVERITY_HEADER_BAND_CLASS[sev] : SEVERITY_RAIL_CLASS[sev]}`}
       >
         <SeverityIcon className={`h-[18px] w-[18px] shrink-0 ${SEVERITY_TEXT_CLASS[sev]}`} aria-hidden />
 
@@ -701,7 +709,7 @@ export function CheckClusterBreakdownShell<T extends CheckClusterBreakdownGroup>
         <button
           type="button"
           onClick={() => setShowAllClusters(true)}
-          className="mt-0.5 inline-flex w-fit items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[var(--color-radar-accent)] hover:underline"
+          className="mt-0.5 inline-flex w-fit items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[var(--color-radar-accent,var(--accent))] hover:underline"
         >
           View all {groups.length} clusters →
         </button>
@@ -720,6 +728,7 @@ function FleetCheckRow({
   onResourceClick,
   onHideCheck,
   onHideCategory,
+  ignoreChecksAnnotation,
 }: {
   fc: FleetCheck
   meta?: CheckMeta
@@ -730,6 +739,7 @@ function FleetCheckRow({
   onResourceClick?: (ref: CheckResourceRef) => void
   onHideCheck?: (checkID: string, title: string) => void
   onHideCategory?: (category: string) => void
+  ignoreChecksAnnotation?: string
 }) {
   const clusterCount = fc.clusters.length
   const single = clusterCount <= 1
@@ -761,6 +771,13 @@ function FleetCheckRow({
       renderActions={() => (menuItems.length > 0 ? <RowMenu items={menuItems} /> : null)}
     >
       <CheckRemediationBlock description={meta?.description} remediation={meta?.remediation} references={meta?.references} />
+
+      {ignoreChecksAnnotation && (
+        <CardSection icon={EyeOff} label="Skip for one resource">
+          <CardBody>Add this annotation to a resource listed below. Its findings for this check are then hidden.</CardBody>
+          <CopyableCommand command={`${ignoreChecksAnnotation}: ${fc.checkID}`} />
+        </CardSection>
+      )}
 
       <CardSection
         icon={Layers}
@@ -849,7 +866,7 @@ function ResourceList({
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="mt-0.5 inline-flex w-fit items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[var(--color-radar-accent)] hover:underline"
+          className="mt-0.5 inline-flex w-fit items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[var(--color-radar-accent,var(--accent))] hover:underline"
         >
           View all {check.findings.length} →
         </button>
@@ -875,7 +892,7 @@ function FindingLine({
     <>
       <span className="flex min-w-0 items-baseline gap-2">
         <span className="shrink-0 font-mono text-[11px] uppercase tracking-wide text-theme-text-tertiary">{r.kind}</span>
-        <span className={`min-w-0 break-all font-medium ${linkable ? 'text-[var(--color-radar-accent)]' : 'text-theme-text-primary'}`}>
+        <span className={`min-w-0 break-all font-medium ${linkable ? 'text-[var(--color-radar-accent,var(--accent))]' : 'text-theme-text-primary'}`}>
           {r.namespace ? `${r.namespace} / ` : ''}
           {r.name}
         </span>
@@ -1010,7 +1027,7 @@ function ClusterFilter({
                   onClick={() => onToggle(o.id)}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-theme-text-secondary transition-colors hover:bg-theme-hover hover:text-theme-text-primary"
                 >
-                  <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${on ? 'border-[var(--color-radar-accent)] bg-[var(--color-radar-accent)] text-white' : 'border-theme-border'}`}>
+                  <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${on ? 'border-[var(--color-radar-accent,var(--accent))] bg-[var(--color-radar-accent,var(--accent))] text-white' : 'border-theme-border'}`}>
                     {on && <span className="text-[9px] leading-none">✓</span>}
                   </span>
                   <span className="min-w-0 truncate">

@@ -1,7 +1,10 @@
-import { createContext, useContext, useState } from 'react'
+import { dedupeResourceRefs, omitResourceRefs } from '../../utils/resource-refs'
+import { customResourceDefinitionRef, getCRDDefinitionsSnapshot, subscribeCRDDefinitions } from '../../utils/navigation'
+import { Disclosure } from './Disclosure'
+import { createContext, useContext, useState, useSyncExternalStore } from 'react'
 import { Copy, Check, Tag, AlertTriangle, CheckCircle, ExternalLink, Layers, X, Minus } from 'lucide-react'
 import { clsx } from 'clsx'
-import { formatAge, formatDuration, formatResources } from '../resources/resource-utils'
+import { formatDuration, formatResources } from '../resources/resource-utils'
 import { getEffectiveResources } from '../../utils/extended-resources'
 import { Tooltip } from './Tooltip'
 import { getKindColorClass } from '../ui/Badge'
@@ -83,25 +86,26 @@ interface SectionProps {
   children: React.ReactNode
   defaultExpanded?: boolean
   contentClassName?: string
+  variant?: 'plain' | 'card'
 }
 
-export function Section({ title, icon: Icon, children, defaultExpanded = true, contentClassName }: SectionProps) {
+export function Section({ title, icon: Icon, children, defaultExpanded = true, contentClassName, variant = 'plain' }: SectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const { panelId, buttonProps } = useDisclosure(expanded)
 
   return (
-    <div className="border-b-subtle pb-4 last:border-0">
+    <div className={variant === 'card' ? 'min-w-0 overflow-hidden rounded-lg border border-theme-border bg-theme-surface' : 'border-b-subtle pb-4 last:border-0'}>
       <button
         {...buttonProps}
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-left mb-2 hover:text-theme-text-primary transition-colors"
+        className={clsx('flex items-center gap-2 w-full text-left hover:text-theme-text-primary transition-colors', variant === 'card' ? clsx('border-theme-border bg-theme-elevated px-3 py-2.5', expanded && 'border-b') : 'mb-2')}
       >
         <CollapseChevron open={expanded} className="w-4 h-4" />
         {Icon && <Icon className="w-4 h-4 text-theme-text-secondary" />}
-        <span className="text-sm font-medium text-theme-text-secondary">{title}</span>
+        <span className={clsx("font-medium text-theme-text-secondary", variant === 'card' ? 'text-xs uppercase tracking-wider' : 'text-sm')}>{title}</span>
       </button>
       <Collapse open={expanded} id={panelId}>
-        <div className={contentClassName ?? 'pl-6'}>{children}</div>
+        <div className={contentClassName ?? (variant === 'card' ? 'p-3' : 'pl-6')}>{children}</div>
       </Collapse>
     </div>
   )
@@ -204,6 +208,12 @@ const NEGATIVE_POLARITY_TYPES = new Set([
   'NetworkUnavailable',
   // Core K8s — Pod
   'DisruptionTarget',
+  // Core K8s — Namespace
+  'NamespaceDeletionDiscoveryFailure',
+  'NamespaceDeletionGroupVersionParsingFailure',
+  'NamespaceDeletionContentFailure',
+  'NamespaceContentRemaining',
+  'NamespaceFinalizersRemaining',
   // Core K8s — workloads
   'ReplicaFailure',
   // NPD — upstream default configs
@@ -218,6 +228,9 @@ const NEGATIVE_POLARITY_TYPES = new Set([
   'ReadOnlyRootFileSystem',
   'ResourceExhausted',
   'Swap',
+  'StoragePressureRootFileSystem',
+  'DPv2MigrationUnsupportedCNI',
+  'UnsupportedEBPFPrograms',
   // NPD — AKS extensions (learn.microsoft.com/azure/aks/node-problem-detector)
   'FilesystemCorruptionProblem',
   'KubeletProblem',
@@ -293,8 +306,10 @@ export function ConditionsSection({
   conditions,
   getConditionTone,
   defaultExpanded,
+  variant,
 }: {
   conditions?: any[]
+  variant?: 'plain' | 'card'
   defaultExpanded?: boolean
   getConditionTone?: (condition: any) => ConditionTone | undefined
 }) {
@@ -313,6 +328,7 @@ export function ConditionsSection({
 
   return (
     <Section
+      variant={variant}
       title={`Conditions (${conditions.length})${failCount > 0 ? ` · ${failCount} failing` : ''}`}
       defaultExpanded={defaultExpanded ?? conditions.length <= 6}
     >
@@ -377,6 +393,8 @@ export function ConditionsSection({
 // ============================================================================
 
 const ALERT_COLORS = {
+  alert:   { bg: 'status-alert', border: '', title: '', message: '', list: '', bullet: '' },
+  unknown: { bg: 'status-unknown', border: '', title: '', message: '', list: '', bullet: '' },
   error:   { bg: 'bg-red-50 dark:bg-red-950/30', border: 'border-red-200 dark:border-red-800/30', title: 'text-red-700 dark:text-red-300', message: 'text-red-600/80 dark:text-red-300/70', list: 'text-red-600 dark:text-red-400', bullet: 'text-red-400/60 dark:text-red-400/50' },
   warning: { bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800/30', title: 'text-amber-700 dark:text-amber-300', message: 'text-amber-600/80 dark:text-amber-300/70', list: 'text-amber-600 dark:text-amber-400', bullet: 'text-amber-400/60 dark:text-amber-400/50' },
   info:    { bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800/30', title: 'text-sky-700 dark:text-sky-300', message: 'text-sky-600/80 dark:text-sky-300/70', list: 'text-sky-600 dark:text-sky-400', bullet: 'text-sky-400/60 dark:text-sky-400/50' },
@@ -384,6 +402,8 @@ const ALERT_COLORS = {
 } as const
 
 const DEFAULT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  alert: AlertTriangle,
+  unknown: AlertTriangle,
   error: AlertTriangle,
   warning: AlertTriangle,
   info: AlertTriangle,
@@ -391,26 +411,37 @@ const DEFAULT_ICONS: Record<string, React.ComponentType<{ className?: string }>>
 }
 
 interface AlertBannerProps {
-  variant: 'error' | 'warning' | 'info' | 'success'
+  variant: keyof typeof ALERT_COLORS
   icon?: React.ComponentType<{ className?: string }>
   title: string
   message?: React.ReactNode
   items?: string[]
   children?: React.ReactNode
+  /** A control at the end of the title line, e.g. a link to where the problem is handled. */
+  action?: React.ReactNode
+  /** Replaces the default bottom margin (`mb-4`). */
+  className?: string
 }
 
-export function AlertBanner({ variant, icon, title, message, items, children }: AlertBannerProps) {
+export function AlertBanner({ variant, icon, title, message, items, children, action, className }: AlertBannerProps) {
   const colors = ALERT_COLORS[variant]
   const Icon = icon || DEFAULT_ICONS[variant]
   const hasBody = message || items || children
 
   return (
-    <div className={clsx('mb-4 p-3 border rounded-lg', colors.bg, colors.border)}>
+    <div className={clsx('p-3 border rounded-lg', className ?? 'mb-4', colors.bg, colors.border)}>
       <div className={clsx('flex gap-2', hasBody ? 'items-start' : 'items-center')}>
         <Icon className={clsx('w-4 h-4 shrink-0', colors.title, hasBody && 'mt-0.5')} />
         {hasBody ? (
           <div className="flex-1 min-w-0">
-            <div className={clsx('text-sm font-medium', colors.title, items && 'mb-1')}>{title}</div>
+            {action ? (
+              <div className={clsx('flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1', items && 'mb-1')}>
+                <div className={clsx('min-w-0 text-sm font-medium', colors.title)}>{title}</div>
+                <div className="shrink-0">{action}</div>
+              </div>
+            ) : (
+              <div className={clsx('text-sm font-medium', colors.title, items && 'mb-1')}>{title}</div>
+            )}
             {message && <div className={clsx('text-xs mt-1 break-words', colors.message)}>{message}</div>}
             {items && items.length > 0 && (
               <ul className={clsx('text-xs space-y-1', colors.list)}>
@@ -423,6 +454,11 @@ export function AlertBanner({ variant, icon, title, message, items, children }: 
               </ul>
             )}
             {children}
+          </div>
+        ) : action ? (
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className={clsx('min-w-0 text-sm font-medium', colors.title)}>{title}</div>
+            <div className="shrink-0">{action}</div>
           </div>
         ) : (
           <div className={clsx('text-sm font-medium', colors.title)}>{title}</div>
@@ -510,19 +546,22 @@ export function AnnotationsSection({ data }: { data: any }) {
   )
 }
 
-export function MetadataSection({ data }: { data: any }) {
+export function MetadataSection({ data, onNavigate }: { data: any; onNavigate?: (ref: ResourceRef) => void }) {
+  useSyncExternalStore(subscribeCRDDefinitions, getCRDDefinitionsSnapshot, getCRDDefinitionsSnapshot)
   const meta = data.metadata
   if (!meta) return null
+  const definition = customResourceDefinitionRef(data.apiVersion, data.kind)
 
   return (
     <Section title="Metadata" defaultExpanded>
       <PropertyList>
+        {definition && <Property label="Definition" value={<ResourceLink {...definition} onNavigate={onNavigate} />} />}
         <Property label="UID" value={meta.uid} />
         <Property label="Resource Version" value={meta.resourceVersion} />
         <Property label="Generation" value={meta.generation} />
         <Property label="Created" value={meta.creationTimestamp ? (
           <Tooltip content={new Date(meta.creationTimestamp).toLocaleString()}>
-            <span className="border-b border-dotted border-theme-text-tertiary cursor-help">{formatAge(meta.creationTimestamp)}</span>
+            <span className="border-b border-dotted border-theme-text-tertiary cursor-help">{formatRelativeAgeTime(meta.creationTimestamp)}</span>
           </Tooltip>
         ) : '-'} />
       </PropertyList>
@@ -722,7 +761,7 @@ export function formatKindName(kind: string): string {
     pods: 'Pod', deployments: 'Deployment', daemonsets: 'DaemonSet', statefulsets: 'StatefulSet',
     replicasets: 'ReplicaSet', services: 'Service', endpointslices: 'EndpointSlice', ingresses: 'Ingress',
     gateways: 'Gateway', httproutes: 'HTTPRoute', grpcroutes: 'GRPCRoute',
-    tcproutes: 'TCPRoute', tlsroutes: 'TLSRoute', configmaps: 'ConfigMap',
+    tcproutes: 'TCPRoute', tlsroutes: 'TLSRoute', udproutes: 'UDPRoute', configmaps: 'ConfigMap',
     secrets: 'Secret', jobs: 'Job', cronjobs: 'CronJob', hpas: 'HPA',
     horizontalpodautoscalers: 'HPA', nodes: 'Node', namespaces: 'Namespace',
     persistentvolumeclaims: 'PVC', persistentvolumes: 'PV',
@@ -779,24 +818,18 @@ export type CopyHandler = (text: string, key: string) => void
 import type { TimelineEvent, Relationships, ResourceRef } from '../../types'
 import { isChangeEvent, isK8sEvent } from '../../types'
 import { Link } from 'lucide-react'
+import { formatRelativeAgeTime } from '../../utils/format'
 
 interface RelatedResourcesSectionProps {
   relationships: Relationships | undefined
   onNavigate?: (ref: ResourceRef) => void
 }
 
-function dedupeRefs(refs: ResourceRef[]): ResourceRef[] {
-  const seen = new Set<string>()
-  return refs.filter(ref => {
-    const key = `${ref.kind}/${ref.namespace}/${ref.name}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
 export function RelatedResourcesSection({ relationships, onNavigate }: RelatedResourcesSectionProps) {
   if (!relationships) return null
+
+  const configRefs = omitResourceRefs(relationships.configRefs ?? [], relationships.dependencies ?? [])
+  const consumers = omitResourceRefs(relationships.consumers ?? [], relationships.dependents ?? [])
 
   const hasRelationships =
     relationships.owner ||
@@ -815,6 +848,15 @@ export function RelatedResourcesSection({ relationships, onNavigate }: RelatedRe
     (relationships.pdbs && relationships.pdbs.length > 0) ||
     (relationships.networkPolicies && relationships.networkPolicies.length > 0) ||
     (relationships.resourceClaims && relationships.resourceClaims.length > 0) ||
+    (relationships.dependencies && relationships.dependencies.length > 0) ||
+    (relationships.dependents && relationships.dependents.length > 0) ||
+    (relationships.monitors && relationships.monitors.length > 0) ||
+    (relationships.monitorTargets && relationships.monitorTargets.length > 0) ||
+    (relationships.backends && relationships.backends.length > 0) ||
+    (relationships.routedFrom && relationships.routedFrom.length > 0) ||
+    (relationships.protects && relationships.protects.length > 0) ||
+    (relationships.healthChecks && relationships.healthChecks.length > 0) ||
+    (relationships.stagedPolicies && relationships.stagedPolicies.length > 0) ||
     relationships.scaleTarget
 
   if (!hasRelationships) return null
@@ -832,43 +874,70 @@ export function RelatedResourcesSection({ relationships, onNavigate }: RelatedRe
           <RelationshipGroup label="Node" refs={[relationships.node]} onNavigate={onNavigate} />
         )}
         {relationships.children && relationships.children.length > 0 && (
-          <RelationshipGroup label="Children" refs={dedupeRefs(relationships.children)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Children" refs={dedupeResourceRefs(relationships.children)} onNavigate={onNavigate} />
         )}
         {relationships.services && relationships.services.length > 0 && (
-          <RelationshipGroup label="Services" refs={dedupeRefs(relationships.services)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Services" refs={dedupeResourceRefs(relationships.services)} onNavigate={onNavigate} />
         )}
         {relationships.ingresses && relationships.ingresses.length > 0 && (
-          <RelationshipGroup label="Ingresses" refs={dedupeRefs(relationships.ingresses)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Ingresses" refs={dedupeResourceRefs(relationships.ingresses)} onNavigate={onNavigate} />
         )}
         {relationships.gateways && relationships.gateways.length > 0 && (
-          <RelationshipGroup label="Gateways" refs={dedupeRefs(relationships.gateways)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Gateways" refs={dedupeResourceRefs(relationships.gateways)} onNavigate={onNavigate} />
         )}
         {relationships.routes && relationships.routes.length > 0 && (
-          <RelationshipGroup label="Routes" refs={dedupeRefs(relationships.routes)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Routes" refs={dedupeResourceRefs(relationships.routes)} onNavigate={onNavigate} />
         )}
         {relationships.pods && relationships.pods.length > 0 && (
-          <RelationshipGroup label="Pods" refs={dedupeRefs(relationships.pods)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Pods" refs={dedupeResourceRefs(relationships.pods)} onNavigate={onNavigate} />
         )}
-        {relationships.configRefs && relationships.configRefs.length > 0 && (
-          <RelationshipGroup label="Configuration" refs={dedupeRefs(relationships.configRefs)} onNavigate={onNavigate} />
+        {configRefs.length > 0 && (
+          <RelationshipGroup label="Configuration" refs={dedupeResourceRefs(configRefs)} onNavigate={onNavigate} />
         )}
-        {relationships.consumers && relationships.consumers.length > 0 && (
-          <RelationshipGroup label="Used By" refs={dedupeRefs(relationships.consumers)} onNavigate={onNavigate} />
+        {consumers.length > 0 && (
+          <RelationshipGroup label="Used By" refs={dedupeResourceRefs(consumers)} onNavigate={onNavigate} />
         )}
         {relationships.scalers && relationships.scalers.length > 0 && (
-          <RelationshipGroup label="Autoscaler" refs={dedupeRefs(relationships.scalers)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Autoscaler" refs={dedupeResourceRefs(relationships.scalers)} onNavigate={onNavigate} />
         )}
         {relationships.storageRefs && relationships.storageRefs.length > 0 && (
-          <RelationshipGroup label="Storage" refs={dedupeRefs(relationships.storageRefs)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Storage" refs={dedupeResourceRefs(relationships.storageRefs)} onNavigate={onNavigate} />
         )}
         {relationships.pdbs && relationships.pdbs.length > 0 && (
-          <RelationshipGroup label="Disruption Budget" refs={dedupeRefs(relationships.pdbs)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Disruption Budget" refs={dedupeResourceRefs(relationships.pdbs)} onNavigate={onNavigate} />
         )}
         {relationships.networkPolicies && relationships.networkPolicies.length > 0 && (
-          <RelationshipGroup label="Network Policies" refs={dedupeRefs(relationships.networkPolicies)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Network Policies" refs={dedupeResourceRefs(relationships.networkPolicies)} onNavigate={onNavigate} />
         )}
         {relationships.resourceClaims && relationships.resourceClaims.length > 0 && (
-          <RelationshipGroup label="Resource Claims" refs={dedupeRefs(relationships.resourceClaims)} onNavigate={onNavigate} />
+          <RelationshipGroup label="Resource Claims" refs={dedupeResourceRefs(relationships.resourceClaims)} onNavigate={onNavigate} />
+        )}
+        {relationships.dependencies && relationships.dependencies.length > 0 && (
+          <RelationshipGroup label="Depends On" refs={dedupeResourceRefs(relationships.dependencies)} onNavigate={onNavigate} />
+        )}
+        {relationships.dependents && relationships.dependents.length > 0 && (
+          <RelationshipGroup label="Required By" refs={dedupeResourceRefs(relationships.dependents)} onNavigate={onNavigate} />
+        )}
+        {relationships.monitors && relationships.monitors.length > 0 && (
+          <RelationshipGroup label="Monitored By" refs={dedupeResourceRefs(relationships.monitors)} onNavigate={onNavigate} />
+        )}
+        {relationships.monitorTargets && relationships.monitorTargets.length > 0 && (
+          <RelationshipGroup label="Monitors" refs={dedupeResourceRefs(relationships.monitorTargets)} onNavigate={onNavigate} />
+        )}
+        {relationships.backends && relationships.backends.length > 0 && (
+          <RelationshipGroup label="Routes To" refs={dedupeResourceRefs(relationships.backends)} onNavigate={onNavigate} />
+        )}
+        {relationships.routedFrom && relationships.routedFrom.length > 0 && (
+          <RelationshipGroup label="Routed From" refs={dedupeResourceRefs(relationships.routedFrom)} onNavigate={onNavigate} />
+        )}
+        {relationships.protects && relationships.protects.length > 0 && (
+          <RelationshipGroup label="Selects" refs={dedupeResourceRefs(relationships.protects)} onNavigate={onNavigate} />
+        )}
+        {relationships.healthChecks && relationships.healthChecks.length > 0 && (
+          <RelationshipGroup label="Health Checks" refs={dedupeResourceRefs(relationships.healthChecks)} onNavigate={onNavigate} />
+        )}
+        {relationships.stagedPolicies && relationships.stagedPolicies.length > 0 && (
+          <RelationshipGroup label="Staged Policies" refs={dedupeResourceRefs(relationships.stagedPolicies)} onNavigate={onNavigate} />
         )}
         {relationships.scaleTarget && (
           <RelationshipGroup label="Scale Target" refs={[relationships.scaleTarget]} onNavigate={onNavigate} />
@@ -889,7 +958,6 @@ const RELATIONSHIP_TRUNCATE_LIMIT = 10
 export function RelationshipGroup({ label, refs, onNavigate }: RelationshipGroupProps) {
   const [showAll, setShowAll] = useState(false)
   if (!refs || refs.length === 0) return null
-
   const truncated = !showAll && refs.length > RELATIONSHIP_TRUNCATE_LIMIT
   const visibleRefs = truncated ? refs.slice(0, RELATIONSHIP_TRUNCATE_LIMIT) : refs
 
@@ -922,7 +990,7 @@ export interface ResourceRefBadgeProps {
 /** Reusable chip/badge for showing a related resource with click-to-navigate */
 export function ResourceRefBadge({ resourceRef, onClick, wrapAtSeparator }: ResourceRefBadgeProps) {
   const kindClass = getKindColor(resourceRef.kind)
-  const kindName = formatKindForRef(resourceRef.kind)
+  const kindName = formatKindForRef(resourceRef.kind, resourceRef.group)
   const content = wrapAtSeparator ? (
     <>
       <span className="shrink-0 opacity-60">{kindName}/</span>
@@ -985,8 +1053,10 @@ export function ResourceLink({ name, kind, namespace = '', group, label, onNavig
   )
 }
 
-function formatKindForRef(kind: string): string {
+function formatKindForRef(kind: string, group?: string): string {
   const k = kind.toLowerCase()
+  // A Knative Service shares its kind with core Services; use Knative's own short name.
+  if (k === 'service' && group === 'serving.knative.dev') return 'ksvc'
   const shortNames: Record<string, string> = {
     deployment: 'deploy',
     daemonset: 'ds',
@@ -999,6 +1069,7 @@ function formatKindForRef(kind: string): string {
     httproute: 'hr',
     grpcroute: 'grpc',
     tcproute: 'tcp',
+    udproute: 'udp',
     tlsroute: 'tls',
     secret: 'secret',
     pod: 'pod',
@@ -1027,10 +1098,12 @@ interface EventsSectionProps {
   updatesError?: Error | null
   /** Optional hint shown below the event list (e.g. "See Timeline tab for related resources") */
   hint?: React.ReactNode
+  fullscreen?: boolean
 }
 
-export function EventsSection({ events, updates = [], isLoading, eventsError, updatesError, hint }: EventsSectionProps) {
+export function EventsSection({ events, updates = [], isLoading, eventsError, updatesError, hint, fullscreen = false }: EventsSectionProps) {
   const [showUpdates, setShowUpdates] = useState(false)
+  const [showAllEvents, setShowAllEvents] = useState(false)
 
   if (isLoading) {
     return (
@@ -1085,42 +1158,46 @@ export function EventsSection({ events, updates = [], isLoading, eventsError, up
     )
   }
 
+  const renderEvent = (event: TimelineEvent, i: number) => (
+  <div
+    key={`${event.id}-${i}`}
+    className={clsx(
+      'p-2 rounded text-sm border-l-2',
+      event.eventType === 'Warning' || (isChangeEvent(event) && event.eventType === 'delete')
+        ? 'bg-red-500/10 border-red-500'
+        : isK8sEvent(event)
+        ? 'bg-blue-500/10 border-blue-500'
+        : 'bg-theme-elevated/30 border-theme-border'
+    )}
+  >
+    <div className="flex items-center justify-between gap-2">
+      <span className="font-medium text-theme-text-primary">
+        {isK8sEvent(event) ? event.reason : event.eventType}
+      </span>
+      <span className="text-xs text-theme-text-tertiary">
+        {formatEventTime(event.timestamp)}
+      </span>
+    </div>
+    {event.message && (
+      <div className="text-xs text-theme-text-secondary mt-1 line-clamp-2">
+        {event.message}
+      </div>
+    )}
+    {isChangeEvent(event) && event.diff?.summary && (
+      <div className="text-xs text-theme-text-secondary mt-1">
+        {event.diff.summary}
+      </div>
+    )}
+  </div>
+  )
   return (
     <Section title={`Recent Events (${visible.length})`} defaultExpanded>
-      <div className="space-y-2 max-h-64 overflow-y-auto">
-        {visible.map((event, i) => (
-          <div
-            key={`${event.id}-${i}`}
-            className={clsx(
-              'p-2 rounded text-sm border-l-2',
-              event.eventType === 'Warning' || (isChangeEvent(event) && event.eventType === 'delete')
-                ? 'bg-red-500/10 border-red-500'
-                : isK8sEvent(event)
-                ? 'bg-blue-500/10 border-blue-500'
-                : 'bg-theme-elevated/30 border-theme-border'
-            )}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-theme-text-primary">
-                {isK8sEvent(event) ? event.reason : event.eventType}
-              </span>
-              <span className="text-xs text-theme-text-tertiary">
-                {formatEventTime(event.timestamp)}
-              </span>
-            </div>
-            {event.message && (
-              <div className="text-xs text-theme-text-secondary mt-1 line-clamp-2">
-                {event.message}
-              </div>
-            )}
-            {isChangeEvent(event) && event.diff?.summary && (
-              <div className="text-xs text-theme-text-secondary mt-1">
-                {event.diff.summary}
-              </div>
-            )}
-          </div>
-        ))}
+      <div tabIndex={fullscreen ? undefined : 0} className={clsx('space-y-2', !fullscreen && 'max-h-64 overflow-y-auto')}>
+        {(fullscreen ? visible.slice(0, 8) : visible).map(renderEvent)}
       </div>
+      {fullscreen && visible.length > 8 && <Disclosure open={showAllEvents} onOpenChange={setShowAllEvents} summary={showAllEvents ? 'Show fewer events' : `Show ${visible.length - 8} more events`} className="mt-2" summaryClassName="text-xs text-accent-text">
+        <div className="mt-2 space-y-2">{visible.slice(8).map(renderEvent)}</div>
+      </Disclosure>}
       {errors}
       {toggle && <div className="mt-2">{toggle}</div>}
       {hint && <div className="mt-2">{hint}</div>}

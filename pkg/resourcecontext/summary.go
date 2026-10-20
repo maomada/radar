@@ -68,7 +68,7 @@ func BuildSummary(obj runtime.Object, opts SummaryOptions) *ResourceSummaryConte
 //   - "argocd" for argoproj.io kinds (Application, ApplicationSet, Rollout)
 //   - "flux" for *.fluxcd.io kinds (Kustomization, HelmRelease, GitRepository, …)
 //   - "helm" for the native Helm release pseudo-owner (kind "HelmRelease"
-//     with no group — emitted by topology's detectManagedByFromMeta to
+//     with no group — emitted by topology's ManagedByFromMeta to
 //     distinguish from Flux's HelmRelease CR in helm.toolkit.fluxcd.io)
 //   - "native" for everything else (Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, …)
 func ManagedByFromOwner(ownerKind, ownerGroup, ownerNamespace, ownerName string) *ManagedByRef {
@@ -111,6 +111,8 @@ func deriveHealth(obj runtime.Object) string {
 	}
 	now := time.Now()
 	switch o := obj.(type) {
+	case *corev1.Node:
+		return levelToString(health.NodeLifecycle(o, now).Level)
 	case *corev1.Pod:
 		// PodDisplayLevel (not raw Pod) so an unschedulable / stuck-terminating pod
 		// reads degraded in AI/search context too, consistent with topology + timeline.

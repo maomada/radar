@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	goruntime "runtime"
+	"strconv"
 	"time"
 
 	"github.com/skyhook-io/radar/internal/app"
@@ -48,7 +50,10 @@ func gpuPolicyName(p linux.WebviewGpuPolicy) string {
 
 func main() {
 	// Load persistent config (~/.radar/config.json) for flag defaults.
-	fileCfg := config.Load()
+	fileCfg, err := config.LoadForStartup()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Parse flags (defaults come from config file, falling back to hardcoded values)
 	kubeconfig := flag.String("kubeconfig", fileCfg.Kubeconfig, "Path to primary kubeconfig file (default: ~/.kube/config)")
@@ -68,11 +73,17 @@ func main() {
 	timelineMaxSize := flag.String("timeline-max-size", fileCfg.TimelineMaxSizeOr("1Gi"), "Maximum SQLite timeline storage size before pruning oldest events (e.g. 800Mi, 8Gi). 0 disables size-based pruning.")
 	prometheusURL := flag.String("prometheus-url", fileCfg.PrometheusURL, "Manual Prometheus/VictoriaMetrics URL (skips auto-discovery)")
 	openCostCurrency := flag.String("opencost-currency", fileCfg.OpenCostCurrency, "Override the ISO 4217 currency label for OpenCost values (empty: auto-detect, then USD)")
+	mcpFlags := config.RegisterMCPFlags(flag.CommandLine, fileCfg)
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Printf("radar-desktop %s\n", version)
 		os.Exit(0)
+	}
+
+	mcpMode, err := mcpFlags.Resolve()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// Suppress verbose client-go logs
@@ -89,9 +100,9 @@ func main() {
 	// No-op on macOS/Windows.
 	logBootEnv()
 
-	// Disable WebKit's DMABUF renderer on Linux unless the user opts in —
-	// it produces blank windows on Wayland+KDE/NVIDIA and upstream won't fix.
-	// Must run before Wails initializes WebKit.
+	// Default WebKit on Linux to shared-memory buffers — DMABUF buffers
+	// produce blank windows on Wayland+KDE/NVIDIA. Must run before Wails
+	// initializes WebKit.
 	applyWebKitDefaults()
 
 	// GUI apps (macOS .app, Linux .desktop) get a minimal PATH that
@@ -135,15 +146,6 @@ func main() {
 		log.Printf("ERROR: invalid --opencost-currency %q: %v", *openCostCurrency, err)
 		os.Exit(1)
 	}
-	if err := app.ValidatePrometheusHeaderDestination(fileCfg.PrometheusURL, *prometheusURL, len(fileCfg.PrometheusHeaders)+len(fileCfg.PrometheusHeadersFromEnv) > 0); err != nil {
-		log.Printf("ERROR: invalid Prometheus header configuration: %v", err)
-		os.Exit(1)
-	}
-	resolvedPrometheusHeaders, err := app.ResolvePrometheusHeaders(fileCfg.PrometheusHeaders, fileCfg.PrometheusHeadersFromEnv)
-	if err != nil {
-		log.Printf("ERROR: invalid Prometheus header configuration: %v", err)
-		os.Exit(1)
-	}
 	resolvedNamespace, resolvedNamespaces, err := app.ResolveNamespaceSelection(*namespace, *namespaces, namespaceFlagSet, namespacesFlagSet)
 	if err != nil {
 		log.Printf("ERROR: %v", err)
@@ -166,13 +168,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	// A configured port is honored as-is. Otherwise reuse the last launch's
+	// port, so the webview keeps its origin and storage.
+	desktopPort := fileCfg.PortOr(0)
+	desktopPortRemembered := desktopPort == 0
+	if desktopPortRemembered {
+		desktopPort = lastDesktopPort(desktopPortPath())
+	}
+
 	cfg := app.AppConfig{
 		Kubeconfig:                resolvedKubeconfig,
 		KubeconfigDirs:            resolvedKubeconfigDirs,
 		RestoreLastDesktopContext: fileCfg.RestoreLastDesktopContextOr(true),
 		Namespace:                 resolvedNamespace,
 		Namespaces:                resolvedNamespaces,
-		Port:                      fileCfg.PortOr(0), // Configured port, or random to avoid conflicts with CLI
+		Port:                      desktopPort,
+		PortFallback:              desktopPortRemembered,
 		ListenAddress:             "127.0.0.1",
 		DevMode:                   false,
 		HistoryLimit:              *historyLimit,
@@ -196,12 +207,14 @@ func main() {
 		KubecostClusterID:         fileCfg.KubecostClusterID,
 		KubecostClusterIDContext:  fileCfg.KubecostClusterIDContext,
 		OpenCostFlagSet:           openCostCurrencyFlagSet,
-		PrometheusHeaders:         resolvedPrometheusHeaders,
+		PrometheusHeaders:         fileCfg.PrometheusHeaders,
+		PrometheusSavedURL:        fileCfg.PrometheusURL,
 		PrometheusHeadersFromEnv:  fileCfg.PrometheusHeadersFromEnv,
 		Version:                   version,
 		HubAPIURL:                 hubAPIURL,
 		HubAppURL:                 hubAppURL,
-		MCPEnabled:                fileCfg.MCPEnabledOr(true),
+		MCPEnabled:                mcpMode.Enabled,
+		MCPReadOnly:               mcpMode.ReadOnly,
 		AIHistory:                 fileCfg.AIHistoryOr(true),
 		AIHistoryDBPath:           fileCfg.AIHistoryDBPath,
 	}
@@ -224,6 +237,7 @@ func main() {
 		log.Printf("K8s init failed (will show in UI): %v", k8sInitErr)
 		k8s.SetConnectionStatus(k8s.ConnectionStatus{
 			State:     k8s.StateDisconnected,
+			Context:   k8s.GetContextName(),
 			Error:     k8sInitErr.Error(),
 			ErrorType: "config",
 		})
@@ -233,7 +247,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid timeline configuration: %v", err)
 	}
-	app.RegisterCallbacks(cfg, timelineStoreCfg)
+	cfg = app.RegisterCallbacks(cfg, timelineStoreCfg)
 
 	// Create server and attach desktop updater
 	srv := app.CreateServer(cfg)
@@ -264,6 +278,11 @@ func main() {
 	windowTitle := formatWindowTitle(k8s.GetContextName())
 
 	desktopApp := NewDesktopApp(srv, timelineStoreCfg)
+	if desktopPortRemembered {
+		desktopApp.onWindowReady = func() {
+			go rememberDesktopPort(desktopPortPath(), desktopPort, srv.ActualPort(), portOwner, loopbackPortBindable)
+		}
+	}
 	// macOS only. Wails maps this to `[NSApp hide:]`, which leaves the dock icon
 	// in place, so a dock click or Cmd+Tab brings the window back. The other
 	// platforms have no such affordance: GTK hides the window on delete-event and
@@ -287,7 +306,9 @@ func main() {
 		HideWindowOnClose: hideOnClose,
 
 		AssetServer: &assetserver.Options{
-			Handler: NewRedirectHandler(srv.ActualAddr(), cfg.Namespace, cfg.Namespaces),
+			// The address actually bound, not "localhost", which may resolve to
+			// [::1] where another service can hold the same port.
+			Handler: NewRedirectHandler(net.JoinHostPort("127.0.0.1", strconv.Itoa(srv.ActualPort())), cfg.Namespace, cfg.Namespaces),
 		},
 
 		Menu: createMenu(desktopApp, version, goruntime.GOOS),

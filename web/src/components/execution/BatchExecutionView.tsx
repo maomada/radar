@@ -116,9 +116,11 @@ interface BatchExecutionProps {
   onSwitchToLogs?: () => void
   onSwitchToTimeline?: () => void
   onNavigateToResource?: (resource: ResourceNavigationTarget) => void
+  /** The view's namespace selection; narrows a cluster-scoped template's runs. */
+  viewNamespaces?: string[]
 }
 
-export function BatchExecutionFullscreen({ kind, apiKind, namespace, name, resource, selectedRunKey = '', canViewLogs = false, onSelectRun, onSwitchToLogs, onSwitchToTimeline, onNavigateToResource }: BatchExecutionProps) {
+export function BatchExecutionFullscreen({ kind, apiKind, namespace, name, resource, selectedRunKey = '', canViewLogs = false, onSelectRun, onSwitchToLogs, onSwitchToTimeline, onNavigateToResource, viewNamespaces }: BatchExecutionProps) {
   const scheduled = SCHEDULED_KINDS.has(kind)
   const clusterScoped = kind === 'ClusterWorkflowTemplate'
   const jobSetRoot = isJobSetV1Alpha2(resource)
@@ -127,7 +129,7 @@ export function BatchExecutionFullscreen({ kind, apiKind, namespace, name, resou
   const debouncedSearch = useDebouncedValue(runSearch, 250, value => value === '')
   const [roleFilter, setRoleFilter] = useState('')
   const memberOptions = { role: roleFilter, search: debouncedSearch, state: runFilter, selected: selectedRunKey }
-  const runsQuery = useWorkloadRuns(apiKind, namespace, name, true, { refetchActive: true, clusterScoped, ...(jobSetRoot ? memberOptions : {}) })
+  const runsQuery = useWorkloadRuns(apiKind, namespace, name, true, { refetchActive: true, clusterScoped, namespaces: viewNamespaces, ...(jobSetRoot ? memberOptions : {}) })
   const resourcesQuery = useJobSetResources(namespace, name, jobSetRoot ? resource.metadata?.uid : undefined, memberOptions)
   const memberCollection = runsQuery.data?.collection === 'members'
   const memberShell = memberCollection || (!runsQuery.data && jobSetRoot)
@@ -344,7 +346,7 @@ export function BatchExecutionFullscreen({ kind, apiKind, namespace, name, resou
               <JobSetRenderer data={resource} mode="overview" shownMemberCounts={shownMemberCounts} onSelectRole={memberCollection ? selectRole : undefined} />
             </section>
           )}
-          {jobSetRoot && <JobSetAdmission resource={resource} namespace={namespace} name={name} onNavigate={onNavigateToResource} />}
+          {(jobSetRoot || (resource.apiVersion === 'batch/v1' && resource.kind === 'Job')) && <JobSetAdmission resource={resource} namespace={namespace} name={name} onNavigate={onNavigateToResource} />}
           {memberShell && <JobSetMemberComparison
             runs={runs} total={runsQuery.data?.total ?? 0} filteredTotal={runsQuery.data?.filteredTotal ?? runs.length}
             truncated={runsQuery.data?.truncated ?? false} loading={runsQuery.isLoading} error={runsQuery.error}
@@ -389,10 +391,10 @@ export function BatchExecutionFullscreen({ kind, apiKind, namespace, name, resou
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-theme-text-tertiary">
                         <span>{RUN_KIND_LABEL[selectedRun.kind] ?? selectedRun.kind}</span>
-                        {selectedRun.startedAt && <span>started {formatAge(selectedRun.startedAt)}</span>}
+                        {selectedRun.startedAt && <span>started {formatTimeAgo(selectedRun.startedAt)}</span>}
                         {selectedRun.trigger === 'manual' && <span>manual trigger</span>}
                         {selectedRun.trigger === 'event' && <span>event triggered</span>}
-                        {selectedRun.scheduledAt && <span>scheduled {formatAge(selectedRun.scheduledAt)}</span>}
+                        {selectedRun.scheduledAt && <span>scheduled {formatTimeAgo(selectedRun.scheduledAt)}</span>}
                         {selectedResourceQuery.isFetching && <span>refreshing</span>}
                       </div>
                     </div>
@@ -568,8 +570,8 @@ function sourceFacts(kind: string, resource: any, runs: WorkloadRun[]) {
       duration: latest ? formatRunDuration(latest) : '',
       work: `${status.active?.length ?? 0} active`,
       facts: [
-        ['Last schedule', status.lastScheduleTime ? formatAge(status.lastScheduleTime) : 'Never'],
-        ['Last success', status.lastSuccessfulTime ? formatAge(status.lastSuccessfulTime) : 'Never'],
+        ['Last schedule', status.lastScheduleTime ? formatTimeAgo(status.lastScheduleTime) : 'Never'],
+        ['Last success', status.lastSuccessfulTime ? formatTimeAgo(status.lastSuccessfulTime) : 'Never'],
         ['Starting deadline', spec.startingDeadlineSeconds ? `${spec.startingDeadlineSeconds}s` : 'None'],
       ],
       definition,
@@ -818,15 +820,15 @@ function RunDetailList({ run, resource, workflowExecution, scheduledParent, memb
     ...(run.jobset?.replicatedJob ? [['Role', run.jobset?.replicatedJob]] as Array<[string, string]> : []),
     ...(run.jobset?.restartAttempt ? [['JobSet restart attempt', `#${run.jobset?.restartAttempt}`]] as Array<[string, string]> : []),
     ...(run.jobset?.jobRestartAttempt ? [['Job restart attempt', `#${run.jobset?.jobRestartAttempt}`]] as Array<[string, string]> : []),
-    ['Started', run.startedAt ? formatAge(run.startedAt) : '-'],
-    ['Finished', run.finishedAt ? formatAge(run.finishedAt) : run.active ? 'Running' : '-'],
+    ['Started', run.startedAt ? formatTimeAgo(run.startedAt) : '-'],
+    ['Finished', run.finishedAt ? formatTimeAgo(run.finishedAt) : run.active ? 'Running' : '-'],
     ['Duration', formatRunDuration(run) || '-'],
     ...(run.progress ? [['Progress', run.progress]] as Array<[string, string]> : []),
     ...(!memberCollection && (scheduledParent || run.trigger || run.scheduledAt) ? [
       ['Trigger', run.trigger === 'manual' ? 'Manual' : run.trigger === 'event' ? 'Event' : run.scheduledAt ? 'Cron schedule' : '-'],
     ] as Array<[string, string]> : []),
     ...(run.scheduledAt ? [
-      ['Cron scheduled', formatAge(run.scheduledAt)],
+      ['Cron scheduled', formatTimeAgo(run.scheduledAt)],
       ['Start delay', formatScheduleDelay(run) || '-'],
     ] as Array<[string, string]> : []),
     ['Parallelism', run.parallelism ? String(run.parallelism) : '-'],
@@ -1008,7 +1010,7 @@ function RunActivityRow({ item, runMessage }: { item: WorkflowExecutionActivity;
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="truncate text-sm font-medium text-theme-text-primary">{item.label}</div>
-          <div className="shrink-0 text-xs text-theme-text-tertiary">{formatAge(item.at)}</div>
+          <div className="shrink-0 text-xs text-theme-text-tertiary">{formatTimeAgo(item.at)}</div>
         </div>
         {item.detail && item.detail !== runMessage && item.tone !== 'danger' && <div className="mt-0.5 break-words text-xs text-theme-text-secondary">{item.detail}</div>}
       </div>
@@ -1539,10 +1541,10 @@ function formatRunDuration(run: WorkloadRun): string {
 
 function formatRunTime(run: WorkloadRun): string {
   const raw = run.startedAt || run.scheduledAt || run.finishedAt
-  return raw ? formatAge(raw) : ''
+  return raw ? formatTimeAgo(raw) : ''
 }
 
-function formatAge(value: string): string {
+function formatTimeAgo(value: string): string {
   const t = Date.parse(value)
   if (Number.isNaN(t)) return value
   const diff = Date.now() - t
@@ -1577,7 +1579,7 @@ function emptyRunsCopy(kind: string, resource: any): { headline: string; body: s
   }
   const lastScheduled = resource?.status?.lastScheduleTime || resource?.status?.lastScheduledTime
   if (lastScheduled) {
-    return { headline: 'No retained runs', body: `This resource last scheduled work ${formatAge(lastScheduled)}, but its ${runKindPluralForSchedule(kind)} are no longer retained in Kubernetes.` }
+    return { headline: 'No retained runs', body: `This resource last scheduled work ${formatTimeAgo(lastScheduled)}, but its ${runKindPluralForSchedule(kind)} are no longer retained in Kubernetes.` }
   }
   return { headline: 'No runs yet', body: `Kubernetes does not currently have retained ${runKindPluralForSchedule(kind)} for this resource.` }
 }

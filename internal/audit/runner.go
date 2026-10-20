@@ -12,6 +12,7 @@ import (
 
 	"github.com/skyhook-io/radar/internal/k8s"
 	bp "github.com/skyhook-io/radar/pkg/audit"
+	"github.com/skyhook-io/radar/pkg/gitops"
 	"github.com/skyhook-io/radar/pkg/k8score"
 )
 
@@ -37,7 +38,16 @@ func RunFromCache(cache *k8s.ResourceCache, namespaces []string, opts *RunOption
 	if scope != nil && scope.Namespaces != nil && len(namespaces) == 0 {
 		return &bp.ScanResults{Summary: bp.ScanSummary{Categories: map[string]bp.CategorySummary{}}}
 	}
+	storage := collectStorageInput(cache, namespaces, scope)
+	// Read consumers after storage coverage checks, so a snapshot taken before
+	// initial informer sync cannot be treated as evidence of absence.
 	input := CollectTypedInput(cache, namespaces)
+	input.PersistentVolumeClaims = storage.PersistentVolumeClaims
+	input.PersistentVolumes = storage.PersistentVolumes
+	input.StorageClasses = storage.StorageClasses
+	input.Events = storage.Events
+	input.PVCConsumerNamespaces = storage.PVCConsumerNamespaces
+	input.PVDeletionEventsComplete = storage.PVDeletionEventsComplete
 	if !scope.hasSecretSubjects(namespaces) {
 		input.Secrets = nil
 	} else if scope != nil {
@@ -86,6 +96,7 @@ func RunFromCache(cache *k8s.ResourceCache, namespaces []string, opts *RunOption
 	// CloudNativePG clusters + their backup schedules for the declarative-backup
 	// posture check. Nil inventory (CNPG absent / RBAC denied) → check no-ops.
 	input.CNPGClusters, input.CNPGScheduledBackups, input.CNPGScheduledBackupsAuthoritative = listCNPGDynamic(namespaces)
+	input.PDPlacement = collectPDPlacement(cache, namespaces, scope)
 
 	results := bp.RunChecks(input)
 	if !hasCompleteSecretInput(cache, namespaces, scope) && !slices.Contains(results.MissingInputs, "secrets") {
@@ -514,16 +525,25 @@ func gitOpsRoots() (present bool, argoAppNames map[string]struct{}) {
 	apps := list("Application", "argoproj.io")
 	if len(apps) > 0 {
 		present = true
-		argoAppNames = make(map[string]struct{}, len(apps))
-		for _, app := range apps {
-			argoAppNames[app.GetName()] = struct{}{}
-		}
+		argoAppNames = localArgoAppNames(apps)
 	}
 	if !present {
 		present = len(list("Kustomization", "kustomize.toolkit.fluxcd.io")) > 0 ||
 			len(list("HelmRelease", "helm.toolkit.fluxcd.io")) > 0
 	}
 	return present, argoAppNames
+}
+
+// localArgoAppNames names the Applications that deploy to this cluster. A
+// remote-destination Application's instance label names nothing local.
+func localArgoAppNames(apps []*unstructured.Unstructured) map[string]struct{} {
+	out := make(map[string]struct{}, len(apps))
+	for _, app := range apps {
+		if gitops.IsInClusterDestination(app) {
+			out[app.GetName()] = struct{}{}
+		}
+	}
+	return out
 }
 
 // serviceAccountScopeNamespace reports the single namespace the SA informer

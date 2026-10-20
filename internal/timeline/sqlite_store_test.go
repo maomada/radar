@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/skyhook-io/radar/pkg/resourceid"
 )
 
 func createTestSQLiteStore(t *testing.T) (*SQLiteStore, func()) {
@@ -399,44 +402,6 @@ func TestSQLiteStore_Query_ExcludeDeleted_LimitSkew(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_GroupByOwner(t *testing.T) {
-	store, cleanup := createTestSQLiteStore(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	events := []TimelineEvent{
-		{ID: "group-1", Timestamp: time.Now(), Kind: "Deployment", Namespace: "default", Name: "my-deploy", EventType: EventTypeAdd, Source: SourceInformer},
-		{
-			ID: "group-2", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-1",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-		{
-			ID: "group-3", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-2",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-	}
-	_ = store.AppendBatch(ctx, events)
-
-	// Query grouped by owner
-	result, err := store.QueryGrouped(ctx, QueryOptions{
-		GroupBy:        GroupByOwner,
-		Limit:          10,
-		IncludeManaged: true,
-	})
-	if err != nil {
-		t.Fatalf("QueryGrouped failed: %v", err)
-	}
-	if len(result.Groups) != 1 {
-		t.Errorf("Expected 1 group, got %d", len(result.Groups))
-	}
-	if result.Groups[0].Name != "my-deploy" {
-		t.Errorf("Expected group name 'my-deploy', got '%s'", result.Groups[0].Name)
-	}
-}
-
 func TestSQLiteStore_Persistence(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "timeline-persist-*")
 	if err != nil {
@@ -596,41 +561,6 @@ func TestSQLiteStore_GetEvent(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_GetChangesForOwner(t *testing.T) {
-	store, cleanup := createTestSQLiteStore(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	events := []TimelineEvent{
-		{
-			ID: "owner-1", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-1",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-		{
-			ID: "owner-2", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-2",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "other-deploy"},
-		},
-		{
-			ID: "owner-3", Timestamp: time.Now(), Kind: "Pod", Namespace: "default", Name: "pod-3",
-			EventType: EventTypeAdd, Source: SourceInformer,
-			Owner: &OwnerInfo{Kind: "Deployment", Name: "my-deploy"},
-		},
-	}
-	_ = store.AppendBatch(ctx, events)
-
-	// Query for pods owned by my-deploy
-	result, err := store.GetChangesForOwner(ctx, "Deployment", "default", "my-deploy", "", time.Time{}, 10)
-	if err != nil {
-		t.Fatalf("GetChangesForOwner failed: %v", err)
-	}
-	if len(result) != 2 {
-		t.Errorf("Expected 2 events for owner my-deploy, got %d", len(result))
-	}
-}
-
 func TestSQLiteStore_DiffStorage(t *testing.T) {
 	store, cleanup := createTestSQLiteStore(t)
 	defer cleanup()
@@ -702,9 +632,6 @@ func TestSQLiteStore_LabelsStorage(t *testing.T) {
 	}
 	if result.Labels["app"] != "myapp" {
 		t.Errorf("Expected label app='myapp', got '%s'", result.Labels["app"])
-	}
-	if result.GetAppLabel() != "myapp" {
-		t.Errorf("Expected GetAppLabel()='myapp', got '%s'", result.GetAppLabel())
 	}
 }
 
@@ -1211,22 +1138,6 @@ func TestSQLiteStore_Query_ClusterContextScoping(t *testing.T) {
 		t.Errorf("unscoped query = %d events, want 4 (cross-cluster reads stay possible)", len(all))
 	}
 
-	// Owner-scoped reads share the same hazard: owner identity collides
-	// across clusters, so the cluster filter must apply there too.
-	withOwner := mk("o1", "cluster-a")
-	withOwner.Owner = &OwnerInfo{Kind: "Deployment", Name: "web"}
-	foreignOwner := mk("o2", "cluster-b")
-	foreignOwner.Owner = &OwnerInfo{Kind: "Deployment", Name: "web"}
-	if err := store.AppendBatch(ctx, []TimelineEvent{withOwner, foreignOwner}); err != nil {
-		t.Fatalf("AppendBatch owners: %v", err)
-	}
-	owned, err := store.GetChangesForOwner(ctx, "Deployment", "prod", "web", "cluster-a", time.Time{}, 10)
-	if err != nil {
-		t.Fatalf("GetChangesForOwner: %v", err)
-	}
-	if len(owned) != 1 || owned[0].ClusterContext != "cluster-a" {
-		t.Errorf("owner query must scope to cluster-a, got %+v", owned)
-	}
 }
 
 // Opening a pre-cluster_context database must migrate it in place: the column
@@ -1743,5 +1654,224 @@ func TestOpenSQLiteWithRecovery_TransientErrorDoesNotQuarantine(t *testing.T) {
 	}
 	if len(events) != 1 || events[0].ID != "keep" {
 		t.Fatalf("data lost across transient failure, got %+v", events)
+	}
+}
+
+// A database without the owner evidence columns gains them as NULL: its stored
+// owner reads back with unknown evidence, and a re-ingested event whose subject
+// can't be identified clears that owner.
+func TestSQLiteStore_OwnerEvidenceMigration(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open raw db: %v", err)
+	}
+	legacySchema := `CREATE TABLE events (
+		id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, source TEXT NOT NULL,
+		kind TEXT NOT NULL, namespace TEXT, name TEXT NOT NULL, uid TEXT,
+		event_type TEXT NOT NULL, reason TEXT, message TEXT, diff_json TEXT,
+		health_state TEXT, owner_kind TEXT, owner_name TEXT, labels_json TEXT,
+		count INTEGER DEFAULT 0, correlation_id TEXT,
+		created_at TEXT DEFAULT (datetime('now')),
+		cluster_context TEXT NOT NULL DEFAULT '', api_version TEXT,
+		resource_created_at TEXT, seq INTEGER NOT NULL DEFAULT 0
+	)`
+	if _, err := db.Exec(legacySchema); err != nil {
+		t.Fatalf("legacy schema: %v", err)
+	}
+	base := time.Now().UTC()
+	if _, err := db.Exec(`INSERT INTO events (id, timestamp, source, kind, namespace, name, event_type, health_state, owner_kind, owner_name, seq)
+		VALUES ('evt-1', ?, 'k8s_event', 'ReplicaSet', 'shop', 'web-rs', 'Warning', '', 'Deployment', 'web', 1)`,
+		base.Format(sqliteTimeLayout)); err != nil {
+		t.Fatalf("legacy insert: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close raw db: %v", err)
+	}
+
+	store, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated store: %v", err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+
+	legacy, err := store.GetEvent(ctx, "evt-1")
+	if err != nil || legacy == nil || legacy.Owner == nil || legacy.Owner.Name != "web" || legacy.OwnerEvidence != "" {
+		t.Fatalf("legacy row = %+v, %v; want its owner with unknown evidence", legacy, err)
+	}
+
+	if err := store.Append(ctx, TimelineEvent{
+		ID: "evt-1", Timestamp: base.Add(time.Minute), Source: SourceK8sEvent,
+		Kind: "ReplicaSet", Namespace: "shop", Name: "web-rs", EventType: EventTypeWarning, Count: 2,
+		OwnerEvidence: OwnerUnidentified,
+	}); err != nil {
+		t.Fatalf("Append bump: %v", err)
+	}
+	bumped, err := store.GetEvent(ctx, "evt-1")
+	if err != nil || bumped == nil || bumped.Owner != nil || bumped.OwnerEvidence != OwnerUnidentified || bumped.Count != 2 {
+		t.Fatalf("bumped row = %+v, %v; want the borrowed owner cleared", bumped, err)
+	}
+}
+
+// With every row in one cluster, the planner needs statistics to prefer the
+// UID indexes over idx_events_cluster_ts for a scoped read. Opening the store
+// gathers them, and they persist in the file.
+func TestSQLiteStore_OpenGathersPlannerStatistics(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "timeline.db")
+	s, err := NewSQLiteStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`
+		WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 29999)
+		INSERT INTO events (id, timestamp, source, kind, api_version, namespace, name, uid, event_type, owner_kind, owner_uid, cluster_context, seq)
+		SELECT 'e' || i, '2026-01-01T00:00:00.000000000Z', 'informer', CASE i % 2 WHEN 0 THEN 'ReplicaSet' ELSE 'Pod' END, 'v1',
+		       'ns-' || (i % 30), 'x-' || i, CASE i % 2 WHEN 0 THEN 'rs-' || (i % 600) ELSE 'pod-' || i END, 'update',
+		       CASE i % 2 WHEN 0 THEN 'Deployment' ELSE 'ReplicaSet' END, CASE i % 2 WHEN 0 THEN 'dep-' || (i % 600) ELSE 'rs-' || (i % 600) END,
+		       'ctx', i + 1
+		FROM n`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if s, err = NewSQLiteStore(path); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	var analyzed int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM sqlite_stat1 WHERE idx IN ('idx_events_uid', 'idx_events_owner_uid')").Scan(&analyzed); err != nil {
+		t.Errorf("read sqlite_stat1: %v", err)
+	} else if analyzed != 2 {
+		t.Errorf("statistics for %d of the 2 UID indexes, want both", analyzed)
+	}
+	clause, args := sqliteScopeClause(ResourceScope{
+		UIDs: []string{"rs-5"}, OwnerUIDs: []string{"rs-5"},
+		Refs: []resourceid.Ref{resourceid.NewRef("apps", "Deployment", "ns-5", "web")},
+	})
+	rows, err := s.db.Query("EXPLAIN QUERY PLAN SELECT id FROM events WHERE cluster_context = 'ctx' AND namespace = 'ns-5'"+clause+" ORDER BY seq DESC LIMIT 100", args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var plan []string
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan = append(plan, detail)
+	}
+	if joined := strings.Join(plan, "; "); !strings.Contains(joined, "MULTI-INDEX OR") || !strings.Contains(joined, "idx_events_uid") || !strings.Contains(joined, "idx_events_owner_uid") {
+		t.Errorf("scoped read plan = %q, want it to use both UID indexes", joined)
+	}
+}
+
+// Bounding the analysis looks like a safe way to cap its cost, but on a large
+// single-cluster store (1.5M rows) sampled statistics keep the planner on the
+// cluster-index scan: scoped reads stay at seconds instead of ~10ms. A small
+// test database can't show the difference, so the mask is pinned here.
+func TestSQLiteOptimizeIsUnbounded(t *testing.T) {
+	mask, err := strconv.ParseUint(strings.TrimPrefix(sqliteOptimize, "PRAGMA optimize=0x"), 16, 32)
+	if err != nil {
+		t.Fatalf("parse %q: %v", sqliteOptimize, err)
+	}
+	if mask&0x10 != 0 || mask&0x2 == 0 || mask&0x10000 == 0 {
+		t.Errorf("%s: want ANALYZE (0x2) over every table (0x10000) without the analysis bound (0x10)", sqliteOptimize)
+	}
+}
+
+// EvictedThrough must never be earlier than a row the store has deleted:
+// with retention configured it is the retention cutoff even before a sweep
+// deletes anything, and size pruning raises it to the newest pruned row.
+func TestSQLiteStore_EvictedThrough(t *testing.T) {
+	store, cleanup := createTestSQLiteStore(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	if got := store.EvictedThrough(); !got.IsZero() {
+		t.Fatalf("EvictedThrough with no retention or pruning = %v, want zero", got)
+	}
+
+	base := time.Now().Add(-30 * time.Minute)
+	for i := range 5 {
+		if err := store.Append(ctx, TimelineEvent{
+			ID: fmt.Sprintf("event-%d", i), Timestamp: base.Add(time.Duration(i) * time.Minute),
+			Source: SourceInformer, Kind: "Deployment", Namespace: "default", Name: "web",
+			EventType: EventTypeUpdate,
+		}); err != nil {
+			t.Fatalf("Append: %v", err)
+		}
+	}
+	if _, err := store.deleteOldestEvents(ctx, 2); err != nil {
+		t.Fatalf("deleteOldestEvents: %v", err)
+	}
+	if got, want := store.EvictedThrough(), base.Add(time.Minute); !got.Equal(want) {
+		t.Fatalf("EvictedThrough after pruning two rows = %v, want the newer pruned row's time %v", got, want)
+	}
+
+	store.StartCleanupLoop(2*time.Hour, time.Hour, 0)
+	got := store.EvictedThrough()
+	if cutoff := time.Now().Add(-2 * time.Hour); got.Before(cutoff.Add(-time.Second)) {
+		t.Fatalf("EvictedThrough = %v, want at least the pruned row's time", got)
+	}
+	if !got.Equal(base.Add(time.Minute)) {
+		t.Fatalf("EvictedThrough = %v, want the later of the pruned row (%v) and the retention cutoff", got, base.Add(time.Minute))
+	}
+
+	store.cleanupMu.Lock()
+	store.retentionAge = 10 * time.Minute
+	store.cleanupMu.Unlock()
+	if got, cutoff := store.EvictedThrough(), time.Now().Add(-10*time.Minute); got.Before(cutoff.Add(-time.Second)) || got.After(cutoff.Add(time.Second)) {
+		t.Fatalf("EvictedThrough = %v, want the retention cutoff %v once it is later than any pruned row", got, cutoff)
+	}
+}
+
+// A K8s Event upsert moves its row forward in time, which changes which rows
+// are the oldest. The prune boundary must be the newest row actually deleted,
+// so no kept-history claim covers a deleted row.
+func TestSQLiteStore_PruneBoundaryFollowsUpsertedRows(t *testing.T) {
+	store, cleanup := createTestSQLiteStore(t)
+	defer cleanup()
+	ctx := context.Background()
+	base := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+
+	event := TimelineEvent{
+		ID: "k8s-event", Timestamp: base, Source: SourceK8sEvent,
+		Kind: "Pod", Namespace: "default", Name: "web-abc", EventType: EventTypeWarning, Reason: "BackOff", Count: 1,
+	}
+	if err := store.Append(ctx, event); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	for i, offset := range []time.Duration{5 * time.Minute, 10 * time.Minute, 15 * time.Minute} {
+		if err := store.Append(ctx, TimelineEvent{
+			ID: fmt.Sprintf("edit-%d", i), Timestamp: base.Add(offset), Source: SourceInformer,
+			Kind: "Deployment", Namespace: "default", Name: "web", EventType: EventTypeUpdate,
+		}); err != nil {
+			t.Fatalf("Append: %v", err)
+		}
+	}
+	// The bump moves the oldest row past every edit.
+	event.Timestamp, event.Count = base.Add(20*time.Minute), 2
+	if err := store.Append(ctx, event); err != nil {
+		t.Fatalf("Append bump: %v", err)
+	}
+
+	deleted, err := store.deleteOldestEvents(ctx, 2)
+	if err != nil || deleted != 2 {
+		t.Fatalf("deleteOldestEvents = %d, %v; want 2 rows", deleted, err)
+	}
+	if got, want := store.EvictedThrough(), base.Add(10*time.Minute); !got.Equal(want) {
+		t.Fatalf("EvictedThrough = %v, want the newest deleted row's time %v", got, want)
+	}
+	kept, err := store.Query(ctx, QueryOptions{Limit: 10, IncludeManaged: true, IncludeK8sEvents: true})
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	for _, e := range kept {
+		if !e.Timestamp.After(store.EvictedThrough()) {
+			t.Fatalf("kept row %s at %v is not after the boundary %v", e.ID, e.Timestamp, store.EvictedThrough())
+		}
 	}
 }

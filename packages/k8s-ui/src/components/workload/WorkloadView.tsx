@@ -1,3 +1,6 @@
+import { dedupeResourceRefs } from '../../utils/resource-refs'
+import { PodRow, PodListFrame, PodListToggle, workloadPodDetail } from './PodList'
+export { workloadPodDetail, podStatusLabel, podStatusClass, podDotClass } from './PodList'
 import { useState, useMemo, useEffect, useRef, useCallback, type ComponentType, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { useRefreshAnimation } from '../../hooks/useRefreshAnimation'
@@ -7,7 +10,6 @@ import { FetchResult } from '../ui/FetchResult'
 import { PaneLoader } from '../ui/PaneLoader'
 import { useRegisterShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { clsx } from 'clsx'
-import { Collapse } from '../ui/Collapse'
 import {
   ArrowLeft,
   ArrowRight,
@@ -36,6 +38,7 @@ import {
 } from 'lucide-react'
 import type { TimelineEvent, ResourceRef, Relationships, SelectedResource, ResolvedEnvFrom, Topology, TopologyNode, HPADiagnosis, WorkloadPodInfo } from '../../types'
 import type { GitOpsStatus } from '../../types/gitops'
+import { isFetchError } from '../../types/fetch-error'
 import type { NavigateToResource } from '../../utils/navigation'
 import { refToSelectedResource, pluralToKind, knownKindForPluralWithGroup, kindToPlural, kindToPluralWithGroup, apiVersionToGroup } from '../../utils/navigation'
 import { neighborhoodFor, seedNodeIds, topologyNodeResourceKind } from '../../utils/topology-neighborhood'
@@ -55,7 +58,7 @@ import { ResourceRendererDispatch, getResourceStatus, diagnoseHealthHint, type D
 import type { ScalerDiagnosis } from '../resources/renderers/WorkloadRenderer'
 import { DetailShell, type DetailShellTab } from '../shared/DetailShell'
 import { HelmManagedByChip, ManagedByChip, type HelmOwnerRef } from '../shared/ManagedByChip'
-import { getKindColorOutline, displayKindName, OperationalIssuesShownContext, ResourceRefBadge } from '../ui/drawer-components'
+import { AlertBanner, getKindColorOutline, displayKindName, OperationalIssuesShownContext, ResourceRefBadge } from '../ui/drawer-components'
 import { Badge, type BadgeSeverity } from '../ui/Badge'
 import { Tooltip } from '../ui/Tooltip'
 import { midTruncate } from '../../utils/format'
@@ -75,9 +78,22 @@ import { ServicePortCards, type ServicePortRenderProps } from '../resources/rend
 import { rolloutMayAdvanceAutomatically, type WorkloadRolloutActivity } from '../../utils/workload-rollout'
 import { WorkloadRolloutNotice } from './WorkloadRolloutNotice'
 import { isCoreBatchJob } from '../../utils/api-resources'
+import { formatRelativeAgeTime } from '../../utils/format'
 
-export type WorkloadTabType = 'overview' | 'topology' | 'timeline' | 'logs' | 'metrics' | 'reachability' | 'cost' | 'yaml'
+export type WorkloadTabType = 'overview' | 'spec' | 'topology' | 'timeline' | 'logs' | 'metrics' | 'reachability' | 'cost' | 'yaml'
 type TabType = WorkloadTabType
+
+/** A host-provided tab. `after` places it behind a built-in tab; `replaces` hides that built-in tab. */
+export interface WorkloadExtraTab {
+  id: string
+  label: string
+  icon?: ReactNode
+  after?: WorkloadTabType
+  replaces?: WorkloadTabType
+  /** Trailing adornment after the label, e.g. a status mark. */
+  badge?: ReactNode
+  render: () => ReactNode
+}
 
 export interface ResourceOwnershipContext {
   application?: {
@@ -131,6 +147,23 @@ interface WorkloadViewProps {
    * the Escape shortcut.
    */
   breadcrumb?: ReactNode
+  /** Where the object lives, shown on the title line before its name (e.g. "Workspace / View /"). */
+  titlePrefix?: ReactNode
+  /**
+   * Kind, status and namespace on the title line, wrapping below the name
+   * only when there is no room; other chips (image, owners) keep a second
+   * row. The header actions then wrap below the title as a group rather
+   * than squeezing it.
+   */
+  inlineBadges?: boolean
+  /** A note right after the namespace, e.g. that it is outside the namespace filter. */
+  namespaceNote?: ReactNode
+  /** Replaces the derived status badge on the title line, e.g. with the controller's own reported phase. */
+  renderStatusBadge?: (resource: any) => ReactNode
+  /** A short status right after the controller status on the title line, e.g. a derived health verdict. */
+  statusNote?: ReactNode
+  /** Leave out the kind badge, for a host whose title prefix already names the kind. */
+  hideKindBadge?: boolean
   /** Suppress the standalone back arrow — for embeddings where "back" has no
    *  meaningful target (a single-workload app has no app graph to return to). */
   hideBackButton?: boolean
@@ -180,8 +213,23 @@ interface WorkloadViewProps {
   refetch?: () => void
 
   // ── Timeline data ────────────────────────────────────────────────────────
-  /** All timeline events for this resource's namespace */
+  /** Timeline events the history lanes are built from: this workload's own
+   *  history, or events for its namespace from a host that has no scoped query. */
   allEvents?: TimelineEvent[]
+  /** Older history exists beyond allEvents. */
+  historyTruncated?: boolean
+  /** Loads the next older page of history; omit when the host can't page. */
+  onLoadOlderHistory?: () => void
+  loadingOlderHistory?: boolean
+  /** The last Load older attempt failed. */
+  olderHistoryError?: Error | null
+  /** allEvents holds only this workload's own history (what it runs and the
+   *  resources attached to it), not its whole namespace. */
+  historyScoped?: boolean
+  /** Some related resources' history isn't included: there were more than the host follows. */
+  historyIncomplete?: boolean
+  historyError?: Error | null
+  onRetryHistory?: () => void
   /** Persisted lifecycle events reconstructed for resources related to this workload. */
   relatedTimelineEvents?: TimelineEvent[]
   /** Whether timeline events are loading */
@@ -255,6 +303,8 @@ interface WorkloadViewProps {
    * resource rather than from owner labels on a managed object.
    */
   onNavigateGitOpsPath?: (path: string) => void
+  /** Opens the live traffic view focused on this workload. */
+  onOpenLiveTraffic?: () => void
 
   // ── Render props for platform-specific content ───────────────────────────
   /** Render the logs tab content */
@@ -270,6 +320,32 @@ interface WorkloadViewProps {
     initialContainer: string | null
     onConsumeInitialContainer: () => void
   }) => ReactNode
+  /**
+   * A composed summary for kinds that have one. When it returns content, the
+   * Overview tab shows the summary and the resource's own renderer moves to a
+   * "Spec & status" tab, so the same facts never render twice. Return null to
+   * keep the default Overview.
+   */
+  renderSummary?: (props: {
+    kind: string
+    apiKind: string
+    namespace: string
+    name: string
+    group?: string
+    resource: any
+    context: 'drawer' | 'expanded'
+    onNavigate?: NavigateToResource
+  }) => ReactNode
+  /** Extra tabs for the expanded view (e.g. a domain's own sections). */
+  extraTabs?: WorkloadExtraTab[]
+  /** Expanded view: a line under the title, above the tabs, shown on every tab. */
+  subheader?: ReactNode
+  /** Expanded view: tab ids in display order; tabs not listed follow in their usual order. */
+  tabOrder?: string[]
+  /** Expanded view: relabel, lead, or replace the whole "Spec & status" body. */
+  specTab?: { label?: string; icon?: ReactNode; lead?: ReactNode; render?: () => ReactNode }
+  /** Domain actions rendered in the header (drawer and expanded). */
+  renderHeaderActions?: (props: { resource: any; context: 'drawer' | 'expanded'; onNavigate?: NavigateToResource }) => ReactNode
   /** Render a full replacement for the expanded Overview tab. */
   renderExpandedOverview?: (props: {
     kind: string
@@ -360,6 +436,12 @@ export function WorkloadView({
   initialTab,
   group,
   breadcrumb,
+  titlePrefix,
+  inlineBadges = false,
+  namespaceNote,
+  renderStatusBadge,
+  statusNote,
+  hideKindBadge = false,
   hideBackButton,
   scopeControls,
   compactHeader,
@@ -383,6 +465,14 @@ export function WorkloadView({
   refetch: refetchProp,
   // Timeline
   allEvents,
+  historyTruncated = false,
+  onLoadOlderHistory,
+  loadingOlderHistory = false,
+  olderHistoryError = null,
+  historyScoped = false,
+  historyIncomplete = false,
+  historyError = null,
+  onRetryHistory,
   relatedTimelineEvents = [],
   eventsLoading = false,
   topology,
@@ -410,6 +500,12 @@ export function WorkloadView({
   renderDiagnoseTab,
   reachableVia,
   renderExpandedOverview,
+  renderSummary,
+  extraTabs,
+  tabOrder,
+  specTab,
+  subheader,
+  renderHeaderActions,
   renderRelatedYaml,
   renderMetricsTab,
   renderCostTab,
@@ -440,6 +536,7 @@ export function WorkloadView({
   helmOwnerSource,
   onOpenHelmRelease,
   onNavigateGitOpsPath,
+  onOpenLiveTraffic,
 }: WorkloadViewProps) {
   // The live object preserves exact CRD capitalization (RayJob, TFJob); the URL
   // plural remains the API resource name used by fetches and mutations.
@@ -456,8 +553,10 @@ export function WorkloadView({
 
   // Collapsed mode state (YAML toggle for drawer mode)
   const [showYaml, setShowYaml] = useState(initialTab === 'yaml')
+  const [drawerSpec, setDrawerSpec] = useState(false)
   useEffect(() => {
     setShowYaml(initialTab === 'yaml')
+    setDrawerSpec(false)
   }, [kindProp, namespace, name, initialTab])
 
   const switchView = useCallback((yaml: boolean) => {
@@ -500,9 +599,10 @@ export function WorkloadView({
       events: allEvents,
       topology,
       rootResource: { kind, group, namespace, name },
+      eventsScopedToRoot: historyScoped,
       groupByApp: true,
     })
-  }, [allEvents, topology, kind, group, namespace, name])
+  }, [allEvents, topology, kind, group, namespace, name, historyScoped])
 
   // Topology tab — the seeded neighborhood around this one workload (its
   // ownership core + attached Services/config/policies), not the whole namespace.
@@ -631,6 +731,11 @@ export function WorkloadView({
     setTimeout(() => setCopied(null), 2000)
   }, [])
 
+  // The edit is applied on top of the copy on screen, so the server is asked to
+  // reject it if the Secret was deleted or changed since that copy loaded.
+  // Otherwise the save would recreate a deleted Secret, or put back the old
+  // value of a key someone else changed.
+  const resourceVersion: string | undefined = resource?.metadata?.resourceVersion
   const handleSaveSecretValue = useCallback(async (yaml: string) => {
     if (!onUpdateResource) return
     try {
@@ -640,12 +745,14 @@ export function WorkloadView({
         name,
         yaml,
         force: true,
+        reviewedResourceVersion: resourceVersion,
       })
       setTimeout(() => refetch(), 1000)
-    } catch {
-      // Error handled by mutation (toast)
+    } catch (error) {
+      refetch()
+      throw error
     }
-  }, [onUpdateResource, apiKind, namespace, name, refetch])
+  }, [onUpdateResource, apiKind, namespace, name, resourceVersion, refetch])
 
   const handleSaved = useCallback(() => {
     setSaveSuccess(true)
@@ -708,7 +815,35 @@ export function WorkloadView({
     ? getWorkloadDisplayStatus(resource, apiKind, workloadPods)
     : null
   const rolloutActivity = rolloutDisplay?.activity ?? null
-  const status = rolloutDisplay?.status ?? getResourceStatus(apiKind, resource)
+  // A 404 with a cached copy: the object was deleted while this view was
+  // open. Everything below that copy describes the past.
+  const resourceGone = Boolean(resource) && isFetchError(resourceError) && resourceError.status === 404
+  const status = resourceGone
+    ? { text: 'Deleted', color: 'status-unknown' }
+    : rolloutDisplay?.status ?? getResourceStatus(apiKind, resource)
+  // The host's actions, and the host's renderers with their per-container
+  // terminal, logs, scale and env controls, would act on an object that no
+  // longer exists. The plain renderers show the last copy without them.
+  const actionsBarPropsForState = resourceGone ? undefined : effectiveActionsBarProps
+  const rendererOverridesForState = resourceGone ? undefined : rendererOverrides
+  // The host's overview panels and Reachability tab diagnose the live object,
+  // and the reachability panel polls for it every few seconds.
+  const renderOverviewLeadForState = resourceGone ? undefined : renderOverviewLead
+  const renderOverviewExtraForState = resourceGone ? undefined : renderOverviewExtra
+  const renderDiagnoseTabForState = resourceGone ? undefined : renderDiagnoseTab
+  // A host's summary, tabs and subheader can hold actions on the live object.
+  const renderSummaryForState = resourceGone ? undefined : renderSummary
+  const extraTabsForState = resourceGone ? undefined : extraTabs
+  // A remount closes any dialog the bar had open: once its actions are gone,
+  // a confirm button left on screen would do nothing.
+  const actionsBarKey = resourceGone ? 'gone' : 'live'
+  const deletedNotice = resourceGone ? (
+    <DeletedResourceNotice
+      kindLabel={displayKindName(apiKind, resource?.kind)}
+      owner={relationships?.deployment ?? relationships?.owner}
+      onNavigateToResource={onNavigateToResource}
+    />
+  ) : null
   const rolloutMayAutoAdvance = rolloutActivity ? rolloutMayAdvanceAutomatically(rolloutActivity) : false
   useEffect(() => {
     if (!recentImageSave) return
@@ -721,7 +856,9 @@ export function WorkloadView({
     const timeout = window.setTimeout(() => setRecentImageSave(false), 15000)
     return () => window.clearTimeout(timeout)
   }, [recentImageSave, rolloutActivity?.phase])
-  useProgressiveRefresh(rolloutMayAutoAdvance || recentImageSave, refetchProp)
+  // The rollout state above is the last copy fetched before a 404; a workload
+  // the server says is gone has nothing left to roll out.
+  useProgressiveRefresh((rolloutMayAutoAdvance || recentImageSave) && !resourceGone, refetchProp)
   const showOwnershipHeading = kind === 'Pod' && Boolean(ownershipContext)
   const headerImage = metadata.find(m => m.label === 'Image')?.value
 
@@ -733,7 +870,8 @@ export function WorkloadView({
   const renderDiagnose = actionsBarProps?.renderDiagnose as
     | ((ctx: { kind: string; group?: string; namespace: string; name: string; health?: DiagnoseHealthHint }) => ReactNode)
     | undefined
-  const diagnoseAction = renderDiagnose?.({
+  const headerActions = resource && !resourceGone && renderHeaderActions?.({ resource, context: expanded ? 'expanded' : 'drawer', onNavigate: onNavigateToResource })
+  const diagnoseAction = resourceGone ? null : renderDiagnose?.({
     kind: resource?.kind ?? knownKindForPluralWithGroup(apiKind, group ?? '') ?? apiKind,
     group,
     namespace,
@@ -751,8 +889,12 @@ export function WorkloadView({
   const podEvidenceLoading = resourceLoading || workloadPodsLoading || eventsLoading
   const logsFallbackReady = !renderLogsTab || (!logsTabVisible && !podEvidenceLoading)
   const requestedTab: TabType = activeTab
+  const summaryContext = { kind, apiKind, namespace, name, group, resource, onNavigate: onNavigateToResource }
+  const expandedSummary = expanded && resource ? renderSummaryForState?.({ ...summaryContext, context: 'expanded' }) ?? null : null
+  const drawerSummary = !expanded && resource ? renderSummaryForState?.({ ...summaryContext, context: 'drawer' }) ?? null : null
   const tabs: DetailShellTab<TabType>[] = [
     { id: 'overview', label: 'Overview', icon: <Layers className="w-4 h-4" /> },
+    { id: 'spec', label: specTab?.label ?? 'Spec & status', icon: specTab?.icon ?? <FileText className="w-4 h-4" />, hidden: !expandedSummary },
     { id: 'topology', label: 'Topology', icon: <Network className="w-4 h-4" />, hidden: topologyTabHidden },
     {
       id: 'timeline',
@@ -766,17 +908,20 @@ export function WorkloadView({
       id: 'reachability',
       label: 'Reachability',
       icon: <Stethoscope className="w-4 h-4" />,
-      hidden: !(renderDiagnoseTab && (isDiagnoseKind(apiKind, group) || (reachableVia?.length ?? 0) > 0)),
+      hidden: !(renderDiagnoseTabForState && (isDiagnoseKind(apiKind, group) || (reachableVia?.length ?? 0) > 0)),
     },
     { id: 'cost', label: 'Cost', icon: <Coins className="w-4 h-4" />, hidden: !costTabVisible },
     { id: 'yaml', label: 'YAML', icon: <FileText className="w-4 h-4" /> },
   ]
-  const requestedTabAvailable = tabs.some((tab) => tab.id === requestedTab && !tab.hidden)
+  const allTabs = orderTabs(mergeExtraTabs(tabs, expanded ? extraTabsForState : undefined), expanded ? tabOrder : undefined)
+  const requestedTabAvailable = allTabs.some((tab) => tab.id === requestedTab && !tab.hidden)
   const effectiveTab: TabType = requestedTabAvailable ? requestedTab : 'overview'
+  const activeExtraTab = expanded ? extraTabsForState?.find((x) => x.id === effectiveTab) : undefined
   const shouldCommitFallback =
     requestedTab !== 'overview' &&
     !requestedTabAvailable &&
     (
+      (requestedTab === 'spec' && !!resource && !resourceLoading && !expandedSummary) ||
       (requestedTab === 'topology' && topologyTabHidden) ||
       (requestedTab === 'metrics' && (!renderMetricsTab || (!!resource && !resourceLoading && !showMetricsTab))) ||
       (requestedTab === 'cost' && (!renderCostTab || (!!resource && !resourceLoading && !showCostTab))) ||
@@ -800,13 +945,13 @@ export function WorkloadView({
               <span className={clsx('badge', getKindColorOutline(apiKind))}>
                 {displayKindName(apiKind, resource?.kind)}
               </span>
-              {status && (
+              {renderStatusBadge && resource && !resourceGone ? renderStatusBadge(resource) : status && (
                 <span className={clsx('badge', status.color)}>
                   {status.text}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5">
               {diagnoseAction}
               {onExpand && (
                 <Tooltip content="Open full view" delay={150} position="bottom">
@@ -865,19 +1010,20 @@ export function WorkloadView({
               </Tooltip>
             </div>
             <p className="text-sm text-theme-text-tertiary">{namespace}</p>
-            {(gitopsOwner || helmOwner || (gitOpsResourcePath && onNavigateGitOpsPath)) && (
+            {(gitopsOwner || helmOwner || (gitOpsResourcePath && onNavigateGitOpsPath) || onOpenLiveTraffic) && (
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {gitopsOwner && <ManagedByChip owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} onOpen={onOpenGitOpsResource} />}
                 {helmOwner && <HelmManagedByChip owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} />}
                 {gitOpsResourcePath && onNavigateGitOpsPath && (
                   <OpenInGitOpsChip onClick={() => onNavigateGitOpsPath(gitOpsResourcePath)} />
                 )}
+                {onOpenLiveTraffic && <LiveTrafficChip onClick={onOpenLiveTraffic} />}
               </div>
             )}
           </div>
 
           {/* Actions bar */}
-          <ResourceActionsBar resource={selectedResource} data={resource} onClose={onClose} showYaml={showYaml} onToggleYaml={() => switchView(!showYaml)} {...effectiveActionsBarProps} />
+          <ResourceActionsBar key={actionsBarKey} resource={selectedResource} data={resource} onClose={onClose} showYaml={showYaml} onToggleYaml={() => switchView(!showYaml)} {...actionsBarPropsForState} leadingActions={headerActions} />
         </div>
 
         {/* Success animation overlay */}
@@ -892,6 +1038,7 @@ export function WorkloadView({
             damage to this scroll body; ui/Collapse.tsx keeps them from escaping in the first
             place. */}
         <div className="relative flex-1 overflow-y-auto" style={{ viewTransitionName: 'drawer-content' }}>
+          {deletedNotice && <div className="px-4 pt-4">{deletedNotice}</div>}
           {!resource ? (
             // Fill the drawer body so the loading logo centers in it, not in a
             // 128px box pinned to the top (matches the splash/PaneLoader centering).
@@ -916,11 +1063,39 @@ export function WorkloadView({
             />
           ) : (
             <OperationalIssuesShownContext.Provider value={!!hasOperationalIssues || !!operationalIssuesPending}>
-              {renderOverviewLead && hasOperationalIssues && (
-                <div className="px-4 pt-4">
-                  {renderOverviewLead({ kind, namespace, name })}
+              {drawerSummary && (
+                <div className="px-4 pt-3" role="tablist" aria-label="Detail view">
+                  <div className="inline-flex rounded-lg bg-theme-elevated p-0.5 text-xs">
+                    {([['overview', 'Overview'], ['spec', 'Spec & status']] as const).map(([id, label]) => {
+                      const on = id === 'spec' ? drawerSpec : !drawerSpec
+                      return (
+                        <button
+                          key={id}
+                          role="tab"
+                          aria-selected={on}
+                          onClick={() => setDrawerSpec(id === 'spec')}
+                          className={clsx(
+                            'rounded-md px-2.5 py-1 font-medium transition-colors',
+                            on ? 'bg-theme-surface text-theme-text-primary shadow-theme-sm' : 'text-theme-text-secondary hover:text-theme-text-primary',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
+              {drawerSummary && !drawerSpec ? (
+                drawerSummary
+              ) : (
+              <>
+              {renderOverviewLeadForState && hasOperationalIssues && (
+                <div className="px-4 pt-4">
+                  {renderOverviewLeadForState({ kind, namespace, name })}
+                </div>
+              )}
+              {overviewIntro && <div className="px-4 pt-4">{overviewIntro}</div>}
               <ResourceRendererDispatch
                 resource={selectedResource}
                 data={resource}
@@ -932,9 +1107,9 @@ export function WorkloadView({
                 onCopy={copyToClipboard}
                 copied={copied}
                 onNavigate={onNavigateToResource ? (ref) => onNavigateToResource(refToSelectedResource(ref)) : undefined}
-                onSaveSecretValue={canUpdateSecrets ? handleSaveSecretValue : undefined}
+                onSaveSecretValue={canUpdateSecrets && !resourceGone ? handleSaveSecretValue : undefined}
                 isSavingSecret={isUpdatingResource}
-                rendererOverrides={rendererOverrides}
+                rendererOverrides={rendererOverridesForState}
                 resolvedEnvFrom={resolvedEnvFrom}
                 renderMetrics={renderMetricsTab}
                 events={resourceFocusedK8sEvents}
@@ -942,8 +1117,10 @@ export function WorkloadView({
                 updates={resourceFocusedUpdates}
                 eventsError={resourceFocusedK8sError}
                 updatesError={resourceFocusedUpdatesError}
-                mainFooter={renderOverviewExtra && renderOverviewExtra({ kind, namespace, name, group, context: 'drawer' })}
+                mainFooter={renderOverviewExtraForState && renderOverviewExtraForState({ kind, namespace, name, group, context: 'drawer' })}
               />
+              </>
+              )}
             </OperationalIssuesShownContext.Provider>
           )}
         </div>
@@ -956,6 +1133,8 @@ export function WorkloadView({
     <OperationalIssuesShownContext.Provider value={!!hasOperationalIssues || !!operationalIssuesPending}>
     <DetailShell
       breadcrumb={breadcrumb}
+      wrapHeader={inlineBadges}
+      subheader={resourceGone ? undefined : subheader}
       nav={
         breadcrumb || hideBackButton ? undefined : (
           <Tooltip content="Go back (Esc)" delay={150} position="bottom">
@@ -969,67 +1148,111 @@ export function WorkloadView({
           </Tooltip>
         )
       }
-      identity={
-        <>
-          {showOwnershipHeading && ownershipContext ? (
-            <OwnershipHeading
-              podName={name}
-              context={ownershipContext}
-              copied={copied === 'name'}
-              onCopy={() => copyToClipboard(name, 'name')}
-              onNavigateToResource={onNavigateToResource}
-              onOpenApplication={onOpenApplication}
-            />
-          ) : (
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-lg font-semibold text-theme-text-primary truncate">{name}</h1>
-              <Tooltip content="Copy name" delay={150}>
-                <button
-                  onClick={() => copyToClipboard(name, 'name')}
-                  className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded shrink-0"
-                  aria-label="Copy name"
-                >
-                  {copied === 'name' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </Tooltip>
-            </div>
-          )}
-          <div className="flex items-center gap-3 text-sm text-theme-text-secondary">
-            <span className={clsx('badge', getKindColorOutline(apiKind))}>
-              {displayKindName(apiKind, resource?.kind)}
-            </span>
-            {status && (
-              <span className={clsx('badge', status.color)}>
+      identity={(() => {
+        const nameAndCopy = (
+          <>
+            <h1 className="text-lg font-semibold text-theme-text-primary truncate">{name}</h1>
+            <Tooltip content="Copy name" delay={150}>
+              <button
+                onClick={() => copyToClipboard(name, 'name')}
+                className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded shrink-0"
+                aria-label="Copy name"
+              >
+                {copied === 'name' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </Tooltip>
+          </>
+        )
+        const kindAndStatus = (
+          <>
+            {!hideKindBadge && (
+              <span className={clsx('badge whitespace-nowrap', getKindColorOutline(apiKind))}>
+                {displayKindName(apiKind, resource?.kind)}
+              </span>
+            )}
+            {renderStatusBadge && resource && !resourceGone ? renderStatusBadge(resource) : status && (
+              <span className={clsx('badge whitespace-nowrap', status.color)}>
                 {status.text}
               </span>
             )}
+            {!resourceGone && statusNote}
+          </>
+        )
+        const coreBadges = (
+          <>
+            {/* On the title line the kind and status wrap together, never apart. */}
+            {inlineBadges ? <span className="inline-flex items-center gap-x-3">{kindAndStatus}</span> : kindAndStatus}
             {namespace && namespace !== '_' && (
-              <span>Namespace: <span className="text-theme-text-primary">{namespace}</span></span>
+              <span className="whitespace-nowrap">Namespace: <span className="text-theme-text-primary">{namespace}</span></span>
             )}
-            {headerImage && (
-              <Tooltip content={headerImage} delay={300} wrapperClassName="min-w-0 max-w-md">
-                <span className="truncate font-mono text-xs">
-                  {midTruncate(headerImage, 72)}
-                </span>
-              </Tooltip>
+            {namespace && namespace !== '_' && namespaceNote}
+          </>
+        )
+        const extraChips = [
+          headerImage && (
+            <Tooltip key="image" content={headerImage} delay={300} wrapperClassName="min-w-0 max-w-md">
+              <span className="truncate font-mono text-xs">
+                {midTruncate(headerImage, 72)}
+              </span>
+            </Tooltip>
+          ),
+          gitopsOwner && (
+            <ManagedByChip key="gitops" owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} onOpen={onOpenGitOpsResource} variant="block" />
+          ),
+          helmOwner && (
+            <HelmManagedByChip key="helm" owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} variant="block" />
+          ),
+          gitOpsResourcePath && onNavigateGitOpsPath && (
+            <OpenInGitOpsChip key="open-gitops" onClick={() => onNavigateGitOpsPath(gitOpsResourcePath)} />
+          ),
+          onOpenLiveTraffic && <LiveTrafficChip key="live-traffic" onClick={onOpenLiveTraffic} />,
+          relationships?.owner && !showOwnershipHeading && (
+            <span key="owner">Owner: <button onClick={() => onNavigateToResource?.(refToSelectedResource(relationships.owner!))} className="text-blue-500 hover:underline">{relationships.owner.name}</button></span>
+          ),
+        ].filter(Boolean)
+        if (inlineBadges && !(showOwnershipHeading && ownershipContext)) {
+          // The name and its copy button stay together and truncate only when
+          // the line holds nothing else; the badges wrap below before that.
+          return (
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-theme-text-secondary">
+                {titlePrefix}
+                <div className="flex min-w-0 max-w-full items-center gap-2">{nameAndCopy}</div>
+                {coreBadges}
+              </div>
+              {extraChips.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-theme-text-secondary">{extraChips}</div>
+              )}
+            </>
+          )
+        }
+        return (
+          <>
+            {showOwnershipHeading && ownershipContext ? (
+              <OwnershipHeading
+                podName={name}
+                context={ownershipContext}
+                copied={copied === 'name'}
+                onCopy={() => copyToClipboard(name, 'name')}
+                onNavigateToResource={onNavigateToResource}
+                onOpenApplication={onOpenApplication}
+              />
+            ) : (
+              <div className="flex items-center gap-3 mb-1">
+                {titlePrefix}
+                {nameAndCopy}
+              </div>
             )}
-            {gitopsOwner && (
-              <ManagedByChip owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} onOpen={onOpenGitOpsResource} variant="block" />
-            )}
-            {helmOwner && (
-              <HelmManagedByChip owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} variant="block" />
-            )}
-            {gitOpsResourcePath && onNavigateGitOpsPath && (
-              <OpenInGitOpsChip onClick={() => onNavigateGitOpsPath(gitOpsResourcePath)} />
-            )}
-            {relationships?.owner && !showOwnershipHeading && (
-              <span>Owner: <button onClick={() => onNavigateToResource?.(refToSelectedResource(relationships.owner!))} className="text-blue-500 hover:underline">{relationships.owner.name}</button></span>
-            )}
-          </div>
-        </>
-      }
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-theme-text-secondary">
+              {coreBadges}
+              {extraChips}
+            </div>
+          </>
+        )
+      })()}
       headerActions={
         <>
+          {headerActions}
           {diagnoseAction}
           <Tooltip content="Refresh" delay={150} position="bottom">
             <button
@@ -1060,31 +1283,37 @@ export function WorkloadView({
           )}
         </>
       }
-      tabs={tabs}
+      tabs={allTabs}
       activeTab={effectiveTab}
       onTabChange={handleSetTab}
       scopeControls={scopeControls}
-      tabStripEnd={<ResourceActionsBar resource={selectedResource} data={resource} hideLogs {...effectiveActionsBarProps} />}
+      tabStripEnd={<ResourceActionsBar key={actionsBarKey} resource={selectedResource} data={resource} hideLogs {...actionsBarPropsForState} />}
       overlay={saveSuccess ? <SaveSuccessAnimation /> : null}
       compactHeader={compactHeader}
     >
       <div className="flex h-full min-h-0 flex-col">
-        {effectiveTab !== 'overview' && rolloutActivity && (rolloutActivity.phase !== 'idle' || recentImageSave) && (
+        {deletedNotice && <div className="shrink-0 px-4 pt-4">{deletedNotice}</div>}
+        {!resourceGone && effectiveTab !== 'overview' && rolloutActivity && (rolloutActivity.phase !== 'idle' || recentImageSave) && (
           <div className="shrink-0 px-4 pt-4">
             <WorkloadRolloutNotice activity={rolloutActivity} recentImageSave={recentImageSave} />
           </div>
         )}
         <div className="min-h-0 flex-1">
-        {effectiveTab === 'overview' && expandedOverview ? (
+        {activeExtraTab && <div className="h-full min-h-0 overflow-y-auto">{activeExtraTab.render()}</div>}
+        {effectiveTab === 'overview' && expandedSummary ? (
+          <div className="h-full min-h-0 overflow-y-auto">{expandedSummary}</div>
+        ) : effectiveTab === 'overview' && expandedOverview ? (
           <div className="h-full min-h-0">
-            {hasOperationalIssues && renderOverviewLead && (
+            {hasOperationalIssues && renderOverviewLeadForState && (
               <div className="px-4 pt-4">
-                {renderOverviewLead({ kind, namespace, name })}
+                {renderOverviewLeadForState({ kind, namespace, name })}
               </div>
             )}
             {expandedOverview}
           </div>
-        ) : effectiveTab === 'overview' && (
+        ) : effectiveTab === 'spec' && specTab?.render && !resourceGone ? (
+          <div className="h-full min-h-0 overflow-y-auto">{specTab.render()}</div>
+        ) : (effectiveTab === 'overview' || effectiveTab === 'spec') && (
             <InfoTab
               resource={resource}
               selectedResource={selectedResource}
@@ -1103,22 +1332,29 @@ export function WorkloadView({
               onNavigate={onNavigateToResource}
               onCopy={copyToClipboard}
               copied={copied}
-              onSaveSecretValue={canUpdateSecrets ? handleSaveSecretValue : undefined}
+              onSaveSecretValue={canUpdateSecrets && !resourceGone ? handleSaveSecretValue : undefined}
               isSavingSecret={isUpdatingResource}
               onOpenLogs={handleOpenLogs}
               onSwitchToTimeline={() => handleSetTab('timeline')}
               onSwitchToLogs={logsTabVisible ? () => handleSetTab('logs') : undefined}
               onSwitchToTopology={!topologyTabHidden ? () => handleSetTab('topology') : undefined}
-              rendererOverrides={rendererOverrides}
+              rendererOverrides={rendererOverridesForState}
               resolvedEnvFrom={resolvedEnvFrom}
               events={overviewEvents}
               eventsLoading={overviewEventsLoading}
               updates={resourceFocusedUpdates}
               eventsError={overviewEventsError}
               updatesError={resourceFocusedUpdatesError}
-              extraContent={renderOverviewExtra && renderOverviewExtra({ kind, namespace, name, group, context: 'expanded' })}
+              extraContent={renderOverviewExtraForState && renderOverviewExtraForState({ kind, namespace, name, group, context: 'expanded' })}
               introContent={overviewIntro}
-              leadContent={hasOperationalIssues && renderOverviewLead ? renderOverviewLead({ kind, namespace, name }) : undefined}
+              leadContent={
+                // A host's spec lead replaces the operational issues there: its Overview already leads with them.
+                effectiveTab === 'spec' && specTab?.lead
+                  ? specTab.lead
+                  : hasOperationalIssues && renderOverviewLeadForState
+                    ? renderOverviewLeadForState({ kind, namespace, name })
+                    : undefined
+              }
               onEvaluateCapacity={onEvaluateCapacity}
               recentImageSave={recentImageSave}
             />
@@ -1144,6 +1380,14 @@ export function WorkloadView({
           <EventsTab
             events={resourceEvents}
             isLoading={eventsLoading}
+            truncated={historyTruncated}
+            onLoadOlder={onLoadOlderHistory}
+            loadingOlder={loadingOlderHistory}
+            olderError={olderHistoryError}
+            scoped={historyScoped}
+            incomplete={historyIncomplete}
+            error={historyError}
+            onRetry={onRetryHistory}
             selectedEventId={selectedEventId}
             onSelectEvent={setSelectedEventId}
             topology={topology}
@@ -1169,9 +1413,9 @@ export function WorkloadView({
             {renderMetricsTab({ kind: resource?.kind || kind, namespace, name })}
           </div>
         )}
-        {effectiveTab === 'reachability' && renderDiagnoseTab && (
+        {effectiveTab === 'reachability' && renderDiagnoseTabForState && (
           <div className="flex h-full min-h-0 flex-col p-3">
-            {renderDiagnoseTab({ kind: resource?.kind || kind, namespace, name })}
+            {renderDiagnoseTabForState({ kind: resource?.kind || kind, namespace, name })}
           </div>
         )}
         {effectiveTab === 'cost' && renderCostTab && (
@@ -1302,6 +1546,34 @@ function extractMetadata(kind: string, resource: any): { label: string; value: s
 // SUB-COMPONENTS
 // ============================================================================
 
+function DeletedResourceNotice({
+  kindLabel,
+  owner,
+  onNavigateToResource,
+}: {
+  kindLabel: string
+  owner?: ResourceRef
+  onNavigateToResource?: NavigateToResource
+}) {
+  return (
+    <AlertBanner
+      variant="warning"
+      title={`This ${kindLabel} no longer exists in the cluster`}
+      message="You're looking at the last version Radar loaded before it was deleted."
+    >
+      {owner && onNavigateToResource && (
+        <button
+          type="button"
+          onClick={() => onNavigateToResource(refToSelectedResource(owner))}
+          className="mt-2 text-xs text-accent-text hover:underline"
+        >
+          Go to its {displayKindName(owner.kind, owner.kind)} {owner.name}
+        </button>
+      )}
+    </AlertBanner>
+  )
+}
+
 function OpenInGitOpsChip({ onClick }: { onClick: () => void }) {
   return (
     <Tooltip content="Open this resource in the GitOps tab (tree + insights + ops)" delay={150}>
@@ -1311,6 +1583,21 @@ function OpenInGitOpsChip({ onClick }: { onClick: () => void }) {
         className="inline-flex items-center gap-1 rounded border border-skyhook-500/40 bg-skyhook-500/10 px-1.5 py-0.5 text-[11px] font-medium text-skyhook-500 hover:bg-skyhook-500/20 transition-colors"
       >
         Open in GitOps
+        <ArrowRight className="h-3 w-3 shrink-0" />
+      </button>
+    </Tooltip>
+  )
+}
+
+function LiveTrafficChip({ onClick }: { onClick: () => void }) {
+  return (
+    <Tooltip content="What this workload talks to, from the cluster's traffic source" delay={150}>
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex items-center gap-1 rounded border border-theme-border bg-theme-elevated px-1.5 py-0.5 text-[11px] font-medium text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-hover transition-colors"
+      >
+        Live traffic
         <ArrowRight className="h-3 w-3 shrink-0" />
       </button>
     </Tooltip>
@@ -1398,6 +1685,14 @@ function OwnershipHeading({
 function EventsTab({
   events,
   isLoading,
+  truncated,
+  onLoadOlder,
+  loadingOlder,
+  olderError,
+  scoped,
+  incomplete,
+  error,
+  onRetry,
   selectedEventId,
   onSelectEvent,
   topology,
@@ -1405,6 +1700,14 @@ function EventsTab({
 }: {
   events: TimelineEvent[]
   isLoading: boolean
+  truncated?: boolean
+  onLoadOlder?: () => void
+  loadingOlder?: boolean
+  olderError?: Error | null
+  scoped?: boolean
+  incomplete?: boolean
+  error?: Error | null
+  onRetry?: () => void
   selectedEventId: string | null
   onSelectEvent: (id: string | null) => void
   topology?: Topology
@@ -1499,8 +1802,66 @@ function EventsTab({
     )
   }
 
+  if (error && events.length === 0) {
+    return (
+      <div className="p-4">
+        <AlertBanner variant="error" title="Couldn't load this workload's history" message={error.message}>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-2 rounded border border-theme-border bg-theme-surface px-2 py-1 text-xs text-theme-text-primary transition-colors hover:bg-theme-hover"
+            >
+              Try again
+            </button>
+          )}
+        </AlertBanner>
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {error && (
+        <div className="shrink-0 flex flex-wrap items-center gap-x-2 border-b border-theme-border bg-theme-base px-4 py-1.5 text-xs" role="alert">
+          <span className="text-[var(--color-error)]" title={error.message}>
+            Couldn't load this workload's history. Showing only what loaded.
+          </span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="underline decoration-theme-border underline-offset-2 text-theme-text-secondary hover:text-theme-text-primary"
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+      {(scoped || truncated || incomplete) && (
+        <div className="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-theme-border bg-theme-base px-4 py-1.5 text-xs text-theme-text-secondary" role="note">
+          {scoped && (
+            <span className="text-theme-text-tertiary">
+              This workload, what it runs, and the Services, Ingresses, config and scalers attached to it.
+            </span>
+          )}
+          {incomplete && <span>This workload has more past runs and related resources than Radar follows, so some are left out.</span>}
+          {truncated && <span>Showing the most recent events. Older history exists.</span>}
+          {truncated && olderError && (
+            <span className="text-[var(--color-error)]" title={olderError.message}>Couldn't load older events.</span>
+          )}
+          {truncated && onLoadOlder && (
+            <button
+              type="button"
+              onClick={onLoadOlder}
+              disabled={loadingOlder}
+              className="underline decoration-theme-border underline-offset-2 hover:text-theme-text-primary disabled:opacity-60"
+            >
+              {loadingOlder ? 'Loading…' : olderError ? 'Try again' : 'Load older'}
+            </button>
+          )}
+        </div>
+      )}
       {/* Swimlane — the shared TimelineSwimlanes widget (kind chips, top axis with
           ticks + Now line, event clustering), flat + compact for a single subject.
           Its drawer is suppressed (compact); the list below is the detail surface. */}
@@ -1739,6 +2100,7 @@ const LOGS_TAB_WITHOUT_PODS_KINDS = new Set([
   'clusterworkflowtemplates',
   'scaledjobs',
   'jobsets',
+  'clusters',
 ])
 const RUNTIME_WORKLOAD_OVERVIEW_KINDS = new Set(['deployments', 'statefulsets', 'daemonsets', 'jobs', 'cronjobs'])
 const ROLLOUT_STATUS_KINDS = new Set(['deployments', 'statefulsets', 'daemonsets', 'rollouts'])
@@ -1754,6 +2116,11 @@ export function supportsLogsWithoutPods(
   if (normalizedKind === 'jobs') return isCoreBatchJob(kind, group)
   if (normalizedKind === 'jobsets') {
     return group === 'jobset.x-k8s.io' && apiVersion === 'jobset.x-k8s.io/v1alpha2'
+  }
+  // A CloudNativePG Cluster's instance Pods are its children, not related
+  // Pods, and its logs are resolved server-side from the Cluster itself.
+  if (normalizedKind === 'clusters') {
+    return group === 'postgresql.cnpg.io' || !!apiVersion?.startsWith('postgresql.cnpg.io/')
   }
   return true
 }
@@ -1839,6 +2206,7 @@ function WorkloadOverviewTab({
   const relationshipGroups = buildRelationshipGroups(relationships)
   const servingRelationshipGroups = buildServingRelationshipGroups(relationships)
   const dependencyRelationshipGroups = buildDependencyRelationshipGroups(relationships)
+  const observationGroups = dependencyRelationshipGroups.filter((group) => group.label === 'Monitored By' || group.label === 'Staged Policies')
   const showServingPath = servingRelationshipGroups.length > 0 && overviewShape !== 'job' && overviewShape !== 'cronjob'
   const secondaryRelationshipGroups = showServingPath ? dependencyRelationshipGroups : relationshipGroups
   const relationshipCardTitle =
@@ -1917,6 +2285,14 @@ function WorkloadOverviewTab({
                     onNavigate={onNavigate}
                     onSwitchToTopology={onSwitchToTopology}
                   />
+                  {observationGroups.length > 0 && (
+                    <ServingDependenciesCard
+                      title="Related resources"
+                      groups={observationGroups}
+                      onNavigate={onNavigate}
+                      onSwitchToTopology={onSwitchToTopology}
+                    />
+                  )}
                   {extraContent}
                 </div>
               </div>
@@ -2255,8 +2631,8 @@ function buildSummaryMetrics(
       },
       {
         label: 'Latest run',
-        value: status.lastScheduleTime ? formatAge(status.lastScheduleTime) : 'Never',
-        detail: status.lastSuccessfulTime ? `last success ${formatAge(status.lastSuccessfulTime)}` : 'no successful run recorded',
+        value: status.lastScheduleTime ? formatRelativeAgeTime(status.lastScheduleTime) : 'Never',
+        detail: status.lastSuccessfulTime ? `last success ${formatRelativeAgeTime(status.lastSuccessfulTime)}` : 'no successful run recorded',
         icon: Activity,
       },
       {
@@ -2372,8 +2748,8 @@ function getReadinessSummary(resource: any, apiKind: string): ReadinessSummary {
         { label: 'Schedule', value: spec.schedule || '-' },
         { label: 'Active jobs', value: active, tone: active > 0 ? 'warn' : 'default' },
         { label: 'Suspend', value: suspended ? 'Yes' : 'No', tone: suspended ? 'warn' : 'default' },
-        { label: 'Last schedule', value: status.lastScheduleTime ? formatAge(status.lastScheduleTime) : '-' },
-        { label: 'Last success', value: status.lastSuccessfulTime ? formatAge(status.lastSuccessfulTime) : '-' },
+        { label: 'Last schedule', value: status.lastScheduleTime ? formatRelativeAgeTime(status.lastScheduleTime) : '-' },
+        { label: 'Last success', value: status.lastSuccessfulTime ? formatRelativeAgeTime(status.lastSuccessfulTime) : '-' },
       ],
     }
   }
@@ -2472,8 +2848,8 @@ function getScalingSummary(
       label: phase,
       detail: '',
       stats: [
-        { label: 'Started', value: status.startTime ? formatAge(status.startTime) : '-' },
-        { label: 'Finished', value: status.completionTime ? formatAge(status.completionTime) : phase === 'Running' ? 'Running' : '-' },
+        { label: 'Started', value: status.startTime ? formatRelativeAgeTime(status.startTime) : '-' },
+        { label: 'Finished', value: status.completionTime ? formatRelativeAgeTime(status.completionTime) : phase === 'Running' ? 'Running' : '-' },
         { label: 'Parallelism', value: spec.parallelism ?? 1 },
         { label: 'Completions', value: spec.completions ?? 1 },
         { label: 'Completion mode', value: spec.completionMode ?? 'NonIndexed' },
@@ -2898,116 +3274,6 @@ function PodsListContent({
   )
 }
 
-function PodRow({
-  name,
-  namespace,
-  ready,
-  healthLevel,
-  detail,
-  onNavigate,
-}: {
-  name: string
-  namespace: string
-  ready: boolean | null
-  healthLevel?: WorkloadPodInfo['healthLevel']
-  detail: string
-  onNavigate?: NavigateToResource
-}) {
-  const statusLabel = podStatusLabel(healthLevel, ready)
-  const statusClass = podStatusClass(healthLevel, ready)
-  const content = (
-    <>
-      <span className={clsx('h-2 w-2 shrink-0 rounded-full', podDotClass(healthLevel, ready))} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-theme-text-primary">{name}</span>
-        <span className="block truncate text-xs text-theme-text-tertiary">{detail}</span>
-      </span>
-      <span className={clsx('badge-sm shrink-0', statusClass)}>
-        {statusLabel}
-      </span>
-    </>
-  )
-
-  if (!onNavigate) {
-    return (
-      <div className="flex w-full min-w-0 items-center gap-3 rounded-md border border-theme-border bg-theme-base px-3 py-2 text-left">
-        {content}
-      </div>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => onNavigate({ kind: 'pods', namespace, name })}
-      className="flex w-full min-w-0 items-center gap-3 rounded-md border border-theme-border bg-theme-base px-3 py-2 text-left transition-colors hover:bg-theme-hover"
-    >
-      {content}
-    </button>
-  )
-}
-
-function PodListFrame({
-  expanded,
-  hasOverflow,
-  overflow,
-  toggle,
-  children,
-}: {
-  expanded: boolean
-  hasOverflow: boolean
-  overflow?: ReactNode
-  toggle?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="space-y-2">
-        {children}
-      </div>
-      {hasOverflow && (
-        <Collapse open={expanded}>
-          {/* Long overflow lists scroll inside a capped box once open; the
-              cap comes off while closed so the collapse measures to zero. */}
-          <div className={clsx(expanded && 'max-h-[26rem] overflow-y-auto pr-1')}>
-            <div className="space-y-2">
-              {overflow}
-            </div>
-          </div>
-        </Collapse>
-      )}
-      {toggle}
-    </div>
-  )
-}
-
-function PodListToggle({
-  expanded,
-  hiddenCount,
-  label,
-  onToggle,
-}: {
-  expanded: boolean
-  hiddenCount: number
-  label: string
-  onToggle: () => void
-}) {
-  if (!expanded && hiddenCount <= 0) return null
-
-  return (
-    <div className="pt-1">
-      <button
-        type="button"
-        aria-expanded={expanded}
-        onClick={onToggle}
-        className="text-xs font-medium text-accent-text hover:underline"
-      >
-        {expanded ? `Collapse ${label}` : `Show ${hiddenCount} more ${label}`}
-      </button>
-    </div>
-  )
-}
-
 function compareWorkloadPods(a: WorkloadPodInfo, b: WorkloadPodInfo): number {
   const severity = podSeverityRank(b) - podSeverityRank(a)
   if (severity !== 0) return severity
@@ -3025,43 +3291,6 @@ function podSeverityRank(pod: WorkloadPodInfo): number {
     case 'healthy': return pod.ready ? 0 : 1
     default: return pod.ready ? 0 : 2
   }
-}
-
-export function workloadPodDetail(pod: WorkloadPodInfo): string {
-  const parts: string[] = []
-  if (pod.phase) parts.push(pod.reason ? `${pod.phase} / ${pod.reason}` : pod.phase)
-  else if (pod.reason) parts.push(pod.reason)
-  parts.push(`${pod.containers.length} container${pod.containers.length === 1 ? '' : 's'}`)
-  if ((pod.restartCount ?? 0) > 0) parts.push(`${pod.restartCount} restart${pod.restartCount === 1 ? '' : 's'}`)
-  if (pod.lastTerminationReason && !['Unknown', 'Completed'].includes(pod.lastTerminationReason)) {
-    parts.push(`last ${pod.lastTerminationReason}`)
-  }
-  if (pod.createdAt) parts.push(`${formatAge(pod.createdAt)} old`)
-  return parts.join(' · ')
-}
-
-export function podStatusLabel(healthLevel: WorkloadPodInfo['healthLevel'] | undefined, ready: boolean | null): string {
-  if (healthLevel === 'unhealthy') return 'Unhealthy'
-  if (healthLevel === 'degraded') return 'Degraded'
-  if (healthLevel === 'neutral') return ready ? 'Ready' : 'Neutral'
-  if (healthLevel === 'unknown') return 'Unknown'
-  return ready === null ? 'Unknown' : ready ? 'Ready' : 'Not ready'
-}
-
-export function podStatusClass(healthLevel: WorkloadPodInfo['healthLevel'] | undefined, ready: boolean | null): string {
-  if (healthLevel === 'unhealthy') return 'status-unhealthy'
-  if (healthLevel === 'degraded') return 'status-degraded'
-  if (healthLevel === 'neutral') return 'status-neutral'
-  if (healthLevel === 'unknown' || ready === null) return 'status-unknown'
-  return ready ? 'status-healthy' : 'status-degraded'
-}
-
-export function podDotClass(healthLevel: WorkloadPodInfo['healthLevel'] | undefined, ready: boolean | null): string {
-  if (healthLevel === 'unhealthy') return 'bg-red-500'
-  if (healthLevel === 'degraded') return 'bg-amber-500'
-  if (healthLevel === 'neutral') return 'bg-skyhook-500'
-  if (healthLevel === 'unknown' || ready === null) return 'bg-theme-text-tertiary'
-  return ready ? 'bg-emerald-500' : 'bg-amber-500'
 }
 
 function MoreRows({ count, label }: { count: number; label: string }) {
@@ -3260,8 +3489,8 @@ function CronJobRunsCard({
     >
       <div className="mb-3 grid gap-x-8 gap-y-3 sm:grid-cols-2">
         <OverviewStat label="Active jobs" value={activeJobs.length} tone={activeJobs.length > 0 ? 'warn' : 'default'} />
-        <OverviewStat label="Last schedule" value={status.lastScheduleTime ? formatAge(status.lastScheduleTime) : 'Never'} />
-        <OverviewStat label="Last success" value={status.lastSuccessfulTime ? formatAge(status.lastSuccessfulTime) : 'Never'} />
+        <OverviewStat label="Last schedule" value={status.lastScheduleTime ? formatRelativeAgeTime(status.lastScheduleTime) : 'Never'} />
+        <OverviewStat label="Last success" value={status.lastSuccessfulTime ? formatRelativeAgeTime(status.lastSuccessfulTime) : 'Never'} />
         <OverviewStat label="Retained history" value={`${spec.successfulJobsHistoryLimit ?? 3} ok / ${spec.failedJobsHistoryLimit ?? 1} failed`} />
       </div>
 
@@ -3718,7 +3947,7 @@ function ActivityCard({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium text-theme-text-primary">{event.reason || event.eventType || 'update'}</span>
-                    <span className="shrink-0 text-xs text-theme-text-tertiary">{formatAge(event.timestamp)}</span>
+                    <span className="shrink-0 text-xs text-theme-text-tertiary">{formatRelativeAgeTime(event.timestamp)}</span>
                   </div>
                   <div className="mt-0.5 line-clamp-2 text-xs text-theme-text-secondary">
                     {event.message || event.diff?.summary || `${event.kind} ${event.name}`}
@@ -3753,6 +3982,7 @@ function buildServingRelationshipGroups(relationships: Relationships | undefined
     ...(relationships.ingresses ?? []),
     ...(relationships.gateways ?? []),
     ...(relationships.routes ?? []),
+    ...(relationships.routedFrom ?? []),
   ])
   return [
     { label: 'Services', refs: dedupeResourceRefs(relationships.services ?? []) },
@@ -3767,6 +3997,8 @@ function buildDependencyRelationshipGroups(relationships: Relationships | undefi
     { label: 'Autoscalers', refs: dedupeResourceRefs(relationships.scalers ?? []) },
     { label: 'Disruption budgets', refs: dedupeResourceRefs(relationships.pdbs ?? []) },
     { label: 'Network policies', refs: dedupeResourceRefs(relationships.networkPolicies ?? []) },
+    { label: 'Staged Policies', refs: dedupeResourceRefs(relationships.stagedPolicies ?? []) },
+    { label: 'Monitored By', refs: dedupeResourceRefs(relationships.monitors ?? []) },
     { label: 'Storage claims', refs: dedupeResourceRefs(relationships.resourceClaims ?? []) },
   ].filter((group) => group.refs.length > 0)
 }
@@ -3841,16 +4073,6 @@ function summarizeServingExposure(
   return { label: 'No serving path detected', badge: 'None', severity: 'neutral' }
 }
 
-function dedupeResourceRefs(refs: ResourceRef[]): ResourceRef[] {
-  const seen = new Set<string>()
-  return refs.filter((ref) => {
-    const key = resourceRefId(ref)
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
 function resourceRefId(ref: ResourceRef): string {
   return `${ref.kind}/${ref.namespace}/${ref.name}/${ref.group ?? ''}`
 }
@@ -3874,4 +4096,27 @@ function mergeAndRankEvents(events: TimelineEvent[], updates: TimelineEvent[]): 
       if (aProblem !== bProblem) return bProblem - aProblem
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     })
+}
+
+function orderTabs(tabs: DetailShellTab<TabType>[], order: string[] | undefined): DetailShellTab<TabType>[] {
+  if (!order || order.length === 0) return tabs
+  const rank = (id: string) => {
+    const i = order.indexOf(id)
+    return i < 0 ? order.length : i
+  }
+  return tabs.map((t, i) => ({ t, i })).sort((a, b) => rank(a.t.id) - rank(b.t.id) || a.i - b.i).map((x) => x.t)
+}
+
+function mergeExtraTabs(tabs: DetailShellTab<TabType>[], extra: WorkloadExtraTab[] | undefined): DetailShellTab<TabType>[] {
+  if (!extra || extra.length === 0) return tabs
+  const replaced = new Set(extra.map((x) => x.replaces).filter(Boolean))
+  const out = tabs.map((t) => (replaced.has(t.id) ? { ...t, hidden: true } : t))
+  for (const x of extra) {
+    const tab: DetailShellTab<TabType> = { id: x.id as TabType, label: x.label, icon: x.icon, badge: x.badge }
+    const anchor = x.after ?? x.replaces
+    const idx = anchor ? out.findIndex((t) => t.id === anchor) : -1
+    if (idx >= 0) out.splice(idx + 1, 0, tab)
+    else out.push(tab)
+  }
+  return out
 }

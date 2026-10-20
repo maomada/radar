@@ -10,7 +10,7 @@ This package is source-only — it ships TypeScript + TSX files under `src/`. Co
 npm install @skyhook-io/radar-app
 ```
 
-Peer deps: `react >=19`, `react-dom >=19`, `react-router-dom >=7`, `@tanstack/react-query >=5`, `@skyhook-io/k8s-ui >=1.5.0`, plus `clsx`, `tailwind-merge`, `lucide-react`, `@xyflow/react`, `elkjs`.
+Peer deps: `react >=19`, `react-dom >=19`, `react-router-dom >=7`, `@tanstack/react-query >=5`, `@skyhook-io/k8s-ui >=1.17.1`, plus `clsx`, `tailwind-merge`, `lucide-react`, `@xyflow/react`, `elkjs`.
 
 ## Use
 
@@ -40,6 +40,8 @@ See `RadarAppProps` + `NavCustomization` in the type declarations for the full s
 When `navSlots.embedded` is true, Radar sizes itself to the host container (`height: 100%`) instead of owning the browser viewport. Mount it inside a container with a definite height so the host chrome owns the page scrollbar.
 
 Embedded mode renders only the active view. Radar Hub owns the sidebar, top bar, cluster selector, and navigation. `onClusterLoadStateChange` supplies the loading status for Hub's top bar.
+
+The package can be newer than the Radar it talks to. Features that need a newer Radar show an inline "needs Radar vX or newer" note instead of an error. Radar decides this from the `features` block of `/api/capabilities`, or from the Radar's version when it predates a flag. Pass `radarVersion` so Radar can skip those calls before `/api/version-check` answers. Pass `onRequestRadarUpgrade` to run your own upgrade flow from the note's "Upgrade Radar" button. Without it, the note links to the upgrade instructions.
 
 ## Tailwind
 

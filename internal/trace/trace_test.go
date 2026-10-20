@@ -1268,15 +1268,18 @@ func TestTraceGatewayEntry_ListsL4RoutesStaticOnly(t *testing.T) {
 	gwGVR := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways"}
 	httpGVR := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
 	tcpGVR := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1alpha2", Resource: "tcproutes"}
+	udpGVR := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1alpha2", Resource: "udproutes"}
 	dynClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
 		runtime.NewScheme(),
 		map[schema.GroupVersionResource]string{
 			gwGVR:   "GatewayList",
 			httpGVR: "HTTPRouteList",
 			tcpGVR:  "TCPRouteList",
+			udpGVR:  "UDPRouteList",
 		},
 		attachedHTTPRoute("web", "ns", "gw", "ns"),
 		attachedL4Route("TCPRoute", "db-route", "ns", "gw", "ns"),
+		attachedL4Route("UDPRoute", "dns-route", "ns", "gw", "ns"),
 	)
 	if err := dynClient.Tracker().Create(gwGVR, gatewayObject("gw", "ns"), "ns"); err != nil {
 		t.Fatalf("tracker create gateway: %v", err)
@@ -1285,11 +1288,12 @@ func TestTraceGatewayEntry_ListsL4RoutesStaticOnly(t *testing.T) {
 		{Group: "gateway.networking.k8s.io", Version: "v1", Kind: "Gateway", Name: "gateways", Namespaced: true, Verbs: []string{"list", "watch"}},
 		{Group: "gateway.networking.k8s.io", Version: "v1", Kind: "HTTPRoute", Name: "httproutes", Namespaced: true, Verbs: []string{"list", "watch"}},
 		{Group: "gateway.networking.k8s.io", Version: "v1alpha2", Kind: "TCPRoute", Name: "tcproutes", Namespaced: true, Verbs: []string{"list", "watch"}},
+		{Group: "gateway.networking.k8s.io", Version: "v1alpha2", Kind: "UDPRoute", Name: "udproutes", Namespaced: true, Verbs: []string{"list", "watch"}},
 	}); err != nil {
 		t.Fatalf("InitTestDynamicResourceCache: %v", err)
 	}
 	dynCache := k8s.GetDynamicResourceCache()
-	for _, gvr := range []schema.GroupVersionResource{gwGVR, httpGVR, tcpGVR} {
+	for _, gvr := range []schema.GroupVersionResource{gwGVR, httpGVR, tcpGVR, udpGVR} {
 		if err := dynCache.EnsureWatching(gvr); err != nil {
 			t.Fatalf("EnsureWatching %s: %v", gvr.Resource, err)
 		}
@@ -1304,11 +1308,13 @@ func TestTraceGatewayEntry_ListsL4RoutesStaticOnly(t *testing.T) {
 		t.Fatalf("BuildTraceWithOptions: %v", err)
 	}
 
-	var l4, http *Hop
+	var l4, udp, http *Hop
 	for i := range tr.Downstream {
 		switch tr.Downstream[i].Resource.Kind {
 		case "TCPRoute":
 			l4 = &tr.Downstream[i]
+		case "UDPRoute":
+			udp = &tr.Downstream[i]
 		case "HTTPRoute":
 			http = &tr.Downstream[i]
 		}
@@ -1328,6 +1334,12 @@ func TestTraceGatewayEntry_ListsL4RoutesStaticOnly(t *testing.T) {
 	}
 	if f.Severity != SeverityInfo {
 		t.Errorf("l4 not-traced note severity = %q, want info (presence is not a problem)", f.Severity)
+	}
+	if udp == nil {
+		t.Fatalf("UDPRoute attachment missing from the Gateway inventory; got %+v", tr.Downstream)
+	}
+	if uf := findingByCode(udp.Findings, "gateway:l4-route-not-traced"); uf == nil || !strings.Contains(uf.Message, "UDP listeners aren't probed") || strings.Contains(uf.Message, "TCP reachability") {
+		t.Errorf("UDPRoute note must not claim a TCP probe, got %+v", udp.Findings)
 	}
 	if findingCodePresent(http.Findings, "gateway:l4-route-not-traced") {
 		t.Errorf("HTTPRoute hop must not carry the l4 note, got %+v", http.Findings)
@@ -1496,5 +1508,118 @@ func TestBuildTrace_ServiceSubjectNilDiscoveryNoPanic(t *testing.T) {
 	}
 	if !findingCodePresent(tr.Downstream[0].Findings, "trace:upstreams-incomplete") {
 		t.Errorf("nil Discovery must flag upstreams incomplete, got %+v", tr.Downstream[0].Findings)
+	}
+}
+
+func mixedBackendPod(name, owner, image string, port int32) *corev1.Pod {
+	controller := true
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name, Namespace: "prod", Labels: map[string]string{"tier": "web"},
+			OwnerReferences: []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: "StatefulSet", Name: owner, Controller: &controller}},
+		},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{
+			Name: owner, Image: image, Ports: []corev1.ContainerPort{{ContainerPort: port}},
+		}}},
+		Status: corev1.PodStatus{
+			Phase:      corev1.PodRunning,
+			PodIP:      "10.0.0.1",
+			Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Now())}},
+		},
+	}
+}
+
+// A Service whose selector reaches a second application must not read healthy:
+// the issues engine's warning lands on the Service hop, and the Pods hop names
+// both workloads. A same-image canary gets the breakdown but stays healthy.
+func TestBuildTrace_ServiceWithMixedBackends(t *testing.T) {
+	cases := []struct {
+		name        string
+		second      *corev1.Pod
+		denyKind    string
+		wantVerdict string
+		wantSummary string
+	}{
+		{
+			name:        "different application",
+			second:      mixedBackendPod("search-0", "search", "hotel/app:v1", 8082),
+			wantVerdict: VerdictDegraded,
+			wantSummary: "Selects 2 pods from 2 workloads: frontend (1), search (1)",
+		},
+		{
+			name:        "caller who can't read the workloads gets the warning without the breakdown",
+			second:      mixedBackendPod("search-0", "search", "hotel/app:v1", 8082),
+			denyKind:    "StatefulSet",
+			wantVerdict: VerdictDegraded,
+		},
+		{
+			name:        "same-image canary",
+			second:      mixedBackendPod("frontend-canary-0", "frontend-canary", "hotel/app:v2", 5000),
+			wantVerdict: VerdictHealthy,
+			wantSummary: "Selects 2 pods from 2 workloads: frontend (1), frontend-canary (1)",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer k8s.ResetTestState()
+			svc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: "frontend", Namespace: "prod", CreationTimestamp: metav1.NewTime(time.Now().Add(-time.Hour))},
+				Spec: corev1.ServiceSpec{
+					Selector:  map[string]string{"tier": "web"},
+					ClusterIP: "10.0.0.10",
+					Ports:     []corev1.ServicePort{{Port: 5000, TargetPort: intstr.FromInt32(5000)}},
+				},
+			}
+			client := fake.NewClientset(svc, mixedBackendPod("frontend-0", "frontend", "hotel/app:v1", 5000), tc.second)
+			if err := k8s.InitTestResourceCache(client); err != nil {
+				t.Fatalf("init: %v", err)
+			}
+			deps := Deps{
+				Cache:     k8s.GetResourceCache(),
+				Dynamic:   k8s.GetDynamicResourceCache(),
+				Discovery: k8s.GetResourceDiscovery(),
+				Issues:    issues.NewCacheProvider(),
+				CanReadWorkload: func(_, kind, _ string) bool {
+					return kind != tc.denyKind
+				},
+			}
+			var trace *Trace
+			waitFor(t, func() bool {
+				tr, err := BuildTraceWithOptions(context.Background(), deps, "Service", "prod", "frontend", Options{})
+				if err != nil || len(tr.Downstream) != 2 || tr.Downstream[1].Meta["selected"] != 2 {
+					return false
+				}
+				trace = tr
+				return trace.Verdict == tc.wantVerdict
+			})
+			pods := trace.Downstream[1]
+			var summary string
+			for _, f := range pods.Findings {
+				if f.Code == "pods:multiple-workloads" {
+					summary = f.Message
+					if f.Severity != SeverityInfo {
+						t.Errorf("breakdown severity = %q, want info", f.Severity)
+					}
+				}
+			}
+			if summary != tc.wantSummary {
+				t.Errorf("breakdown = %q, want %q", summary, tc.wantSummary)
+			}
+			if rows, ok := pods.Meta["workloads"].([]map[string]any); (tc.wantSummary != "") != (ok && len(rows) == 2) {
+				t.Errorf("pods hop workloads = %#v", pods.Meta["workloads"])
+			}
+			mixed := false
+			for _, f := range trace.Downstream[0].Findings {
+				if f.Code == k8s.ServiceMixedBackendsFingerprint {
+					mixed = true
+					if f.Severity != SeverityWarning {
+						t.Errorf("mixed-backends severity = %q, want warning", f.Severity)
+					}
+				}
+			}
+			if mixed != (tc.wantVerdict == VerdictDegraded) {
+				t.Errorf("Service hop findings = %+v", trace.Downstream[0].Findings)
+			}
+		})
 	}
 }

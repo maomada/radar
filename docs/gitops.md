@@ -1,6 +1,6 @@
 # GitOps (Argo CD & Flux)
 
-Radar's GitOps workspace gives Argo CD and Flux first-class treatment. Instead of treating Applications and Kustomizations as generic CRDs, you get a typed fleet view, a per-app detail page that diagnoses *why* something is misbehaving, and the controls you'd otherwise reach for `argocd` / `flux` CLI to run.
+Radar's GitOps view gives Argo CD and Flux first-class treatment. Instead of treating Applications and Kustomizations as generic CRDs, you get a typed fleet view, a per-app detail page that diagnoses *why* something is misbehaving, and the controls you'd otherwise reach for `argocd` / `flux` CLI to run.
 
 The hard part of GitOps tooling isn't sync — it's diagnosis. Radar surfaces drift, recent events, controller-failure attribution, and lifecycle state inline so you don't have to context-switch between `kubectl get`, `argocd app diff`, controller logs, and a YAML viewer to understand a stuck reconcile.
 
@@ -37,6 +37,8 @@ Click any row to open a detail page with three top-level tabs.
 
 Graph or table sub-modes. The graph shows the application root and every managed resource, with ownership edges (Service → Deployment → ReplicaSet → Pod chains). Filter by kind, sync, health, role, namespace, or search. Group large pod sets to keep the graph scannable; click a group to expand.
 
+For Flux, the graph also shows where the root's content comes from. Its sources sit to the left of the root, with arrows pointing into it: the GitRepository, OCIRepository, Bucket or ExternalArtifact a Kustomization reads, the Kustomizations it `dependsOn`, and for a HelmRelease the chart chain. An inline `spec.chart` release draws release ← generated HelmChart (`status.helmChart`) ← the chart's source (HelmRepository, GitRepository or Bucket), so a chart that fails to pull shows as its own red node; `spec.chartRef` draws the referenced HelmChart, OCIRepository or ExternalArtifact. Source cards show what each kind has: the URL, the fetched revision, or for a HelmChart the requested chart and version. Sources are dependencies, not managed resources: they are counted separately and listed under the **Dependency** role. A source the root also manages, like a bootstrap Kustomization's own GitRepository, stays with the managed resources.
+
 GitOps CRs that are themselves managed (a child Application from an app-of-apps parent, a Kustomization referenced by another Kustomization, ApplicationSet children) render with a small `Argo` or `Flux` tool badge and a `→` chevron — click to open that CR's own GitOps detail page. The child page's breadcrumb shows the lineage `GitOps / parent-ns/parent / child-ns/child`; the parent segment is clickable to navigate back.
 
 ### Changes tab
@@ -44,7 +46,7 @@ GitOps CRs that are themselves managed (a child Application from an app-of-apps 
 Per managed resource, in one row:
 
 - **Sync status** chip (`Synced`, `OutOfSync`, etc.) with the health chip beside it
-- **Field-level drift** computed inline from each resource's `kubectl.kubernetes.io/last-applied-configuration` annotation vs live cluster state. You see actual `spec.X removed / spec.Y added` entries — no `argocd app diff` round-trip needed. Live objects are pulled via a dedicated direct-GET path so the dynamic informer cache doesn't have to retain the annotation cluster-wide
+- **Field-level drift** computed inline from each resource's `kubectl.kubernetes.io/last-applied-configuration` annotation vs live cluster state. You see actual `spec.X removed / spec.Y added` entries — no `argocd app diff` round-trip needed. Live objects are pulled via a dedicated direct-GET path so the dynamic informer cache doesn't have to retain the annotation cluster-wide. When the [Argo CD API integration](#argo-cd-api-integration-deep-diff) is connected, an expanded row instead shows the field list from Argo's own diff above the YAML diff, which also covers Git changes that haven't synced yet. That list shows at most 50 fields and says so when it was cut. It is left out for a resource missing on one side (not yet created, or pending prune), where the YAML diff shows the whole object. Rows with Argo's diff don't show the collapsed row's "N diff" badge: it counts the last-applied list, which misses unsynced Git changes, so it would undercount. The OutOfSync badge still marks the row
 - **Recent events** (5 most recent, namespace-RBAC-filtered) so `ImagePullBackOff`, `FailedScheduling`, webhook denials, PVC pending, etc. show up next to the resource that caused them
 - **Open** button — drops into the standard resource drawer
 
@@ -56,11 +58,12 @@ Operation history with deploy timestamps, the git revision deployed, who initiat
 
 ## Diagnosis pipeline
 
-The Issues band at the top of the detail page surfaces six classes of problems:
+The Issues band at the top of the detail page surfaces seven classes of problems:
 
 - **Operation failures** (Argo) — the parser recognizes 11 patterns (annotation-too-large, label-too-long, hook failure, admission webhook denial, RBAC, conflict, immutable field, schema migration, connectivity, etc.) and rewrites each into a plain-English cause
 - **Stuck-drift loop** — when sync succeeded but the app is *still* OutOfSync with auto-sync on and a recent reconcile, something is mutating resources after each apply. The Issue calls out likely culprits (mutating webhook, sibling controller, schema migration)
 - **Manual drift without auto-sync** — drift exists but auto-sync is disabled. The Issue tells you "nothing will reconcile until you click Sync" so you stop waiting
+- **Flux source and dependency failures** — when Flux reports that a Kustomization or HelmRelease is waiting on its source, chart or `dependsOn` target, the Issue links the object Flux names, so one click opens the failing GitRepository or HelmChart. A source that fails to fetch while the root is still Ready gets a warning: Flux can keep applying the last artifact it fetched, so new commits don't land while the fetch keeps failing
 - **Argo Application conditions** — `ComparisonError` (verify repo creds), `OrphanedResourceWarning`, `InvalidSpecError`, etc. extracted into typed-severity Issues
 - **Per-resource health** — Degraded / Missing children get a critical Issue each, deduped against any operation failure that already named the same resource (no triplicate rendering). See [Per-resource health](#per-resource-health) for where that health comes from
 - **Pending deletion** (lifecycle) — see [Lifecycle awareness](#lifecycle-awareness) below
@@ -90,7 +93,7 @@ Radar treats Terminating as a distinct lifecycle phase that dominates other stat
 - **Detail header**: orange `[Terminating]` chip replaces Sync/Health badges. Source / Revision / Last reconcile / Sync mode metadata swaps to `Pending deletion · Finalizers`, with the original fields behind a "Show pre-deletion metadata" toggle
 - **Action buttons**: Sync, Reconcile, Suspend / Resume, Rollback, Sync-with-source disable with a tooltip explaining why. Refresh and Terminate stay enabled — they're read-only / cleanup-only verbs
 - **Lifecycle banner**: a dedicated orange banner above the Issues band; pre-deletion failures collapse behind a `Pre-deletion issues (N)` disclosure
-- **Severity ramp**: info <5min, warning 5-30min, alert >30min. Past 30min the Issue's Cause line names the controller responsible for the finalizer and reports its pod state ("helm-controller is not running in flux-system")
+- **Severity ramp**: info <5min, warning 5-30min, alert >30min. Past 30min the Issue's Cause line names the controller responsible for the finalizer and reports its pod state ("helm-controller is not running in flux-system"). No matching pods in Argo CD’s conventional namespace is inconclusive: its controller may run elsewhere or outside the cluster (Amazon EKS Capabilities)
 - **Fleet view**: `—` in Sync/Health columns, orange row stripe, `[TERMINATING]` chip in the leftmost slot, `Pending Nago` instead of "Last Sync"
 - **Topology**: orange left-stripe on the root + children; stale sync/health chips suppressed
 - **Cluster Audit**: `stuckTerminating` check across all typed K8s resources with the same 5-minute/30-minute thresholds, presented as Medium/High posture priority
@@ -115,7 +118,7 @@ Radar treats Terminating as a distinct lifecycle phase that dominates other stat
 | Operation | What it does |
 |---|---|
 | **Reconcile** | Annotates `reconcile.fluxcd.io/requestedAt` to trigger a single reconcile |
-| **Sync with source** (Kustomization / HelmRelease) | Reconciles the source first, then the resource itself |
+| **Sync with source** (Kustomization / HelmRelease) | Requests the reconciles `flux reconcile --with-source` makes, upstream first: the source, then the resource. For a HelmRelease the source is its chart (the generated HelmChart of an inline `spec.chart`, named from the current spec, or the HelmChart / OCIRepository named by `spec.chartRef`), and a HelmChart's own source is reconciled before it, so a new chart version in the repository is picked up. A suspended or Terminating object anywhere in that chain fails the request with 409 before anything is written. Unlike the CLI, Radar does not wait for each step to finish. An ExternalArtifact comes from another controller, so only the resource is reconciled. Objects are patched at the API version the cluster serves |
 | **Suspend / Resume** | Toggles `spec.suspend` |
 
 ### Keyboard shortcuts (per-app detail page)
@@ -137,7 +140,8 @@ diff**: desired (rendered from Git, with Argo's own normalizations and every
 `ignoreDifferences` rule applied — including jq rules Radar can't evaluate)
 vs live, per managed resource, as a full YAML line diff.
 
-Setup (Settings → Argo CD, or `PUT /api/integrations/argocd`):
+Setup (Settings → Argo CD; the API is `PUT /api/integrations/connections` in
+local CLI and Desktop, and `PUT /api/integrations/argocd` in Radar Cloud):
 
 1. Create a get-only local account in `argocd-cm` (`accounts.radar: apiKey`)
    and grant it `p, role:radar, applications, get, */*, allow` in
@@ -148,8 +152,10 @@ Setup (Settings → Argo CD, or `PUT /api/integrations/argocd`):
    auto-discovery (the `argocd-server` Service, port-forwarded automatically
    when Radar runs outside the cluster), or set it explicitly for external
    endpoints. Self-signed installs need the insecure-TLS toggle.
-   Alternatively "Use Argo CD CLI session" adopts your local
-   `~/.config/argocd` token — an explicit action, never silent.
+   Alternatively, once an explicit URL is set, "Connect using CLI token" adopts
+   the token your local `~/.config/argocd` CLI config holds for that server —
+   an explicit action, never silent. With an empty URL (auto-discovery), paste
+   the token instead.
 
 Behavior and guarantees:
 
@@ -158,39 +164,85 @@ Behavior and guarantees:
   on the target resource's kind) before Argo is consulted. Users can never
   see manifests through Radar's token that Radar's RBAC would deny.
 - **Secret manifests are structurally redacted** — `data`/`stringData` values
-  are masked with per-key changed/unchanged markers on both sides of the
-  diff. There is no un-redact option.
-- The token lives in `~/.radar/config.json` (written `0600`) and is redacted
-  from `GET /api/config`; saving settings never erases it.
+  are masked per key. A value that is the same on both sides reads
+  `<redacted:unchanged>`; a value that differs reads `<redacted:desired>` and
+  `<redacted:live>`, so a rotated value still shows as a change. There is no
+  un-redact option.
+- Local CLI/Desktop tokens live in `~/.radar/clusters.json` (written `0600`)
+  and are never returned by Settings APIs. Unchanged credentials are preserved;
+  explicit removal deletes only this context's saved settings and credentials.
 - A token is bound to the server it was issued for: changing the Argo CD URL
-  requires re-entering the token. In auto-discovery mode (empty URL), the token
-  is bound to its kubeconfig source entry, survives restarts and display-name
-  qualification changes, and fails closed after a source switch so it is never
-  sent to another cluster's argocd-server. Existing name-only token bindings
-  require a one-time re-entry in Settings after upgrading.
+  origin requires replacing or clearing the token.
+- On local CLI/Desktop, every saved token, with an explicit URL or for
+  auto-discovery, is stored for one kubeconfig context and bound to that
+  cluster's identity. If the identity changes, the connection pauses until you
+  review it in Settings, so the token is never sent to another cluster's
+  argocd-server (see [cluster identity and recovery](configuration.md#cluster-identity-and-recovery)).
+  Explicit endpoints can be reused across contexts through **Copy settings
+  from…**, creating independent settings whose later edits affect only that
+  context; discovery credentials cannot. Older global settings are imported
+  automatically only when kubeconfig has a single context; otherwise choose
+  **Previous global settings** in the same picker.
+- In shared installations, an auto-discovery token (empty URL) is bound to its
+  kubeconfig source entry, survives restarts and display-name qualification
+  changes, and fails closed after a source switch so it is never sent to
+  another cluster's argocd-server.
 - Argo CD *core* installs have no argocd-server — Radar degrades to the
   annotation-based drift view. Same when the server is unreachable or the
   token expires; the Changes tab keeps working, only the deep diff goes away.
+
+### When Radar connects, and what pages do while it can't
+
+With an Argo CD URL or token configured, Radar connects to argocd-server in
+the background as soon as Kubernetes is connected: at startup, after every
+context switch, and after a settings save. With an empty URL and Radar
+running outside the cluster, that includes opening a port-forward to the
+`argocd-server` Service. Page loads never wait for this connection.
+
+What an Application page does meanwhile:
+
+- **Connecting** (no connection yet, nothing has failed): the page says Radar
+  is still connecting and asks again every 2 seconds.
+- **Retrying** (argocd-server didn't answer, refused the connection, or a
+  proxy in front of it answered 502, 503 or 504): the page shows why Argo's
+  answer is missing and asks again every 30 seconds. Radar re-checks the
+  server at most every 30 seconds, and only while a page has asked in that
+  time, so a closed page stops the retries. Only the page whose own read
+  failed keeps asking; pages for other Applications that loaded fine don't.
+- **Settled**: once Argo's answer is in, or the failure needs you (a rejected
+  token, a certificate Radar can't verify), the page stops asking.
+- **Radar didn't answer** (the page's own request to Radar failed while it was
+  waiting): the page asks again every 30 seconds until Radar answers. It
+  stops if Radar answers that the Application is gone or that you can't read
+  it.
+
+A timed-out per-resource health read is reused for up to 15 seconds, so
+requests that arrive after it, from the same page or other viewers, don't each
+wait out their own attempt. Requests that arrive at the same moment still read
+separately. Settings shows the last failed read until a read succeeds, or
+for two minutes after the last page stopped asking.
 
 The gitops-demo cluster mints a ready-to-use token into
 `scripts/gitops-demo/.radar-argocd-token` (see the demo section below).
 
 ### Provisioning the token per deployment shape
 
-The Settings paste above is right for a laptop, but not for a headless or hosted
-Radar — pasting in the UI stores the token under `/home/nonroot`, which is an
-`emptyDir` in the default chart and is lost on pod restart. Pick by how Radar runs:
+Settings edits are for local CLI/Desktop. Shared OSS installations are
+operator-controlled and read-only in Settings. Pick by how Radar runs:
 
 | Deployment | How to provision | Notes |
 |------------|------------------|-------|
-| **Local / desktop** | Settings → Argo CD (paste, or "Use Argo CD CLI session") | Interactive; persists to `~/.radar/config.json`. |
-| **In-cluster (self-hosted)** | Helm `argocd.existingSecret` (or `argocd.token`) → `RADAR_ARGOCD_TOKEN` | Declarative, survives restarts, read-only in the UI. |
+| **Local / desktop** | Settings → Argo CD (paste, or set the URL and choose "Connect using CLI token") | Interactive; per-context settings persist to `~/.radar/clusters.json`. |
+| **In-cluster** | Helm `argocd.existingSecret` (or `argocd.token`) → `RADAR_ARGOCD_TOKEN` | Declarative, survives restarts, read-only in the UI. |
 | **Radar Cloud** | The customer's in-cluster Radar carries the token (as above); the token never reaches the hub. | Same env path; the hub proxies to the binary, which holds the credential. |
 
 When a token is provided via the environment, the integration becomes
 **environment-managed**: the Settings card renders read-only and `PUT
 /api/integrations/argocd` returns `409` — the deployment is the source of truth.
-The env token is held in memory only and is never written to `~/.radar/config.json`.
+The env token is held in memory only, never written to any local Radar file.
+On local CLI/Desktop, environment overrides apply only to the launch context
+and target, not every context subsequently selected. See
+[local integration connections](configuration.md#local-integration-connections).
 
 Environment variables (read once at startup):
 
@@ -240,7 +292,25 @@ The GitOps tab isn't the only place Argo/Flux ownership matters. Surfaces across
 - **Topology** — clicking an Argo / Flux CR node opens its GitOps detail page directly, not the generic drawer
 - **Timeline** — lane labels for Argo / Flux CRs route to detail
 - **Helm view** — releases installed by Flux's helm-controller (detected via a HelmRelease CR lookup keyed by `<storageNamespace>/<releaseName>`, since Flux's labels live on the *managed* resources, not the release Secret) carry a `Flux` badge in the list and an amber `Managed by Flux · ns/name` link in the drawer, warning that `helm upgrade` would be reverted at the next reconcile
-- **Flux source CR drawers** — `GitRepository`, `HelmRepository`, `OCIRepository`, `Bucket` drawers carry a `Consumed by` panel listing every Kustomization + HelmRelease whose `spec.sourceRef` points at the source. Answers "if I edit this, what gets affected on the next reconcile?" without guessing
+- **Flux source CR drawers** — Related Resources › **Required by** lists the Kustomizations, HelmReleases and HelmCharts that read the source, within Radar's namespace scope. Answers "if I edit this, what gets affected on the next reconcile?"
+
+## Revert warnings before a write
+
+Before Radar writes to an object a GitOps controller or a Helm release owns, the dialog says what will happen to the change: **will revert**, **may revert**, an informational note, or nothing, with the reasons and a link to the owner. Set image and the Diagnose **Apply** dialog use it. A possible revert asks for an acknowledgment, which clears whenever the verdict changes.
+
+Radar's caches strip `managedFields` and the last-applied annotation, so the browser asks the server: `POST /api/gitops/write-evidence` with `{kind, group, namespace, name, paths[], owner?}`. The server reads the target, and its Argo CD Application or Flux Kustomization/HelmRelease owner, **as the caller**, and returns per field path:
+
+- whether the path is in the last client-side apply (`present` / `absent` / `no-annotation`);
+- which field managers own it, and whether one is the owner's own controller (`approximate` when a manager owns only an ancestor or part of the path, e.g. one container's image under `containers[*]`);
+- whether an ignore rule covers it: `effective` (Argo `ignoreDifferences` with `RespectIgnoreDifferences`, Flux `driftDetection.ignore`, or a reconcile opt-out annotation; Flux's `ssa: IfNotPresent` is read from the live object, which doesn't prove the source declares it, so it stays **may revert**), `comparison-only` (Argo without `RespectIgnoreDifferences`: self-heal won't react, the next sync overwrites), or `unevaluated` (a jq rule, a rule that covers only some of the entries a wildcard matches, or a Flux Kustomization's `spec.ignore`, which Flux documents as keeping a live edit but which hasn't been checked against a live controller). Argo's instance-wide ignore rules in `argocd-cm` aren't read, so a field only they cover still reads as the source setting it. `RespectIgnoreDifferences` counts only from the Application's own sync options: Argo reads it from the sync operation, never from a resource's `sync-options` annotation. Argo matches a `managedFieldsManagers` rule against the field's live owner, and the write makes Radar the owner, so a rule naming another manager doesn't count and one naming Radar's own (`radar`) is `unevaluated`. Argo rules match `group`/`kind` `"*"`; Flux targets are anchored regular expressions, as in Kustomize;
+- a wildcard path (`containers[*].image`) is judged per entry of the live object: the source must declare every container, or a rule cover every container, before the verdict is certain. When the source declares only some, the field is `partial` and the verdict is **may revert**; a wildcard that matches nothing (no init containers) is `empty` and adds no verdict. Set image uses the wildcard only until the dialog lists the containers; then it asks about each container by name (so the evidence can't predate the list) and judges the ones you change;
+- and the owner's sync policy (auto, self-heal, prune, suspended).
+
+For an Argo CD owner it also reports `ownerTracksTarget`, whether the Application's status lists the object. Argo CD 3 leaves the namespace out of tracking ids for Applications in its own namespace, so Radar finds the Application by name; the status listing confirms it, and without it a name-only match never waives the acknowledgment.
+
+It never returns managedFields or last-applied content, only these facts. Bodies are capped at 16 KiB (413) and at 64 paths; unknown fields are rejected (400). Wildcards in one request expand to at most 256 live entries; a path past that carries an `error` (read as **may revert**) instead of a verdict. Kubernetes 403/404 pass through.
+
+The classification is `evaluateGitOpsWriteGuard` in k8s-ui (`utils/gitops-write-guard.ts`), shown by `GitOpsWriteWarning`; the hook is `web/src/hooks/useGitOpsWriteGuard.ts`. Ownership comes from the resource's relationships, or its parent workload's when it carries no owner of its own (a Pod inherits its Deployment's). When the server hasn't built either yet, the parent can't be read, or the server reports a manager the browser can't resolve (the Diagnose run's `managedBy`), ownership is treated as unknown: **may revert**, with an acknowledgment. A Radar without the endpoint (no `gitopsWriteEvidence` capability) gets the same conservative warning, whose reason says it needs a newer Radar; the write itself still works. The copy never promises a change won't be reverted.
 
 ## MCP integration
 

@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // informerEventID derives a deterministic id from the resource's observable
@@ -151,46 +152,28 @@ func historicalCollisionGroup(kind, apiVersion string) string {
 	return group
 }
 
-// ExtractOwner gets the controller owner reference from an object
-// For K8s Events, it extracts the involvedObject instead
+// ExtractOwner returns an object's owner as its ownerReferences name it: the
+// controller when one is marked, otherwise the first reference. Scope is left
+// for the caller, which can consult discovery.
 func ExtractOwner(obj any) *OwnerInfo {
-	// Special case: K8s Events use involvedObject, not ownerReferences
-	if event, ok := obj.(*corev1.Event); ok {
-		if event.InvolvedObject.Kind != "" && event.InvolvedObject.Name != "" {
-			return &OwnerInfo{
-				Kind: event.InvolvedObject.Kind,
-				Name: event.InvolvedObject.Name,
-			}
-		}
-		return nil
-	}
-
 	meta, ok := obj.(metav1.Object)
 	if !ok {
 		return nil
 	}
-
 	refs := meta.GetOwnerReferences()
-
-	// First, try to find a controller owner (most accurate)
 	for _, ref := range refs {
 		if ref.Controller != nil && *ref.Controller {
-			return &OwnerInfo{
-				Kind: ref.Kind,
-				Name: ref.Name,
-			}
+			return ownerFromReference(ref)
 		}
 	}
-
-	// Fallback: use first owner reference if no controller is marked
 	if len(refs) > 0 {
-		return &OwnerInfo{
-			Kind: refs[0].Kind,
-			Name: refs[0].Name,
-		}
+		return ownerFromReference(refs[0])
 	}
-
 	return nil
+}
+
+func ownerFromReference(ref metav1.OwnerReference) *OwnerInfo {
+	return &OwnerInfo{Kind: ref.Kind, Name: ref.Name, APIVersion: ref.APIVersion, UID: string(ref.UID)}
 }
 
 // ExtractLabels extracts labels useful for grouping from an object
@@ -201,9 +184,6 @@ func ExtractLabels(obj any) map[string]string {
 	}
 
 	allLabels := meta.GetLabels()
-	if len(allLabels) == 0 {
-		return nil
-	}
 
 	// Only keep labels that are useful for grouping. The GitOps identity
 	// labels must ride along or the app-membership matchKeys the server ships
@@ -232,11 +212,43 @@ func ExtractLabels(obj any) map[string]string {
 			relevant[key] = v
 		}
 	}
+	if cluster := cnpgOwningCluster(obj, allLabels); cluster != "" {
+		relevant[CNPGClusterLabel] = cluster
+	}
 
 	if len(relevant) == 0 {
 		return nil
 	}
 	return relevant
+}
+
+// CNPGClusterLabel is the retained label naming the CloudNativePG Cluster a
+// row's subject belongs to.
+const CNPGClusterLabel = "cnpg.io/cluster"
+
+// cnpgOwningCluster names the CloudNativePG Cluster an object belongs to, so a
+// child's rows stay attributable after it is deleted. CNPG children that
+// reference their Cluster through spec.cluster.name (Backup, Pooler, Database,
+// ...) are not all labelled; the operator only labels what it creates.
+func cnpgOwningCluster(obj any, labels map[string]string) string {
+	switch o := obj.(type) {
+	case *corev1.Pod:
+		return labels[CNPGClusterLabel]
+	case *unstructured.Unstructured:
+		group := resourceid.GroupFromAPIVersion(o.GetAPIVersion())
+		if group == "" && o.GetKind() == "Pod" {
+			return labels[CNPGClusterLabel]
+		}
+		if group != "postgresql.cnpg.io" && group != "barmancloud.cnpg.io" {
+			return ""
+		}
+		if v := labels[CNPGClusterLabel]; v != "" {
+			return v
+		}
+		name, _, _ := unstructured.NestedString(o.Object, "spec", "cluster", "name")
+		return name
+	}
+	return ""
 }
 
 // Resource health classification for timeline events lives with the canonical

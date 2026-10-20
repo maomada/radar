@@ -68,7 +68,7 @@ import {
 } from '../resources/resource-utils-kyverno-exceptions'
 import { getResourceClaimStatus, getResourceClaimTemplateStatus, getDeviceClassStatus, getResourceSliceStatus } from '../resources/resource-utils-dra'
 import { getNvidiaClusterPolicyStatus, getNvidiaDriverStatus } from '../resources/resource-utils-nvidia'
-import { getClusterQueueStatus, getLocalQueueStatus, getKueueWorkloadStatus, getResourceFlavorStatus, getAdmissionCheckStatus, getProvisioningRequestStatus } from '../resources/resource-utils-kueue'
+import { isKueueQueueResource, getClusterQueueStatus, getLocalQueueStatus, getKueueWorkloadStatus, getResourceFlavorStatus, getAdmissionCheckStatus, getProvisioningRequestStatus } from '../resources/resource-utils-kueue'
 import { getRayClusterStatus, getRayJobStatus, getRayServiceStatus, getRayCronJobStatus } from '../resources/resource-utils-ray'
 import { getLeaderWorkerSetStatus, getJobSetStatus, isJobSetV1Alpha2 } from '../resources/resource-utils-jobset-lws'
 import { getInferenceServiceStatus, getServingRuntimeStatus, getInferenceGraphStatus, getTrainedModelStatus, getLLMInferenceServiceStatus } from '../resources/resource-utils-kserve'
@@ -116,6 +116,13 @@ import {
   JobRenderer,
   JobSetRenderer,
   KueueWorkloadRenderer,
+  RayServiceRenderer,
+  RayClusterRenderer,
+  RayJobRenderer,
+  AdmissionCheckRenderer,
+  ProvisioningRequestRenderer,
+  LocalQueueRenderer,
+  ClusterQueueRenderer,
   CronJobRenderer,
   CronWorkflowRenderer,
   HPARenderer,
@@ -186,6 +193,7 @@ import {
   CNPGDatabaseRenderer,
   CNPGPublicationRenderer,
   CNPGSubscriptionRenderer,
+  CNPGDatabaseRoleRenderer,
   CNPGImageCatalogRenderer,
   KyvernoGlobalContextRenderer,
   KyvernoUpdateRequestRenderer,
@@ -306,6 +314,12 @@ import type { ScalerDiagnosis } from '../resources/renderers/WorkloadRenderer'
  * When an override is not provided, the base (shared) renderer is used.
  */
 export interface RendererOverrides {
+  JobRenderer?: React.ComponentType<{ data: any; onNavigate?: (ref: ResourceRef) => void }>
+  JobSetRenderer?: React.ComponentType<{ data: any; onNavigate?: (ref: ResourceRef) => void }>
+  RayJobRenderer?: React.ComponentType<{ data: any; onNavigate?: (ref: ResourceRef) => void }>
+  RayClusterRenderer?: React.ComponentType<{ data: any; onNavigate?: (ref: ResourceRef) => void }>
+  RayServiceRenderer?: React.ComponentType<{ data: any; onNavigate?: (ref: ResourceRef) => void }>
+  KueueWorkloadRenderer?: React.ComponentType<{ data: any; onNavigate?: (ref: ResourceRef) => void }>
   PodRenderer?: React.ComponentType<{
     data: any; onCopy: CopyHandler; copied: string | null
     onNavigate?: (ref: ResourceRef) => void
@@ -436,12 +450,12 @@ const KNOWN_KINDS = new Set([
   'pods', 'deployments', 'statefulsets', 'daemonsets', 'replicasets',
   'services', 'endpointslices', 'ingresses', 'configmaps', 'secrets', 'jobs', 'cronjobs', 'cronworkflows',
   'jobsets',
-  'workloads',
+  'rayclusters', 'rayservices', 'rayjobs', 'workloads', 'localqueues', 'clusterqueues', 'admissionchecks', 'provisioningrequests',
   'hpas', 'horizontalpodautoscalers', 'nodes', 'persistentvolumeclaims',
   'rollouts', 'analysisruns', 'analysistemplates', 'clusteranalysistemplates', 'experiments', 'certificates', 'workflows', 'persistentvolumes',
   'storageclasses', 'certificaterequests', 'clusterissuers', 'issuers',
   'orders', 'challenges',
-  'gateways', 'gatewayclasses', 'httproutes', 'grpcroutes', 'tcproutes', 'tlsroutes', 'sealedsecrets', 'workflowtemplates', 'clusterworkflowtemplates',
+  'gateways', 'gatewayclasses', 'httproutes', 'grpcroutes', 'tcproutes', 'tlsroutes', 'udproutes', 'sealedsecrets', 'workflowtemplates', 'clusterworkflowtemplates',
   'networkpolicies', 'networkpolicy',
   'globalnetworkpolicies', 'globalnetworkpolicy',
   'stagednetworkpolicies', 'stagednetworkpolicy',
@@ -481,7 +495,7 @@ const KNOWN_KINDS = new Set([
   'externalsecrets', 'clusterexternalsecrets', 'secretstores', 'clustersecretstores',
   'clusters', 'scheduledbackups', 'poolers', 'objectstores',
   'globalcontextentries', 'updaterequests', 'ephemeralreports', 'clusterephemeralreports',
-  'databases', 'publications', 'imagecatalogs', 'clusterimagecatalogs',
+  'databases', 'publications', 'imagecatalogs', 'clusterimagecatalogs', 'databaseroles',
   'virtualservices', 'destinationrules', 'serviceentries',
   'peerauthentications', 'authorizationpolicies',
   'mutatingwebhookconfigurations', 'validatingwebhookconfigurations',
@@ -689,9 +703,10 @@ export function ResourceRendererDispatch({
   const isGroupGatedKind =
     kind === 'clusters' || kind === 'backups' || kind === 'scheduledbackups' || kind === 'poolers'
     || kind === 'objectstores' || kind === 'databases' || kind === 'publications'
-    || kind === 'subscriptions' || kind === 'imagecatalogs' || kind === 'clusterimagecatalogs' || kind === 'jobsets'
+    || kind === 'subscriptions' || kind === 'imagecatalogs' || kind === 'clusterimagecatalogs' || kind === 'databaseroles' || kind === 'jobsets'
     || kind === 'policies' || kind === 'rollouts' || kind === 'experiments'
-    || kind === 'machines' || kind === 'machinesets' || kind === 'workloads'
+    || kind === 'rayjobs' || kind === 'rayclusters' || kind === 'rayservices' || kind === 'admissionchecks' || kind === 'provisioningrequests'
+    || kind === 'machines' || kind === 'machinesets' || kind === 'workloads' || kind === 'localqueues' || kind === 'clusterqueues'
   const isCNPGApiVersion = isApiGroup(data?.apiVersion, CNPG_GROUP)
   const groupGatedMatched =
     (kind === 'clusters' && (isCNPGApiVersion || isApiGroup(data?.apiVersion, 'cluster.x-k8s.io')))
@@ -699,7 +714,7 @@ export function ResourceRendererDispatch({
     || ((kind === 'scheduledbackups' || kind === 'poolers') && isCNPGApiVersion)
     || (kind === 'objectstores' && isApiGroup(data?.apiVersion, 'barmancloud.cnpg.io'))
     || ((kind === 'databases' || kind === 'publications' || kind === 'imagecatalogs'
-      || kind === 'clusterimagecatalogs') && isCNPGApiVersion)
+      || kind === 'clusterimagecatalogs' || kind === 'databaseroles') && isCNPGApiVersion)
     || (kind === 'subscriptions'
       && (isCNPGApiVersion || isApiGroup(data?.apiVersion, 'messaging.knative.dev')))
     || (kind === 'policies' && isApiGroup(data?.apiVersion, 'kyverno.io'))
@@ -711,8 +726,14 @@ export function ResourceRendererDispatch({
     || (kind === 'experiments' && isApiGroup(data?.apiVersion, 'argoproj.io'))
     || ((kind === 'machines' || kind === 'machinesets')
       && isApiGroup(data?.apiVersion, 'cluster.x-k8s.io'))
+    || (kind === 'rayjobs' && data?.apiVersion === 'ray.io/v1')
+    || (kind === 'rayclusters' && data?.apiVersion === 'ray.io/v1')
+    || (kind === 'rayservices' && data?.apiVersion === 'ray.io/v1')
     || (kind === 'jobsets' && isJobSetV1Alpha2(data))
     || (kind === 'workloads' && isApiGroup(data?.apiVersion, 'kueue.x-k8s.io'))
+    || (kind === 'admissionchecks' && isKueueQueueResource(data))
+    || (kind === 'provisioningrequests' && ['autoscaling.x-k8s.io/v1', 'autoscaling.x-k8s.io/v1beta1'].includes(data?.apiVersion))
+    || ((kind === 'localqueues' || kind === 'clusterqueues') && isKueueQueueResource(data))
   const groupGatedFallthrough = isGroupGatedKind && !groupGatedMatched
 
   const calicoApiVersionMatched = isCalicoApiVersion(data?.apiVersion)
@@ -733,6 +754,12 @@ export function ResourceRendererDispatch({
 
   const isKnownKind = KNOWN_KINDS.has(kind) || isCrossplaneMR || isCrossplaneClaim || isCrossplaneXR
 
+  const JobComp = rendererOverrides?.JobRenderer ?? JobRenderer
+  const JobSetComp = rendererOverrides?.JobSetRenderer ?? JobSetRenderer
+  const RayJobComp = rendererOverrides?.RayJobRenderer ?? RayJobRenderer
+  const RayClusterComp = rendererOverrides?.RayClusterRenderer ?? RayClusterRenderer
+  const RayServiceComp = rendererOverrides?.RayServiceRenderer ?? RayServiceRenderer
+  const KueueWorkloadComp = rendererOverrides?.KueueWorkloadRenderer ?? KueueWorkloadRenderer
   const PodComp = rendererOverrides?.PodRenderer ?? PodRenderer
   const KarpenterNodePoolComp = rendererOverrides?.KarpenterNodePoolRenderer ?? KarpenterNodePoolRenderer
   const WorkloadComp = rendererOverrides?.WorkloadRenderer ?? WorkloadRenderer
@@ -771,10 +798,10 @@ export function ResourceRendererDispatch({
   const sidebarContent = showCommonSections && (
     <>
       <RelatedResourcesSection relationships={sidebarRelationships} onNavigate={onNavigate} />
-      {kind !== 'events' && <EventsSection events={events || []} updates={updates || []} isLoading={eventsLoading ?? false} eventsError={eventsError ?? null} updatesError={updatesError ?? null} hint={eventsHint} />}
+      {kind !== 'events' && <EventsSection fullscreen={!!renderSidebar} events={events || []} updates={updates || []} isLoading={eventsLoading ?? false} eventsError={eventsError ?? null} updatesError={updatesError ?? null} hint={eventsHint} />}
       <LabelsSection data={data} />
       <AnnotationsSection data={data} />
-      <MetadataSection data={data} />
+      <MetadataSection data={data} onNavigate={onNavigate} />
     </>
   )
 
@@ -800,9 +827,16 @@ export function ResourceRendererDispatch({
         {kind === 'ingresses' && !data?.apiVersion?.includes('networking.internal.knative.dev') && <IngressRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'configmaps' && <ConfigMapRenderer data={data} relationships={relationships} onNavigate={onNavigate} />}
         {kind === 'secrets' && <SecretRenderer data={data} relationships={relationships} onNavigate={onNavigate} certificateInfo={certificateInfo} resourceData={data} onSaveSecretValue={onSaveSecretValue} isSaving={isSavingSecret} />}
-        {kind === 'jobs' && !nonCoreJobFallthrough && <JobRenderer data={data} />}
-        {kind === 'workloads' && isApiGroup(data?.apiVersion, 'kueue.x-k8s.io') && <KueueWorkloadRenderer data={data} onNavigate={onNavigate} />}
-        {kind === 'jobsets' && isJobSetV1Alpha2(data) && <JobSetRenderer data={data} />}
+        {kind === 'jobs' && !nonCoreJobFallthrough && <JobComp data={data} onNavigate={onNavigate} />}
+        {kind === 'rayjobs' && data?.apiVersion === 'ray.io/v1' && <RayJobComp data={data} onNavigate={onNavigate} />}
+        {kind === 'rayclusters' && data?.apiVersion === 'ray.io/v1' && <RayClusterComp data={data} onNavigate={onNavigate} />}
+        {kind === 'rayservices' && data?.apiVersion === 'ray.io/v1' && <RayServiceComp data={data} onNavigate={onNavigate} />}
+        {kind === 'workloads' && isApiGroup(data?.apiVersion, 'kueue.x-k8s.io') && <KueueWorkloadComp data={data} onNavigate={onNavigate} />}
+        {kind === 'admissionchecks' && isKueueQueueResource(data) && <AdmissionCheckRenderer data={data} onNavigate={onNavigate} />}
+        {kind === 'provisioningrequests' && ['autoscaling.x-k8s.io/v1', 'autoscaling.x-k8s.io/v1beta1'].includes(data?.apiVersion) && <ProvisioningRequestRenderer data={data} onNavigate={onNavigate} />}
+        {kind === 'localqueues' && isKueueQueueResource(data) && <LocalQueueRenderer data={data} onNavigate={onNavigate} />}
+        {kind === 'clusterqueues' && isKueueQueueResource(data) && <ClusterQueueRenderer data={data} onNavigate={onNavigate} />}
+        {kind === 'jobsets' && isJobSetV1Alpha2(data) && <JobSetComp data={data} onNavigate={onNavigate} />}
         {kind === 'cronjobs' && <CronJobRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'cronworkflows' && <CronWorkflowRenderer data={data} onNavigate={onNavigate} />}
         {(kind === 'hpas' || kind === 'horizontalpodautoscalers') && <HPAComp data={data} onNavigate={onNavigate} hpaDiagnosis={hpaDiagnosis} />}
@@ -827,6 +861,7 @@ export function ResourceRendererDispatch({
         {kind === 'grpcroutes' && <GRPCRouteRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'tcproutes' && <SimpleRouteRenderer data={data} kind="TCPRoute" onNavigate={onNavigate} />}
         {kind === 'tlsroutes' && <SimpleRouteRenderer data={data} kind="TLSRoute" onNavigate={onNavigate} />}
+        {kind === 'udproutes' && <SimpleRouteRenderer data={data} kind="UDPRoute" onNavigate={onNavigate} />}
         {kind === 'sealedsecrets' && <SealedSecretRenderer data={data} onNavigate={onNavigate} />}
         {(kind === 'workflowtemplates' || kind === 'clusterworkflowtemplates') && <WorkflowTemplateRenderer data={data} />}
         {isCoreNetworkPolicy && <NetworkPolicyRenderer data={data} />}
@@ -893,6 +928,7 @@ export function ResourceRendererDispatch({
         {kind === 'databases' && isApiGroup(data.apiVersion, CNPG_GROUP) && <CNPGDatabaseComp data={data} onNavigate={onNavigate} />}
         {kind === 'publications' && isApiGroup(data.apiVersion, CNPG_GROUP) && <CNPGPublicationComp data={data} onNavigate={onNavigate} />}
         {kind === 'subscriptions' && isApiGroup(data.apiVersion, CNPG_GROUP) && <CNPGSubscriptionComp data={data} onNavigate={onNavigate} />}
+        {kind === 'databaseroles' && isApiGroup(data.apiVersion, CNPG_GROUP) && <CNPGDatabaseRoleRenderer data={data} onNavigate={onNavigate} />}
         {(kind === 'imagecatalogs' || kind === 'clusterimagecatalogs') && isApiGroup(data.apiVersion, CNPG_GROUP) && <CNPGImageCatalogComp data={data} onNavigate={onNavigate} />}
         {kind === 'backups' && isApiGroup(data.apiVersion, CNPG_GROUP) && <CNPGBackupRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'backups' && isApiGroup(data.apiVersion, 'velero.io') && <VeleroBackupComp data={data} onNavigate={onNavigate} />}
@@ -938,14 +974,14 @@ export function ResourceRendererDispatch({
         {kind === 'azuremanagedcontrolplanes' && <AzureManagedControlPlaneRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'azuremanagedmachinepools' && <AzureManagedMachinePoolRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'azuremachines' && <AzureMachineRenderer data={data} onNavigate={onNavigate} />}
-        {kind === 'virtualservices' && <IstioVirtualServiceRenderer data={data} onNavigate={onNavigate} />}
-        {kind === 'destinationrules' && <IstioDestinationRuleRenderer data={data} onNavigate={onNavigate} />}
+        {kind === 'virtualservices' && <IstioVirtualServiceRenderer data={data} onNavigate={onNavigate} serviceDomain={relationships?.istioServiceDomain} />}
+        {kind === 'destinationrules' && <IstioDestinationRuleRenderer data={data} onNavigate={onNavigate} serviceDomain={relationships?.istioServiceDomain} />}
         {kind === 'serviceentries' && <IstioServiceEntryRenderer data={data} />}
         {kind === 'peerauthentications' && <IstioPeerAuthenticationRenderer data={data} />}
         {kind === 'authorizationpolicies' && <IstioAuthorizationPolicyRenderer data={data} />}
         {kind === 'mutatingwebhookconfigurations' && <WebhookConfigRenderer data={data} isMutating />}
         {kind === 'validatingwebhookconfigurations' && <WebhookConfigRenderer data={data} />}
-        {kind === 'ingressclasses' && <IngressClassRenderer data={data} />}
+        {kind === 'ingressclasses' && <IngressClassRenderer data={data} onNavigate={onNavigate} />}
         {kind === 'priorityclasses' && <PriorityClassRenderer data={data} />}
         {kind === 'runtimeclasses' && <RuntimeClassRenderer data={data} />}
         {kind === 'leases' && <LeaseRenderer data={data} />}
@@ -1096,11 +1132,11 @@ export function getResourceStatus(kind: string, data: any): { text: string; colo
   if (k === 'clusterqueues' && data?.apiVersion?.startsWith('kueue.x-k8s.io/')) return getClusterQueueStatus(data)
   if (k === 'localqueues' && data?.apiVersion?.startsWith('kueue.x-k8s.io/')) return getLocalQueueStatus(data)
   if (k === 'resourceflavors' && data?.apiVersion?.startsWith('kueue.x-k8s.io/')) return getResourceFlavorStatus(data)
-  if (k === 'admissionchecks' && data?.apiVersion?.startsWith('kueue.x-k8s.io/')) return getAdmissionCheckStatus(data)
-  if (k === 'provisioningrequests' && data?.apiVersion?.startsWith('autoscaling.x-k8s.io/')) return getProvisioningRequestStatus(data)
-  if (k === 'rayclusters' && data?.apiVersion?.startsWith('ray.io/')) return getRayClusterStatus(data)
-  if (k === 'rayjobs' && data?.apiVersion?.startsWith('ray.io/')) return getRayJobStatus(data)
-  if (k === 'rayservices' && data?.apiVersion?.startsWith('ray.io/')) return getRayServiceStatus(data)
+  if (k === 'admissionchecks' && isKueueQueueResource(data)) return getAdmissionCheckStatus(data)
+  if (k === 'provisioningrequests' && ['autoscaling.x-k8s.io/v1', 'autoscaling.x-k8s.io/v1beta1'].includes(data?.apiVersion)) return getProvisioningRequestStatus(data)
+  if (k === 'rayclusters' && data?.apiVersion === 'ray.io/v1') return getRayClusterStatus(data)
+  if (k === 'rayjobs' && data?.apiVersion === 'ray.io/v1') return getRayJobStatus(data)
+  if (k === 'rayservices' && data?.apiVersion === 'ray.io/v1') return getRayServiceStatus(data)
   if (k === 'raycronjobs' && data?.apiVersion?.startsWith('ray.io/')) return getRayCronJobStatus(data)
   if (k === 'leaderworkersets' && data?.apiVersion?.startsWith('leaderworkerset.x-k8s.io/')) return getLeaderWorkerSetStatus(data)
   if (k === 'jobsets' && isJobSetV1Alpha2(data)) return getJobSetStatus(data)
@@ -1157,7 +1193,7 @@ export function getResourceStatus(kind: string, data: any): { text: string; colo
     return getGatewayStatus(data)
   }
   if (k === 'gatewayclasses') return getGatewayClassStatus(data)
-  if (k === 'httproutes' || k === 'grpcroutes' || k === 'tcproutes' || k === 'tlsroutes') return getRouteStatus(data)
+  if (k === 'httproutes' || k === 'grpcroutes' || k === 'tcproutes' || k === 'tlsroutes' || k === 'udproutes') return getRouteStatus(data)
   if (k === 'sealedsecrets') return getSealedSecretStatus(data)
   if (k === 'poddisruptionbudgets') return getPDBStatus(data)
   if (k === 'gitrepositories') return getGitRepositoryStatus(data)
@@ -1214,7 +1250,7 @@ export function getResourceStatus(kind: string, data: any): { text: string; colo
   }
   // Group-guarded for the same reason as the renderers: these plurals are
   // generic enough that another operator can serve them.
-  if ((k === 'databases' || k === 'publications' || k === 'subscriptions') && isApiGroup(data.apiVersion, CNPG_GROUP)) {
+  if ((k === 'databases' || k === 'publications' || k === 'subscriptions' || k === 'databaseroles') && isApiGroup(data.apiVersion, CNPG_GROUP)) {
     return getCNPGDeclarativeStatus(data)
   }
   if (k === 'globalcontextentries') return getKyvernoGlobalContextStatus(data)

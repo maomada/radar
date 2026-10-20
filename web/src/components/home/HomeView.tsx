@@ -20,7 +20,7 @@ import {
   FreshnessControl,
   PaneLoader,
   StatusDot,
-  categoryLabel,
+  issueTitle,
   groupLabel,
   issueFirstSeenTitle,
   issueTimingForDisplay,
@@ -30,6 +30,8 @@ import {
 import { formatCompactAge } from '@skyhook-io/k8s-ui/utils/format'
 import { ClusterHealthCard } from './ClusterHealthCard'
 import { AlertTriangle, CheckCircle, Loader2, Shield } from 'lucide-react'
+import { uncheckedSourceLines } from '../issues/uncheckedSources'
+import { UncheckedSourceHelp } from '../issues/UncheckedSourceHelp'
 import { clsx } from 'clsx'
 import { getVersionUpdateStatus } from '../../utils/version'
 import { RadarVersionLine } from './RadarVersionLine'
@@ -52,9 +54,11 @@ interface HomeViewProps {
   onNavigateToUpgradeImpact?: () => void
   onNavigateToHelmRelease?: (namespace: string, release: string) => void
   onNavigateToManagerPath?: (path: string) => void
+  // Present only when release notes exist for this version.
+  onShowWhatsNew?: () => void
 }
 
-export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNavigateToView, onNavigateToResourceKind, onNavigateToResource, onNavigateToCerts, onNavigateToUpgradeImpact, onNavigateToHelmRelease, onNavigateToManagerPath }: HomeViewProps) {
+export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNavigateToView, onNavigateToResourceKind, onNavigateToResource, onNavigateToCerts, onNavigateToUpgradeImpact, onNavigateToHelmRelease, onNavigateToManagerPath, onShowWhatsNew }: HomeViewProps) {
   // The card itself decides whether the cluster has a capacity story
   // (available, softened-denied, or karpenterless-with-managers/groups) and
   // returns null otherwise — the outer gate only excludes states with nothing
@@ -65,7 +69,7 @@ export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNav
     karpenterState === 'available' || karpenterState === 'denied' || karpenterState === 'not_detected'
   const { data, isLoading, error, dataUpdatedAt, refetch } = useDashboard(namespaces)
   const { connection } = useConnection()
-  const { data: issuesData, isLoading: issuesLoading, isFetching: issuesFetching, error: issuesError } = useIssues(namespaces)
+  const { data: issuesData, isLoading: issuesLoading, isFetching: issuesFetching, error: issuesError, refetch: refetchIssues } = useIssues(namespaces)
   const issues = issuesData?.issues ?? []
   const issueCount = issuesData?.total_matched ?? issuesData?.total ?? issues.length
   const hasCriticalIssues = issues.some((issue) => issue.severity === 'critical')
@@ -138,9 +142,11 @@ export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNav
         )}
         {/* Row 1: Cluster Health Card (combined health + resource counts) */}
         <ClusterHealthCard
-          radarVersion={deploymentMode === 'in-cluster' && versionInfo ? (
+          radarVersion={versionInfo && deploymentMode !== 'cloud' ? (
             <RadarVersionLine
               version={versionInfo}
+              showUpgrade={deploymentMode === 'in-cluster'}
+              onShowWhatsNew={onShowWhatsNew}
               manager={installationManager}
               managerLoading={installationManagerLoading}
               onNavigateToHelmRelease={onNavigateToHelmRelease}
@@ -207,7 +213,7 @@ export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNav
                 />
               </BandItem>
               <BandItem>
-                <CostCard onNavigate={() => onNavigateToView('cost')} />
+                <CostCard namespaces={namespaces} onNavigate={() => onNavigateToView('cost')} />
               </BandItem>
             </div>
 
@@ -267,6 +273,8 @@ export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNav
             issues={issues}
             issueCount={issueCount}
             visibility={issuesData?.visibility}
+            uncheckedLines={uncheckedSourceLines(issuesData?.unchecked_sources)}
+            onRetryIssues={() => { void refetchIssues({ cancelRefetch: false }) }}
             hasData={!!issuesData}
             isLoading={issuesLoading && !issuesData}
             isRefreshing={issuesFetching && !!issuesData}
@@ -296,6 +304,10 @@ interface ProblemsPanelProps {
   issues: Issue[]
   issueCount: number
   visibility?: IssuesResponse['visibility']
+  /** One line per issue source Radar couldn't check. Any line means an
+   *  empty list isn't an all-clear. */
+  uncheckedLines?: string[]
+  onRetryIssues: () => void
   hasData: boolean
   isLoading: boolean
   isRefreshing: boolean
@@ -305,11 +317,12 @@ interface ProblemsPanelProps {
   onResourceClick: (resource: SelectedResource) => void
 }
 
-
-function ProblemsPanel({
+export function ProblemsPanel({
   issues,
   issueCount,
   visibility,
+  uncheckedLines = [],
+  onRetryIssues,
   hasData,
   isLoading,
   isRefreshing,
@@ -318,6 +331,7 @@ function ProblemsPanel({
   onNavigateToIssues,
   onResourceClick,
 }: ProblemsPanelProps) {
+  const unchecked = uncheckedLines.length > 0
   const hasCriticalIssues = issues.some((issue) => issue.severity === 'critical')
   const hasIssues = issueCount > 0
   const hasHardError = !!error && !hasData
@@ -325,14 +339,14 @@ function ProblemsPanel({
   const isTruncated = issueCount > totalReturned
   const titleClass = hasCriticalIssues
     ? 'text-red-500'
-    : hasIssues || hasHardError || hasLimitedVisibility
+    : hasIssues || hasHardError || hasLimitedVisibility || unchecked
       ? 'text-amber-500'
       : 'text-theme-text-secondary'
   const countClass = hasHardError
     ? 'status-unknown'
     : hasCriticalIssues
       ? 'status-unhealthy'
-      : hasIssues || hasLimitedVisibility
+      : hasIssues || hasLimitedVisibility || unchecked
         ? 'status-degraded'
         : 'status-healthy'
   const countLabel = isLoading ? '...' : hasHardError ? 'error' : String(issueCount)
@@ -347,7 +361,7 @@ function ProblemsPanel({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded-md px-2 py-1 text-xs font-medium text-accent-text transition-colors hover:bg-accent-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent)]/40"
+            className="rounded-md px-2 py-1 text-xs font-medium text-accent-text transition-colors hover:bg-accent-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent,var(--accent))]/40"
             onClick={onNavigateToIssues}
           >
             View all
@@ -383,6 +397,12 @@ function ProblemsPanel({
                 Limited visibility - {visibility.impact} Results may be incomplete.
               </ProblemsPanelNotice>
             )}
+            {(issues.length > 0 || hasLimitedVisibility) && unchecked && (
+              <ProblemsPanelNotice tone="warning">
+                {uncheckedLines.map((line) => <p key={line}>{line}</p>)}
+                <UncheckedSourceHelp onRetry={onRetryIssues} isRefreshing={isRefreshing} />
+              </ProblemsPanelNotice>
+            )}
             {isTruncated && (
               <ProblemsPanelNotice tone="neutral">
                 Showing {totalReturned} of {issueCount} issues. Narrow by namespace to see the rest.
@@ -392,16 +412,19 @@ function ProblemsPanel({
             {issues.length === 0 ? (
               <ProblemsPanelState
                 icon={
-                  hasLimitedVisibility
+                  hasLimitedVisibility || unchecked
                     ? <AlertTriangle className="h-5 w-5 text-amber-500" />
                     : <CheckCircle className="h-5 w-5 text-green-500" />
                 }
-                title={hasLimitedVisibility ? 'No visible active issues' : 'No active issues'}
+                title={hasLimitedVisibility ? 'No visible active issues' : unchecked ? 'No issues found' : 'No active issues'}
                 body={
                   hasLimitedVisibility
                     ? 'Radar could not read every workload source in this scope.'
-                    : 'No critical or warning issues across the selected scope.'
+                    : unchecked
+                      ? uncheckedLines.join(' ')
+                      : 'No critical or warning issues across the selected scope.'
                 }
+                action={unchecked && !hasLimitedVisibility ? <UncheckedSourceHelp onRetry={onRetryIssues} isRefreshing={isRefreshing} /> : undefined}
               />
             ) : (
               <div className="divide-y divide-theme-border">
@@ -444,7 +467,7 @@ function ProblemsPanel({
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[11px] text-theme-text-secondary truncate">{categoryLabel(issue.category)}</span>
+                          <span className="text-[11px] text-theme-text-secondary truncate">{issueTitle(issue)}</span>
                           <span className="text-[10px] text-theme-text-tertiary shrink-0">{groupLabel(issue.category_group)}</span>
                           {issue.namespace && <span className="text-[10px] text-theme-text-tertiary shrink-0">{issue.namespace}</span>}
                         </div>
@@ -468,7 +491,7 @@ function ProblemsPanel({
   )
 }
 
-function ProblemsPanelState({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
+function ProblemsPanelState({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 px-6 py-10 text-center">
       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-theme-elevated">
@@ -476,6 +499,7 @@ function ProblemsPanelState({ icon, title, body }: { icon: ReactNode; title: str
       </div>
       <p className="text-sm font-medium text-theme-text-primary">{title}</p>
       <p className="max-w-[280px] text-xs leading-5 text-theme-text-secondary">{body}</p>
+      {action && <div className="w-full max-w-[280px]">{action}</div>}
     </div>
   )
 }

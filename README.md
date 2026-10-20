@@ -47,7 +47,7 @@ curl -fsSL https://get.radarhq.io | sh && kubectl radar
 - **Zero install on your cluster** — runs on your laptop, talks to the K8s API directly
 - **Single binary** — no dependencies, no agents, no CRDs
 - **Fast on big clusters** — tested on tens of thousands of pods, with responsive views and live updates under real cluster churn
-- **Private by design** — your cluster data stays on your machine. No account, no agents, no cloud sync, no cluster telemetry
+- **Private by design** — your cluster data stays on your machine. No account, no agents, no cloud sync. Usage reporting is off unless you opt in, and then sends only anonymous usage counts and coarse cluster facts: Kubernetes version, platform, node-count range, known integrations ([what Radar sends](docs/configuration.md#what-radar-sends))
 - **Airgapped-friendly** — runs as a single binary against the Kubernetes API and works in locked-down environments with outbound egress blocked
 - **Real-time** — watches your cluster via informers, pushes updates to the browser via SSE
 - **Works everywhere** — GKE, EKS, AKS, minikube, kind, k3s, or any conformant cluster
@@ -67,8 +67,10 @@ curl -fsSL https://get.radarhq.io | sh
 
 **Homebrew:**
 ```bash
-brew install skyhook-io/tap/radar
+brew install kubectl-radar
 ```
+
+Also available from our tap: `brew install skyhook-io/tap/radar`.
 
 Then run: `kubectl radar`. Quick install, PowerShell, Homebrew, and Scoop also set up the `radar` shorthand. Krew and direct downloads use `kubectl radar` unless you add your own `radar` symlink.
 
@@ -183,6 +185,7 @@ The table below covers common startup flags. See the [full CLI reference](https:
 | `--port` | `9280` | Server port |
 | `--listen-address` | `127.0.0.1` | HTTP listen IP address (IPv4 or IPv6), or `localhost`. Bind a specific local IP or use `0.0.0.0` for all interfaces. Non-loopback access needs authentication and network controls. |
 | `--base-path` | | Serve Radar under a URL prefix such as `/radar`. Use when an ingress forwards a subpath without stripping it — everything, including `/api/health`, moves under the prefix. Not supported with `--cloud-url`. |
+| `--trusted-origins` | | Comma-separated origins, besides the address Radar is opened at, that may use Radar's API, including changes and terminals, e.g. `http://radar.internal`. Set this when a proxy in front of Radar rewrites the `Host` header and changes fail with "Radar refused this request". Exact origins, no wildcards. Does not apply to `/mcp` (see `RADAR_MCP_TRUSTED_ORIGINS`). Env: `RADAR_TRUSTED_ORIGINS` |
 | `--no-browser` | `false` | Don't auto-open browser |
 | `--browser` | | Browser to use when opening the UI, e.g. `firefox`, `google-chrome`, or `Google Chrome` on macOS |
 | `--timeline-storage` | `memory` | Timeline storage backend: `memory`, `sqlite`, or `postgres` |
@@ -198,15 +201,16 @@ The table below covers common startup flags. See the [full CLI reference](https:
 | `--first-paint-backstop` | `5m` | Hard upper bound on the initial critical-cache sync wait before Radar falls through to a partial-data render. Env: `RADAR_FIRST_PAINT_BACKSTOP`. |
 | `--namespace-list-timeout` | `5s` | Timeout for the cluster-wide namespace LIST used to decide if the user is RBAC-namespace-restricted. A timeout on a slow control plane is misreported in the UI as "Limited list — RBAC". Env: `RADAR_NAMESPACE_LIST_TIMEOUT`. |
 | `--max-scope-candidates` | `20` | Cap on the namespace-fallback probe fanout (used by accounts that can list namespaces cluster-wide but not list a specific kind cluster-wide). Raise above `20` for clusters with more than 20 namespaces. Env: `RADAR_MAX_SCOPE_CANDIDATES`. |
-| `--prometheus-url` | (auto-discover) | Manual PromQL-compatible query URL, including Prometheus, VictoriaMetrics, Thanos, or Mimir (skips auto-discovery) |
-| `--prometheus-single-cluster` | `false` | Optional workload-metrics scope override: assert that the backend contains only this cluster. Replaces automatic identity matching; does not scope rightsizing or other metrics features. [Scope and lifetime](docs/workload-metrics.md#optional-operator-override). |
-| `--prometheus-cluster-label` | (automatic matching) | Optional workload-metrics override for a shared backend, e.g. `cluster=production` (repeatable, ANDed). Alternative to `--prometheus-single-cluster`; leave both unset for automatic matching. Not persisted. |
-| `--prometheus-header` | | HTTP header sent with every Prometheus request, format `Key=Value` (repeatable). Required for auth-protected backends. |
-| `--prometheus-header-from-env` | | HTTP header sent with every Prometheus request, sourced from an environment variable, format `Key=ENV_VAR` (repeatable). |
+| `--prometheus-url` | (auto-discover) | Manual PromQL-compatible query URL, including Prometheus, VictoriaMetrics, Thanos, or Mimir (skips auto-discovery). In local CLI/Desktop mode, applies only to the launch's initial context and never inherits saved headers. |
+| `--prometheus-single-cluster` | `false` | Declare the backend dedicated to this cluster for workload metrics and PVC usage, replacing automatic identity matching. Other metrics do not use this override. [Scope and lifetime](docs/workload-metrics.md#optional-operator-override). |
+| `--prometheus-cluster-label` | (automatic matching) | Optional workload/PVC metrics override for a shared backend, e.g. `cluster=production` (repeatable, ANDed). Alternative to `--prometheus-single-cluster`; leave both unset for automatic matching. Not persisted. |
+| `--prometheus-header` | | HTTP header sent with every Prometheus request, format `Key=Value` (repeatable). Required for auth-protected backends. In local CLI/Desktop mode, requires `--prometheus-url` in the same launch and applies only to the launch's initial context. |
+| `--prometheus-header-from-env` | | HTTP header sent with every Prometheus request, sourced from an environment variable, format `Key=ENV_VAR` (repeatable). In local CLI/Desktop mode, requires `--prometheus-url` in the same launch and applies only to the launch's initial context. |
 | `--beyla-job-selector` | (empty) | Beyla Live Traffic matcher fragment (empty matches Beyla/Alloy jobs there). Workload charts use it only with an explicit scope override and accept one `job` equality or regex matcher. Automatic workload matching discovers custom jobs without it. [Details](docs/workload-metrics.md#request-sources). |
 | `--opencost-currency` | (auto-detect, then USD) | Override the ISO 4217 currency label for OpenCost values. Radar labels values but does not convert them. |
 | `--auth-mode` | `none` | Authentication mode: `none`, `proxy`, or `oidc` ([details](docs/authentication.md)) |
-| `--no-mcp` | `false` | Disable MCP server for AI tool integration |
+| `--no-mcp` | `false` | Disable all MCP endpoints |
+| `--mcp-read-only` | `false` | Expose only read-only MCP tools; disable `/mcp` (env: `RADAR_MCP_READ_ONLY`) |
 | `--mcp-catalog-stdio` | `false` | Start only the MCP catalog over stdio for registry introspection |
 | `--version` | | Show version and exit |
 
@@ -360,7 +364,7 @@ View TLS certificate details and expiry dates across all namespaces — catch ex
 
 ### GitOps
 
-Monitor, diagnose, and manage FluxCD and ArgoCD resources from a dedicated GitOps workspace.
+Monitor, diagnose, and manage FluxCD and ArgoCD resources in one place.
 
 <p align="center">
   <img src="docs/screenshots/gitops-view.png" alt="GitOps fleet view" width="800">
@@ -389,6 +393,9 @@ Visualize live network traffic between services using Hubble, Caretta, Istio, or
 - Beyla needs its `network` feature enabled, and per-port edges additionally need `dst.port` and `transport` named in `attributes.select` — both are off by default, and Radar says so in the Traffic view rather than showing partial edges silently
 - Animated flow graph showing requests per second between services
 - Filter by namespace, protocol, or status code
+- Built for large clusters: hidden traffic is filtered at the source, each refresh keeps a bounded number of the newest flows and says how much of the window it covers, and the flow list fetches the records behind a selected node or edge
+- Hubble traffic is drawn per workload (Deployment, StatefulSet, …) rather than per pod; the flow list keeps the pods. A map too large to lay out is listed as its connections, failures first, with ways to narrow it
+- Focus on a workload (`/`, a node's details, or **Live traffic** on its page once a traffic source is detected) to see only it and what it talks to; the focus is in the URL, so it can be shared
 - Setup wizard to install a traffic source if none is detected
 
 ### Workload Metrics
@@ -436,14 +443,15 @@ convert them.
 
 ### Cluster Audit
 
-Proactive best-practices scanner with 31 checks across security, reliability, and efficiency — inspired by Polaris, Kubescape, Trivy, and NSA/CISA guidelines. Runs instantly against cached data with zero cluster-side installation.
+Proactive best-practices scanner with 44 checks across security, reliability, and efficiency — inspired by Polaris, Kubescape, Trivy, and NSA/CISA guidelines. Runs instantly against cached data with zero cluster-side installation.
 
 - Security: privileged containers, privilege escalation, dangerous/insecure capabilities, host namespaces, container runtime socket mounts, sensitive host paths, secrets in ConfigMaps, auto-mounted service account tokens
 - Reliability: missing probes, image tag `latest`, single-replica deployments, missing PDB/topology spread, pod HA risk (all replicas on same node), orphan services/ingresses, deprecated API versions
-- Efficiency: missing CPU/memory requests and limits, orphan ConfigMaps/Secrets
+- Efficiency: missing CPU/memory requests and limits, orphan ConfigMaps/Secrets, PVCs with no consumer observed, long-Pending PVCs, Released PVs that are retained or failing deletion, and Failed PVs
 - Check-grouped remediation queue with search and category, severity, and framework filters; expand a check to see affected resources
 - Each finding includes description and remediation guidance, with inline hide actions for a check or category
 - Configurable: ignored namespaces (with wildcard patterns), disabled checks, persisted across sessions
+- Per-resource opt-out via the `radarhq.io/ignore-checks` annotation (comma-separated check IDs) — set on the resource a finding is attributed to, so the exclusion travels with the manifest instead of living in one operator's local settings
 - Framework labels: NSA/CISA, CIS benchmarks
 - MCP tool (`get_cluster_audit`) for AI-assisted cluster analysis
 
@@ -488,11 +496,14 @@ Read-only visibility ships first; the considered follow-ups (RBAC audit checks, 
 
 ### AI Integration (MCP)
 
-Radar includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents — Claude, Cursor, Copilot, and others — inspect, investigate, and operate your cluster through Radar.
+Radar includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents — Claude Code, Codex, Cursor, GitHub Copilot (VS Code and CLI), OpenCode, Google Antigravity, and any other MCP client — inspect, investigate, and operate your cluster through Radar.
 
 Instead of raw `kubectl` output (verbose YAML that burns through LLM context windows), your AI gets pre-processed, token-optimized data: topology graphs, health assessments, deduplicated events, and filtered logs. Diagnosis is read-only by default; optional in-cluster route probing uses short-lived, self-deleting probe pods. Write operations such as restart, scale, apply, and rollback are identified for client confirmation and enforced through Kubernetes RBAC.
 
-Enabled by default. Disable with `--no-mcp`. See the **[MCP Guide](docs/mcp.md)** for setup instructions.
+Enabled by default. Disable all MCP endpoints with `--no-mcp`, or expose only
+read-only MCP tools with `--mcp-read-only` and connect to `/mcp-readonly`.
+This setting does not restrict UI or REST API writes. See the
+**[MCP Guide](docs/mcp.md)** for setup and configuration precedence.
 
 ### Authentication
 
@@ -530,7 +541,7 @@ Upgrade impact also gets list-only access to CSIStorageCapacities, FlowSchemas, 
 | **Argo Workflows** | Workflow, WorkflowTemplate |
 | **[Reflector](docs/integrations.md#configmap-and-secret-reflection-reflector)** | ConfigMap/Secret reflection details, source and mirror relationships, recorded copy evidence |
 | **cert-manager** | Certificate, CertificateRequest, Order, Challenge, Issuer, ClusterIssuer |
-| **Gateway API** | Gateway, GatewayClass, HTTPRoute, GRPCRoute, TCPRoute, TLSRoute |
+| **Gateway API** | Gateway, GatewayClass, HTTPRoute, GRPCRoute, TCPRoute, TLSRoute, UDPRoute |
 | **Istio** | VirtualService, DestinationRule, Gateway, ServiceEntry, PeerAuthentication, AuthorizationPolicy |
 | **Traefik** | IngressRoute, IngressRouteTCP, IngressRouteUDP, Middleware, MiddlewareTCP, TraefikService, ServersTransport, ServersTransportTCP, TLSOption, TLSStore |
 | **Contour** | HTTPProxy |
@@ -546,7 +557,7 @@ Upgrade impact also gets list-only access to CSIStorageCapacities, FlowSchemas, 
 | **Strimzi** | [KafkaConnector failure evidence](docs/integrations.md#strimzi-kafka-connectors) (connector/task status) |
 | **Velero** | Backup, Restore, Schedule, BackupStorageLocation, VolumeSnapshotLocation |
 | **External Secrets** | ExternalSecret, ClusterExternalSecret, SecretStore, ClusterSecretStore |
-| **CloudNativePG** | Cluster, Backup, ScheduledBackup, Pooler |
+| **CloudNativePG** | Cluster, Backup, ScheduledBackup, Pooler, Database, Publication, Subscription, ImageCatalog, ClusterImageCatalog, ObjectStore — plus [dedicated views](docs/cnpg.md) for fleet, protection and declaration triage |
 | **Crossplane** | Managed Resources (any provider), Composite Resources, Claims, Provider, ProviderConfig, Function, Configuration, Composition, CompositionRevision, XRD |
 | **Kyverno** | Policy, ClusterPolicy, PolicyReport, ClusterPolicyReport |
 | **Sealed Secrets** | SealedSecret |

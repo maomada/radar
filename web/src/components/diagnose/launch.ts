@@ -1,8 +1,8 @@
 // Builds the shell command that hands an investigation off to the user's own
 // interactive agent CLI, pointed at Radar's MCP. This is the "escape hatch" to the
 // full agent (their config, their other MCPs, interactive approvals) — distinct
-// from the contained in-panel engine. The launched agent gets the full /mcp mount
-// (read+write); its own per-tool approval prompts gate any changes.
+// from the contained in-panel engine. The endpoint follows the server MCP mode.
+// In full mode, the client approval prompts gate changes.
 import { type RunSummary } from "../../api/diagnose";
 
 // sq POSIX-single-quotes a string so it's a safe single shell argument regardless
@@ -43,12 +43,12 @@ export function buildLaunchCommand(
 ): string | null {
   if (!run.sessionId || run.status === "stale") return null;
 
-  // OpenCode terminal handoff needs a persistent MCP configuration outside the run workspace.
+  // OpenCode terminal handoff needs a persistent MCP configuration outside the run's working directory.
   if (run.agent === "opencode") return null;
 
   if (run.agent === "cursor-agent") {
     // Cursor's --resume is workspace-scoped, and Radar runs each investigation in a
-    // throwaway per-run workspace the user doesn't have — no command can reattach
+    // throwaway per-run working directory the user doesn't have — no command can reattach
     // both that session and Radar's MCP in the user's own terminal. So there's no
     // hand-off for Cursor; the in-panel investigation is self-contained.
     return null;

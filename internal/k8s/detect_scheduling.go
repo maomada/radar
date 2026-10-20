@@ -12,6 +12,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,9 +21,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
+	"github.com/skyhook-io/radar/pkg/gkedisk"
 	"github.com/skyhook-io/radar/pkg/karpenter"
 	"github.com/skyhook-io/radar/pkg/resourceid"
 	"github.com/skyhook-io/radar/pkg/scheduling"
+	"github.com/skyhook-io/radar/pkg/timeutil"
 )
 
 // Scheduling failure decomposition.
@@ -343,7 +346,9 @@ func DetectSchedulingProblems(cache *ResourceCache, namespace string) []Detectio
 				dur = ageDur
 			}
 			ownerGroup, ownerKind, ownerName := podOwnerKindName(cache, pod)
-			schedMessage, schedAction := diagnoseUnschedulable(pod, cond.Message, nodes)
+			total, reasons := parseSchedulerMessage(cond.Message)
+			vol := volumePlacementFor(cache, pod, pods, ownerKind, ownerName, reasons)
+			schedMessage, schedAction := diagnoseParsedUnschedulable(pod, cond.Message, total, reasons, nodes, vol)
 			detection := Detection{
 				Kind:                       "Pod",
 				Namespace:                  pod.Namespace,
@@ -352,7 +357,7 @@ func DetectSchedulingProblems(cache *ResourceCache, namespace string) []Detectio
 				Reason:                     "Unschedulable",
 				Action:                     schedAction,
 				Message:                    schedMessage,
-				Age:                        FormatAge(ageDur),
+				Age:                        timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:                 int64(ageDur.Seconds()),
 				ResourceCreatedAt:          pod.CreationTimestamp.Time,
 				OwnerGroup:                 ownerGroup,
@@ -404,10 +409,23 @@ const genericUnschedulableAction = "Use the scheduler message to decide: free or
 // derived from different parses. Pure over its inputs.
 func diagnoseUnschedulable(pod *corev1.Pod, schedMsg string, nodes []NodeFacts) (message, action string) {
 	total, reasons := parseSchedulerMessage(schedMsg)
+	return diagnoseParsedUnschedulable(pod, schedMsg, total, reasons, nodes, nil)
+}
+
+// diagnoseParsedUnschedulable renders an already-parsed verdict. vol, when
+// set, names the PersistentVolume pinning the pod ahead of the scheduler
+// summary, and a rollout deadlock replaces the per-class action.
+func diagnoseParsedUnschedulable(pod *corev1.Pod, schedMsg string, total int, reasons []SchedulingReason, nodes []NodeFacts, vol *volumePlacement) (message, action string) {
 	message = renderUnschedulableMessage(pod, schedMsg, total, reasons, nodes)
 	action = unschedulableAction(reasons)
 	if action == "" {
 		action = genericUnschedulableAction
+	}
+	if vol != nil {
+		message = vol.lead() + "; " + message
+		if vol.holderPod != "" {
+			action = vol.deadlockAction()
+		}
 	}
 	return message, action
 }
@@ -549,7 +567,7 @@ func actionForSchedClass(r SchedulingReason) string {
 	case SchedVolumeBinding:
 		return "The pod's volume can't be provisioned or bound — check the PVC, its StorageClass/provisioner, and storage quota."
 	case SchedVolumeNodeAffinity:
-		return "The pod's bound volume can't be placed on any candidate node (its zone/topology doesn't match where the pod can run) — align the pod's placement with the volume's topology, free capacity there, or use a volume that can move."
+		return "The pod's PersistentVolume can only attach on nodes matching its nodeAffinity or zone labels (one zone, or one node for a local volume), and none of those nodes can take the pod — check the PV's nodeAffinity and zone labels, then free room on a matching node (or add one, for a zonal volume), or move the data to a volume that can attach elsewhere."
 	case SchedVolumeCount:
 		return "Candidate nodes have hit their volume-attachment limit — attach fewer volumes per node, or add nodes."
 	case SchedNoPorts:
@@ -823,6 +841,9 @@ func schedulingNodeFacts(cache *ResourceCache) []NodeFacts {
 // so a fresh LastTimestamp means the failure is active.
 const admissionFailureWindow = 30 * time.Minute
 
+// admissionBlockedPrefix leads every admission detection's message.
+const admissionBlockedPrefix = "pod creation blocked: "
+
 // DetectAdmissionProblems flags pod-template rejections at admission time.
 // namespace="" scans all namespaces.
 func DetectAdmissionProblems(cache *ResourceCache, namespace string) []Detection {
@@ -905,7 +926,7 @@ func detectAdmissionFailures(cache *ResourceCache, namespace string) []Detection
 			Name:              obj.Name,
 			Severity:          "critical",
 			Reason:            c.reason,
-			Message:           "pod creation blocked: " + strings.TrimSpace(c.ev.Message),
+			Message:           admissionBlockedPrefix + strings.TrimSpace(c.ev.Message),
 			ResourceCreatedAt: createdAt,
 			OwnerGroup:        ownerGroup,
 			OwnerKind:         ownerKind,
@@ -913,7 +934,7 @@ func detectAdmissionFailures(cache *ResourceCache, namespace string) []Detection
 		}
 		if !createdAt.IsZero() && !createdAt.After(now) {
 			age := now.Sub(createdAt)
-			detection.Age = FormatAge(age)
+			detection.Age = timeutil.FormatAgeShort(age)
 			detection.AgeSeconds = int64(age.Seconds())
 		}
 		setDetectionOnset(&detection, now, eventFirstTime(c.ev))
@@ -931,6 +952,13 @@ func detectAdmissionFailures(cache *ResourceCache, namespace string) []Detection
 // an Event, falling back to EventTime (events API v1) when the legacy
 // First/LastTimestamp fields are unset.
 func eventLastTime(e *corev1.Event) time.Time {
+	// An event recorded through the events.k8s.io API carries its latest
+	// occurrence in Series.LastObservedTime; EventTime is the first one.
+	if e.Series != nil && !e.Series.LastObservedTime.Time.IsZero() {
+		if t := e.Series.LastObservedTime.Time; t.After(e.LastTimestamp.Time) {
+			return t
+		}
+	}
 	if !e.LastTimestamp.Time.IsZero() {
 		return e.LastTimestamp.Time
 	}
@@ -1148,8 +1176,8 @@ func admissionConditionProblem(kind, namespace, name, message string, createdAt,
 		Name:              name,
 		Severity:          "critical",
 		Reason:            reason,
-		Message:           "pod creation blocked: " + strings.TrimSpace(message),
-		Age:               FormatAge(ageDur),
+		Message:           admissionBlockedPrefix + strings.TrimSpace(message),
+		Age:               timeutil.FormatAgeShort(ageDur),
 		AgeSeconds:        int64(ageDur.Seconds()),
 		ResourceCreatedAt: createdAt,
 	}
@@ -1213,12 +1241,14 @@ func replicaSetDeploymentOwnerName(rs *appsv1.ReplicaSet) (string, bool) {
 // Returns ok=false for FailedCreate messages that aren't admission denials
 // (e.g. transient "object is being deleted") so we don't over-report.
 func classifyAdmissionFailure(msg string) (string, bool) {
+	// client-go's event aggregation prefixes a burst of similar events.
+	msg = strings.TrimPrefix(strings.TrimSpace(msg), "(combined from similar events): ")
 	lower := strings.ToLower(msg)
-	if admissionWebhookCallFailurePattern.MatchString(strings.TrimSpace(msg)) {
+	if admissionWebhookCallFailurePattern.MatchString(msg) {
 		return "WebhookUnavailable", true
 	}
 	switch {
-	case admissionWebhookDenialPattern.MatchString(strings.TrimSpace(msg)):
+	case admissionWebhookDenialPattern.MatchString(msg):
 		return "WebhookDenied", true
 	case strings.Contains(lower, "exceeded quota"), strings.Contains(lower, "failed quota"):
 		return "QuotaExceeded", true
@@ -1299,6 +1329,46 @@ func ParseAdmissionWebhookBackendFailure(message string) (AdmissionWebhookBacken
 	}, true
 }
 
+// AdmissionBlocker names the policy object an admission rejection came from,
+// so its recent changes can be set beside the workload's. Exactly one form is
+// set: a ResourceQuota by name; every LimitRange in the namespace (LimitRanger
+// messages never say which one); or a webhook by its webhooks[].name, which the
+// caller resolves to the configurations that declare it.
+type AdmissionBlocker struct {
+	Kind        string // "ResourceQuota" | "LimitRange" | "" for a webhook
+	Name        string // empty for LimitRange: any LimitRange in the namespace
+	WebhookName string
+}
+
+var (
+	admissionQuotaNamePattern         = regexp.MustCompile(`(?i)(?:exceeded|failed) quota: ([a-z0-9](?:[-a-z0-9.]*[a-z0-9])?)`)
+	admissionWebhookQuotedNamePattern = regexp.MustCompile(`(?i)(?:admission webhook|failed calling webhook) "([^"\r\n]+)"`)
+)
+
+// ParseAdmissionBlocker extracts the blocking object from a pod-creation
+// rejection message, using the message shapes classifyAdmissionFailure
+// recognizes. ok=false for rejections that name no object (PodSecurity, RBAC).
+func ParseAdmissionBlocker(message string) (AdmissionBlocker, bool) {
+	message = strings.TrimPrefix(strings.TrimSpace(message), admissionBlockedPrefix)
+	reason, ok := classifyAdmissionFailure(message)
+	if !ok {
+		return AdmissionBlocker{}, false
+	}
+	switch reason {
+	case "QuotaExceeded":
+		if m := admissionQuotaNamePattern.FindStringSubmatch(message); len(m) == 2 {
+			return AdmissionBlocker{Kind: "ResourceQuota", Name: m[1]}, true
+		}
+	case "LimitRangeViolation":
+		return AdmissionBlocker{Kind: "LimitRange"}, true
+	case "WebhookDenied", "WebhookUnavailable":
+		if m := admissionWebhookQuotedNamePattern.FindStringSubmatch(message); len(m) == 2 {
+			return AdmissionBlocker{WebhookName: m[1]}, true
+		}
+	}
+	return AdmissionBlocker{}, false
+}
+
 // ---- Post-bind detection ------------------------------------------------
 //
 // The pod was scheduled (a node accepted it) but the kubelet can't bring it
@@ -1375,6 +1445,12 @@ func detectPostBindProblems(cache *ResourceCache, namespace string, now time.Tim
 	}
 	latest := map[string]pbCandidate{}
 	expiredLatest := map[string]pbCandidate{}
+	// The newest attach failure per pod and volume that names a cause. Kept
+	// across the recency window: once the CSI attacher backs off, the latest
+	// event is a "due to backoff condition" echo and the real error is only in
+	// an older one. Backoff is tracked per disk, so an echo for one volume says
+	// nothing about another's error.
+	informativeAttach := map[string]*corev1.Event{}
 	var order []string
 	for _, e := range events {
 		if e.InvolvedObject.Kind != "Pod" {
@@ -1385,8 +1461,22 @@ func detectPostBindProblems(cache *ResourceCache, namespace string, now time.Tim
 			continue
 		}
 		key := e.InvolvedObject.Namespace + "/" + e.InvolvedObject.Name
-		if _, isStuck := stuck[key]; !isStuck {
+		pod, isStuck := stuck[key]
+		if !isStuck {
 			continue
+		}
+		// A StatefulSet pod is recreated under the same name, so an event may
+		// describe a predecessor that failed on another node.
+		if uid := e.InvolvedObject.UID; uid != "" && pod.UID != "" && uid != pod.UID {
+			continue
+		}
+		if reason == "VolumeAttach" && !gkedisk.IsAttachBackoffEcho(e.Message) {
+			if vol := attachEventVolume(e.Message); vol != "" {
+				volKey := key + "\x00" + vol
+				if cur := informativeAttach[volKey]; cur == nil || eventLastTime(e).After(eventLastTime(cur)) {
+					informativeAttach[volKey] = e
+				}
+			}
 		}
 		if t := eventLastTime(e); !t.IsZero() && now.Sub(t) > postBindFailureWindow {
 			if cur, exists := expiredLatest[key]; !exists || t.After(eventLastTime(cur.ev)) {
@@ -1411,21 +1501,34 @@ func detectPostBindProblems(cache *ResourceCache, namespace string, now time.Tim
 		ageDur := now.Sub(pod.CreationTimestamp.Time)
 		severity := postBindProblemSeverity(c.reason, ageDur)
 		ownerGroup, ownerKind, ownerName := podOwnerKindName(cache, pod)
+		eventMessage, onset := c.ev.Message, eventFirstTime(c.ev)
+		var cause, action string
+		if c.reason == "VolumeAttach" {
+			if inf := informativeAttach[key+"\x00"+attachEventVolume(eventMessage)]; inf != nil && gkedisk.IsAttachBackoffEcho(eventMessage) {
+				eventMessage = inf.Message
+				if t := eventFirstTime(inf); !t.IsZero() && (onset.IsZero() || t.Before(onset)) {
+					onset = t
+				}
+			}
+			cause, action = attachFailureDiagnosis(cache, pod, eventMessage)
+		}
 		detection := Detection{
 			Kind:              "Pod",
 			Namespace:         pod.Namespace,
 			Name:              pod.Name,
 			Severity:          severity,
 			Reason:            c.reason,
-			Message:           postBindEventMessage(pod, c.ev.Message),
-			Age:               FormatAge(ageDur),
+			Message:           postBindEventMessage(pod, eventMessage),
+			Cause:             cause,
+			Action:            action,
+			Age:               timeutil.FormatAgeShort(ageDur),
 			AgeSeconds:        int64(ageDur.Seconds()),
 			ResourceCreatedAt: pod.CreationTimestamp.Time,
 			OwnerGroup:        ownerGroup,
 			OwnerKind:         ownerKind,
 			OwnerName:         ownerName,
 		}
-		setDetectionOnset(&detection, now, eventFirstTime(c.ev))
+		setDetectionOnset(&detection, now, onset)
 		problems = append(problems, detection)
 	}
 
@@ -1454,7 +1557,7 @@ func detectPostBindProblems(cache *ResourceCache, namespace string, now time.Tim
 			Severity:          postBindProblemSeverity("PostBindStartupStall", ageDur),
 			Reason:            "PostBindStartupStall",
 			Message:           postBindFallbackMessage(pod, ageDur),
-			Age:               FormatAge(ageDur),
+			Age:               timeutil.FormatAgeShort(ageDur),
 			AgeSeconds:        int64(ageDur.Seconds()),
 			ResourceCreatedAt: pod.CreationTimestamp.Time,
 			OwnerGroup:        ownerGroup,
@@ -1541,8 +1644,88 @@ func postBindEventMessage(pod *corev1.Pod, eventMessage string) string {
 	return msg
 }
 
+var attachEventVolumeRE = regexp.MustCompile(`AttachVolume\.Attach failed for volume "([^"]+)"`)
+
+// attachEventVolume returns the volume an attach-failure event names, or ""
+// when the message doesn't follow the attach-detach controller's format.
+func attachEventVolume(message string) string {
+	if m := attachEventVolumeRE.FindStringSubmatch(message); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+// attachFailureDiagnosis explains an attach failure the cloud rejected
+// because the node's machine type can't use the volume's disk type. The
+// Compute Engine error says so directly; when only backoff echoes remain,
+// the same answer is derived from the node's machine type and the disk types
+// of the pod's GCE volumes.
+func attachFailureDiagnosis(cache *ResourceCache, pod *corev1.Pod, eventMessage string) (cause, action string) {
+	if diskType, machineType, ok := gkedisk.ParseIncompatibleAttach(eventMessage); ok {
+		return gkedisk.IncompatibilityCause(diskType, machineType), gkedisk.IncompatibilityAction(diskType)
+	}
+	if !gkedisk.IsAttachBackoffEcho(eventMessage) {
+		return "", ""
+	}
+	machineType := nodeInstanceType(cache, pod.Spec.NodeName)
+	if !gkedisk.HyperdiskOnly(machineType) {
+		return "", ""
+	}
+	// Only the volume the echo names; another of the pod's disks may be fine.
+	if diskType := podGCEDiskType(cache, pod, attachEventVolume(eventMessage)); gkedisk.IsPersistentDisk(diskType) {
+		return gkedisk.IncompatibilityCause(diskType, machineType), gkedisk.IncompatibilityAction(diskType)
+	}
+	return "", ""
+}
+
+func nodeInstanceType(cache *ResourceCache, nodeName string) string {
+	if cache == nil || nodeName == "" || cache.Nodes() == nil {
+		return ""
+	}
+	node, err := cache.Nodes().Get(nodeName)
+	if err != nil || node == nil {
+		return ""
+	}
+	return node.Labels[gkedisk.InstanceTypeLabel]
+}
+
+// podGCEDiskType returns the Compute Engine disk type of the named volume
+// when the pod mounts it through a bound claim, or "" when it can't be
+// resolved to a GCE disk.
+func podGCEDiskType(cache *ResourceCache, pod *corev1.Pod, volumeName string) string {
+	if cache == nil || pod == nil || volumeName == "" || cache.PersistentVolumeClaims() == nil || cache.PersistentVolumes() == nil {
+		return ""
+	}
+	storageClass := func(name string) *storagev1.StorageClass {
+		if cache.StorageClasses() == nil {
+			return nil
+		}
+		sc, err := cache.StorageClasses().Get(name)
+		if err != nil {
+			return nil
+		}
+		return sc
+	}
+	for _, vol := range pod.Spec.Volumes {
+		if vol.PersistentVolumeClaim == nil {
+			continue
+		}
+		pvc, err := cache.PersistentVolumeClaims().PersistentVolumeClaims(pod.Namespace).Get(vol.PersistentVolumeClaim.ClaimName)
+		if err != nil || pvc.Spec.VolumeName != volumeName {
+			continue
+		}
+		pv, err := cache.PersistentVolumes().Get(volumeName)
+		if err != nil {
+			return ""
+		}
+		diskType, _ := gkedisk.DiskType(pv, storageClass)
+		return diskType
+	}
+	return ""
+}
+
 func postBindFallbackMessage(pod *corev1.Pod, age time.Duration) string {
-	parts := []string{fmt.Sprintf("container is ContainerCreating with no Pod IP after %s", FormatAge(age))}
+	parts := []string{fmt.Sprintf("container is ContainerCreating with no Pod IP after %s", timeutil.FormatAgeShort(age))}
 	if cond := podCondition(pod, podReadyToStartContainers); cond != nil && cond.Status == corev1.ConditionFalse {
 		parts = append(parts, "PodReadyToStartContainers=False")
 	}

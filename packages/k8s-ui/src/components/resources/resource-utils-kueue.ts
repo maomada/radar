@@ -1,5 +1,6 @@
 // Kueue + Cluster Autoscaler ProvisioningRequest CRD utility functions
 
+import type { BadgeSeverity } from '../ui/Badge'
 import type { StatusBadge } from './resource-utils'
 import { healthColors } from './resource-utils'
 
@@ -32,6 +33,88 @@ function activeConditionStatus(resource: any): StatusBadge {
   return { text: 'Unknown', color: healthColors.unknown, level: 'unknown' }
 }
 
+export function isKueueQueueResource(resource: any): boolean {
+  return resource?.apiVersion === 'kueue.x-k8s.io/v1beta1' || resource?.apiVersion === 'kueue.x-k8s.io/v1beta2'
+}
+
+export function getKueueQueueCondition(resource: any): any {
+  return findCondition(resource, 'Active')
+}
+
+function queueConditionStatus(resource: any): StatusBadge {
+  const active = getKueueQueueCondition(resource)
+  if (isKueueConditionStale(active, resource?.metadata?.generation)) {
+    return { text: `${active.status === 'True' ? 'Active' : active.reason || 'Unknown'} (stale)`, color: healthColors.unknown, level: 'unknown' }
+  }
+  if (active?.status === 'False' && active.reason === 'Stopped') {
+    return { text: 'Stopped', color: healthColors.neutral, level: 'neutral' }
+  }
+  return activeConditionStatus(resource)
+}
+
+type Quantity = string | number
+interface QueueResourceUsage {
+  name: string
+  total?: Quantity
+  borrowed?: Quantity
+}
+interface QueueFlavorUsage {
+  name: string
+  resources?: QueueResourceUsage[]
+}
+export interface KueueQuotaRow {
+  flavor: string
+  resource: string
+  configured: boolean
+  nominal?: Quantity
+  borrowingLimit?: Quantity
+  lendingLimit?: Quantity
+  reserved?: Quantity
+  used?: Quantity
+  borrowedReservation?: Quantity
+  borrowedUsage?: Quantity
+}
+
+export function getKueueQueueQuotaRows(resource: any, clusterQueue: boolean): KueueQuotaRow[] {
+  const rows = new Map<string, KueueQuotaRow>()
+  const rowFor = (flavor: string, name: string) => {
+    const key = JSON.stringify([flavor, name])
+    let row = rows.get(key)
+    if (!row) {
+      row = { flavor, resource: name, configured: false }
+      rows.set(key, row)
+    }
+    return row
+  }
+  if (clusterQueue) {
+    for (const group of resource?.spec?.resourceGroups ?? []) {
+      for (const flavor of group.flavors ?? []) {
+        for (const quota of flavor.resources ?? []) {
+          Object.assign(rowFor(flavor.name, quota.name), {
+            configured: true, nominal: quota.nominalQuota,
+            borrowingLimit: quota.borrowingLimit, lendingLimit: quota.lendingLimit,
+          })
+        }
+      }
+    }
+  }
+  const reservation: QueueFlavorUsage[] = resource?.status?.flavorsReservation ?? []
+  const usage: QueueFlavorUsage[] = !clusterQueue && resource?.apiVersion === 'kueue.x-k8s.io/v1beta1'
+    ? resource?.status?.flavorUsage ?? []
+    : resource?.status?.flavorsUsage ?? []
+  for (const flavor of reservation) {
+    for (const entry of flavor.resources ?? []) {
+      Object.assign(rowFor(flavor.name, entry.name), { reserved: entry.total, borrowedReservation: entry.borrowed })
+    }
+  }
+  for (const flavor of usage) {
+    for (const entry of flavor.resources ?? []) {
+      Object.assign(rowFor(flavor.name, entry.name), { used: entry.total, borrowedUsage: entry.borrowed })
+    }
+  }
+  return [...rows.values()]
+}
+
 function formatWorkloadCount(value: any): string {
   return typeof value === 'number' ? String(value) : '-'
 }
@@ -41,7 +124,7 @@ function formatWorkloadCount(value: any): string {
 // ============================================================================
 
 export function getClusterQueueStatus(resource: any): StatusBadge {
-  return activeConditionStatus(resource)
+  return queueConditionStatus(resource)
 }
 
 export function getClusterQueueCohort(resource: any): string {
@@ -72,7 +155,7 @@ export function getClusterQueueFlavors(resource: any): string {
 // ============================================================================
 
 export function getLocalQueueStatus(resource: any): StatusBadge {
-  return activeConditionStatus(resource)
+  return queueConditionStatus(resource)
 }
 
 export function getLocalQueueClusterQueue(resource: any): string {
@@ -153,6 +236,10 @@ export function getResourceFlavorTaintCount(resource: any): number {
 // ============================================================================
 
 export function getAdmissionCheckStatus(resource: any): StatusBadge {
+  const condition = findCondition(resource, 'Active')
+  if (isKueueConditionStale(condition, resource?.metadata?.generation)) {
+    return { text: 'Stale', color: healthColors.unknown, level: 'unknown' }
+  }
   return activeConditionStatus(resource)
 }
 
@@ -164,33 +251,40 @@ export function getAdmissionCheckControllerName(resource: any): string {
 // CLUSTER AUTOSCALER PROVISIONINGREQUEST UTILITIES
 // ============================================================================
 
+export function getProvisioningRequestStatusCondition(resource: any): any {
+  for (const type of ['Failed', 'CapacityRevoked', 'BookingExpired', 'Provisioned', 'Accepted']) {
+    const condition = findCondition(resource, type)
+    if (condition?.status === 'True') return condition
+  }
+}
+
+export function getProvisioningRequestMessage(resource: any): string | undefined {
+  const condition = getProvisioningRequestStatusCondition(resource)
+  if (condition?.type === 'Accepted') {
+    const progress = findCondition(resource, 'Provisioned')
+    if (progress?.status === 'False' && !isKueueConditionStale(progress, resource?.metadata?.generation) && progress.message) return progress.message
+  }
+  return condition?.message
+}
+
 export function getProvisioningRequestStatus(resource: any): StatusBadge {
-  const failed = findCondition(resource, 'Failed')
-  if (failed?.status === 'True') {
-    return { text: 'Failed', color: healthColors.unhealthy, level: 'unhealthy' }
+  const condition = getProvisioningRequestStatusCondition(resource)
+  if (isKueueConditionStale(condition, resource?.metadata?.generation)) {
+    return { text: `${condition.type} (stale)`, color: healthColors.unknown, level: 'unknown' }
   }
-
-  const capacityRevoked = findCondition(resource, 'CapacityRevoked')
-  if (capacityRevoked?.status === 'True') {
-    return { text: 'CapacityRevoked', color: healthColors.degraded, level: 'degraded' }
+  switch (condition?.type) {
+    case 'Failed':
+    case 'CapacityRevoked':
+      return { text: condition.type, color: healthColors.unhealthy, level: 'unhealthy' }
+    case 'BookingExpired':
+      return { text: 'BookingExpired', color: healthColors.neutral, level: 'neutral' }
+    case 'Provisioned':
+      return { text: 'Provisioned', color: healthColors.healthy, level: 'healthy' }
+    case 'Accepted':
+      return { text: 'Accepted', color: healthColors.neutral, level: 'neutral' }
+    default:
+      return { text: 'Unknown', color: healthColors.unknown, level: 'unknown' }
   }
-
-  const bookingExpired = findCondition(resource, 'BookingExpired')
-  if (bookingExpired?.status === 'True') {
-    return { text: 'BookingExpired', color: healthColors.degraded, level: 'degraded' }
-  }
-
-  const provisioned = findCondition(resource, 'Provisioned')
-  if (provisioned?.status === 'True') {
-    return { text: 'Provisioned', color: healthColors.healthy, level: 'healthy' }
-  }
-
-  const accepted = findCondition(resource, 'Accepted')
-  if (accepted?.status === 'True') {
-    return { text: 'Accepted', color: healthColors.neutral, level: 'neutral' }
-  }
-
-  return { text: 'Pending', color: healthColors.neutral, level: 'neutral' }
 }
 
 export function getProvisioningRequestClassName(resource: any): string {
@@ -199,4 +293,17 @@ export function getProvisioningRequestClassName(resource: any): string {
 
 export function getProvisioningRequestPodSetCount(resource: any): number {
   return (resource?.spec?.podSets || []).length
+}
+
+export function admissionCheckSeverity(state?: string): BadgeSeverity {
+  switch (state) {
+    case 'Ready':
+      return 'success'
+    case 'Rejected':
+      return 'error'
+    case 'Retry':
+      return 'warning'
+    default:
+      return 'neutral'
+  }
 }

@@ -28,7 +28,11 @@ Two kinds are gated more tightly, per-resource-kind, because the shared cache ca
 - **Secrets** (and Secret-derived data such as TLS certificate metadata) — shown only if the user can list Secrets in that namespace.
 - **Cluster-scoped resources** (Nodes, PersistentVolumes, ClusterRoles, cluster-scoped CRDs, etc.) — shown only if the user's RBAC permits listing that kind.
 
+Issues follow the same rule: you see an issue only if you could open its resource. A namespaced resource needs namespace access, a Secret also needs Secret access, and a cluster-scoped resource needs list on its kind. A cluster-scoped resource's issues are composed across namespaces, so a Node's issues can draw on Pods anywhere, but only rows from namespaces you can access feed them: another namespace's Pods never appear among its members or in its blast radius. Issues roll up to a resource's owner, such as a Pod's Deployment, only if you could open the owner; otherwise the issue stays on the resource. A finding drawn from a Secret's history reaches you without that history if you can't read the Secret: a Pod still running with environment values from a Secret that changed is flagged, with the restart it needs, but not which Secret or keys changed, or when. A finding that something your resource names does not exist (an Ingress's TLS Secret or IngressClass, a PVC's StorageClass, a RoleBinding's ClusterRole) is shown with namespace access: it says only that a name you can already read is missing, and Kubernetes reports a missing StorageClass in the PVC's events too. The Home dashboard's problem list and the MCP tools follow the same rules. The per-resource Issues view says when something was withheld, rather than showing an empty list as "none".
+
 **If namespace-level isn't tight enough for you**, scope the boundary at the cache instead of at read time: run a Radar instance per trust boundary and give each one a **namespace-scoped ServiceAccount** (a `Role`/`RoleBinding`, no `ClusterRole`) limited to that boundary's namespaces. Radar detects the restricted permissions at startup and only watches and caches what its ServiceAccount can list — so the instance simply never holds another team's data, and there's nothing to over-expose. Point each team at their own instance (an ingress or auth proxy can route them). See [In-Cluster Deployment → namespace-scoped RBAC](in-cluster.md) for the `rbac.create: false` + custom `Role` setup.
+
+Deletion-impact previews require read access to the root resource and use the caller's visible topology. Related resources describe observed management relationships, not a guarantee of Kubernetes garbage collection. Policy coverage metadata is filtered alongside its referenced workloads; it does not reveal names from hidden namespaces.
 
 ### Prometheus metrics
 
@@ -79,7 +83,7 @@ radar --auth-mode=proxy \
 
 > **Security:** Your ingress must strip `X-Forwarded-User` and `X-Forwarded-Groups` headers from external requests to prevent spoofing. The auth proxy should be the **only** path to Radar. Radar logs a warning at startup as a reminder.
 
-> **WebSockets:** Preserve the browser-facing `Host` header when proxying Radar; this is the compatibility requirement across browsers and proxies. When both the browser and proxy forward Fetch Metadata, Radar can also recognize a same-origin connection through a host-rewriting proxy. Pod exec rejects cross-origin handshakes.
+> **Proxies:** Preserve the browser-facing `Host` header when proxying Radar. Radar accepts changes and pod exec sessions only from its own page, and it recognizes that page by comparing the browser's `Origin` with `Host` (or by `Sec-Fetch-Site`, which browsers send over HTTPS). If your proxy must rewrite `Host`, list the address users open Radar at in `trustedOrigins` (Helm) or `RADAR_TRUSTED_ORIGINS`. See [Changes fail with "Radar refused this request"](in-cluster.md#changes-fail-with-radar-refused-this-request).
 
 > **Local terminal:** The host-level local terminal requires both a loopback-bound Radar listener and a loopback URL, and is unavailable when authentication is enabled. Unlike pod exec, it runs as the Radar process's operating-system user and cannot be safely impersonated per caller.
 
@@ -94,6 +98,8 @@ To make logout actually switch users, point Radar at your proxy's sign-out URL w
 ### OIDC Mode
 
 Use this when you want Radar to handle login directly — no separate auth proxy needed. Radar redirects to your identity provider (Google, Okta, Dex, Keycloak, etc.), validates the token, and creates a session cookie.
+
+We recommend registering a dedicated OIDC client for Radar rather than reusing the client ID your Kubernetes API server trusts. Radar's session holds the user's ID token for logout, so with a shared client a leaked Radar session could also be used against the API server.
 
 **Flow:**
 ```
@@ -110,11 +116,16 @@ auth:
     clientID: your-client-id
     clientSecret: your-client-secret
     redirectURL: https://radar.example.com/auth/callback
+    # usernameClaim: preferred_username        # Default: email, falling back to sub
     groupsClaim: groups                        # JWT claim containing group membership
     # scopes: ["openid", "profile", "email", "groups"]  # Default — uncomment to override (e.g., drop "groups" for Google)
 ```
 
 **Scopes:** by default Radar requests `openid profile email groups` at the authorization endpoint. The `groups` scope is required by Dex, Keycloak, and most IdPs to actually include the groups claim in the ID token. If your IdP rejects unknown scopes (Google in particular doesn't define `groups`), override via `auth.oidc.scopes` / `--auth-oidc-scopes` to drop it or substitute the provider-specific equivalent.
+
+**Username claim:** by default Radar uses the token's `email` claim as the Kubernetes username, falling back to `sub`. If your API server authenticates the same users with OIDC, set `auth.oidc.usernameClaim` / `--auth-oidc-username-claim` to the claim it maps (`--oidc-username-claim` or `claimMappings.username.claim`), and `usernamePrefix` to its prefix. Otherwise RBAC bindings that work in `kubectl` won't match in Radar. When the claim is set and missing from a token, Radar refuses the login rather than falling back to another claim.
+
+**Unverified email:** when the username comes from `email` and the token's `email_verified` claim is `false`, Radar refuses the login, the same way kube-apiserver rejects such a token. Tokens without `email_verified` are accepted. If your users' addresses are not verified at the IdP, verify them there or set `usernameClaim` to a claim that doesn't depend on email, such as `sub`. Radar checks this only at sign-in. If you set a fixed `auth.secret` or `auth.existingSecret`, sessions from before the upgrade keep working as long as they stay active; change the secret to sign everyone out.
 
 **Split public/internal provider URLs:** Kubernetes deployments sometimes need the browser to use the canonical issuer URL while the Radar pod talks to the IdP through service DNS. Keep `issuerURL` set to the canonical browser-facing issuer; Radar still validates the token `iss` claim against that value. Set `internalIssuerURL` when the internal endpoint has the same path layout, and Radar will fetch discovery internally while deriving server-side token, userinfo, and JWKS URLs from the internal base:
 
@@ -227,7 +238,12 @@ Under cloud-mode (`RADAR_CLOUD_MODE=true`, set automatically by the chart when `
 
 - Forces `--auth-mode=proxy` with pinned `X-Forwarded-User` / `X-Forwarded-Groups` headers. Radar accepts those headers only on requests marked in-process by its authenticated Cloud tunnel; the ordinary pod TCP listener cannot assert Cloud identity.
 - Ships three default ClusterRoleBindings mapping Cloud's `radar:owner` / `radar:member` / `radar:viewer` groups to the standard K8s `admin` / `edit` / `view` ClusterRoles. Configurable via `cloud.defaultRbac.*` in `values.yaml`.
-- Adds a **cluster-read add-on** (`cloud.defaultRbac.clusterScopedRead.{viewer,member,owner}`, each default on) granting `get/list/watch` on infrastructure the built-in `view`/`edit`/`admin` roles exclude — Nodes, PersistentVolumes, StorageClasses, IngressClasses, PriorityClasses, RuntimeClasses, ClusterTrustBundles, CRDs, and admission webhook configurations — plus list-only Upgrade impact evidence for CSIDrivers, CSIStorageCapacities, legacy PodSecurityPolicies, and API flow-control configuration. When the matching collection is enabled, it also grants APIServices, PrometheusRules, Karpenter kinds, and node metrics. It does not grant Secrets, RBAC objects, API-server metrics, or kubelet proxy access. It's an independent axis per tier: set a tier `false` to make it namespaced-only (e.g. `clusterScopedRead.viewer: false`). Owner node cordon/drain is a separate cluster-scoped *write*, off by default (`cloud.defaultRbac.nodeOps`).
+- Adds a **cluster-read add-on** (`cloud.defaultRbac.clusterScopedRead.{viewer,member,owner}`, each default on) granting `get/list/watch` on infrastructure the built-in `view`/`edit`/`admin` roles exclude — Nodes, PersistentVolumes, StorageClasses, IngressClasses, PriorityClasses, RuntimeClasses, Leases (namespaced; the spec is only a holder and renew times — `edit`/`admin` already include them, so only viewers and the view-based system and AI grants gain), ClusterTrustBundles, CRDs, and admission webhook configurations — plus list-only Upgrade impact evidence for CSIDrivers, CSIStorageCapacities, legacy PodSecurityPolicies, and API flow-control configuration. When the matching collection is enabled, it also grants APIServices, PrometheusRules, Karpenter kinds, and node metrics. It does not grant Secrets, RBAC objects, API-server metrics, or kubelet proxy access. It's an independent axis per tier: set a tier `false` to make it namespaced-only (e.g. `clusterScopedRead.viewer: false`). Owner node cordon/drain is a separate cluster-scoped *write*, off by default (`cloud.defaultRbac.nodeOps`).
+- Creates the default read grant for `radar:system`, Radar Cloud's alerts worker and timeline puller: a chart-owned role aggregated to match `view`, the cluster-read and integration-read add-ons, and cluster-wide Secret read. Helm release alerts and Secret changes in the timeline need Secret read; Helm stores releases as Secrets. No writes. Controlled by `cloud.systemRbac` (default `true`).
+- Creates the default read grant for alert-triggered AI investigations, recorded in Kubernetes audit logs as `radar:ai:<org>`: `radar:ai:reader` receives permissions based on `view` plus the cluster-read and integration-read add-ons. Stock `view` excludes Secrets, but includes pod logs and ConfigMaps; roles labelled `aggregate-to-view` widen this grant too. Controlled by `cloud.aiRbac` (default `true`). Requests a person starts or follows up on use that person's identity and groups, including follow-ups on alert-triggered investigations. MCP clients also use the user's permissions.
+- Treats `cloud.aiRbac` and `cloud.systemRbac` as controls for the chart's default grants, independent of `cloud.defaultRbac`. False or absent (including after a plain `--reuse-values` upgrade from an older chart) creates no default grant and leaves customer-created bindings untouched. These settings do not disable background jobs or automatic analysis; they control their default Kubernetes access.
+- Requires cluster-admin-equivalent authority or `escalate` on ClusterRoles to create or update the AI/system aggregated roles, in addition to normal chart installation permissions. Restricted installers can set `cloud.aiRbac=false` and `cloud.systemRbac=false` and supply their own read-only group bindings.
+- Uses the Cloud role (`radar:owner` / `radar:member` / `radar:viewer`) only to gate Radar's own configuration (settings, integrations, audit settings, registered OCI chart sources, self-upgrade), which runs as Radar's ServiceAccount. A Cloud request with no role group (such as the Hub's `radar:system` background identity) is refused there. Operations that run as the impersonated user — Helm reads and writes, in-cluster probe pods — are decided by Kubernetes RBAC alone.
 - Does **not** grant `PodCertificateRequest` access through the default Cloud tier bindings. Radar surfaces the API when Kubernetes 1.37 serves it, but a Cloud user can browse requests only when their Kubernetes RBAC independently grants `get/list` access. To opt in, bind a Role or ClusterRole granting `get/list/watch` on `certificates.k8s.io/podcertificaterequests` to the intended `radar:*` groups. This stays separate because certificate-request metadata is more sensitive than ordinary workload inventory.
 - Restricts the ordinary pod/ClusterIP TCP listener to `/api/health`; the full handler is served only over yamux streams from the outbound Cloud tunnel. Cloud mode also omits `/debug/pprof/*` and narrows auth exemptions to health only.
 
@@ -428,7 +444,9 @@ When auth is enabled, Radar's ServiceAccount needs two additional permissions (a
   verbs: ["create"]
 ```
 
-The ServiceAccount's existing read permissions (list pods, watch deployments, etc.) continue to power the shared cache. Impersonation is only used for write operations and permission checks.
+The ServiceAccount's existing read permissions (list pods, watch deployments, etc.) continue to power the shared cache. Impersonation is used for every call made on a user's behalf rather than served from the cache: writes, exec, logs, port-forward, and Helm release reads.
+
+**Treat the ServiceAccount as privileged.** Kubernetes RBAC can't limit `impersonate` to a subset of users or groups. Radar enforces the reserved-identity rule above where it accepts identities, but anyone holding the ServiceAccount's token can call the API server directly as any user or group, which is effectively cluster-admin. Run Radar in a dedicated namespace, restrict network access to it with NetworkPolicies, and make your auth proxy or ingress the only path to it.
 
 ## Session Cookies
 
@@ -460,6 +478,7 @@ Radar uses stateless HMAC-SHA256 signed cookies for sessions. The cookie contain
 | OIDC client secret (K8s Secret) | — | `auth.oidc.existingSecret` | — |
 | OIDC client secret key | — | `auth.oidc.clientSecretKey` | `client-secret` |
 | OIDC redirect URL | `--auth-oidc-redirect-url` | `auth.oidc.redirectURL` | — |
+| OIDC username claim | `--auth-oidc-username-claim` | `auth.oidc.usernameClaim` | `email`, falling back to `sub` |
 | OIDC groups claim | `--auth-oidc-groups-claim` | `auth.oidc.groupsClaim` | `groups` |
 | OIDC scopes | `--auth-oidc-scopes` | `auth.oidc.scopes` | `openid,profile,email,groups` |
 | OIDC post-logout redirect | `--auth-oidc-post-logout-redirect-url` | `auth.oidc.postLogoutRedirectURL` | — |

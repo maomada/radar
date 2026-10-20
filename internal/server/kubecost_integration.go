@@ -13,6 +13,7 @@ import (
 	"github.com/skyhook-io/radar/internal/config"
 	"github.com/skyhook-io/radar/internal/k8s"
 	internalopencost "github.com/skyhook-io/radar/internal/opencost"
+	"github.com/skyhook-io/radar/pkg/urlutil"
 )
 
 type kubecostServiceRef struct {
@@ -36,6 +37,10 @@ func (s *Server) handleApplyCostSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.requireCloudRole(w, r, auth.RoleOwner, "modify Radar configuration") {
+		return
+	}
+	if s.localConnections != nil && s.configManagement() == "local" {
+		s.writeError(w, http.StatusConflict, "Use the cluster-scoped saved connections endpoint to change this local integration")
 		return
 	}
 	if internalopencost.IsEnvManaged() {
@@ -150,8 +155,8 @@ func sameServerOrigin(a, b string) bool {
 	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
 		return strings.TrimSpace(a) == strings.TrimSpace(b)
 	}
-	left, leftOK := normalizeOrigin(a)
-	right, rightOK := normalizeOrigin(b)
+	left, leftOK := urlutil.NormalizeOrigin(a)
+	right, rightOK := urlutil.NormalizeOrigin(b)
 	return leftOK && rightOK && left == right
 }
 

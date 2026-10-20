@@ -3,6 +3,8 @@ package timeline
 import (
 	"context"
 	"regexp"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/skyhook-io/radar/pkg/resourceid"
@@ -27,17 +29,19 @@ type EventStore interface {
 	// Query retrieves events matching the given options
 	Query(ctx context.Context, opts QueryOptions) ([]TimelineEvent, error)
 
-	// QueryGrouped retrieves events grouped according to the specified mode
-	QueryGrouped(ctx context.Context, opts QueryOptions) (*TimelineResponse, error)
+	// OwnedUIDs returns the distinct UIDs of resources whose rows name one of
+	// ownerUIDs as their owner, in one cluster context, at most limit of them.
+	// K8s Event rows count: their uid is the subject's, and their owner is the
+	// subject's owner. Callers walk ownership one level per call.
+	OwnedUIDs(ctx context.Context, clusterContext string, ownerUIDs []string, limit int) ([]string, error)
+
+	// Identities returns the distinct resources the rows matching q were
+	// about, at most limit of them. It reads identities rather than rows, so a
+	// resource with many rows can't crowd others out of the limit.
+	Identities(ctx context.Context, q IdentityQuery, limit int) ([]Identity, error)
 
 	// GetEvent retrieves a single event by ID
 	GetEvent(ctx context.Context, id string) (*TimelineEvent, error)
-
-	// GetChangesForOwner retrieves changes for resources owned by the given
-	// owner. clusterContext scopes to one cluster's events ("" = all) — owner
-	// identity (kind/namespace/name) collides across clusters in a persistent
-	// store, so current-cluster callers must pass it.
-	GetChangesForOwner(ctx context.Context, ownerKind, ownerNamespace, ownerName, clusterContext string, since time.Time, limit int) ([]TimelineEvent, error)
 
 	// MarkResourceSeen records that a resource has been seen (for dedup on
 	// restart). clusterContext scopes the key — the store outlives kubeconfig
@@ -57,6 +61,15 @@ type EventStore interface {
 
 	// Close releases any resources held by the store
 	Close() error
+}
+
+// EvictionBoundary is implemented by stores that delete recorded events to
+// stay within a size or age limit. EvictedThrough returns a time T such that
+// every recorded event newer than T is still in the store; zero means nothing
+// has been deleted. A store may return a later T than strictly needed, never
+// an earlier one: callers use it to decide when an empty answer is complete.
+type EvictionBoundary interface {
+	EvictedThrough() time.Time
 }
 
 // QueryOptions configures event queries
@@ -87,9 +100,9 @@ type QueryOptions struct {
 	// than this; 0 means no cursor. This is the delta-read cursor: arrival
 	// order, not event time, so late-arriving events can't be skipped.
 	// Delta reads page oldest-first (ascending seq) so a burst larger than
-	// Limit resumes from the lowest unseen seq. Do not combine with Offset or
-	// GroupBy — both are defined for the newest-first shape only and their
-	// delta-mode behavior is unspecified.
+	// Limit resumes from the lowest unseen seq. Do not combine with Offset —
+	// it is defined for the newest-first shape only and its delta-mode
+	// behavior is unspecified.
 	SinceSeq int64
 	// UntilSeq returns only events whose arrival number (Seq) is less than
 	// this value. It provides stable backwards pagination without relying on
@@ -120,8 +133,8 @@ type QueryOptions struct {
 	Limit  int // Max results (default 200, max 1000)
 	Offset int // Skip first N results
 
-	// Grouping
-	GroupBy GroupingMode // How to group results
+	// Scope restricts results to rows about a set of resources. Empty = no scope.
+	Scope ResourceScope
 
 	// Include/exclude options
 	IncludeManaged   bool // Include ReplicaSets, Pods, Events (default false)
@@ -129,11 +142,120 @@ type QueryOptions struct {
 	IncludeK8sEvents bool // Include K8s Event resources (default true)
 }
 
+// ResourceScope selects rows about a set of resources: a row is in scope when
+// its subject UID is in UIDs, or its owner's UID is in OwnerUIDs, or its
+// group/kind/namespace/name is one of Refs, or it is one of OwnerlessRefs and
+// records no owner UID. A row that didn't record its
+// apiVersion matches a Ref on kind/namespace/name, the same way APIGroups
+// treats unknown versions.
+type ResourceScope struct {
+	UIDs      []string
+	OwnerUIDs []string
+	Refs      []resourceid.Ref
+	// OwnerlessRefs are resources attributed without an owner record (for
+	// example by the name a controller gives its children). Only a row whose
+	// owner is unknown (OwnerUnknown) matches through them: a recorded owner
+	// decides, and so does a recorded absence of one.
+	OwnerlessRefs []resourceid.Ref
+}
+
+// IsZero reports whether the scope selects nothing in particular, i.e. is off.
+func (s ResourceScope) IsZero() bool {
+	return len(s.UIDs) == 0 && len(s.OwnerUIDs) == 0 && len(s.Refs) == 0 && len(s.OwnerlessRefs) == 0
+}
+
+// Matches reports whether an event is in scope. An empty scope matches everything.
+func (s ResourceScope) Matches(e *TimelineEvent) bool {
+	if s.IsZero() {
+		return true
+	}
+	if e.UID != "" && slices.Contains(s.UIDs, e.UID) {
+		return true
+	}
+	if e.Owner != nil && e.Owner.UID != "" && slices.Contains(s.OwnerUIDs, e.Owner.UID) {
+		return true
+	}
+	if slices.ContainsFunc(s.Refs, func(ref resourceid.Ref) bool { return rowIsAbout(e, ref) }) {
+		return true
+	}
+	if OwnerUnknown(e) {
+		return slices.ContainsFunc(s.OwnerlessRefs, func(ref resourceid.Ref) bool { return rowIsAbout(e, ref) })
+	}
+	return false
+}
+
+// OwnerUnknown reports whether a row leaves its subject's owner unknown: it
+// records no owner UID, and nothing that saw the subject recorded that it had
+// none (observed, enriched and reconstructed rows did look). The SQL stores
+// encode the same rule.
+func OwnerUnknown(e *TimelineEvent) bool {
+	if e.Owner != nil && e.Owner.UID != "" {
+		return false
+	}
+	switch e.OwnerEvidence {
+	case OwnerObserved, OwnerEnriched, OwnerReconstructed:
+		return false
+	}
+	return true
+}
+
+func rowIsAbout(e *TimelineEvent, ref resourceid.Ref) bool {
+	if ref.Kind != e.Kind || ref.Namespace != e.Namespace || ref.Name != e.Name {
+		return false
+	}
+	return e.APIVersion == "" || resourceid.GroupFromAPIVersion(e.APIVersion) == ref.Group
+}
+
+// IdentityQuery selects the rows Identities reads. Every set field narrows.
+type IdentityQuery struct {
+	ClusterContext string
+	Namespace      string
+	// Ref keeps rows recorded under this key. A row that didn't record its
+	// apiVersion matches on kind, namespace and name.
+	Ref   *resourceid.Ref
+	Kinds []string
+	// NamePrefix keeps rows whose name starts with it, case-sensitively.
+	NamePrefix string
+	// OwnerUnknown keeps rows whose subject's owner is unknown (see the
+	// OwnerUnknown func): mostly K8s Events whose subject was already gone,
+	// and rows written before owners were recorded.
+	OwnerUnknown bool
+}
+
+// Matches reports whether a row is one the query reads.
+func (q IdentityQuery) Matches(e *TimelineEvent) bool {
+	if q.ClusterContext != "" && e.ClusterContext != q.ClusterContext {
+		return false
+	}
+	if q.Namespace != "" && e.Namespace != q.Namespace {
+		return false
+	}
+	if q.Ref != nil && !rowIsAbout(e, *q.Ref) {
+		return false
+	}
+	if len(q.Kinds) > 0 && !slices.Contains(q.Kinds, e.Kind) {
+		return false
+	}
+	if q.NamePrefix != "" && !strings.HasPrefix(e.Name, q.NamePrefix) {
+		return false
+	}
+	return !q.OwnerUnknown || OwnerUnknown(e)
+}
+
+// Identity is one resource as a row recorded it. OwnerUID is empty when the
+// row recorded no owner.
+type Identity struct {
+	APIVersion string
+	Kind       string
+	Name       string
+	UID        string
+	OwnerUID   string
+}
+
 // DefaultQueryOptions returns sensible defaults
 func DefaultQueryOptions() QueryOptions {
 	return QueryOptions{
 		Limit:            200,
-		GroupBy:          GroupByNone,
 		IncludeManaged:   false,
 		ExcludeDeleted:   false,
 		IncludeK8sEvents: true,
@@ -256,11 +378,6 @@ func (cf *CompiledFilter) Matches(event *TimelineEvent) bool {
 
 	// Note: IncludeManaged is handled in matchesFilters to allow query option override
 	return true
-}
-
-// ResourceKey generates a unique key for a resource
-func ResourceKey(kind, namespace, name string) string {
-	return kind + "/" + namespace + "/" + name
 }
 
 // SeenResourceKey qualifies the canonical resource identity with the cluster

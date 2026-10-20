@@ -71,9 +71,9 @@ func handleWorkloadMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Unsupported request source; use beyla or istio, or omit source for automatic selection.")
 		return
 	}
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 	generation := client.DiscoveryGeneration()
@@ -84,7 +84,7 @@ func handleWorkloadMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "cluster cache not ready")
 		return
 	}
-	scope, err := ResolvePodScope(cache, kind, namespace, name, 100)
+	scope, err := ResolvePodScope(r.Context(), cache, kind, namespace, name, 100)
 	if err != nil {
 		status := http.StatusBadGateway
 		message := "Could not resolve current workload Pods. Retry after checking the Kubernetes connection."

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,7 +16,9 @@ import (
 
 	"github.com/skyhook-io/radar/internal/ai"
 	"github.com/skyhook-io/radar/internal/config"
+	"github.com/skyhook-io/radar/internal/issues"
 	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/skyhook-io/radar/internal/readscope"
 	"github.com/skyhook-io/radar/pkg/checks"
 	"github.com/skyhook-io/radar/pkg/resourcecontext"
 )
@@ -92,7 +95,7 @@ func (s *Server) detectDiagnoseHealth(r *http.Request, kind, group, namespace, n
 	if canonicalKind == "" {
 		canonicalKind = kind
 	}
-	issueSum, issueRows := computeIssueSummaryAndRows(cache, s.issueClusterScopedAccess(r), s.issueRelatedResourceAccess(r), gvk.Group, canonicalKind, namespace, name, true)
+	issueSum, issueRows := computeIssueSummaryAndRows(cache, s.issueClusterScopedAccess(r), s.issueRelatedResourceAccess(r), s.issueSubjectAccess(r), s.issueEvidenceAccess(r), gvk.Group, canonicalKind, namespace, name, true)
 	auditSum, auditRows := s.computeAuditSummaryAndRows(r, cache, gvk.Group, canonicalKind, namespace, name)
 
 	var issueCount int
@@ -103,11 +106,15 @@ func (s *Server) detectDiagnoseHealth(r *http.Request, kind, group, namespace, n
 		signal.HighestSeverity = issueSum.HighestSeverity
 		signal.TopReason = issueSum.TopReason
 		for _, row := range issueRows[:min(len(issueRows), maxHealthLines)] {
-			signal.Issues = append(signal.Issues, ai.HealthLine{
+			line := ai.HealthLine{
 				Severity: string(row.Severity),
 				Reason:   row.Reason,
 				Message:  capHealthMessage(row.Message),
-			})
+			}
+			if ref := issues.OtherSubject(row, gvk.Group, canonicalKind, namespace, name); ref != nil {
+				line.Subject = ref.Kind + " " + strings.TrimPrefix(ref.Namespace+"/"+ref.Name, "/")
+			}
+			signal.Issues = append(signal.Issues, line)
 		}
 	}
 	if summary := resourcecontext.BuildSummary(obj, resourcecontext.SummaryOptions{IssueCount: issueCount}); summary != nil {
@@ -178,43 +185,56 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 	// Version probing is slow (execs `<cli> --version`); only do it when asked
 	// (e.g. a settings/picker view) so the Diagnose button's check stays instant.
 	withVersions := r.URL.Query().Get("versions") == "1"
+	// This is the "check again" the setup UI offers after an install, so a CLI
+	// that appeared since startup turns investigations on here.
+	s.refreshAIEngine(r.Context())
+	diagnoser, runs := s.aiEngine()
 	var agents []ai.AgentInfo
-	if s.aiDiagnoser != nil {
+	// enabled: investigations can run now. The run manager outlives its CLIs (it
+	// keeps history), so it also needs at least one backend it can drive.
+	enabled := false
+	if diagnoser != nil {
 		// The initialized Diagnoser is authoritative when an explicit CLI override
 		// narrows the backend set or points at a binary outside PATH.
+		drivable := diagnoser.AgentInfos(r.Context(), withVersions)
+		enabled = runs != nil && len(drivable) > 0
 		agents = ai.DetectAgents(r.Context(), false)
-		agents = mergeDetectedWithDrivable(agents, s.aiDiagnoser.AgentInfos(r.Context(), withVersions))
+		agents = mergeDetectedWithDrivable(agents, drivable)
 	} else {
 		agents = ai.DetectAgents(r.Context(), withVersions)
+	}
+	if agents == nil {
+		// A nil slice encodes as null. Clients read this list as an array, and
+		// "nothing installed" is the response the setup UI exists for.
+		agents = []ai.AgentInfo{}
 	}
 	// Every local agent runs through the run manager, which performs the
 	// confirmed apply turn and the verification that follows it.
 	for i := range agents {
-		agents[i].Apply = true
+		agents[i].Apply = !s.mcpReadOnly()
 		agents[i].Verification = true
 	}
-	// eligible: this run mode supports local BYO-agent investigations (no proxy/OIDC
-	// auth, not operator-managed, /mcp mounted) — the SAME gate the boot-time
-	// engine init uses. It's true even when no agent is installed, so the UI can
-	// distinguish "install an agent to enable this" (eligible && !enabled) from
-	// "not available in this deployment", where nudging an install wouldn't help.
+	// eligible: this deployment can run local BYO-agent investigations, the same
+	// gate the engine uses. It's true even when no agent is installed, so the UI
+	// can tell "install an agent to enable this" (eligible && !enabled) from "not
+	// available in this deployment", where nudging an install wouldn't help.
 	// unavailableReason says which: "shared" for a team installation (auth or
 	// operator-managed config), where the answer is local Radar or Radar Cloud;
-	// "no-mcp" when --no-mcp removed the mount the agent works through.
-	shared := s.authConfig.Enabled() || s.configManagement() == "operator"
-	eligible := !shared && s.mcpHandler != nil
+	// "no-mcp" when the MCP mount the agent works through is missing.
+	eligible := s.aiDeploymentSupported()
 	unavailableReason := ""
 	switch {
-	case shared:
+	case s.authConfig.Enabled() || s.configManagement() == "operator":
 		unavailableReason = "shared"
-	case s.mcpHandler == nil:
+	case !eligible:
 		unavailableReason = "no-mcp"
 	}
 	s.writeJSON(w, map[string]any{
 		"agents":            agents,
-		"enabled":           s.aiRuns != nil,
+		"enabled":           enabled,
 		"eligible":          eligible,
 		"unavailableReason": unavailableReason,
+		"cliOverride":       strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")) != "",
 		"consented":         currentConsents(),
 	})
 }
@@ -247,11 +267,7 @@ func mergeDetectedWithDrivable(detected, drivable []ai.AgentInfo) []ai.AgentInfo
 // disclosure for an execution profile. Doesn't require a connected cluster — consent can be
 // given while Radar is still connecting.
 func (s *Server) handleDiagnoseConsent(w http.ResponseWriter, r *http.Request) {
-	if !s.sameOriginOK(r) {
-		s.writeError(w, http.StatusForbidden, "cross-origin request rejected")
-		return
-	}
-	if s.aiRuns == nil {
+	if s.aiRunManager() == nil {
 		s.writeError(w, http.StatusNotImplemented, "AI investigations are not available")
 		return
 	}
@@ -273,15 +289,16 @@ func (s *Server) handleDiagnoseConsent(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, map[string]any{"ok": true, "consented": currentConsents()})
 }
 
-// aiReady gates every diagnose endpoint: the engine is built only in no-auth
-// standalone radar with /mcp mounted and an agent CLI present. Returns false (and
-// writes the error) when unavailable.
-func (s *Server) aiReady(w http.ResponseWriter) bool {
-	if s.aiRuns == nil {
+// aiReady gates every diagnose endpoint: the engine exists only in no-auth
+// standalone Radar with the investigation MCP mounted, once an agent CLI is found. Returns
+// the run manager, or false (having written the error) when unavailable.
+func (s *Server) aiReady(w http.ResponseWriter) (*ai.RunManager, bool) {
+	runs := s.aiRunManager()
+	if runs == nil {
 		s.writeError(w, http.StatusNotImplemented, "no agent CLI available — install Claude Code, Codex, Cursor (cursor-agent), or OpenCode to enable AI investigations")
-		return false
+		return nil, false
 	}
-	return s.requireConnected(w)
+	return runs, s.requireConnected(w)
 }
 
 // validReasoningEffort allows the empty (default) value or one of Codex's
@@ -301,11 +318,11 @@ func validReasoningEffort(e string) bool {
 // handleDiagnoseStart begins an investigation (or focuses a live one for the same
 // target) and returns its run id. POST {kind, namespace, name}.
 func (s *Server) handleDiagnoseStart(w http.ResponseWriter, r *http.Request) {
-	if !s.sameOriginOK(r) {
-		s.writeError(w, http.StatusForbidden, "cross-origin request rejected")
-		return
-	}
-	if !s.aiReady(w) {
+	// Use the CLI installed now, not one that moved or went away since the
+	// agent list was last fetched.
+	s.refreshAIEngine(r.Context())
+	runs, ok := s.aiReady(w)
+	if !ok {
 		return
 	}
 	var body struct {
@@ -334,13 +351,24 @@ func (s *Server) handleDiagnoseStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if namespace != "" {
-		if allowed := s.getUserNamespaces(r, []string{namespace}); noNamespaceAccess(allowed) {
+		if allowed := s.getUserNamespaces(r, []string{namespace}); readscope.NoNamespaceAccess(allowed) {
 			s.writeError(w, http.StatusForbidden, "no access to namespace "+namespace)
 			return
 		}
 	}
 	kind, group = canonicalDiagnoseTarget(r.Context(), kind, group, namespace, name)
-	agent := s.aiRuns.AgentName(strings.TrimSpace(body.Agent))
+	requested := strings.TrimSpace(body.Agent)
+	agent := runs.AgentName(requested)
+	if agent == "" {
+		s.writeError(w, http.StatusNotImplemented, "the agent CLI Radar was using is no longer installed")
+		return
+	}
+	// A named agent that isn't installed fails rather than starting another one:
+	// the user picked it, and consent was given for it.
+	if requested != "" && agent != requested {
+		s.writeError(w, http.StatusConflict, ai.AgentLabel(requested)+" isn't installed, so the investigation didn't start. Try again with another agent.")
+		return
+	}
 	profile := ai.ExecutionProfile(strings.TrimSpace(body.Profile))
 	if profile == "" {
 		profile = ai.DefaultProfileFor(agent)
@@ -379,7 +407,7 @@ func (s *Server) handleDiagnoseStart(w http.ResponseWriter, r *http.Request) {
 	if !diagnoseIssueIDRe.MatchString(issueID) {
 		issueID = ""
 	}
-	run, err := s.aiRuns.Start(kind, group, namespace, name, agent, profile, model, effort, managedBy, issueID, health)
+	run, err := runs.Start(kind, group, namespace, name, agent, profile, model, effort, managedBy, issueID, health)
 	if err != nil {
 		if errors.Is(err, ai.ErrAtCapacity) {
 			s.writeError(w, http.StatusConflict, "too many investigations running — stop or finish one first")
@@ -395,12 +423,13 @@ func (s *Server) handleDiagnoseStart(w http.ResponseWriter, r *http.Request) {
 // warns that persistence stopped working, so the UI can say history won't
 // survive a restart instead of letting the user believe otherwise.
 func (s *Server) handleDiagnoseList(w http.ResponseWriter, r *http.Request) {
-	if !s.aiReady(w) {
+	runs, ok := s.aiReady(w)
+	if !ok {
 		return
 	}
 	s.writeJSON(w, map[string]any{
-		"runs":            s.aiRuns.List(),
-		"historyDegraded": s.aiRuns.HistoryDegraded(),
+		"runs":            runs.List(),
+		"historyDegraded": runs.HistoryDegraded(),
 	})
 }
 
@@ -408,10 +437,11 @@ func (s *Server) handleDiagnoseList(w http.ResponseWriter, r *http.Request) {
 // no sharing boundary—all callers are the same local user—but the direct route
 // keeps deep links independent of the bounded history list.
 func (s *Server) handleDiagnoseGet(w http.ResponseWriter, r *http.Request) {
-	if !s.aiReady(w) {
+	runs, ok := s.aiReady(w)
+	if !ok {
 		return
 	}
-	run := s.aiRuns.Get(chi.URLParam(r, "id"))
+	run := runs.Get(chi.URLParam(r, "id"))
 	if run == nil {
 		s.writeError(w, http.StatusNotFound, "investigation not found")
 		return
@@ -422,18 +452,15 @@ func (s *Server) handleDiagnoseGet(w http.ResponseWriter, r *http.Request) {
 // handleDiagnoseHistoryClear wipes the persisted investigation history (and
 // drops finished runs from memory). Live runs survive. POST, same-origin only.
 func (s *Server) handleDiagnoseHistoryClear(w http.ResponseWriter, r *http.Request) {
-	if !s.sameOriginOK(r) {
-		s.writeError(w, http.StatusForbidden, "cross-origin request rejected")
-		return
-	}
 	// Deliberately NOT aiReady: clearing local history is a disk operation —
 	// requiring a connected cluster (like starting a run does) would make the
 	// privacy control fail exactly when a user is cleaning up a broken setup.
-	if s.aiRuns == nil {
+	runs := s.aiRunManager()
+	if runs == nil {
 		s.writeError(w, http.StatusNotImplemented, "AI investigations are not available")
 		return
 	}
-	if err := s.aiRuns.ClearHistory(); err != nil {
+	if err := runs.ClearHistory(); err != nil {
 		s.writeError(w, http.StatusInternalServerError, "couldn't clear history: "+err.Error())
 		return
 	}
@@ -443,11 +470,11 @@ func (s *Server) handleDiagnoseHistoryClear(w http.ResponseWriter, r *http.Reque
 // handleDiagnoseTurn adds a follow-up or apply turn to a run. POST {question?,
 // apply?, fix?}. Apply enables write tools and binds to the confirmed fix text.
 func (s *Server) handleDiagnoseTurn(w http.ResponseWriter, r *http.Request) {
-	if !s.sameOriginOK(r) {
-		s.writeError(w, http.StatusForbidden, "cross-origin request rejected")
-		return
-	}
-	if !s.aiReady(w) {
+	// Use the CLI installed now, not one that moved or went away since the
+	// agent list was last fetched.
+	s.refreshAIEngine(r.Context())
+	runs, ok := s.aiReady(w)
+	if !ok {
 		return
 	}
 	id := chi.URLParam(r, "id")
@@ -464,6 +491,10 @@ func (s *Server) handleDiagnoseTurn(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Apply && body.Verify {
 		s.writeError(w, http.StatusBadRequest, ai.ErrInvalidTurn.Error())
+		return
+	}
+	if body.Apply && s.mcpReadOnly() {
+		s.writeError(w, http.StatusForbidden, "AI apply is unavailable in read-only MCP mode. Restart Radar with --mcp-read-only=false to enable MCP write tools.")
 		return
 	}
 	if body.Verify && strings.TrimSpace(body.Question) == "" {
@@ -484,9 +515,9 @@ func (s *Server) handleDiagnoseTurn(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusBadRequest, "explanation cannot be combined with a question, apply, fix, or verification")
 			return
 		}
-		err = s.aiRuns.AddExplanation(id, *body.ExplainAssessment)
+		err = runs.AddExplanation(id, *body.ExplainAssessment)
 	} else {
-		err = s.aiRuns.AddTurn(id, strings.TrimSpace(body.Question), body.Apply, body.Fix, body.Verify)
+		err = runs.AddTurn(id, strings.TrimSpace(body.Question), body.Apply, body.Fix, body.Verify)
 	}
 	switch {
 	case errors.Is(err, ai.ErrRunNotFound):
@@ -510,14 +541,11 @@ func (s *Server) handleDiagnoseTurn(w http.ResponseWriter, r *http.Request) {
 
 // handleDiagnoseStop cancels a run's in-flight agent.
 func (s *Server) handleDiagnoseStop(w http.ResponseWriter, r *http.Request) {
-	if !s.sameOriginOK(r) {
-		s.writeError(w, http.StatusForbidden, "cross-origin request rejected")
+	runs, ok := s.aiReady(w)
+	if !ok {
 		return
 	}
-	if !s.aiReady(w) {
-		return
-	}
-	if err := s.aiRuns.Stop(chi.URLParam(r, "id")); err != nil {
+	if err := runs.Stop(chi.URLParam(r, "id")); err != nil {
 		s.writeError(w, http.StatusNotFound, "investigation not found")
 		return
 	}
@@ -536,11 +564,12 @@ func (s *Server) handleDiagnoseRunStream(w http.ResponseWriter, r *http.Request)
 	// Keeping this endpoint available during a connection outage preserves the
 	// durable transcript and lets EventSource reconnect instead of misclassifying
 	// a temporary outage as an evicted run.
-	if s.aiRuns == nil {
+	runs := s.aiRunManager()
+	if runs == nil {
 		s.writeError(w, http.StatusNotImplemented, "AI investigations are unavailable")
 		return
 	}
-	run := s.aiRuns.Get(chi.URLParam(r, "id"))
+	run := runs.Get(chi.URLParam(r, "id"))
 	if run == nil {
 		s.writeError(w, http.StatusNotFound, "investigation not found")
 		return

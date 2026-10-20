@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react'
+import { getNodeLifecycle } from '../../utils/node-lifecycle'
+import { useEffect, useState, useRef, useId } from 'react'
 import {
   RefreshCw,
   Terminal,
@@ -25,13 +26,15 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { AlertBanner } from '../ui/drawer-components'
 import { DialogPortal } from '../ui/DialogPortal'
 import type { SelectedResource, WorkloadRevision } from '../../types'
+import type { RadarUpgradeRequirement } from '../../types/fetch-error'
 import { displayKindName } from '../ui/drawer-components'
-import { getDefaultContainerName } from '../resources/resource-utils'
-import { SetImageDialog, type ManagedImageSource } from './SetImageDialog'
+import { getDefaultContainerName, getExecContainerNames } from '../resources/resource-utils'
+import { SetImageDialog, type SetImageOwnership } from './SetImageDialog'
 import { DrainPlanDialog, DEFAULT_DRAIN_DIALOG_OPTIONS, type DrainDialogOptions, type DrainPlan } from './DrainPlanDialog'
 import type { WorkloadImageInventory, WorkloadImageUpdate } from '../../types/core'
 import { isArgoRolloutResource } from '../../utils/workload-rollout'
 import { isCoreBatchJob } from '../../utils/api-resources'
+import { formatRelativeAgeTime } from '../../utils/format'
 
 // ============================================================================
 // ACTIONS BAR - Interactive buttons that change based on resource kind
@@ -39,6 +42,7 @@ import { isCoreBatchJob } from '../../utils/api-resources'
 
 interface ResourceActionsBarProps {
   resource: SelectedResource
+  leadingActions?: React.ReactNode
   data: any
   onClose?: () => void
   hideLogs?: boolean
@@ -77,6 +81,7 @@ interface ResourceActionsBarProps {
   cascadeDependents?: CascadeDependent[]
   cascadeLoading?: boolean
   cascadeRootResolved?: boolean
+  cascadePreviewFailed?: boolean
 
   // Workload restart
   onRestart?: (params: { kind: string; namespace: string; name: string }, callbacks?: { onSuccess?: () => void; onError?: (err: unknown) => void }) => void
@@ -85,7 +90,7 @@ interface ResourceActionsBarProps {
   onLoadImages?: (params: { kind: string; namespace: string; name: string }) => Promise<WorkloadImageInventory>
   onSetImages?: (params: { kind: string; namespace: string; name: string; updates: WorkloadImageUpdate[] }) => Promise<unknown>
   isSettingImages?: boolean
-  managedImageSources?: ManagedImageSource[]
+  imageOwnership?: SetImageOwnership
 
   // Rollback
   revisions?: WorkloadRevision[]
@@ -143,22 +148,24 @@ interface ResourceActionsBarProps {
   drainPlan?: DrainPlan | null
   isPlanningDrain?: boolean
   drainPlanError?: string | null
-  // The connected backend has no drain-plan endpoint (version skew, e.g. a newer
-  // frontend against an older radar). The dialog falls back to the plan-less
-  // acknowledgement-only mode instead of keeping Drain disabled on a dead request.
-  drainPlanUnsupported?: boolean
+  // The connected Radar predates the drain-plan endpoint (a newer frontend
+  // against an older Radar). The dialog falls back to the plan-less
+  // acknowledgement-only mode instead of keeping Drain disabled on a dead
+  // request, and names the Radar version that serves plans so the user knows a
+  // preview exists.
+  drainPlanUpgrade?: RadarUpgradeRequirement | null
 }
 
 export function ResourceActionsBar({
-  resource, data, onClose, hideLogs, showYaml, onToggleYaml,
+  resource, data, leadingActions, onClose, hideLogs, showYaml, onToggleYaml,
   onCompareTo,
   onCompareAcrossClusters,
   canExec, canViewLogs, canPortForward,
   onOpenTerminal, onOpenLogs: openLogs, onOpenWorkloadLogs: openWorkloadLogs, onCopyCommand,
   renderPortForward,
-  onDelete, isDeleting, cascadeDependents, cascadeLoading, cascadeRootResolved,
+  onDelete, isDeleting, cascadeDependents, cascadeLoading, cascadeRootResolved, cascadePreviewFailed,
   onRestart, isRestarting,
-  onLoadImages, onSetImages, isSettingImages, managedImageSources,
+  onLoadImages, onSetImages, isSettingImages, imageOwnership,
   revisions: revisionsList, revisionsLoading, revisionsError, onRollback, isRollingBack,
   onRolloutPromoteFull,
   onTriggerCronJob, isTriggeringCronJob,
@@ -177,7 +184,7 @@ export function ResourceActionsBar({
   onCordonNode, isCordoningNode,
   onUncordonNode, isUncordoningNode,
   onDrainNode, isDrainingNode,
-  onPlanDrain, onPlanDrainReset, drainPlan, isPlanningDrain, drainPlanError, drainPlanUnsupported,
+  onPlanDrain, onPlanDrainReset, drainPlan, isPlanningDrain, drainPlanError, drainPlanUpgrade,
 }: ResourceActionsBarProps) {
   const kind = resource.kind.toLowerCase()
   const coreBatchJob = isCoreBatchJob(kind, resource.group)
@@ -202,13 +209,14 @@ export function ResourceActionsBar({
   // open: the host reports it through a mutation error, which the next request clears,
   // so without latching every option change would refire a request known to 404 and
   // bounce the dialog out of its fallback mode.
-  const [planUnsupported, setPlanUnsupported] = useState(false)
+  const [planUpgrade, setPlanUpgrade] = useState<RadarUpgradeRequirement | null>(null)
   useEffect(() => {
-    if (drainPlanUnsupported) setPlanUnsupported(true)
-  }, [drainPlanUnsupported])
+    if (drainPlanUpgrade) setPlanUpgrade(drainPlanUpgrade)
+  }, [drainPlanUpgrade])
   useEffect(() => {
-    if (!showDrainConfirm) setPlanUnsupported(false)
+    if (!showDrainConfirm) setPlanUpgrade(null)
   }, [showDrainConfirm])
+  const planUnsupported = planUpgrade !== null
   const planSupported = Boolean(onPlanDrain) && !planUnsupported
 
   // Fetch (and refetch on option changes) the read-only plan while the drain dialog is open.
@@ -246,7 +254,7 @@ export function ResourceActionsBar({
         namespace: resource.namespace,
         podName: resource.name,
         containerName: getDefaultContainerName(data) || containers[0],
-        containers,
+        containers: getExecContainerNames(data),
       })
     }
   }
@@ -285,6 +293,8 @@ export function ResourceActionsBar({
 
   return (
     <div className="flex items-center gap-1.5 px-4 py-2 flex-wrap">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 empty:hidden" data-action-group="object">
+      {leadingActions}
       {/* Kind-specific actions (left) */}
       {kind === 'pods' && (
         <>
@@ -354,13 +364,13 @@ export function ResourceActionsBar({
             </button>
           )}
 
-          {canNodeWrite && (
+          {canNodeWrite && !getNodeLifecycle(data).removing && (
             <>
               {data?.spec?.unschedulable ? (
                 onUncordonNode && (
                   <button
                     onClick={() => onUncordonNode({ name: resource.name })}
-                    disabled={isUncordoningNode}
+                    disabled={isUncordoningNode || isDrainingNode}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
                   >
                     <Play className={`w-3.5 h-3.5 ${isUncordoningNode ? 'animate-pulse' : ''}`} />
@@ -580,8 +590,8 @@ export function ResourceActionsBar({
         </button>
       )}
 
-      {/* Spacer pushes universal actions to the right */}
-      <div className="flex-1" />
+      </div>
+      <div className="ml-auto flex flex-wrap items-center gap-1.5" data-action-group="utility">
 
       {/* Universal actions (right-aligned). The AI/Diagnose action is NOT here — it
           lives in the detail header chrome (see WorkloadView), set apart from these
@@ -656,7 +666,7 @@ export function ResourceActionsBar({
         </div>
       )}
 
-      {onDelete && (
+      {onDelete && !((kind === 'node' || kind === 'nodes') && data?.metadata?.deletionTimestamp) && (
         <Tooltip content="Delete resource">
           <button
             onClick={() => setShowDeleteConfirm(true)}
@@ -666,6 +676,8 @@ export function ResourceActionsBar({
           </button>
         </Tooltip>
       )}
+
+      </div>
 
       <ForceDeleteConfirmDialog
         open={showDeleteConfirm}
@@ -678,6 +690,7 @@ export function ResourceActionsBar({
         cascadeDependents={cascadeDependents}
         cascadeLoading={cascadeLoading}
         cascadeRootResolved={cascadeRootResolved}
+        cascadePreviewFailed={cascadePreviewFailed}
       />
 
       {onLoadImages && onSetImages && (
@@ -686,7 +699,7 @@ export function ResourceActionsBar({
           workloadLabel={`${displayKindName(resource.kind, data?.kind)} ${resource.namespace}/${resource.name}`}
           workloadName={resource.name}
           workloadResource={resource.kind}
-          managedSources={managedImageSources}
+          ownership={imageOwnership}
           pending={isSettingImages}
           onClose={() => setShowSetImage(false)}
           onLoad={() => onLoadImages({ kind: resource.kind, namespace: resource.namespace, name: resource.name })}
@@ -719,6 +732,7 @@ export function ResourceActionsBar({
         options={drainOptions}
         onOptionsChange={setDrainOptions}
         planSupported={planSupported}
+        planUpgrade={planUpgrade}
         onRefreshPlan={planSupported ? () => onPlanDrain?.({ name: resource.name, options: drainOptions }) : undefined}
         isDraining={Boolean(isDrainingNode)}
         onClose={() => {
@@ -1053,6 +1067,7 @@ export function RevisionHistoryDialog({ kind, namespace, name, open, onClose, re
   isRollingBack?: boolean
   onRolloutPromoteFull?: (params: { namespace: string; name: string }) => void | Promise<unknown>
 }) {
+  const titleId = useId()
   const [confirmRevision, setConfirmRevision] = useState<number | null>(null)
   const [diffRevision, setDiffRevision] = useState<number | null>(null)
   const [promoteAfterRollback, setPromoteAfterRollback] = useState(false)
@@ -1121,19 +1136,6 @@ export function RevisionHistoryDialog({ kind, namespace, name, open, onClose, re
     setPromoteError(outcome.error ?? { message: 'The promotion did not go through.', controllerLagging: false })
   }
 
-  function formatTimeAgo(dateStr: string): string {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-    if (seconds < 60) return `${seconds}s ago`
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    return `${days}d ago`
-  }
-
   function getImageTag(image: string): string {
     if (!image) return '-'
     const parts = image.split(':')
@@ -1144,6 +1146,7 @@ export function RevisionHistoryDialog({ kind, namespace, name, open, onClose, re
 
   return (
     <DialogPortal
+      ariaLabelledBy={titleId}
       open={open}
       onClose={handleClose}
       closable={!busy}
@@ -1152,7 +1155,7 @@ export function RevisionHistoryDialog({ kind, namespace, name, open, onClose, re
       <div className="flex items-center justify-between p-4 border-b border-theme-border shrink-0">
         <div className="flex items-center gap-2">
           <History className="w-5 h-5 text-amber-500" />
-          <h3 className="text-lg font-semibold text-theme-text-primary">Revision History</h3>
+          <h3 id={titleId} className="text-lg font-semibold text-theme-text-primary">Revision History</h3>
           {diffRevision && currentRevision && (
             <span className="badge ml-2 bg-blue-500/15 text-blue-400">
               <GitCompare className="w-3 h-3" />
@@ -1224,7 +1227,7 @@ export function RevisionHistoryDialog({ kind, namespace, name, open, onClose, re
                       <RevisionImage image={rev.image} displayImage={getImageTag(rev.image)} />
                     </td>
                     <td className="py-2 pr-3 text-theme-text-secondary whitespace-nowrap">
-                      {formatTimeAgo(rev.createdAt)}
+                      {formatRelativeAgeTime(rev.createdAt)}
                     </td>
                     <td className="py-2 text-right">
                       <div className="flex items-center gap-1 justify-end">

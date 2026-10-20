@@ -9,10 +9,11 @@ import type { GitOpsChange, GitOpsInsightSummary } from '../../types'
 //    3.0+ default). Radar then reads the live resources itself, and every
 //    problem below is Radar's finding — the "Radar" markers say so per row;
 //    this line says so once.
-//  - The Application deploys to another cluster. Radar can't read its
-//    resources from here at all, so nothing is derived. A standalone Radar
-//    may add a pointer to Radar Cloud (the host passes it; embedded hosts
-//    pass nothing).
+//  - The Application (or a Flux object with spec.kubeConfig) deploys to
+//    another cluster. Radar can't read its resources from here at all, so
+//    nothing is derived. For Argo, a standalone Radar may add a pointer to
+//    Radar Cloud (the host passes it; embedded hosts pass nothing); Radar
+//    Cloud doesn't resolve Flux targets, so Flux gets no pointer.
 //
 // Copy stays in plain words; the field names live behind the docs link.
 
@@ -30,21 +31,27 @@ export const APP_TREE_PERSIST_REMEDY =
 // why — the user who configured it doesn't need the Argo CD 3 history
 // first — then say what the rows below are meanwhile.
 export const APP_TREE_API_ERROR_NOTICE = "Radar couldn't read Argo's per-resource health from your Argo CD server"
+// The host is still connecting to argocd-server and will ask again; there
+// is nothing to fix, so no Settings link.
+export const APP_TREE_API_PENDING_NOTICE = "Radar is still connecting to your Argo CD server to read Argo's per-resource health."
 export const APP_TREE_API_ERROR_FINDINGS = 'Meanwhile, rows marked "Found by Radar" are problems Radar detected by looking at the resources itself.'
 export const APP_TREE_API_ERROR_NO_FINDINGS = "Radar didn't find a problem on its own."
 
 export const REMOTE_DESTINATION_NOTICE =
   "This application deploys to a different cluster, so its resources aren't visible from here."
+export const REMOTE_FLUX_TARGET_NOTICE =
+  "This applies its resources to a different cluster, so they aren't visible from here."
 
-export type HealthSourceNoticeSummary = Pick<GitOpsInsightSummary, 'tool' | 'health' | 'resourceHealthMode' | 'remoteDestination' | 'resourceHealthFromApi' | 'resourceHealthApiError'>
+export type HealthSourceNoticeSummary = Pick<GitOpsInsightSummary, 'tool' | 'health' | 'resourceHealthMode' | 'remoteDestination' | 'resourceHealthFromApi' | 'resourceHealthApiError' | 'resourceHealthApiPending'>
 
 // The appTree notice explains problems Radar found on its own; on an app
 // Argo calls Healthy nothing is derived (the host doesn't run the overlay
 // there), and when the host read Argo's verdicts from its API server there
 // is nothing of Radar's to explain either.
 export function healthSourceNoticeKind(summary: HealthSourceNoticeSummary | undefined): 'remote' | 'appTree' | null {
-  if (!summary || summary.tool !== 'argocd') return null
+  if (!summary) return null
   if (summary.remoteDestination) return 'remote'
+  if (summary.tool !== 'argocd') return null
   if (summary.resourceHealthMode === 'appTree' && !summary.resourceHealthFromApi && summary.health !== 'Healthy') return 'appTree'
   return null
 }
@@ -57,12 +64,19 @@ export function hasRadarFinding(changes: GitOpsChange[] | undefined): boolean {
   return (changes ?? []).some((c) => c.healthSource === 'radar' && (c.health === 'Degraded' || c.health === 'Missing'))
 }
 
+export function hasHealthSettingsHint(summary: HealthSourceNoticeSummary | undefined, changes: GitOpsChange[] | undefined): boolean {
+  return healthSourceNoticeKind(summary) === 'appTree'
+    && !(summary?.resourceHealthApiPending && summary.resourceHealthApiError)
+    && (!!summary?.resourceHealthApiError || (!hasRadarFinding(changes) && summary?.health === 'Degraded'))
+}
+
 export function GitOpsHealthSourceNotice({
   summary,
   changes,
   docsUrl,
   remoteDestinationHint,
   onOpenSettings,
+  settingsNote,
 }: {
   summary: HealthSourceNoticeSummary | undefined
   // Decides between the two appTree sentences: with a Radar-sourced
@@ -80,6 +94,9 @@ export function GitOpsHealthSourceNotice({
   // the first way out, and "check Settings" when a configured connection
   // didn't deliver. Without it, only the Argo-side knob is named.
   onOpenSettings?: () => void
+  // Host context shown before the settings link, such as settings that can
+  // be copied for this cluster.
+  settingsNote?: string
 }) {
   const kind = healthSourceNoticeKind(summary)
   if (!kind) return null
@@ -88,7 +105,8 @@ export function GitOpsHealthSourceNotice({
   // app with no Radar finding has nothing here to attribute.
   const radarFinding = hasRadarFinding(changes)
   const apiError = summary?.resourceHealthApiError
-  if (kind === 'appTree' && !radarFinding && !apiError && summary?.health !== 'Degraded') return null
+  const pending = !!summary?.resourceHealthApiPending && !!apiError
+  if (kind === 'appTree' && !radarFinding && !pending && !hasHealthSettingsHint(summary, changes)) return null
   const settingsLink = (label: string) =>
     onOpenSettings ? (
       <button type="button" onClick={onOpenSettings} className="underline decoration-theme-border underline-offset-2 hover:text-theme-text-primary">
@@ -100,16 +118,25 @@ export function GitOpsHealthSourceNotice({
       <Info className="mt-px h-3.5 w-3.5 shrink-0 text-theme-text-tertiary" />
       <span className="min-w-0">
         {kind === 'remote' ? (
-          <>
-            {REMOTE_DESTINATION_NOTICE}
-            {remoteDestinationHint ? <> {remoteDestinationHint}</> : null}
-          </>
+          summary?.tool === 'argocd' ? (
+            <>
+              {REMOTE_DESTINATION_NOTICE}
+              {remoteDestinationHint ? <> {remoteDestinationHint}</> : null}
+            </>
+          ) : (
+            REMOTE_FLUX_TARGET_NOTICE
+          )
         ) : (
           <>
-            {apiError ? (
+            {pending ? (
+              <>
+                {APP_TREE_API_PENDING_NOTICE}{' '}
+                {radarFinding ? APP_TREE_API_ERROR_FINDINGS : APP_TREE_API_ERROR_NO_FINDINGS}
+              </>
+            ) : apiError ? (
               <>
                 {APP_TREE_API_ERROR_NOTICE}: {apiError}.
-                {onOpenSettings && <> {settingsLink('Check Argo CD in Settings')}.</>}
+                {onOpenSettings && <> {settingsNote} {settingsLink('Check Argo CD in Settings')}.</>}
                 {' '}
                 {radarFinding ? APP_TREE_API_ERROR_FINDINGS : APP_TREE_API_ERROR_NO_FINDINGS}
               </>
@@ -119,6 +146,7 @@ export function GitOpsHealthSourceNotice({
                 {!radarFinding && (
                   <>
                     {' '}
+                    {settingsNote && onOpenSettings && <>{settingsNote}{' '}</>}
                     To see Argo's per-resource health here, {onOpenSettings && <>{settingsLink('connect Radar to your Argo CD server')}, or </>}
                     {APP_TREE_PERSIST_REMEDY}
                   </>

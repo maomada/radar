@@ -8,6 +8,7 @@ import { Disclosure } from '@skyhook-io/k8s-ui/components/ui/Disclosure'
 interface MCPSetupDialogProps {
   open: boolean
   onClose: () => void
+  readOnly?: boolean
   mcpUrl: string
 }
 
@@ -43,7 +44,7 @@ function CodeBlock({ children }: { children: string }) {
   )
 }
 
-export function MCPSetupDialog({ open, onClose, mcpUrl }: MCPSetupDialogProps) {
+export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false }: MCPSetupDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const [isDesktop, setIsDesktop] = useState(false)
   const [portPinned, setPortPinned] = useState(false)
@@ -116,27 +117,16 @@ export function MCPSetupDialog({ open, onClose, mcpUrl }: MCPSetupDialogProps) {
 
   const currentPort = Number(window.location.port) || 80
 
-  const claudeDesktopConfig = JSON.stringify({
-    mcpServers: {
-      radar: {
-        type: "http",
-        url: mcpUrl,
-      }
-    }
-  }, null, 2)
+  const tools = MCP_TOOL_CATALOG
+    .filter((tool) => !readOnly || !tool.write)
+    .map((tool) => readOnly && tool.name === 'diagnose'
+      ? { ...tool, params: tool.params.filter((param) => param.arg !== 'in_cluster') }
+      : tool)
 
-  const cursorConfig = JSON.stringify({
+  const mcpServersUrlConfig = (key: 'url' | 'serverUrl') => JSON.stringify({
     mcpServers: {
       radar: {
-        url: mcpUrl,
-      }
-    }
-  }, null, 2)
-
-  const windsurfConfig = JSON.stringify({
-    mcpServers: {
-      radar: {
-        serverUrl: mcpUrl,
+        [key]: mcpUrl,
       }
     }
   }, null, 2)
@@ -150,37 +140,50 @@ export function MCPSetupDialog({ open, onClose, mcpUrl }: MCPSetupDialogProps) {
     }
   }, null, 2)
 
-  const geminiConfig = JSON.stringify({
-    mcpServers: {
-      radar: {
-        httpUrl: mcpUrl,
-      }
-    }
-  }, null, 2)
-
-  const codexConfig = `[mcp_servers.radar]\nurl = "${mcpUrl}"`
-
-  const clineConfig = JSON.stringify({
-    mcpServers: {
-      radar: {
-        url: mcpUrl,
-      }
-    }
-  }, null, 2)
-
-  const jetbrainsConfig = JSON.stringify({
-    mcpServers: {
-      radar: {
-        url: mcpUrl,
-      }
-    }
-  }, null, 2)
-
   const opencodeConfig = JSON.stringify({
     mcp: {
       radar: {
         type: "remote",
         url: mcpUrl,
+        enabled: true,
+      }
+    }
+  }, null, 2)
+
+  const clineConfig = JSON.stringify({
+    mcpServers: {
+      radar: {
+        type: "streamableHttp",
+        url: mcpUrl,
+      }
+    }
+  }, null, 2)
+
+  // mcp-remote rejects plain http:// unless the host is localhost/127.0.0.1 or --allow-http is passed.
+  const parsedMcpUrl = new URL(mcpUrl)
+  const mcpRemoteNeedsAllowHttp = parsedMcpUrl.protocol === 'http:' && parsedMcpUrl.hostname !== 'localhost' && parsedMcpUrl.hostname !== '127.0.0.1'
+  const mcpRemoteArgs = ['-y', 'mcp-remote', mcpUrl, ...(mcpRemoteNeedsAllowHttp ? ['--allow-http'] : [])]
+  const claudeDesktopConfig = JSON.stringify({
+    mcpServers: {
+      radar: {
+        command: "npx",
+        args: mcpRemoteArgs,
+      }
+    }
+  }, null, 2)
+
+  const zedConfig = JSON.stringify({
+    context_servers: {
+      radar: {
+        url: mcpUrl,
+      }
+    }
+  }, null, 2)
+
+  const geminiConfig = JSON.stringify({
+    mcpServers: {
+      radar: {
+        httpUrl: mcpUrl,
       }
     }
   }, null, 2)
@@ -214,17 +217,17 @@ export function MCPSetupDialog({ open, onClose, mcpUrl }: MCPSetupDialogProps) {
               <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2">
                 Model Context Protocol
               </a>{' '}
-              (MCP) server that lets AI agents inspect, investigate, and operate your cluster through Radar.
+              (MCP) server that lets AI agents {readOnly ? 'inspect and investigate' : 'inspect, investigate, and operate'} your cluster through Radar.
               Unlike raw kubectl access, Radar gives your AI pre-processed, enriched data —
               topology graphs, health assessments, deduplicated events, filtered logs — so it
               can understand your cluster state quickly without burning through context on
               verbose YAML output.
             </p>
             <p className="text-sm text-theme-text-secondary leading-relaxed">
-              Most read tools do not change cluster state. An in-cluster route probe can create up
+              {readOnly ? 'Read-only mode blocks write tools and diagnostic options that create temporary Kubernetes resources. It does not restrict the Radar UI or REST API.' : <>Most read tools do not change cluster state. An in-cluster route probe can create up
               to five self-deleting probe pods when explicitly requested. Write tools (restart,
               scale, sync, apply, node drain) are annotated as destructive so your AI client
-              can flag them and prompt before running.
+              can flag them and prompt before running.</>}
             </p>
           </div>
 
@@ -285,16 +288,20 @@ export function MCPSetupDialog({ open, onClose, mcpUrl }: MCPSetupDialogProps) {
             <h4 className="text-sm font-semibold text-theme-text-primary">Connect your AI tool</h4>
 
             {[
-              { icon: Terminal, name: 'Claude Code', path: '', config: `claude mcp add radar --transport http ${mcpUrl}` },
-              { icon: MessageSquare, name: 'Claude Desktop', path: '~/Library/Application Support/Claude/claude_desktop_config.json', config: claudeDesktopConfig },
-              { icon: Code2, name: 'Cursor', path: '~/.cursor/mcp.json', config: cursorConfig },
-              { icon: Code2, name: 'Windsurf', path: '~/.codeium/windsurf/mcp_config.json', config: windsurfConfig },
-              { icon: Code2, name: 'VS Code Copilot', path: '.vscode/mcp.json', config: vsCodeConfig },
-              { icon: Code2, name: 'Cline', path: 'Cline MCP settings (via UI)', config: clineConfig },
-              { icon: Code2, name: 'JetBrains AI', path: 'Settings → Tools → AI Assistant → MCP', config: jetbrainsConfig },
+              { icon: Terminal, name: 'Claude Code', path: '', config: `claude mcp add --transport http radar ${mcpUrl}` },
+              { icon: Terminal, name: 'Codex', path: '', config: `codex mcp add radar --url ${mcpUrl}` },
+              { icon: Code2, name: 'Cursor', path: '~/.cursor/mcp.json', config: mcpServersUrlConfig('url') },
+              { icon: Code2, name: 'VS Code (GitHub Copilot)', path: '.vscode/mcp.json', config: vsCodeConfig },
+              { icon: Terminal, name: 'GitHub Copilot CLI', path: '', config: `copilot mcp add --transport http radar ${mcpUrl}` },
               { icon: Terminal, name: 'OpenCode', path: '~/.config/opencode/opencode.json', config: opencodeConfig },
-              { icon: Terminal, name: 'OpenAI Codex', path: '~/.codex/config.toml', config: codexConfig },
-              { icon: Terminal, name: 'Gemini CLI', path: '~/.gemini/settings.json', config: geminiConfig },
+              { icon: Code2, name: 'Google Antigravity', path: '~/.gemini/config/mcp_config.json', config: mcpServersUrlConfig('serverUrl') },
+              { icon: Code2, name: 'Kiro', path: '~/.kiro/settings/mcp.json', config: mcpServersUrlConfig('url') },
+              { icon: Code2, name: 'JetBrains AI Assistant / Junie', path: 'AI Assistant settings or ~/.junie/mcp/mcp.json', config: mcpServersUrlConfig('url') },
+              { icon: Code2, name: 'Cline', path: 'Cline MCP settings (via UI)', config: clineConfig },
+              { icon: Code2, name: 'Devin Desktop (formerly Windsurf)', path: '~/.config/devin/mcp_config.json', config: mcpServersUrlConfig('url') },
+              { icon: MessageSquare, name: 'Claude Desktop', path: '~/Library/Application Support/Claude/claude_desktop_config.json', config: claudeDesktopConfig },
+              { icon: Code2, name: 'Zed', path: 'Zed settings.json', config: zedConfig },
+              { icon: Terminal, name: 'Gemini CLI (Code Assist Standard/Enterprise)', path: '~/.gemini/settings.json', config: geminiConfig },
             ].map((agent) => (
               <Disclosure
                 key={agent.name}
@@ -319,10 +326,10 @@ export function MCPSetupDialog({ open, onClose, mcpUrl }: MCPSetupDialogProps) {
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
               <h4 className="text-sm font-semibold text-theme-text-primary">Tools</h4>
-              <span className="text-[11px] text-theme-text-tertiary">{MCP_TOOL_CATALOG.length} tools</span>
+              <span className="text-[11px] text-theme-text-tertiary">{tools.length} tools</span>
             </div>
             <div className="grid grid-cols-1 gap-1.5">
-              {MCP_TOOL_CATALOG.map((tool) => (
+              {tools.map((tool) => (
                 <div key={tool.name} className="card-inner space-y-1.5">
                   <div className="flex items-center gap-2">
                     <code className="inline-code text-[11px]">{tool.name}</code>

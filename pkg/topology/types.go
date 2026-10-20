@@ -2,6 +2,7 @@ package topology
 
 import (
 	"encoding/json"
+	"maps"
 	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,6 +42,7 @@ const (
 	KindHTTPRoute                      NodeKind = "HTTPRoute"
 	KindGRPCRoute                      NodeKind = "GRPCRoute"
 	KindTCPRoute                       NodeKind = "TCPRoute"
+	KindUDPRoute                       NodeKind = "UDPRoute"
 	KindTLSRoute                       NodeKind = "TLSRoute"
 	KindService                        NodeKind = "Service"
 	KindDeployment                     NodeKind = "Deployment"
@@ -186,6 +188,7 @@ const (
 
 // Topology represents the complete graph
 type Topology struct {
+	podConsumers            map[string][]ResourceRef
 	Nodes                   []Node   `json:"nodes"`
 	Edges                   []Edge   `json:"edges"`
 	Warnings                []string `json:"warnings,omitempty"`                // Warnings about resources that failed to load
@@ -224,26 +227,12 @@ func (t *Topology) StripNodeKinds(deny map[NodeKind]bool) {
 		return
 	}
 	dropped := make(map[string]bool)
-	kept := t.Nodes[:0]
 	for _, n := range t.Nodes {
 		if deny[n.Kind] {
 			dropped[n.ID] = true
-			continue
 		}
-		kept = append(kept, n)
 	}
-	t.Nodes = kept
-	if len(dropped) == 0 {
-		return
-	}
-	keptEdges := t.Edges[:0]
-	for _, e := range t.Edges {
-		if dropped[e.Source] || dropped[e.Target] {
-			continue
-		}
-		keptEdges = append(keptEdges, e)
-	}
-	t.Edges = keptEdges
+	t.StripNodeIDs(dropped)
 }
 
 // StripNodeIDs removes exact nodes plus every edge that references them.
@@ -254,8 +243,13 @@ func (t *Topology) StripNodeIDs(deny map[string]bool) {
 		return
 	}
 	kept := t.Nodes[:0]
+	hiddenPolicyNamespaces := map[string]bool{}
 	for _, n := range t.Nodes {
 		if deny[n.ID] {
+			if n.Kind == KindNetworkPolicy || n.Kind == KindCiliumNetworkPolicy || n.Kind == KindCiliumClusterwideNetworkPolicy || IsCalicoPolicyKind(n.Kind) {
+				ns, _ := n.Data["namespace"].(string)
+				hiddenPolicyNamespaces[ns] = true
+			}
 			continue
 		}
 		kept = append(kept, n)
@@ -270,6 +264,33 @@ func (t *Topology) StripNodeIDs(deny map[string]bool) {
 		keptEdges = append(keptEdges, e)
 	}
 	t.Edges = keptEdges
+	// Coverage metadata also contains graph references. Do not serialize names
+	// of hidden workloads through a readable clusterwide policy's Data.
+	for i := range t.Nodes {
+		node := &t.Nodes[i]
+		ns, _ := node.Data["namespace"].(string)
+		_, hasPolicyStatus := node.Data["policyStatus"]
+		if node.Data["policyCoverageWorkloads"] != nil || (hiddenPolicyNamespaces[""] || hiddenPolicyNamespaces[ns]) && hasPolicyStatus {
+			// Topology clones share node Data until a consumer modifies it.
+			node.Data = maps.Clone(node.Data)
+		}
+		for _, field := range []string{"policyCoverageWorkloads"} {
+			if refs, ok := node.Data[field].([]string); ok {
+				visible := make([]string, 0, len(refs))
+				for _, id := range refs {
+					if !deny[id] {
+						visible = append(visible, id)
+					}
+				}
+				node.Data[field] = visible
+			}
+		}
+		if hasPolicyStatus && (hiddenPolicyNamespaces[""] || hiddenPolicyNamespaces[ns]) {
+			// The annotation was computed before filtering. Withhold it when
+			// its evidence may include policies the caller cannot see.
+			delete(node.Data, "policyStatus")
+		}
+	}
 }
 
 // NodeClassRBACTuples returns the distinct exact provider resources present
@@ -373,7 +394,7 @@ type BuildOptions struct {
 	IncludePVCs          bool     // Include PersistentVolumeClaim nodes
 	IncludeReplicaSets   bool     // Include ReplicaSet nodes (noisy intermediate objects)
 	IncludeGenericCRDs   bool     // Include CRDs with owner refs to topology nodes (default: true)
-	ForRelationshipCache bool     // Skip large cluster guard — used for internal relationship cache builds
+	ForRelationshipCache bool     // Retain full template/Pod facts and skip the large-cluster guard for resource reads
 	ShowPolicyEffect     bool     // Evaluate NetworkPolicies and annotate edges with allow/block/unprotected
 	SummaryMode          bool     // Collapse the pod tier into per-workload/service counts (set by Build when estimate ≥ SummaryModeThreshold)
 }
@@ -392,6 +413,16 @@ func MatchesNamespace(namespaces []string, ns string) bool {
 // An empty filter means all namespaces match.
 func (opts BuildOptions) MatchesNamespaceFilter(ns string) bool {
 	return MatchesNamespace(opts.Namespaces, ns)
+}
+
+// RelationshipBuildOptions retains the complete cached graph for relationship
+// projection. A root's namespace is not a visibility boundary: controllers may
+// explicitly reference another namespace. Callers must authorize emitted refs.
+func RelationshipBuildOptions() BuildOptions {
+	opts := DefaultBuildOptions()
+	opts.IncludeReplicaSets = true
+	opts.ForRelationshipCache = true
+	return opts
 }
 
 // DefaultBuildOptions returns sensible defaults
@@ -424,24 +455,54 @@ type ReflectionRelationships struct {
 
 // Relationships holds computed relationships for a resource
 type Relationships struct {
+	// PodPlacementObserved and PodPlacementUnavailable carry in-process lookup
+	// state for context builders. They are not transport fields or cached counts.
+	PodPlacementObserved    bool `json:"-"`
+	PodPlacementUnavailable bool `json:"-"`
+
+	// IstioServiceDomain is the configured registry domain or upstream default; omitted when unknown.
+	IstioServiceDomain string `json:"istioServiceDomain,omitempty"`
 	// Reflection distinguishes reflection links also retained in ConfigRefs/Consumers.
 	Reflection *ReflectionRelationships `json:"reflection,omitempty"`
 
-	Owner           *ResourceRef  `json:"owner,omitempty"`           // Parent via ownerReference (manages edge)
-	Deployment      *ResourceRef  `json:"deployment,omitempty"`      // Grandparent Deployment (for Pods owned by ReplicaSets)
-	Children        []ResourceRef `json:"children,omitempty"`        // Resources this owns (manages edge)
-	Services        []ResourceRef `json:"services,omitempty"`        // Services selecting/exposing this
-	Ingresses       []ResourceRef `json:"ingresses,omitempty"`       // Ingresses routing to this
-	Gateways        []ResourceRef `json:"gateways,omitempty"`        // Gateways routing to this (via routes)
-	Routes          []ResourceRef `json:"routes,omitempty"`          // Routes attached to this Gateway
-	ConfigRefs      []ResourceRef `json:"configRefs,omitempty"`      // ConfigMaps/Secrets used by this
-	Consumers       []ResourceRef `json:"consumers,omitempty"`       // For ConfigMap/Secret: workloads that reference this
+	Owner           *ResourceRef  `json:"owner,omitempty"`      // Parent via ownerReference (manages edge)
+	Deployment      *ResourceRef  `json:"deployment,omitempty"` // Grandparent Deployment (for Pods owned by ReplicaSets)
+	Children        []ResourceRef `json:"children,omitempty"`   // Resources this owns (manages edge)
+	Services        []ResourceRef `json:"services,omitempty"`   // Core Services selecting/exposing this
+	Ingresses       []ResourceRef `json:"ingresses,omitempty"`  // Ingresses routing to this
+	Gateways        []ResourceRef `json:"gateways,omitempty"`   // Gateway API Gateways routing to this
+	Routes          []ResourceRef `json:"routes,omitempty"`     // Recognized upstream routes routing to this
+	ConfigRefs      []ResourceRef `json:"configRefs,omitempty"` // ConfigMaps/Secrets used by this
+	Consumers       []ResourceRef `json:"consumers,omitempty"`  // For ConfigMap/Secret: workloads that reference this
+	Dependencies    []ResourceRef `json:"dependencies,omitempty"`
+	Dependents      []ResourceRef `json:"dependents,omitempty"`
 	Scalers         []ResourceRef `json:"scalers,omitempty"`         // HPA/ScaledObject/ScaledJob scaling this
 	StorageRefs     []ResourceRef `json:"storageRefs,omitempty"`     // PersistentVolumeClaims used by this workload
 	ScaleTarget     *ResourceRef  `json:"scaleTarget,omitempty"`     // For HPA/ScaledObject: what it scales
 	PDBs            []ResourceRef `json:"pdbs,omitempty"`            // PodDisruptionBudgets protecting this workload
 	NetworkPolicies []ResourceRef `json:"networkPolicies,omitempty"` // NetworkPolicy / CiliumNetworkPolicy / ClusterNetworkPolicy / CiliumClusterwideNetworkPolicy selecting this workload
-	Pods            []ResourceRef `json:"pods,omitempty"`            // For Service: pods it routes to
+	Pods            []ResourceRef `json:"pods,omitempty"`            // Core Pods routed to, or reached through Deployment/Node shortcuts
+
+	// Monitors are Prometheus Operator resources scraping this target.
+	Monitors []ResourceRef `json:"monitors,omitempty"`
+
+	// MonitorTargets are the resources this Prometheus Operator monitor scrapes.
+	MonitorTargets []ResourceRef `json:"monitorTargets,omitempty"`
+
+	// Backends are non-Pod targets this resource routes to or exposes.
+	Backends []ResourceRef `json:"backends,omitempty"`
+
+	// RoutedFrom are upstream exposing resources other than core Services and recognized routes.
+	RoutedFrom []ResourceRef `json:"routedFrom,omitempty"`
+
+	// Protects are the resources selected by this disruption budget or network policy.
+	Protects []ResourceRef `json:"protects,omitempty"`
+
+	// HealthChecks are Cluster API MachineHealthChecks associated with this Cluster.
+	HealthChecks []ResourceRef `json:"healthChecks,omitempty"`
+
+	// StagedPolicies select this resource without enforcing policy.
+	StagedPolicies []ResourceRef `json:"stagedPolicies,omitempty"`
 
 	// ServiceAccount is the ServiceAccount selected by this Pod or workload.
 	ServiceAccount *ResourceRef `json:"serviceAccount,omitempty"`
@@ -478,8 +539,8 @@ type SecretCertificateInfo struct {
 	Certificates []CertificateInfo `json:"certificates"`
 }
 
-// CascadeDeletePreview represents all resources that will be garbage-collected
-// when a parent resource is deleted via Kubernetes owner reference cascade.
+// CascadeDeletePreview reports graph management relationships that deletion may affect.
+// It does not predict garbage collection or controller-specific pruning.
 type CascadeDeletePreview struct {
 	Root         ResourceRef   `json:"root"`
 	RootResolved bool          `json:"rootResolved"`

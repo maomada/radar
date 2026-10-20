@@ -120,6 +120,10 @@ export function parseMemoryToBytes(memString: string): number {
   if (!memString) return 0
 
   const str = memString.trim()
+  // Decimal-exponent form ("1e9") is decided before the suffix table, as in
+  // parseQuantityToNumber, so "1E3" reads as 1000 and not as exa.
+  if (/^[+-]?\d+(?:\.\d+)?[eE][+-]?\d+$/.test(str)) return Number(str)
+
   const match = str.match(/^(-?\d+(?:\.\d+)?)\s*([A-Za-z]*)$/)
   if (!match) return 0
 
@@ -308,12 +312,16 @@ export function formatUpdatedAgo(elapsedMs: number): string {
   return `${bucket} ago`
 }
 
+// Timestamps written moments ago (a lease renewal, a sync) can land slightly in
+// the browser's future when its clock trails the cluster's.
+const CLOCK_SKEW_TOLERANCE_MS = 60_000
+
 export function formatRelativeAgeTime(value?: string, fallback = '-'): string {
   if (!value) return fallback
   const time = Date.parse(value)
   if (!Number.isFinite(time)) return value
   const diff = Date.now() - time
-  if (diff < 0) return new Date(time).toLocaleString()
+  if (diff < 0) return diff > -CLOCK_SKEW_TOLERANCE_MS ? 'just now' : new Date(time).toLocaleString()
   const compact = formatCompactAge(value)
   if (!compact) return fallback
   return compact === '0s' ? 'just now' : `${compact} ago`

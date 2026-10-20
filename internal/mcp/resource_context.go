@@ -4,9 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
-
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"sync"
 
 	"github.com/skyhook-io/radar/internal/auditcontext"
 	"github.com/skyhook-io/radar/internal/issues"
@@ -82,17 +80,6 @@ func (a mcpPolicyReportLookupAdapter) FindingsFor(group, kind, namespace, name s
 	return out
 }
 
-type mcpServiceBackendLookup struct {
-	cache *k8s.ResourceCache
-}
-
-func (l mcpServiceBackendLookup) PodsForServiceSelector(namespace string, selector labels.Selector) ([]*corev1.Pod, error) {
-	if l.cache == nil || l.cache.Pods() == nil {
-		return nil, nil
-	}
-	return l.cache.Pods().Pods(namespace).List(selector)
-}
-
 // computeMCPIssueContext rolls up per-resource issue-composer rows
 // (problem + condition) into an IssueSummary. Mirrors the
 // REST handler's computeIssueSummaryForResource — same composer call, same
@@ -122,6 +109,8 @@ func computeMCPIssueContext(ctx context.Context, cache *k8s.ResourceCache, group
 		SkipPodTemplateContext: !includeFacts,
 		CanReadClusterScoped:   issueClusterScopedAccess(ctx),
 		CanReadRelated:         issueRelatedResourceAccess(ctx),
+		CanReadSubject:         issueSubjectAccess(ctx),
+		CanReadEvidence:        issueEvidenceAccess(ctx),
 	}, group, kind, namespace, name)
 	if len(matched) == 0 {
 		return nil, nil
@@ -142,6 +131,7 @@ func computeMCPIssueContext(ctx context.Context, cache *k8s.ResourceCache, group
 		Count:           len(matched),
 		HighestSeverity: string(matched[0].Severity),
 		TopReason:       matched[0].Reason,
+		TopSubject:      issues.SummarySubject(matched[0], group, kind, namespace, name),
 		BySource:        bySource,
 	}, matched
 }
@@ -208,36 +198,114 @@ func computeMCPAuditSummary(ctx context.Context, cache *k8s.ResourceCache, group
 	return summary
 }
 
-// mcpTopologyForContext returns a per-call topology snapshot scoped to the
-// resource's namespace (cluster-scoped resources get an all-namespaces
-// build). Reuses the package-level summaryCtxTopoMemo cache to amortize
-// build cost across get_resource and list_resources / search calls. nil
-// return is fine — Build then skips topology-derived fields and the
-// remaining sidecar still populates.
-func mcpTopologyForContext(namespace string) (*topo.Topology, topo.ResourceProvider, topo.DynamicProvider, bool) {
+// RelationshipTopologySource returns the host's maintained full relationship
+// graph and its index, or nil while none has been built.
+type RelationshipTopologySource func() (*topo.Topology, *topo.RelationshipsIndex)
+
+var relationshipTopology struct {
+	sync.RWMutex
+	source RelationshipTopologySource
+}
+
+// SetRelationshipTopologySource lets resource context reuse the graph the host
+// already keeps for relationship lookups, instead of holding a second copy of
+// the whole cluster.
+func SetRelationshipTopologySource(source RelationshipTopologySource) {
+	relationshipTopology.Lock()
+	relationshipTopology.source = source
+	relationshipTopology.Unlock()
+}
+
+// mcpTopologyForContext uses a complete relationship graph. Resource context
+// authorizes every emitted reference through its request-scoped checker; a
+// namespace-scoped build would erase explicit cross-namespace dependencies.
+func mcpTopologyForContext() (*topo.Topology, *topo.RelationshipsIndex, topo.ResourceProvider, topo.DynamicProvider, bool) {
 	cache := k8s.GetResourceCache()
 	if cache == nil {
-		return nil, nil, nil, false
-	}
-	opts := topo.DefaultBuildOptions()
-	// Match the REST handler's build options (see ai_handlers.go) so MCP
-	// get_resource produces the same relationship context as REST. Without
-	// these the topology drops the RS layer for Pod→Deployment chains and
-	// the relationship cache uses a thinner shape — silently weakening
-	// resourceContext for MCP callers.
-	opts.IncludeReplicaSets = true
-	opts.ForRelationshipCache = true
-	if namespace != "" {
-		opts.Namespaces = []string{namespace}
+		return nil, nil, nil, nil, false
 	}
 	provider := k8s.NewTopologyResourceProvider(cache)
 	dyn := k8s.NewTopologyDynamicProvider(k8s.GetDynamicResourceCache(), k8s.GetResourceDiscovery())
+	relationshipTopology.RLock()
+	source := relationshipTopology.source
+	relationshipTopology.RUnlock()
+	if source != nil {
+		if topology, index := source(); topology != nil {
+			return topology, index, provider, dyn, true
+		}
+	}
+	opts := topo.RelationshipBuildOptions()
+	opts.IncludeSecrets = true
 
-	topology, err := summaryCtxTopoMemo.Get(opts, func() (*topo.Topology, error) {
+	topology, index, err := summaryCtxTopoMemo.GetWithIndexScoped(cache.Generation(), opts, func() (*topo.Topology, error) {
 		return topo.NewBuilder(provider).WithDynamic(dyn).Build(opts)
 	})
 	if err != nil || topology == nil {
-		return nil, nil, nil, false
+		return nil, nil, nil, nil, false
 	}
-	return topology, provider, dyn, true
+	return topology, index, provider, dyn, true
+}
+
+// issueSubjectAccess mirrors the REST drawer gate for an issue's own
+// namespaced resource: namespace access, plus a get for Secrets and
+// LimitRanges. It runs once per composed row, so the caller's namespaces are
+// resolved once.
+func issueSubjectAccess(ctx context.Context) func(issues.Ref) bool {
+	inNamespace := callerNamespaces(ctx)
+	return func(ref issues.Ref) bool {
+		if !inNamespace(ref.Namespace) {
+			return false
+		}
+		switch {
+		case ref.Group == "" && strings.EqualFold(ref.Kind, "Secret"):
+			return canReadInNamespace(ctx, "", "secrets", ref.Namespace, "get")
+		case ref.Group == "" && strings.EqualFold(ref.Kind, "LimitRange"):
+			return canReadInNamespace(ctx, "", "limitranges", ref.Namespace, "get")
+		}
+		return true
+	}
+}
+
+// issueEvidenceAccess authorizes an inventory a finding was derived from at
+// the granularity Radar reads it: a namespaced read needs namespace access
+// (and a Secret read a Secrets check); a cluster-wide read needs the SAR.
+func issueEvidenceAccess(ctx context.Context) func(issues.EvidenceRead) bool {
+	inNamespace := callerNamespaces(ctx)
+	return func(read issues.EvidenceRead) bool {
+		if read.Namespace == "" {
+			return canReadInNamespace(ctx, read.Group, read.Resource, "", read.Verb)
+		}
+		if !inNamespace(read.Namespace) {
+			return false
+		}
+		if read.Group == "" && read.Resource == "secrets" {
+			return canReadInNamespace(ctx, "", "secrets", read.Namespace, read.Verb)
+		}
+		return true
+	}
+}
+
+// callerNamespaces reports whether the caller may read a namespace (the same
+// answer as checkNamespaceAccess), resolving its namespaces on first use.
+func callerNamespaces(ctx context.Context) func(string) bool {
+	var once sync.Once
+	var allowed map[string]bool
+	all := false
+	return func(namespace string) bool {
+		if namespace == "" {
+			return false
+		}
+		once.Do(func() {
+			namespaces := filterNamespacesForUser(ctx, nil)
+			if namespaces == nil {
+				all = true
+				return
+			}
+			allowed = make(map[string]bool, len(namespaces))
+			for _, ns := range namespaces {
+				allowed[ns] = true
+			}
+		})
+		return all || allowed[namespace]
+	}
 }

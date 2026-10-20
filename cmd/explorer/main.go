@@ -95,7 +95,10 @@ func main() {
 
 	// Load persistent config (~/.radar/config.json) for flag defaults.
 	// CLI flags override config file values.
-	fileCfg := config.Load()
+	fileCfg, err := config.LoadForStartup()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Parse flags (defaults come from config file, falling back to hardcoded values)
 	kubeconfig := flag.String("kubeconfig", fileCfg.Kubeconfig, "Path to primary kubeconfig file (default: ~/.kube/config)")
@@ -105,6 +108,7 @@ func main() {
 	port := flag.Int("port", fileCfg.PortOr(9280), "Server port")
 	listenAddress := flag.String("listen-address", server.DefaultListenAddress, "HTTP listen IP address (IPv4 or IPv6), or localhost; loopback is local-only, other addresses (including 0.0.0.0) expose shared access")
 	basePath := flag.String("base-path", "", "URL path prefix to serve Radar under, e.g. /radar (empty = root). Use when an ingress forwards a subpath without stripping it.")
+	trustedOrigins := flag.String("trusted-origins", os.Getenv("RADAR_TRUSTED_ORIGINS"), "Comma-separated origins, besides the address Radar is opened at, that may use Radar's API, including changes and terminals (e.g. http://radar.internal). Set this when a proxy in front of Radar rewrites the Host header and changes fail with \"Radar refused this request\". Exact origins only, no wildcards. Does not apply to /mcp (see RADAR_MCP_TRUSTED_ORIGINS). Env: RADAR_TRUSTED_ORIGINS")
 	noBrowser := flag.Bool("no-browser", fileCfg.NoBrowser, "Don't auto-open browser")
 	browser := flag.String("browser", fileCfg.Browser, "Browser to use when opening the UI (default: OS default browser; macOS app names supported)")
 	devMode := flag.Bool("dev", false, "Development mode (serve frontend from filesystem)")
@@ -129,9 +133,9 @@ func main() {
 	aiHistory := flag.Bool("ai-history", fileCfg.AIHistoryOr(true), "Persist AI investigations (transcripts + conclusions) to ~/.radar/ai-runs.db so they survive restarts")
 	// Traffic/metrics options
 	prometheusURL := flag.String("prometheus-url", fileCfg.PrometheusURL, "Manual Prometheus/VictoriaMetrics URL (skips auto-discovery)")
-	workloadSingleCluster := flag.Bool("prometheus-single-cluster", false, "Optional workload-metrics scope override: assert that the backend contains only this Kubernetes cluster. Replaces automatic matching; not saved, and cleared when the cluster, backend or credentials change. Does not scope other metrics features.")
+	workloadSingleCluster := flag.Bool("prometheus-single-cluster", false, "Optional workload/PVC metrics scope override: assert that the backend contains only this Kubernetes cluster. Replaces automatic matching; not saved, and cleared when the cluster, backend or credentials change. Does not scope rightsizing, node/HPA or legacy network/storage metrics.")
 	workloadClusterLabels := map[string]string{}
-	flag.Func("prometheus-cluster-label", "Optional workload-metrics scope override: exact label=value identifying this cluster, e.g. cluster=production (repeatable, ANDed). Alternative to --prometheus-single-cluster, with the same lifetime and workload-only scope; leave both unset for automatic matching.", func(raw string) error {
+	flag.Func("prometheus-cluster-label", "Optional workload/PVC metrics scope override: exact label=value identifying this cluster, e.g. cluster=production (repeatable, ANDed). Alternative to --prometheus-single-cluster, with the same lifetime and scope; leave both unset for automatic matching.", func(raw string) error {
 		key, value, ok := strings.Cut(raw, "=")
 		if !ok {
 			return fmt.Errorf("expected label=value")
@@ -146,16 +150,17 @@ func main() {
 		return nil
 	})
 	openCostCurrency := flag.String("opencost-currency", fileCfg.OpenCostCurrency, "Override the ISO 4217 currency label for OpenCost values (empty: auto-detect, then USD)")
-	// --prometheus-header Key=Value, repeatable. Defaults populated from
-	// config file; any --prometheus-header flag replaces the file value rather
-	// than merging — matches kubectl semantics (file is the default, CLI wins).
+	// --prometheus-header Key=Value, repeatable. Shared installations default to
+	// the config file; any --prometheus-header flag replaces the file value rather
+	// than merging (kubectl semantics: file is the default, CLI wins). Local
+	// installations use only this launch's flags.
 	promHeaders := newHeaderFlag(fileCfg.PrometheusHeaders)
 	flag.Var(promHeaders, "prometheus-header", "HTTP header to send with Prometheus requests, e.g. 'Authorization=Bearer <token>' (repeatable). Required for auth-protected backends.")
 	promHeadersFromEnv := newHeaderFromEnvFlag(fileCfg.PrometheusHeadersFromEnv)
 	flag.Var(promHeadersFromEnv, "prometheus-header-from-env", "HTTP header to send with Prometheus requests, sourced from an env var, e.g. 'Authorization=PROMETHEUS_TOKEN' (repeatable).")
 	beylaJobSelector := flag.String("beyla-job-selector", "", `PromQL matcher fragment for Beyla Live Traffic, e.g. 'job=~"my-beyla.*"' (empty = *beyla* or *alloy* jobs). Workload charts use this override only with an explicit Prometheus scope flag and accept one job equality or regex matcher; automatic workload matching discovers custom jobs without it.`)
 	// MCP server
-	noMCP := flag.Bool("no-mcp", !fileCfg.MCPEnabledOr(true), "Disable MCP (Model Context Protocol) server for AI tools")
+	mcpFlags := config.RegisterMCPFlags(flag.CommandLine, fileCfg)
 	mcpCatalogStdio := flag.Bool("mcp-catalog-stdio", false, "Start only the MCP catalog over stdio for registry/inspector introspection; skips Kubernetes initialization")
 	mcpCatalogOnly := flag.Bool("mcp-catalog-only", false, "Start only the MCP endpoint for registry/inspector catalog introspection; skips Kubernetes initialization")
 	// Auth flags
@@ -174,6 +179,7 @@ func main() {
 	authOIDCClientID := flag.String("auth-oidc-client-id", "", "OIDC client ID")
 	authOIDCClientSecret := flag.String("auth-oidc-client-secret", "", "OIDC client secret")
 	authOIDCRedirectURL := flag.String("auth-oidc-redirect-url", "", "OIDC redirect URL")
+	authOIDCUsernameClaim := flag.String("auth-oidc-username-claim", "", "ID token claim used as the Kubernetes username (must match kube-apiserver --oidc-username-claim); empty uses email, falling back to sub")
 	authOIDCGroupsClaim := flag.String("auth-oidc-groups-claim", "groups", "JWT claim for groups")
 	authOIDCScopes := flag.String("auth-oidc-scopes", "openid,profile,email,groups", "Comma-separated OAuth2 scopes requested at OIDC authorization (e.g. 'openid,profile,email,groups,offline_access')")
 	authOIDCPostLogoutRedirectURL := flag.String("auth-oidc-post-logout-redirect-url", "", "URL to redirect after OIDC provider logout (must be registered with IdP)")
@@ -190,7 +196,7 @@ func main() {
 	cloudURL := flag.String("cloud-url", os.Getenv("RADAR_CLOUD_URL"), "Radar Hub WebSocket URL (e.g. wss://api.radarhq.io/agent) — empty = local-only. Env: RADAR_CLOUD_URL")
 	cloudToken := flag.String("cloud-token", os.Getenv("RADAR_CLOUD_TOKEN"), "Connection token from the Radar install flow (rhc_<random>). Env: RADAR_CLOUD_TOKEN")
 	cloudClusterName := flag.String("cluster-name", os.Getenv("RADAR_CLOUD_CLUSTER_NAME"), "Human-readable cluster name shown in Radar (required with --cloud-url). Env: RADAR_CLOUD_CLUSTER_NAME")
-	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("RADAR_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Skip TLS verification on the Radar Hub tunnel — for trials against a self-hosted hub with a self-signed cert (insecure: encrypted but not authenticated). Env: RADAR_CLOUD_INSECURE_SKIP_VERIFY")
+	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("RADAR_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Skip TLS verification on the Radar Hub tunnel — for trials against a Radar Cloud Self-Managed control plane with a self-signed cert (insecure: encrypted but not authenticated). Env: RADAR_CLOUD_INSECURE_SKIP_VERIFY")
 	// Tunable deadlines for slow / high-latency / SSH-tunneled clusters.
 	// Defaults preserve the original behavior. Each flag falls back to an
 	// environment variable so Kubernetes deployments can source values from
@@ -275,6 +281,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid --base-path %q: %v", *basePath, err)
 	}
+	parsedTrustedOrigins, err := server.ParseTrustedOrigins(*trustedOrigins)
+	if err != nil {
+		log.Printf("WARNING: ignoring --trusted-origins (RADAR_TRUSTED_ORIGINS) entries Radar cannot use; changes from those addresses will still be refused:\n%v", err)
+	}
 	// Radar Hub forwards root-relative paths over the tunnel and the ordinary
 	// listener is health-only at the literal /api/health, so a prefixed router
 	// would 404 both. Fail loudly instead of coming up broken. Both Cloud
@@ -291,7 +301,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid --opencost-currency %q: %v", *openCostCurrency, err)
 	}
-	noMCPFlagSet := false
 	kubeconfigFlagSet := false
 	kubeconfigDirsFlagSet := false
 	namespaceFlagSet := false
@@ -300,8 +309,6 @@ func main() {
 	prometheusURLFlagSet := false
 	flag.Visit(func(f *flag.Flag) {
 		switch f.Name {
-		case "no-mcp":
-			noMCPFlagSet = true
 		case "kubeconfig":
 			kubeconfigFlagSet = true
 		case "kubeconfig-dir":
@@ -316,20 +323,22 @@ func main() {
 			prometheusURLFlagSet = true
 		}
 	})
-	if *mcpCatalogOnly && noMCPFlagSet && *noMCP {
+	mcpMode, err := mcpFlags.Resolve()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Catalog entrypoints enable MCP even when the saved default disables it.
+	noMCPExplicit := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "no-mcp" {
+			noMCPExplicit = f.Value.String() == "true"
+		}
+	})
+	if *mcpCatalogOnly && noMCPExplicit {
 		log.Fatalf("--mcp-catalog-only cannot be combined with --no-mcp")
 	}
-	if *mcpCatalogStdio && noMCPFlagSet && *noMCP {
+	if *mcpCatalogStdio && noMCPExplicit {
 		log.Fatalf("--mcp-catalog-stdio cannot be combined with --no-mcp")
-	}
-	inheritsPrometheusHeaders := !promHeaders.overrides && len(fileCfg.PrometheusHeaders) > 0 ||
-		!promHeadersFromEnv.overrides && len(fileCfg.PrometheusHeadersFromEnv) > 0
-	if err := app.ValidatePrometheusHeaderDestination(fileCfg.PrometheusURL, *prometheusURL, inheritsPrometheusHeaders); err != nil {
-		log.Fatalf("Invalid Prometheus header configuration: %v", err)
-	}
-	resolvedPrometheusHeaders, err := app.ResolvePrometheusHeaders(promHeaders.value(), promHeadersFromEnv.value())
-	if err != nil {
-		log.Fatalf("Invalid Prometheus header configuration: %v", err)
 	}
 	resolvedNamespace, resolvedNamespaces, err := app.ResolveNamespaceSelection(*namespace, *namespaces, namespaceFlagSet, namespacesFlagSet)
 	if err != nil {
@@ -348,7 +357,7 @@ func main() {
 	resolvedKubeconfig, resolvedKubeconfigDirs := app.ResolveKubeconfigSelection(
 		*kubeconfig, *kubeconfigDir, kubeconfigFlagSet, kubeconfigDirsFlagSet,
 	)
-	mcpEnabled := !*noMCP
+	mcpEnabled := mcpMode.Enabled
 	if *mcpCatalogOnly || *mcpCatalogStdio {
 		mcpEnabled = true
 	}
@@ -363,55 +372,60 @@ func main() {
 	}
 
 	cfg := app.AppConfig{
-		Kubeconfig:               resolvedKubeconfig,
-		KubeconfigDirs:           resolvedKubeconfigDirs,
-		Namespace:                resolvedNamespace,
-		Namespaces:               resolvedNamespaces,
-		Port:                     *port,
-		ListenAddress:            normalizedListenAddress,
-		ShowRemoteAccessHint:     true,
-		BasePath:                 normalizedBasePath,
-		NoBrowser:                *noBrowser,
-		Browser:                  *browser,
-		DevMode:                  *devMode,
-		HistoryLimit:             *historyLimit,
-		DebugEvents:              *debugEvents,
-		FakeInCluster:            *fakeInCluster,
-		DisableHelmWrite:         *disableHelmWrite,
-		DisableExec:              *disableExec,
-		DisableLocalTerminal:     *disableLocalTerminal,
-		PodShellDefault:          *podShellDefault,
-		DebugImage:               *debugImage,
-		ReachabilityImage:        *reachabilityImage,
-		ListPageSize:             *listPageSize,
-		NamespaceScope:           *namespaceScope,
-		TimelineStorage:          *timelineStorage,
-		TimelineDBPath:           *timelineDBPath,
-		TimelinePostgresDSN:      os.Getenv("RADAR_TIMELINE_POSTGRES_DSN"),
-		TimelineRetention:        *timelineRetention,
-		TimelineMaxSizeBytes:     timelineMaxSizeBytes,
-		PrometheusURL:            *prometheusURL,
-		OpenCostCurrency:         normalizedOpenCostCurrency,
-		OpenCostFlagSet:          openCostCurrencyFlagSet,
-		CostSource:               fileCfg.CostSource,
-		KubecostURL:              fileCfg.KubecostURL,
-		KubecostAPIKey:           fileCfg.KubecostAPIKey,
-		KubecostAPIKeyContext:    fileCfg.KubecostAPIKeyContext,
-		KubecostClusterID:        fileCfg.KubecostClusterID,
-		KubecostClusterIDContext: fileCfg.KubecostClusterIDContext,
-		PrometheusHeaders:        resolvedPrometheusHeaders,
-		PrometheusHeadersFromEnv: promHeadersFromEnv.value(),
-		PrometheusURLFlag:        prometheusURLFlagSet,
-		PrometheusHeaderFlags:    promHeaders.overrides || promHeadersFromEnv.overrides,
-		BeylaJobSelector:         *beylaJobSelector,
-		WorkloadMetricsScope:     prom.WorkloadMetricsScope{SingleCluster: *workloadSingleCluster, ClusterLabels: workloadClusterLabels},
-		MCPEnabled:               mcpEnabled,
-		AIHistory:                *aiHistory,
-		AIHistoryDBPath:          fileCfg.AIHistoryDBPath,
-		Version:                  version,
-		HubAPIURL:                hubAPIURL,
-		HubAppURL:                hubAppURL,
-		CloudTunnelConfigured:    *cloudURL != "",
+		Kubeconfig:                  resolvedKubeconfig,
+		KubeconfigDirs:              resolvedKubeconfigDirs,
+		Namespace:                   resolvedNamespace,
+		Namespaces:                  resolvedNamespaces,
+		Port:                        *port,
+		ListenAddress:               normalizedListenAddress,
+		ShowRemoteAccessHint:        true,
+		BasePath:                    normalizedBasePath,
+		TrustedOrigins:              parsedTrustedOrigins,
+		NoBrowser:                   *noBrowser,
+		Browser:                     *browser,
+		DevMode:                     *devMode,
+		HistoryLimit:                *historyLimit,
+		DebugEvents:                 *debugEvents,
+		FakeInCluster:               *fakeInCluster,
+		DisableHelmWrite:            *disableHelmWrite,
+		DisableExec:                 *disableExec,
+		DisableLocalTerminal:        *disableLocalTerminal,
+		PodShellDefault:             *podShellDefault,
+		DebugImage:                  *debugImage,
+		ReachabilityImage:           *reachabilityImage,
+		ListPageSize:                *listPageSize,
+		NamespaceScope:              *namespaceScope,
+		TimelineStorage:             *timelineStorage,
+		TimelineDBPath:              *timelineDBPath,
+		TimelinePostgresDSN:         os.Getenv("RADAR_TIMELINE_POSTGRES_DSN"),
+		TimelineRetention:           *timelineRetention,
+		TimelineMaxSizeBytes:        timelineMaxSizeBytes,
+		PrometheusURL:               *prometheusURL,
+		OpenCostCurrency:            normalizedOpenCostCurrency,
+		OpenCostFlagSet:             openCostCurrencyFlagSet,
+		CostSource:                  fileCfg.CostSource,
+		KubecostURL:                 fileCfg.KubecostURL,
+		KubecostAPIKey:              fileCfg.KubecostAPIKey,
+		KubecostAPIKeyContext:       fileCfg.KubecostAPIKeyContext,
+		KubecostClusterID:           fileCfg.KubecostClusterID,
+		KubecostClusterIDContext:    fileCfg.KubecostClusterIDContext,
+		PrometheusHeaders:           promHeaders.value(),
+		PrometheusSavedURL:          fileCfg.PrometheusURL,
+		PrometheusLiteralHeaderFlag: promHeaders.overrides,
+		PrometheusEnvHeaderFlag:     promHeadersFromEnv.overrides,
+		PrometheusHeadersFromEnv:    promHeadersFromEnv.value(),
+		PrometheusURLFlag:           prometheusURLFlagSet,
+		PrometheusHeaderFlags:       promHeaders.overrides || promHeadersFromEnv.overrides,
+		BeylaJobSelector:            *beylaJobSelector,
+		WorkloadMetricsScope:        prom.WorkloadMetricsScope{SingleCluster: *workloadSingleCluster, ClusterLabels: workloadClusterLabels},
+		MCPEnabled:                  mcpEnabled,
+		MCPReadOnly:                 mcpMode.ReadOnly,
+		AIHistory:                   *aiHistory,
+		AIHistoryDBPath:             fileCfg.AIHistoryDBPath,
+		Version:                     version,
+		HubAPIURL:                   hubAPIURL,
+		HubAppURL:                   hubAppURL,
+		CloudTunnelConfigured:       *cloudURL != "",
 		AuthConfig: auth.Config{
 			Mode:                      *authMode,
 			Secret:                    *authSecret,
@@ -428,6 +442,7 @@ func main() {
 			OIDCClientID:              *authOIDCClientID,
 			OIDCClientSecret:          *authOIDCClientSecret,
 			OIDCRedirectURL:           *authOIDCRedirectURL,
+			OIDCUsernameClaim:         *authOIDCUsernameClaim,
 			OIDCGroupsClaim:           *authOIDCGroupsClaim,
 			OIDCScopes:                parseCSV(*authOIDCScopes),
 			OIDCPostLogoutRedirectURL: *authOIDCPostLogoutRedirectURL,
@@ -444,10 +459,14 @@ func main() {
 	app.SetGlobals(cfg)
 
 	if *mcpCatalogStdio {
-		log.Printf("MCP catalog stdio mode enabled: skipping Kubernetes initialization")
+		mode := "full"
+		if mcpMode.ReadOnly {
+			mode = "read-only"
+		}
+		log.Printf("MCP catalog stdio mode enabled (%s): skipping Kubernetes initialization", mode)
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		if err := mcppkg.RunStdio(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		if err := mcppkg.RunStdioMode(ctx, mcpMode.ReadOnly); err != nil && !errors.Is(err, context.Canceled) {
 			log.Fatalf("MCP stdio server failed: %v", err)
 		}
 		return
@@ -500,7 +519,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid timeline configuration: %v", err)
 	}
-	app.RegisterCallbacks(cfg, timelineStoreCfg)
+	cfg = app.RegisterCallbacks(cfg, timelineStoreCfg)
 	k8s.LogTiming(" Callbacks registered: %v", time.Since(t))
 
 	// Create server
@@ -636,7 +655,8 @@ func parseCSV(s string) []string {
 // headerFlag is a flag.Value that accumulates repeated --prometheus-header
 // Key=Value pairs into a map. The first Set call after construction wipes any
 // defaults populated from the config file (kubectl-style: file = default, CLI
-// wins outright instead of merging).
+// wins outright instead of merging). Local installations ignore the file
+// defaults; see preparePrometheusConfiguration.
 type headerFlag struct {
 	m         map[string]string
 	overrides bool

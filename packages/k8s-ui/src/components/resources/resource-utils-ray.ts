@@ -7,60 +7,35 @@ import { healthColors, formatAge } from './resource-utils'
 // RAYCLUSTER UTILITIES
 // ============================================================================
 
+export function rayClusterWorkerCounts(resource: any): { ready?: number; running?: number; desired?: number } {
+  const status = resource.status ?? {}
+  // Native integer counters omit zero; observedGeneration witnesses their shared status write.
+  const count = (key: string) => status[key] ?? (status.observedGeneration > 0 ? 0 : undefined)
+  return { ready: count('readyWorkerReplicas'), running: count('availableWorkerReplicas'), desired: count('desiredWorkerReplicas') }
+}
+
 export function getRayClusterStatus(resource: any): StatusBadge {
-  const state = resource.status?.state
-  const conditions = resource.status?.conditions || []
-
-  const suspendingCond = conditions.find((c: any) => c.type === 'RayClusterSuspending')
-  if (suspendingCond?.status === 'True') {
-    return { text: 'Suspending', color: healthColors.degraded, level: 'degraded' }
+  const conditions = resource.status?.conditions ?? []
+  const condition = (type: string) => conditions.find((c: any) => c.type === type)
+  const badge = (text: string, level: StatusBadge['level']): StatusBadge => ({ text, level, color: healthColors[level!] })
+  if (isRayObservationStale(resource.metadata?.generation, resource.status?.observedGeneration)) return badge('Status stale', 'unknown')
+  if (condition('RayClusterSuspending')?.status === 'True') return badge('Suspending', 'degraded')
+  if (condition('RayClusterSuspended')?.status === 'True') return badge('Suspended', 'neutral')
+  if (resource.spec?.suspend === true) return badge('Suspension requested', 'neutral')
+  const failure = condition('RayClusterReplicaFailure')
+  if (failure?.status === 'True') return badge(failure.reason || 'Replica failure', 'unhealthy')
+  if (resource.status?.state === 'failed') return badge('Failed', 'unhealthy')
+  const head = condition('HeadPodReady')
+  if (head?.status === 'False') return badge(head.reason || 'Head not ready', 'degraded')
+  if (head?.status === 'True') {
+    const { ready, running, desired } = rayClusterWorkerCounts(resource)
+    if (ready == null || desired == null) return badge('Head ready', 'neutral')
+    if (ready >= desired && (running == null || ready >= running)) return badge('Ready', 'healthy')
+    if (ready >= desired && running != null && running > ready) return badge(`${running - ready} workers unready`, 'degraded')
+    return badge(`Workers ${ready}/${desired} ready`, 'degraded')
   }
-
-  const suspendedCond = conditions.find((c: any) => c.type === 'RayClusterSuspended')
-  if (suspendedCond?.status === 'True') {
-    return { text: 'Suspended', color: healthColors.neutral, level: 'neutral' }
-  }
-
-  if (resource.spec?.suspend === true || state === 'suspended') {
-    return { text: 'Suspended', color: healthColors.neutral, level: 'neutral' }
-  }
-
-  const replicaFailureCond = conditions.find((c: any) => c.type === 'RayClusterReplicaFailure')
-  if (replicaFailureCond?.status === 'True') {
-    return { text: replicaFailureCond.reason || 'ReplicaFailure', color: healthColors.unhealthy, level: 'unhealthy' }
-  }
-
-  if (state === 'failed') {
-    return { text: 'Failed', color: healthColors.unhealthy, level: 'unhealthy' }
-  }
-
-  const headReadyCond = conditions.find((c: any) => c.type === 'HeadPodReady')
-  if (headReadyCond?.status === 'False') {
-    return { text: headReadyCond.reason || 'HeadNotReady', color: healthColors.degraded, level: 'degraded' }
-  }
-  if (headReadyCond?.status === 'True') {
-    const availableWorkers = resource.status?.availableWorkerReplicas ?? 0
-    const desiredWorkers = resource.status?.desiredWorkerReplicas ?? 0
-    if (availableWorkers >= desiredWorkers) {
-      return { text: 'Ready', color: healthColors.healthy, level: 'healthy' }
-    }
-    return { text: `Workers ${availableWorkers}/${desiredWorkers}`, color: healthColors.degraded, level: 'degraded' }
-  }
-
-  if (conditions.length === 0 && state === 'ready') {
-    return { text: 'Ready', color: healthColors.healthy, level: 'healthy' }
-  }
-
-  const provisionedCond = conditions.find((c: any) => c.type === 'RayClusterProvisioned')
-  if (provisionedCond?.status === 'True') {
-    return { text: 'Provisioned', color: healthColors.neutral, level: 'neutral' }
-  }
-
-  if (resource.status) {
-    return { text: 'Provisioning', color: healthColors.degraded, level: 'degraded' }
-  }
-
-  return { text: 'Unknown', color: healthColors.unknown, level: 'unknown' }
+  if (condition('RayClusterProvisioned')?.status === 'True') return badge('Provisioned', 'neutral')
+  return badge('Unknown', 'unknown')
 }
 
 export function getRayClusterVersion(resource: any): string {
@@ -68,11 +43,8 @@ export function getRayClusterVersion(resource: any): string {
 }
 
 export function getRayClusterWorkers(resource: any): string {
-  const status = resource.status
-  if (!status) return '-'
-  const available = status.availableWorkerReplicas ?? 0
-  const desired = status.desiredWorkerReplicas ?? 0
-  return `${available}/${desired}`
+  const { ready, desired } = rayClusterWorkerCounts(resource)
+  return `${ready ?? '?'}/${desired ?? '?'}`
 }
 
 export function getRayClusterHeadService(resource: any): string {
@@ -91,6 +63,12 @@ export function getRayJobStatus(resource: any): StatusBadge {
     return { text: deploymentStatus, color: healthColors.unhealthy, level: 'unhealthy' }
   }
 
+  if (['Retrying', 'Suspending', 'Suspended'].includes(deploymentStatus)) {
+    return deploymentStatus === 'Suspended'
+      ? { text: deploymentStatus, color: healthColors.neutral, level: 'neutral' }
+      : { text: deploymentStatus, color: healthColors.degraded, level: 'degraded' }
+  }
+
   switch (jobStatus) {
     case 'SUCCEEDED':
       return { text: 'Succeeded', color: healthColors.neutral, level: 'neutral' }
@@ -105,15 +83,11 @@ export function getRayJobStatus(resource: any): StatusBadge {
   }
 
   switch (deploymentStatus) {
-    case 'Suspended':
-      return { text: 'Suspended', color: healthColors.neutral, level: 'neutral' }
     case 'Complete':
       return { text: 'Complete', color: healthColors.neutral, level: 'neutral' }
     case 'Running':
       return { text: 'Running', color: healthColors.healthy, level: 'healthy' }
     case 'Initializing':
-    case 'Suspending':
-    case 'Retrying':
     case 'Waiting':
       return { text: deploymentStatus, color: healthColors.degraded, level: 'degraded' }
   }
@@ -137,41 +111,35 @@ export function getRayJobClusterName(resource: any): string {
 // RAYSERVICE UTILITIES
 // ============================================================================
 
+export function isRayObservationStale(generation?: number, observedGeneration?: number): boolean {
+  return generation != null && observedGeneration != null && observedGeneration < generation
+}
+
+// KubeRay can freeze observedGeneration during validation failures and suspension.
+export function isRayServiceConditionStale(resource: any, condition: any): boolean {
+  return condition?.status === 'True' && ['Ready', 'UpgradeInProgress', 'RollbackInProgress'].includes(condition.type)
+    && isRayObservationStale(resource.metadata?.generation, resource.status?.observedGeneration)
+}
+
 export function getRayServiceStatus(resource: any): StatusBadge {
-  const conditions = resource.status?.conditions || []
-
-  const suspendingCond = conditions.find((c: any) => c.type === 'Suspending')
-  if (suspendingCond?.status === 'True') {
-    return { text: 'Suspending', color: healthColors.degraded, level: 'degraded' }
+  const conditions = resource.status?.conditions ?? []
+  const labels: Record<string, string> = { Suspending: 'Suspending', Suspended: 'Suspended', RollbackInProgress: 'RollingBack', UpgradeInProgress: 'Upgrading' }
+  for (const type of ['Suspending', 'Suspended', 'RollbackInProgress', 'UpgradeInProgress', 'Ready']) {
+    const condition = conditions.find((c: any) => c.type === type)
+    if (!condition || (type !== 'Ready' && condition.status !== 'True')) continue
+    const label = type === 'Ready' ? (condition.status === 'True' ? 'Ready' : condition.status === 'False' ? condition.reason || 'NotReady' : 'Unknown') : labels[type]
+    if (isRayServiceConditionStale(resource, condition)) {
+      return { text: `${label} (stale)`, color: healthColors.unknown, level: 'unknown' }
+    }
+    if (type === 'Ready') {
+      if (condition.status === 'True') return { text: 'Ready', color: healthColors.healthy, level: 'healthy' }
+      if (condition.status === 'False') return { text: condition.reason || 'NotReady', color: healthColors.degraded, level: 'degraded' }
+      return { text: 'Unknown', color: healthColors.unknown, level: 'unknown' }
+    }
+    const level = type === 'Suspended' ? 'neutral' : 'degraded'
+    return { text: labels[type], color: healthColors[level], level }
   }
-
-  const suspendedCond = conditions.find((c: any) => c.type === 'Suspended')
-  if (suspendedCond?.status === 'True' || resource.spec?.suspend === true) {
-    return { text: 'Suspended', color: healthColors.neutral, level: 'neutral' }
-  }
-
-  const upgradeCond = conditions.find((c: any) => c.type === 'UpgradeInProgress')
-  if (upgradeCond?.status === 'True') {
-    return { text: 'Upgrading', color: healthColors.degraded, level: 'degraded' }
-  }
-
-  const rollbackCond = conditions.find((c: any) => c.type === 'RollbackInProgress')
-  if (rollbackCond?.status === 'True') {
-    return { text: 'RollingBack', color: healthColors.degraded, level: 'degraded' }
-  }
-
-  const readyCond = conditions.find((c: any) => c.type === 'Ready')
-  if (readyCond?.status === 'True') {
-    return { text: 'Ready', color: healthColors.healthy, level: 'healthy' }
-  }
-  if (readyCond?.status === 'False') {
-    return { text: readyCond.reason || 'NotReady', color: healthColors.degraded, level: 'degraded' }
-  }
-
-  if (resource.status?.serviceStatus === 'Running') {
-    return { text: 'Running', color: healthColors.healthy, level: 'healthy' }
-  }
-
+  if (resource.spec?.suspend === true) return { text: 'Suspension requested', color: healthColors.neutral, level: 'neutral' }
   return { text: 'Unknown', color: healthColors.unknown, level: 'unknown' }
 }
 
@@ -217,4 +185,12 @@ export function getRayCronJobLastSchedule(resource: any): string {
   const lastSchedule = resource.status?.lastScheduleTime
   if (!lastSchedule) return '-'
   return formatAge(lastSchedule)
+}
+
+export function rayJobIsLocal(resource: any): boolean {
+  return !resource.spec?.managedBy || resource.spec.managedBy === 'ray.io/kuberay-operator'
+}
+
+export function rayJobSubmissionMode(resource: any): string {
+  return resource.spec?.submissionMode || 'K8sJobMode'
 }

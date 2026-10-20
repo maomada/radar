@@ -315,11 +315,9 @@ describe('getResourceStatus — colliding plurals', () => {
   // fine; being scored with Argo's vocabulary is not, because that attaches a
   // HealthLevel derived from a phase Katib never reports.
   it('does not score a Katib Experiment with the Argo vocabulary', () => {
-    const katib = getResourceStatus('experiments', {
-      apiVersion: 'kubeflow.org/v1beta1',
-      status: { conditions: [{ type: 'Running', status: 'True' }] },
-    })
-    expect(katib?.level).toBeUndefined()
+    const katib = { apiVersion: 'kubeflow.org/v1beta1', status: { conditions: [{ type: 'Running', status: 'True' }] } }
+    // Read the way any unrelated CRD with the same status would be.
+    expect(getResourceStatus('experiments', katib)).toEqual(getResourceStatus('trainingruns', katib))
   })
 
   it('fabricates no engine status for a third-party backups CRD', () => {
@@ -1024,4 +1022,68 @@ describe('Kueue Workload detail dispatch', () => {
     expect(html).toContain('visible')
     expect(getResourceStatus('workloads', data)).toBeNull()
   })
+})
+
+describe('Kueue queue detail dispatch', () => {
+  it.each(['localqueues', 'clusterqueues'])('curates supported %s and preserves foreign and future versions', (kind) => {
+    for (const version of ['v1beta1', 'v1beta2']) {
+      expect(renderKind(kind, { apiVersion: `kueue.x-k8s.io/${version}`, spec: {} })).toContain('Queue Status')
+    }
+    for (const apiVersion of ['example.com/v1', 'fake.kueue.x-k8s.io/v1', 'kueue.x-k8s.io/v99']) {
+      const html = renderKind(kind, { apiVersion, spec: { foreignField: 'preserved-value' } })
+      expect(html).not.toContain('Queue Status')
+      expect(html).toContain('preserved-value')
+    }
+  })
+})
+
+describe('Kueue provisioning detail identity', () => {
+  it('dispatches supported versions only, preserving foreign same-kind generic rendering', () => {
+    for (const [kind, group, versions, title] of [
+      ['admissionchecks', 'kueue.x-k8s.io', ['v1beta1', 'v1beta2'], 'Check Controller'],
+      ['provisioningrequests', 'autoscaling.x-k8s.io', ['v1beta1', 'v1'], 'Requested Pod Sets'],
+    ] as const) {
+      for (const version of versions) {
+        const html = renderKind(kind, { apiVersion: `${group}/${version}`, spec: { controllerName: 'test-controller', provisioningClassName: 'test-class' } })
+        expect(html).toContain(title)
+        expect(html).not.toContain('This resource type doesn')
+        expect(html).not.toContain('Configuration')
+      }
+      expect(renderKind(kind, { apiVersion: 'foreign.io/v1', spec: {} })).not.toContain(title)
+      expect(renderKind(kind, { apiVersion: `${group}/v99`, spec: {} })).not.toContain(title)
+    }
+  })
+})
+
+describe('RayService native detail identity', () => {
+  it('renders the exact supported version once and leaves foreign/future resources generic', () => {
+    const data = { apiVersion: 'ray.io/v1', kind: 'RayService', spec: { customField: 'preserved-value' } }
+    const html = renderKind('rayservices', data)
+    expect(html).toContain('Serving and Rollout')
+    expect(html).not.toContain('preserved-value')
+    expect(html).not.toContain('No specialized view')
+    for (const apiVersion of ['foreign.io/v1', 'fake.ray.io/v1', 'ray.io/v99', 'ray.io/v1alpha1']) {
+      const foreign = { ...data, apiVersion }
+      expect(renderKind('rayservices', foreign)).not.toContain('Serving and Rollout')
+      expect(renderKind('rayservices', foreign)).toContain('preserved-value')
+      expect(getResourceStatus('rayservices', foreign)).toBeNull()
+    }
+  })
+})
+
+it('uses native RayCluster detail only for ray.io/v1', () => {
+  for (const apiVersion of ['ray.io/v1', 'foreign.io/v1', 'ray.io/v9']) {
+    const html = renderKind('rayclusters', { apiVersion, kind: 'RayCluster', metadata: { name: 'cluster', namespace: 'ml' }, spec: { rayVersion: '2.55.0' } }, 'ml')
+    expect(html.includes('Runtime Health')).toBe(apiVersion === 'ray.io/v1')
+    if (apiVersion !== 'ray.io/v1') expect(html).toContain('2.55.0')
+  }
+})
+
+it('uses RayJob native detail only for the supported exact API', () => {
+  for (const apiVersion of ['ray.io/v1', 'foreign.io/v1', 'ray.io/v99', 'ray.io/v1alpha1']) {
+    const data = { apiVersion, kind: 'RayJob', metadata: { name: 'train', namespace: 'ml' }, spec: { customField: 'native-fallback' } }
+    const html = renderKind('rayjobs', data, 'ml')
+    expect(html.includes('RayJob execution')).toBe(apiVersion === 'ray.io/v1')
+    if (apiVersion !== 'ray.io/v1') { expect(html).toContain('native-fallback'); expect(getResourceStatus('rayjobs', data)).toBeNull() }
+  }
 })

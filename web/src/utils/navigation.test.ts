@@ -4,7 +4,7 @@ import {
   initNavigationMap,
   resetNavigationMap,
 } from '@skyhook-io/k8s-ui/utils/navigation'
-import { getNetworkPolicyResourceTarget, relatedResourcePath, resourcePath } from './navigation'
+import { getNetworkPolicyResourceTarget, relatedResourcePath, resourcePath, withCrossViewParams, writeViewParams } from './navigation'
 
 afterEach(resetNavigationMap)
 
@@ -59,4 +59,32 @@ describe('JobSet investigation navigation', () => {
 it('uses the Kubernetes kind for a Calico aggregate target', () => {
   expect(getNetworkPolicyResourceTarget({nodes: [{id: 'policy', kind: 'CalicoNetworkPolicy', name: 'allow', status: 'healthy', data: {apiVersion: 'crd.projectcalico.org/v1', resourceKind: 'NetworkPolicy'}}], edges: []} as unknown as Topology))
     .toEqual({kind: 'networkpolicies', group: 'crd.projectcalico.org'})
+})
+
+describe('withCrossViewParams', () => {
+  it('carries the namespace pick and open investigation onto a bare path', () => {
+    expect(withCrossViewParams('/gitops/argo/argocd/app', '?namespaces=a,b&ai-run=r1&tab=yaml'))
+      .toBe('/gitops/argo/argocd/app?namespaces=a%2Cb&ai-run=r1')
+  })
+
+  it('keeps what the path sets itself, and its hash', () => {
+    expect(withCrossViewParams('/resources/pods?namespaces=x#top', '?namespaces=a&ai-run=r1'))
+      .toBe('/resources/pods?namespaces=x&ai-run=r1#top')
+  })
+
+  it('leaves the path alone when nothing is scoped', () => {
+    expect(withCrossViewParams('/helm', '')).toBe('/helm')
+  })
+})
+
+describe('writeViewParams', () => {
+  it('keeps topology mode and grouping only on topology', () => {
+    const topology = new URLSearchParams('namespace=old&apiGroup=example.com')
+    writeViewParams(topology, [], { mode: 'traffic', grouping: 'app' })
+    expect(topology.toString()).toBe('apiGroup=example.com&mode=traffic&group=app')
+
+    const issues = new URLSearchParams('mode=traffic&group=app&kind=Widget&apiGroup=example.com&resource=ns%2Fw')
+    writeViewParams(issues, ['ns'], null)
+    expect(issues.toString()).toBe('kind=Widget&apiGroup=example.com&resource=ns%2Fw&namespaces=ns')
+  })
 })

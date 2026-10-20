@@ -29,6 +29,7 @@ import {
   investigationApplyAttemptVerified,
   investigationAssessmentNeedsCurrentStateVerification,
   investigationApplyRejectionIsDefinitive,
+  investigationFailureShown,
   investigationApplyCompletionEffects,
   investigationTurnWithTerminalEvent,
   investigationApplyTerminalNeedsClusterRefresh,
@@ -49,6 +50,7 @@ import {
   investigationPaneCenteredScrollTop,
   canStopInvestigation,
   canContinueInvestigation,
+  readOnlyNotice,
   canInvestigateFurther,
 } from "./investigationState";
 import type { AssessmentExplanation } from "./parts";
@@ -66,7 +68,9 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Badge } from "@skyhook-io/k8s-ui";
+import { useNavigate } from "react-router-dom";
+import { Badge, gitOpsRouteForOwner, type GitOpsWrite } from "@skyhook-io/k8s-ui";
+import { useGitOpsWriteGuard } from "../../hooks/useGitOpsWriteGuard";
 import {
   Send,
   AlertTriangle,
@@ -83,10 +87,13 @@ import {
   addTurn,
   stopRun,
   DiagnoseError,
+  investigationRefusal,
   type DiagnoseStreamEvent,
+  type InvestigationRefusal,
   type RunSummary,
 } from "../../api/diagnose";
 import { useDiagnose } from "./DiagnoseContext";
+import { InvestigationRefusalAction } from "./InvestigationRefusalAction";
 import {
   TurnView,
   ResultCard,
@@ -123,9 +130,11 @@ const RECHECK_QUESTION =
 
 export function InvestigationStartErrorAlert({
   error,
+  refusal = null,
   onDismiss,
 }: {
   error: string;
+  refusal?: InvestigationRefusal | null;
   onDismiss: () => void;
 }) {
   return (
@@ -139,6 +148,11 @@ export function InvestigationStartErrorAlert({
           Couldn&apos;t start a new investigation
         </div>
         <div className="text-theme-text-secondary">{error}</div>
+        {refusal ? (
+          <div className="mt-1.5">
+            <InvestigationRefusalAction refusal={refusal} />
+          </div>
+        ) : null}
       </div>
       <button
         type="button"
@@ -146,6 +160,99 @@ export function InvestigationStartErrorAlert({
         className="shrink-0 rounded px-1.5 py-0.5 text-xs text-theme-text-tertiary hover:bg-theme-hover hover:text-theme-text-primary"
       >
         Dismiss
+      </button>
+    </div>
+  );
+}
+
+// The activity pane's one failure notice: a status warning (with its retry) or
+// a failed request, the host's action beside a refusal, and a newer failed
+// follow-up shown under a status warning it can't replace.
+export function InvestigationFailureNotice({
+  message,
+  refusal,
+  statusCheck,
+  followUp,
+}: {
+  message: string;
+  refusal: InvestigationRefusal | null;
+  statusCheck: { label: string; onCheck: () => void; disabled: boolean } | null;
+  followUp: { message: string; refusal: InvestigationRefusal | null } | null;
+}) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-theme-text-primary">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+      <div className="min-w-0 flex-1">
+        <span>{message}</span>
+        {refusal ? (
+          <div className="mt-2">
+            <InvestigationRefusalAction refusal={refusal} />
+          </div>
+        ) : null}
+        {statusCheck ? (
+          <button
+            type="button"
+            onClick={statusCheck.onCheck}
+            disabled={statusCheck.disabled}
+            className="mt-2 block rounded-md border border-red-500/30 px-2 py-1 text-xs font-medium text-theme-text-primary hover:bg-red-500/10 disabled:opacity-50"
+          >
+            {statusCheck.label}
+          </button>
+        ) : null}
+        {followUp ? (
+          <div className="mt-3 border-t border-red-500/20 pt-2">
+            <span>{followUp.message}</span>
+            {followUp.refusal ? (
+              <div className="mt-2">
+                <InvestigationRefusalAction refusal={followUp.refusal} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// The Findings pane's status line. A refused status check never ran, so it
+// says it couldn't check, and offers the host's action like Activity does.
+export function InvestigationStatusCheckNotice({
+  message,
+  uncertainOnly,
+  refusal,
+  onCheck,
+  disabled,
+}: {
+  message: string;
+  uncertainOnly: boolean;
+  refusal: InvestigationRefusal | null;
+  onCheck: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-theme-text-secondary">
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />
+      <div className="min-w-0 flex-1">
+        <span>
+          {refusal
+            ? `Couldn't check status: ${message}`
+            : uncertainOnly
+              ? message
+              : `Verification did not complete: ${message}`}
+        </span>
+        {refusal ? (
+          <div className="mt-1.5">
+            <InvestigationRefusalAction refusal={refusal} />
+          </div>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={onCheck}
+        disabled={disabled}
+        className="shrink-0 rounded-md border border-theme-border px-2 py-1 font-medium text-theme-text-primary hover:bg-theme-hover disabled:opacity-50"
+      >
+        {uncertainOnly ? "Check current status" : "Check current status again"}
       </button>
     </div>
   );
@@ -169,6 +276,8 @@ function captureEvidenceCardLayout(container: HTMLElement) {
   );
 }
 
+const APPLY_WRITES: GitOpsWrite[] = [{ scope: "spec", description: "The proposed change" }];
+
 export function InvestigationView({
   run,
   agentLabel,
@@ -190,8 +299,14 @@ export function InvestigationView({
   const [findingsCloudHidden, setFindingsCloudHidden] = useState(() =>
     isCloudHintDismissed("alert-findings"),
   );
-  const { refreshRuns, openInvestigation, startError, dismissError, agents } =
-    useDiagnose();
+  const {
+    refreshRuns,
+    openInvestigation,
+    startError,
+    startRefusal,
+    dismissError,
+    agents,
+  } = useDiagnose();
   // Capabilities are the declared ones of the agent that ran this run, not
   // the picker's: a reopened run keeps the backend it was made with.
   const runAgent = agents.find((agent) => agent.name === run.agent);
@@ -229,6 +344,7 @@ export function InvestigationView({
     sequence: number;
     status: "running" | "error";
     error?: string;
+    refusal?: InvestigationRefusal | null;
   } | null>(null);
   const [explanationReveal, setExplanationReveal] = useState<{
     sequence: number;
@@ -240,6 +356,12 @@ export function InvestigationView({
     useState<InvestigationHistoryUnavailableState | null>(null);
   const [input, setInput] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  // The host's refusal behind a failed follow-up, for its action beside the error.
+  const [actionRefusal, setActionRefusal] =
+    useState<InvestigationRefusal | null>(null);
+  // The host's refusal behind a failed status check, for its action beside it.
+  const [verificationRefusal, setVerificationRefusal] =
+    useState<InvestigationRefusal | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(
     null,
   );
@@ -256,7 +378,7 @@ export function InvestigationView({
   // the server-owned verification turn arrives. This is presentation state only:
   // the durable server job, never the browser, schedules verification.
   const [verificationPending, setVerificationPending] = useState(false);
-  // The panes are simultaneous above the workspace breakpoint and tabs below it.
+  // On the full page the panes sit side by side; in the panel they are tabs.
   // Successful/stale history opens on its outcome; running and ended-early runs
   // open on Activity, where the user can immediately see what happened.
   const [narrowPane, setNarrowPane] = useState<"activity" | "evidence">(() =>
@@ -308,11 +430,11 @@ export function InvestigationView({
   const paneSelectionTouchedRef = useRef(false);
   const evidenceRevealRequestIdRef = useRef(0);
   const activityRevealRequestIdRef = useRef(0);
-  const workspaceId = useId();
-  const activityTabId = `${workspaceId}-activity-tab`;
-  const activityPaneId = `${workspaceId}-activity-pane`;
-  const findingsTabId = `${workspaceId}-findings-tab`;
-  const findingsPaneId = `${workspaceId}-findings-pane`;
+  const viewId = useId();
+  const activityTabId = `${viewId}-activity-tab`;
+  const activityPaneId = `${viewId}-activity-pane`;
+  const findingsTabId = `${viewId}-findings-tab`;
+  const findingsPaneId = `${viewId}-findings-pane`;
   // Stick-to-bottom: follow streaming output while the user is at/near the bottom,
   // detach the moment they scroll up to read history, re-attach when they return.
   // Tracked from scroll events (the user's intent) — NOT post-render geometry, which
@@ -433,7 +555,9 @@ export function InvestigationView({
     setExplanationReveal(null);
     setHistoryUnavailable(null);
     setActionError(null);
+    setActionRefusal(null);
     setVerificationError(null);
+    setVerificationRefusal(null);
     setVerificationPending(false);
     setLocalApplyAttemptAssessmentIdx(-1);
     setApplyOutcomeUncertain(null);
@@ -482,6 +606,7 @@ export function InvestigationView({
             if (ev.verify) {
               setVerificationPending(false);
               setVerificationError(null);
+              setVerificationRefusal(null);
             }
             streamInFlightRef.current = true;
             if (live) setBusy(true);
@@ -579,6 +704,7 @@ export function InvestigationView({
                 setVerificationError(
                   ev.error || "The verification could not be completed.",
                 );
+                setVerificationRefusal(null);
               }
             }
             updateLast((t) => investigationTurnWithTerminalEvent(t, ev, live));
@@ -759,6 +885,9 @@ export function InvestigationView({
     if (!q || interactionsBlocked) return;
     setInput("");
     setActionError(null);
+    setActionRefusal(null);
+    setVerificationError(null);
+    setVerificationRefusal(null);
     setNarrowPane("activity");
     suppressEvidenceMotionRef.current = false;
     pinnedRef.current = true; // a user-initiated turn always follows to the bottom
@@ -766,6 +895,7 @@ export function InvestigationView({
     addTurn(run.id, { question: q }).catch((e) => {
       setRequestPending(false);
       setActionError(e instanceof DiagnoseError ? e.message : "Couldn't send.");
+      setActionRefusal(investigationRefusal(e));
     });
   };
   const stop = () => stopRun(run.id);
@@ -773,6 +903,7 @@ export function InvestigationView({
   const askExplanation = (sequence: number) => {
     if (interactionsBlocked) return;
     setActionError(null);
+    setActionRefusal(null);
     const serial = ++explanationRequestSerial.current;
     const previousTurns = turnsRef.current.length;
     setExplanationRequest({ sequence, status: "running" });
@@ -794,6 +925,7 @@ export function InvestigationView({
           e instanceof DiagnoseError
             ? e.message
             : "Couldn't request an explanation.",
+        refusal: investigationRefusal(e),
       });
     });
   };
@@ -836,6 +968,38 @@ export function InvestigationView({
   // Apply: a user-confirmed remediation turn. Any step is applyable; the chosen
   // step's text is sent so the server binds the apply to it.
   const [confirmApply, setConfirmApply] = useState(false);
+  // The agent's change can touch any field of the target, so the guard
+  // classifies an unknown spec write.
+  const { guard: applyGitOpsGuard, ownership: applyOwnership } =
+    useGitOpsWriteGuard({
+      target: { kind, group: run.group, namespace, name },
+      writes: APPLY_WRITES,
+      declaredManager: run.managedBy,
+      enabled: confirmApply,
+    });
+  const navigateRouter = useNavigate();
+  const {
+    owner: applyOwner,
+    ownerVerified: applyOwnerVerified,
+    helmOwner: applyHelmOwner,
+  } = applyOwnership;
+  const openApplyOwner = useMemo(() => {
+    // A host without resource navigation (Radar Hub's fleet Diagnose panel)
+    // has no route for the owner either.
+    if (!onOpenResource) return undefined;
+    const owner = applyOwner;
+    const helmOwner = applyHelmOwner;
+    if (owner && applyOwnerVerified) {
+      return () => navigateRouter(gitOpsRouteForOwner(owner));
+    }
+    if (helmOwner) {
+      return () =>
+        navigateRouter(
+          `/helm?release=${encodeURIComponent(`${helmOwner.namespace}/${helmOwner.name}`)}`,
+        );
+    }
+    return undefined;
+  }, [applyOwner, applyOwnerVerified, applyHelmOwner, navigateRouter, onOpenResource]);
   const [pendingFix, setPendingFix] = useState("");
   const requestApply = (fix: string) => {
     if (interactionsBlocked) return;
@@ -846,7 +1010,9 @@ export function InvestigationView({
     setConfirmApply(false);
     if (interactionsBlocked) return;
     setActionError(null);
+    setActionRefusal(null);
     setVerificationError(null);
+    setVerificationRefusal(null);
     setApplyOutcomeUncertain(null);
     setNarrowPane("activity");
     suppressEvidenceMotionRef.current = false;
@@ -866,6 +1032,7 @@ export function InvestigationView({
         setLocalApplyAttemptAssessmentIdx(-1);
         setApplyOutcomeUncertain(null);
         setActionError(e.message.trim() || "Couldn't apply.");
+        setActionRefusal(investigationRefusal(e));
         return;
       }
       refreshClusterState();
@@ -880,7 +1047,9 @@ export function InvestigationView({
   const checkStatus = () => {
     if (interactionsBlocked) return Promise.resolve();
     setActionError(null);
+    setActionRefusal(null);
     setVerificationError(null);
+    setVerificationRefusal(null);
     setNarrowPane("activity");
     suppressEvidenceMotionRef.current = false;
     pinnedRef.current = true;
@@ -895,6 +1064,7 @@ export function InvestigationView({
           ? error.message
           : "Couldn't check status.",
       );
+      setVerificationRefusal(investigationRefusal(error));
     });
   };
 
@@ -1310,12 +1480,23 @@ export function InvestigationView({
     0,
   );
   const latestVerification = [...turns].reverse().find((turn) => turn.verify);
-  const displayedVerificationError =
-    latestVerification?.status === "error"
-      ? latestVerification.error || "The verification could not be completed."
-      : verificationError;
-  const displayedStatusCheckError =
-    displayedVerificationError || applyOutcomeUncertain;
+  const {
+    verificationError: displayedVerificationError,
+    statusCheckError: displayedStatusCheckError,
+    message: shownFailure,
+    refusal: shownActionRefusal,
+    followUp: shownFollowUp,
+  } = investigationFailureShown({
+    actionError,
+    actionRefusal,
+    verificationError,
+    verificationRefusal,
+    savedVerificationError:
+      latestVerification?.status === "error"
+        ? latestVerification.error || "The verification could not be completed."
+        : null,
+    applyOutcomeUncertain,
+  });
   const findingsTabAccessibleLabel =
     "Findings: current assessment, Radar evidence, and next steps";
   const currentAssessmentCoverageLimited = investigationEvidenceCoverageLimited(
@@ -1506,17 +1687,17 @@ export function InvestigationView({
       ? Math.round((Date.now() - runningSinceRef.current) / 1000)
       : 0,
   });
-  const showSplitWorkspace = maximized;
-  const splitGridClass = showSplitWorkspace
+  const showSidePanes = maximized;
+  const splitGridClass = showSidePanes
     ? "@min-[1000px]/investigation:grid-cols-[minmax(320px,min(30%,520px))_minmax(0,1fr)]"
     : "";
-  const splitTabClass = showSplitWorkspace
+  const splitTabClass = showSidePanes
     ? "@min-[1000px]/investigation:hidden"
     : "";
-  const splitPaneClass = showSplitWorkspace
+  const splitPaneClass = showSidePanes
     ? "@min-[1000px]/investigation:flex"
     : "";
-  const splitActivityBorderClass = showSplitWorkspace
+  const splitActivityBorderClass = showSidePanes
     ? "@min-[1000px]/investigation:border-r @min-[1000px]/investigation:border-theme-border"
     : "";
 
@@ -1611,7 +1792,7 @@ export function InvestigationView({
               )}
             </>
           ) : (
-            "This investigation is read-only."
+            readOnlyNotice(run)
           )}
         </div>
       ) : (
@@ -1667,11 +1848,11 @@ export function InvestigationView({
       <section
         ref={nextStepsRef}
         tabIndex={-1}
-        aria-labelledby={`${workspaceId}-next-steps`}
+        aria-labelledby={`${viewId}-next-steps`}
         className="investigation-next-steps rounded-xl border p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
       >
         <h2
-          id={`${workspaceId}-next-steps`}
+          id={`${viewId}-next-steps`}
           className="text-lg font-semibold text-theme-text-primary"
         >
           {earlierPlan ? "Earlier proposed steps" : "Next steps"}
@@ -1708,7 +1889,7 @@ export function InvestigationView({
 
   return (
     <div
-      data-investigation-workspace
+      data-investigation-view
       className={`@container/investigation relative flex min-h-0 flex-1 flex-col bg-theme-surface ${maximized ? "investigation-split-enabled" : ""}`}
     >
       {stale ? (
@@ -1770,6 +1951,7 @@ export function InvestigationView({
       {startError ? (
         <InvestigationStartErrorAlert
           error={startError}
+          refusal={startRefusal}
           onDismiss={dismissError}
         />
       ) : null}
@@ -1799,7 +1981,7 @@ export function InvestigationView({
 
       <div
         role="group"
-        aria-label="Investigation workspace"
+        aria-label="Investigation view"
         className={`grid grid-cols-2 border-b border-theme-border bg-theme-base/40 p-1 ${splitTabClass}`}
       >
         <button
@@ -2019,7 +2201,7 @@ export function InvestigationView({
                             ) : undefined;
                           })()}
                         />
-                        {showSplitWorkspace &&
+                        {showSidePanes &&
                         index === currentAssessmentIdx &&
                         turn.timeline.length === 0 ? (
                           <p className="hidden text-sm text-theme-text-tertiary @min-[1000px]/investigation:block">
@@ -2069,26 +2251,25 @@ export function InvestigationView({
                       </Fragment>
                     );
                   })}
-                  {(actionError || displayedStatusCheckError) && (
-                    <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-theme-text-primary">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-                      <div className="min-w-0 flex-1">
-                        <span>{displayedStatusCheckError || actionError}</span>
-                        {displayedStatusCheckError ? (
-                          <button
-                            type="button"
-                            onClick={checkStatus}
-                            disabled={interactionsBlocked}
-                            className="mt-2 block rounded-md border border-red-500/30 px-2 py-1 text-xs font-medium text-theme-text-primary hover:bg-red-500/10 disabled:opacity-50"
-                          >
-                            {applyOutcomeUncertain &&
-                            !displayedVerificationError
-                              ? "Check current status"
-                              : "Check current status again"}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
+                  {shownFailure && (
+                    <InvestigationFailureNotice
+                      message={shownFailure}
+                      refusal={shownActionRefusal}
+                      statusCheck={
+                        displayedStatusCheckError
+                          ? {
+                              label:
+                                applyOutcomeUncertain &&
+                                !displayedVerificationError
+                                  ? "Check current status"
+                                  : "Check current status again",
+                              onCheck: checkStatus,
+                              disabled: interactionsBlocked,
+                            }
+                          : null
+                      }
+                      followUp={shownFollowUp}
+                    />
                   )}
                 </div>
               </div>
@@ -2199,12 +2380,12 @@ export function InvestigationView({
                       not a fifth, and it fills the pane it is given. */}
                   <div className="space-y-3">
                     <section
-                      aria-labelledby={`${workspaceId}-assessment-heading`}
+                      aria-labelledby={`${viewId}-assessment-heading`}
                       className="investigation-assessment rounded-xl border p-3"
                     >
                       <div className="flex flex-wrap items-center gap-1.5">
                         <h2
-                          id={`${workspaceId}-assessment-heading`}
+                          id={`${viewId}-assessment-heading`}
                           className="text-lg font-semibold text-theme-text-primary"
                         >
                           {assessmentNeedsCurrentStateVerification
@@ -2378,26 +2559,16 @@ export function InvestigationView({
                         </div>
                       )}
                       {displayedStatusCheckError ? (
-                        <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-theme-text-secondary">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />
-                          <span className="min-w-0 flex-1">
-                            {applyOutcomeUncertain &&
+                        <InvestigationStatusCheckNotice
+                          message={displayedStatusCheckError}
+                          uncertainOnly={
+                            !!applyOutcomeUncertain &&
                             !displayedVerificationError
-                              ? displayedStatusCheckError
-                              : `Verification did not complete: ${displayedStatusCheckError}`}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={checkStatus}
-                            disabled={interactionsBlocked}
-                            className="shrink-0 rounded-md border border-theme-border px-2 py-1 font-medium text-theme-text-primary hover:bg-theme-hover disabled:opacity-50"
-                          >
-                            {applyOutcomeUncertain &&
-                            !displayedVerificationError
-                              ? "Check current status"
-                              : "Check current status again"}
-                          </button>
-                        </div>
+                          }
+                          refusal={shownActionRefusal}
+                          onCheck={checkStatus}
+                          disabled={interactionsBlocked}
+                        />
                       ) : null}
                     </section>
 
@@ -2476,7 +2647,8 @@ export function InvestigationView({
               ]?.precondition
             : undefined
         }
-        managedBy={run.managedBy}
+        gitOpsGuard={applyGitOpsGuard}
+        onOpenGitOpsOwner={openApplyOwner}
         confidence={turns[lastRemediationIdx]?.diagnosis?.confidence}
       />
     </div>

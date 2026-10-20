@@ -126,6 +126,7 @@ export interface Capabilities {
   helmWrite: boolean      // Helm write operations (install, upgrade, rollback, uninstall, apply values)
   nodeWrite: boolean      // Node write operations (cordon, uncordon, drain)
   workloadWrites?: WorkloadWritePermissions // Workload patch permissions (restart/scale controls)
+  mcpReadOnly?: boolean  // Full MCP endpoint is disabled; read-only endpoints remain available
   mcpEnabled: boolean     // MCP server is running
   // Karpenter discovery and NodePool read state. Optional on the wire for the
   // same newer-frontend/older-backend reason as `deployment` below — consumers
@@ -160,9 +161,20 @@ export interface CloudConnectCapability {
 }
 
 export interface FeatureCapabilities {
+ helmSourceIdentity?: boolean
   yamlReview?: boolean
   yamlSchemas?: boolean
   workloadImages?: boolean
+  resourceIssues?: boolean
+  resourceIssueCoverage?: boolean
+  podEnvironment?: boolean
+  policyResource?: boolean
+  workloadHistory?: boolean
+  cnpgWorkspace?: boolean
+  cnpgProtectionSetup?: boolean
+  gitopsWriteEvidence?: boolean
+  serviceEndpointSlices?: boolean
+  trafficRecords?: boolean
 }
 
 // DeploymentMode is the closed set of topologies Radar can run in.
@@ -194,6 +206,7 @@ export type CoreNodeKind =
   | 'HTTPRoute'
   | 'GRPCRoute'
   | 'TCPRoute'
+  | 'UDPRoute'
   | 'TLSRoute'
   | 'Service'
   | 'Deployment'
@@ -632,6 +645,8 @@ export interface ResourceRef {
 
 // Computed relationships for a resource
 export interface Relationships {
+  /** Istio registry domain supplied by the producer; omitted when unknown. */
+  istioServiceDomain?: string
   reflection?: {
     source?: ResourceRef
     sourceResourceVersion?: string
@@ -649,6 +664,15 @@ export interface Relationships {
   consumers?: ResourceRef[]
   scalers?: ResourceRef[]
   storageRefs?: ResourceRef[]
+  dependencies?: ResourceRef[]
+  dependents?: ResourceRef[]
+  monitors?: ResourceRef[]
+  monitorTargets?: ResourceRef[]
+  backends?: ResourceRef[]
+  routedFrom?: ResourceRef[]
+  protects?: ResourceRef[]
+  healthChecks?: ResourceRef[]
+  stagedPolicies?: ResourceRef[]
   scaleTarget?: ResourceRef
   pdbs?: ResourceRef[]              // PodDisruptionBudgets protecting this workload
   networkPolicies?: ResourceRef[]   // NetworkPolicy / CiliumNetworkPolicy / ClusterNetworkPolicy variants selecting this workload
@@ -719,6 +743,7 @@ export interface HPADiagnosis extends HPADiagnosisView {
     name?: string
   }
   bounds: HPABounds
+  /** Spec order keeps source references paired with values; unmatched status entries follow. */
   metrics?: HPAMetricSummary[]
 }
 
@@ -776,6 +801,8 @@ export interface APIResource {
   name: string // Plural name (e.g., "deployments")
   namespaced: boolean
   isCrd: boolean
+  /** Confirmed, readable cached CRD identity; never inferred from isCrd. */
+  definitionName?: string
   featured?: boolean
   verbs: string[]
   observation?: DynamicResourceObservation
@@ -813,6 +840,7 @@ export interface HelmRevision {
   appVersion: string
   description: string
   updated: string // ISO date string
+  deleted?: string
 }
 
 export type HelmOperationKind = 'release_failed' | 'upgrade_failed' | 'upgrade_rolled_back' | 'rollback' | 'pending'
@@ -1063,10 +1091,40 @@ export interface UpgradeInfo {
   error?: string
   // Machine-readable source-resolution failure, used to make the Helm drawer
   // explain whether tracking an OCI source can help.
-  sourceIssue?: 'untracked' | 'repo_index_error' | 'ambiguous_repository'
+  sourceIssue?: 'source_confirmation_required' | 'source_change_required' | 'release_changing' | 'untracked' | 'repo_index_error' | 'ambiguous_repository' | 'ambiguous_source' | 'source_unavailable'
   // True only when the error is a genuinely untracked source (registering a
   // chart source could fix it). Kept for compatibility; prefer sourceIssue.
   untracked?: boolean
+}
+
+export type ChartSourceCandidate =
+  | { type: 'repository'; reference: string; url: string }
+  | { type: 'oci'; reference: string; url?: never }
+
+export interface SourceUpgradeSelection {
+ source: ChartSourceCandidate
+ expectedRevision: number
+ expectedSource: ChartSourceCandidate | null
+ previewDigest?: string
+}
+
+export interface ChartSourceSuggestion {
+ source: ChartSourceCandidate
+ current: boolean
+ hasInstalledVersion: boolean
+ state: 'available' | 'index_unavailable' | 'unchecked'
+}
+
+export interface ChartSourceStatus {
+ changing?: boolean
+ revision?: number
+ confirmed?: boolean
+ sourceChangeRequired?: boolean
+ suggestions?: ChartSourceSuggestion[]
+  recorded?: ChartSourceCandidate
+  configured: boolean
+  available: boolean
+  candidates?: ChartSourceCandidate[]
 }
 
 // Batch upgrade info keyed by "storageNamespace/name".
@@ -1083,6 +1141,9 @@ export interface ApplyValuesRequest {
 
 // Response for previewing values changes
 export interface ValuesPreviewResponse {
+	baselineSource?: ChartSourceCandidate
+ previewDigest?: string
+ baselineRevision?: number
   currentValues: Record<string, unknown>
   newValues: Record<string, unknown>
   manifestDiff: string
@@ -1280,10 +1341,12 @@ export interface MetricsDataPoint {
 export interface TrafficEndpoint {
   name: string
   namespace: string
-  kind: string // Pod, Service, External, Host, Unknown
+  kind: string // Pod, Workload, Service, External, Host, Unknown
   ip?: string
   labels?: Record<string, string>
   workload?: string
+  /** Deployment, StatefulSet, CronJob, … when resolved from the pod's owners. */
+  workloadKind?: string
   port?: number
 }
 
@@ -1367,7 +1430,15 @@ export interface AggregatedFlow {
   l7Protocol?: string // HTTP, gRPC, DNS
   requestCount?: number
   errorCount?: number
+  /** Per-second rates from a metric-based source, unrounded. requestCount and
+   *  errorCount carry the same figures rounded with a floor of one, so their
+   *  ratio is meaningless at low rates. */
+  requestRate?: number
+  errorRate?: number
   avgLatencyMs?: number
+  /** How many measured responses the latency figures come from (sources that
+   *  report individual responses). Weights averages when edges are combined. */
+  latencySamples?: number
   latencyP50Ms?: number
   latencyP95Ms?: number
   latencyP99Ms?: number
@@ -1434,12 +1505,44 @@ export interface TrafficFlowsResponse {
   timestamp: string
   flows: TrafficFlow[]
   aggregated: AggregatedFlow[]
+  /** L7 responses run caller → callee on the server's port, like their request.
+   *  Absent from a Radar that sent them server → client. */
+  l7ResponsesCallerOriented?: boolean
+  /** When the flows start being complete: some node returned its full
+   *  nodeFlowLimit, so older traffic in the window did not fit. */
+  coveredSince?: string
+  nodeFlowLimit?: number
+  /** Set when the source kept only its newest flowLimit flows in total; the
+   *  window is then complete only from coveredSince. */
+  flowLimit?: number
+  /** How many records the aggregation covers. `flows` holds only the newest of
+   *  them; a Radar that predates the cap omits this and sends every record. */
+  flowsTotal?: number
   warning?: string  // Non-fatal warning (e.g., query errors)
   /** 'transient' (or absent) means the condition may clear on its own and a
-   *  retry is worthwhile. 'partial' means the flows are correct but incomplete
-   *  for a reason retrying cannot change, so show the warning next to them and
-   *  do not refetch. */
-  warningKind?: 'transient' | 'partial'
+   *  retry is worthwhile. 'partial' means the flows are correct but some of
+   *  their values are missing or wrong, so show the warning next to them and do
+   *  not refetch. 'incomplete' means the fetch worked but could not see
+   *  everything — events lost, nodes unreachable — so flows may be missing; show
+   *  it, with or without flows, and do not retry at once. */
+  warningKind?: 'transient' | 'partial' | 'incomplete'
+}
+
+// Response from GET /api/traffic/flows/records — the newest records behind
+// one graph selection.
+export interface TrafficRecordsResponse {
+  source: string
+  timestamp: string
+  /** Newest first, at most the server's records limit. */
+  flows: TrafficFlow[]
+  /** How many records matched; more than flows.length when capped. */
+  matched: number
+  l7ResponsesCallerOriented?: boolean
+  coveredSince?: string
+  nodeFlowLimit?: number
+  flowLimit?: number
+  warning?: string
+  warningKind?: 'transient' | 'partial' | 'incomplete'
 }
 
 // Wizard state for traffic setup

@@ -11,6 +11,7 @@ import (
 
 	"github.com/skyhook-io/radar/internal/auth"
 	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/skyhook-io/radar/internal/readscope"
 )
 
 // newAuthServer creates a minimal Server with the given auth config for testing.
@@ -153,7 +154,7 @@ func TestParseNamespaces(t *testing.T) {
 	}
 }
 
-// --- noNamespaceAccess (nil vs empty contract) ---
+// --- readscope.NoNamespaceAccess (nil vs empty contract) ---
 
 func TestNoNamespaceAccess(t *testing.T) {
 	tests := []struct {
@@ -168,8 +169,8 @@ func TestNoNamespaceAccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := noNamespaceAccess(tt.ns); got != tt.want {
-				t.Errorf("noNamespaceAccess(%v) = %v, want %v", tt.ns, got, tt.want)
+			if got := readscope.NoNamespaceAccess(tt.ns); got != tt.want {
+				t.Errorf("readscope.NoNamespaceAccess(%v) = %v, want %v", tt.ns, got, tt.want)
 			}
 		})
 	}
@@ -241,7 +242,7 @@ func TestGetUserNamespaces_CachedNoAccess(t *testing.T) {
 	r := requestWithUser("GET", "/", user)
 	got := s.getUserNamespaces(r, []string{"dev"})
 
-	if !noNamespaceAccess(got) {
+	if !readscope.NoNamespaceAccess(got) {
 		t.Errorf("empty AllowedNamespaces should yield no access, got %v (nil=%v)", got, got == nil)
 	}
 }
@@ -270,7 +271,7 @@ func TestGetUserNamespaces_UncachedFailsClosed_WhenK8sNotReady(t *testing.T) {
 	got := s.getUserNamespaces(r, []string{"dev"})
 
 	// When k8s client isn't ready, deny access (fail-closed)
-	if !noNamespaceAccess(got) {
+	if !readscope.NoNamespaceAccess(got) {
 		t.Errorf("expected no access (fail-closed) when k8s not ready, got %v", got)
 	}
 }
@@ -575,11 +576,11 @@ func TestProxyAuth_NamespaceFiltering_ClusterAdmin(t *testing.T) {
 	env := newAuthTestServer(t)
 
 	// Pre-populate cache: nil AllowedNamespaces = cluster admin
-	env.srv.permCache.Set("admin", []string{"system:masters"}, &auth.UserPermissions{
+	env.srv.permCache.Set("admin", []string{"platform-admins"}, &auth.UserPermissions{
 		AllowedNamespaces: nil,
 	})
 
-	resp := env.authGet(t, "/api/resources/deployments", "admin", "system:masters")
+	resp := env.authGet(t, "/api/resources/deployments", "admin", "platform-admins")
 	defer resp.Body.Close()
 
 	var deps []any
@@ -858,4 +859,90 @@ func TestProxyAuth_NamespaceFiltering_NoAccess(t *testing.T) {
 	if len(pods) != 0 {
 		t.Errorf("user with no access should see 0 pods, got %d", len(pods))
 	}
+}
+
+// --- handleAuthMe: readscope.NoNamespaceAccess ---
+
+func authMeBody(t *testing.T, s *Server, user *auth.User) map[string]any {
+	t.Helper()
+	w := httptest.NewRecorder()
+	s.handleAuthMe(w, requestWithUser("GET", "/api/auth/me", user))
+	var body map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return body
+}
+
+func TestHandleAuthMe_NoNamespaceAccess(t *testing.T) {
+	prev := k8s.GetConnectionStatus()
+	t.Cleanup(func() { k8s.SetConnectionStatus(prev) })
+	user := &auth.User{Username: "bob", Groups: []string{"radar:idp:team-a"}}
+
+	t.Run("reported when connected and no namespace is readable", func(t *testing.T) {
+		k8s.SetConnectionStatus(k8s.ConnectionStatus{State: k8s.StateConnected})
+		s := newAuthServer(auth.Config{Mode: "proxy"})
+		s.permCache.Set(user.Username, user.Groups, &auth.UserPermissions{AllowedNamespaces: []string{}})
+		if got := authMeBody(t, s, user)["noNamespaceAccess"]; got != true {
+			t.Errorf("readscope.NoNamespaceAccess = %v, want true", got)
+		}
+	})
+
+	t.Run("false when some namespace is readable", func(t *testing.T) {
+		k8s.SetConnectionStatus(k8s.ConnectionStatus{State: k8s.StateConnected})
+		s := newAuthServer(auth.Config{Mode: "proxy"})
+		s.permCache.Set(user.Username, user.Groups, &auth.UserPermissions{AllowedNamespaces: []string{"team-a"}})
+		if got := authMeBody(t, s, user)["noNamespaceAccess"]; got != false {
+			t.Errorf("readscope.NoNamespaceAccess = %v, want false for a user who can read team-a", got)
+		}
+	})
+
+	t.Run("false for cluster-wide access", func(t *testing.T) {
+		k8s.SetConnectionStatus(k8s.ConnectionStatus{State: k8s.StateConnected})
+		s := newAuthServer(auth.Config{Mode: "proxy"})
+		s.permCache.Set(user.Username, user.Groups, &auth.UserPermissions{AllowedNamespaces: nil})
+		if got := authMeBody(t, s, user)["noNamespaceAccess"]; got != false {
+			t.Errorf("readscope.NoNamespaceAccess = %v, want false for cluster-wide access", got)
+		}
+	})
+
+	// A plain /auth/me never discovers: with nothing cached (before the first
+	// resource request, or after a failed discovery, which caches nothing) the
+	// field is left out. The banner's ?check=namespaces call discovers.
+	t.Run("absent when nothing is cached", func(t *testing.T) {
+		k8s.SetConnectionStatus(k8s.ConnectionStatus{State: k8s.StateConnected})
+		s := newAuthServer(auth.Config{Mode: "proxy"})
+		if _, has := authMeBody(t, s, user)["noNamespaceAccess"]; has {
+			t.Error("readscope.NoNamespaceAccess present with no cached permissions")
+		}
+	})
+
+	// Discovery that can't reach the cluster fails closed without caching, and
+	// that must not read as "this user has no access".
+	t.Run("absent when the banner's discovery can't run", func(t *testing.T) {
+		k8s.SetConnectionStatus(k8s.ConnectionStatus{State: k8s.StateConnected})
+		prevClient := k8s.SetTestClient(nil)
+		t.Cleanup(func() { k8s.SetTestClient(prevClient) })
+		s := newAuthServer(auth.Config{Mode: "proxy"})
+		w := httptest.NewRecorder()
+		s.handleAuthMe(w, requestWithUser("GET", "/api/auth/me?check=namespaces", user))
+		var body map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if _, has := body["noNamespaceAccess"]; has {
+			t.Error("readscope.NoNamespaceAccess reported from a discovery that never ran")
+		}
+	})
+
+	// Before the cluster connects, namespace discovery fails closed; reporting
+	// that as "no access" would flash the banner for every user.
+	t.Run("absent while not connected", func(t *testing.T) {
+		k8s.SetConnectionStatus(k8s.ConnectionStatus{State: k8s.StateConnecting})
+		s := newAuthServer(auth.Config{Mode: "proxy"})
+		s.permCache.Set(user.Username, user.Groups, &auth.UserPermissions{AllowedNamespaces: []string{}})
+		if _, has := authMeBody(t, s, user)["noNamespaceAccess"]; has {
+			t.Error("readscope.NoNamespaceAccess present before the cluster is connected")
+		}
+	})
 }

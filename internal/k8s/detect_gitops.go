@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/skyhook-io/radar/pkg/conditions"
+	"github.com/skyhook-io/radar/pkg/gitops"
 	"github.com/skyhook-io/radar/pkg/gitops/diagnose"
+	"github.com/skyhook-io/radar/pkg/timeutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -191,7 +193,7 @@ func gitopsProblem(now time.Time, kind, group, ns, name, severity, reason, messa
 		Severity:          severity,
 		Reason:            reason,
 		Message:           message,
-		Age:               FormatAge(age),
+		Age:               timeutil.FormatAgeShort(age),
 		AgeSeconds:        int64(age.Seconds()),
 		ResourceCreatedAt: createdAt,
 		OnsetUnknown:      true,
@@ -274,9 +276,9 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 					}
 					d.RawMessage = rawMsg
 					if ct == "SyncError" {
-						applyArgoOperationDiagnosis(&d, cmsg)
+						applyArgoOperationDiagnosis(&d, app, cmsg)
 					}
-					if d.RemediationKind == "" {
+					if d.RemediationKind == "" && d.Action == "" {
 						d.Action = diagnose.ActionForCondition(ct)
 					}
 					out = append(out, d)
@@ -292,12 +294,12 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 				setDetectionOnset(&d, now, transitionAt)
 			}
 			d.RawMessage = rawMsg
-			applyArgoOperationDiagnosis(&d, msg)
+			applyArgoOperationDiagnosis(&d, app, msg)
 			// When there's a structured remediation, that one-click fix IS the
 			// next step. Otherwise (RBAC / webhook / immutable field, or an
 			// unrecognized message) point the operator at the operation details
 			// so every failure has a next step, not just a diagnosis.
-			if d.RemediationKind == "" {
+			if d.RemediationKind == "" && d.Action == "" {
 				d.Action = "Open the application's sync operation details for the full error and history."
 			}
 			out = append(out, d)
@@ -370,7 +372,7 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 		// change rather than one mid-review.
 		if !automated && outOfSync && manualDriftFor >= manualDriftGate {
 			dd := gitopsProblem(now, "Application", argoGroup, ns, name, "warning", "OutOfSyncManual",
-				fmt.Sprintf("Application has been out of sync for %s and auto-sync is not enabled", FormatAge(manualDriftFor)), createdAt)
+				fmt.Sprintf("Application has been out of sync for %s and auto-sync is not enabled", timeutil.FormatAgeShort(manualDriftFor)), createdAt)
 			setDetectionOnset(&dd, now, outOfSyncAt)
 			dd.Action = "Review the drift in Changes, then Sync the application (or enable auto-sync) if the drift is unintended."
 			out = append(out, dd)
@@ -379,8 +381,11 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 	return out
 }
 
-func applyArgoOperationDiagnosis(d *Detection, msg string) {
+func applyArgoOperationDiagnosis(d *Detection, app *unstructured.Unstructured, msg string) {
 	parsed := diagnose.ParseArgoOperationError(msg)
+	if !gitops.IsInClusterDestination(app) {
+		parsed, d.Action = diagnose.WithoutLocalRemediation(parsed)
+	}
 	d.Cause = parsed.Cause
 	d.RemediationKind = parsed.RemediationKind
 	d.RemediationTarget = parsed.RemediationTarget
@@ -629,7 +634,7 @@ func detectArgoStale(apps []*unstructured.Unstructured, ctrl argoControllerHealt
 		since, _ := durationFromTimestamp(now, argoReconciledAt(app))
 		d := gitopsProblem(now, "Application", argoGroup, app.GetNamespace(), app.GetName(),
 			"warning", "ComparisonStale",
-			fmt.Sprintf("Sync and drift status may be stale — last re-compared %s ago (the application-controller has not re-evaluated this Application recently)", FormatAge(since)), app.GetCreationTimestamp().Time)
+			fmt.Sprintf("Sync and drift status may be stale — last re-compared %s ago (the application-controller has not re-evaluated this Application recently)", timeutil.FormatAgeShort(since)), app.GetCreationTimestamp().Time)
 		if reconciledAt, ok := timestampAtOrBefore(now, argoReconciledAt(app)); ok {
 			setDetectionOnset(&d, now, reconciledAt.Add(threshold))
 		}

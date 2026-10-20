@@ -10,10 +10,10 @@ The Helm list shows:
 - Resource health derived from the current rendered manifest and live Kubernetes status.
 - Helm storage namespace. This matters for controllers such as Flux, which may store the Helm release Secret outside the target namespace.
 - Flux ownership when Radar can match the release to a Flux `HelmRelease`.
-- `lastOperation` for current failed upgrades, rollback-after-failure patterns, explicit rollbacks, and stuck pending operations.
-- A capped operation trail for failed upgrades, rollbacks, rollback-after-failure, and stuck pending operations.
+- `lastOperation` for current failed upgrades, rollback-after-failure patterns, explicit rollbacks, and stuck pending operations (including uninstalls).
+- A capped operation trail for failed upgrades, rollbacks, rollback-after-failure, and stuck pending operations (including uninstalls).
 
-When `storageNamespace` is present, use it for Helm detail/API/MCP calls. Helm stores release history there even when the chart deploys resources into another namespace.
+When `storageNamespace` is present, use it for Helm detail/API/MCP calls. Helm stores release history there even when the chart deploys resources into another namespace. Rollback, upgrade, values preview/apply, and uninstall use the release’s recorded target namespace for objects without an explicit `metadata.namespace`, while history stays in the storage namespace. Objects with an explicit namespace retain it.
 
 ## Release Detail
 
@@ -25,14 +25,14 @@ The drawer includes:
 - Resources: live status for resources rendered by the current release.
 - Hooks: hook events, path, weight, status, run times, delete policies, output-log policies, and diagnostics for failed/running hooks.
 
-Compare opens a full-page workspace instead of rendering inside the drawer. The drawer links to Compare from history rows and operation banners when Radar can identify a useful revision pair.
+Compare opens as a full page instead of rendering inside the drawer. The drawer links to Compare from history rows and operation banners when Radar can identify a useful revision pair.
 
 ## Operation Insight
 
 Radar derives a Helm operation signal from release history and the current release status. It distinguishes:
 
 - Active failed upgrades.
-- Active pending or stuck installs/upgrades/rollbacks.
+- Active pending or stuck installs/upgrades/rollbacks/uninstalls.
 - Explicit rollbacks.
 - Recovered rollback-after-failure flows.
 
@@ -46,7 +46,21 @@ For recovered operations, Radar suggests the revision comparison most likely to 
 
 Flux-owned Helm releases defer to Flux. Radar shows the owning `HelmRelease` and does not synthesize native Helm operation insight for releases managed by Flux's helm-controller, because the GitOps controller is the authoritative reconciler.
 
-Active native Helm failures and stuck pending operations also appear in the global Issues stream as `kind=HelmRelease`, `group=helm.sh`. Recovered rollbacks are deployment history, not live issues; use Helm detail or `get_changes` for those.
+Active native Helm failures and stuck pending operations (including uninstalls) also appear in the global Issues stream as `kind=HelmRelease`, `group=helm.sh`. Recovered rollbacks are deployment history, not live issues; use Helm detail or `get_changes` for those.
+
+Uninstalls that remain `uninstalling` for at least ten minutes appear as `HelmReleaseUninstallStuck` warnings. Radar times them from Helm's `Info.Deleted`, the recorded uninstall start, rather than the last deployment. Revision history preserves `Info.Deleted` separately from the deployment update time; stuck-operation and issue onset timestamps use the uninstall start. A missing start time does not produce an age-based stuck issue.
+
+Helm rewrites `Info.Deleted` at the start of every uninstall attempt, before the pre-delete hook runs, so a retry that fails on the same blocker would otherwise restart the clock and hide the issue for another ten minutes. Radar keeps the earliest uninstall start it has read for the release revision (per context, storage namespace and release name) and uses it for both the elapsed time and the issue onset; it resets when the release leaves `uninstalling` or moves to another revision. Revision history still shows Helm's latest `Info.Deleted`. The anchor lives in the Radar process: after a restart, or once Radar has not read the release for a day, it re-anchors to Helm's latest timestamp.
+
+The issue suggests checking pre-delete hook Jobs and surviving resources with finalizers before retrying the uninstall (Helm re-runs an uninstall stuck in this state). When a hook is the blocker, `helm uninstall --no-hooks` completes the uninstall, but Helm does not remove the Jobs and Pods the hook created, and resources held by finalizers stay Terminating. Radar no longer ties either to the release afterwards, so the issue tells the operator to delete the hook's leftovers and check for Terminating resources. These are investigation steps, not verified blocker diagnoses.
+
+To find them, Radar first lists only the labels of the Helm release Secrets the caller can read. Helm labels each one with the release name, revision and status. Radar then reads in full only the releases whose newest revision is failed or pending, plus any release with the same name in the same read. If any release Secret lacks those labels, Radar reads them all in full, as before. Releases stored with Helm's ConfigMap or SQL drivers are not read for issues. `/api/issues` waits for this read, and the read stops as soon as the caller disconnects.
+
+When that read fails, for example because the API server returns an error or Radar's 60-second request limit runs out, `/api/issues` still answers, with `"unchecked_sources": [{"source": "helm", "reason": "read_failed"}]`: failed or stuck Helm releases may be missing from the response. The MCP `issues` tool returns the same field. A caller that may not list release Secrets gets no Helm issues and no `helm` entry, the same as for any other kind it can't list.
+
+When the read covers several namespaces and only some fail, the issues from the others are kept, and the entry names the ones that failed: `{"source": "helm", "reason": "read_failed", "namespaces": ["payments"]}`. When Radar's ServiceAccount is not allowed to impersonate the user, every user is refused the same way. That is Radar's own access failing, not the user's permissions, so the entry says `"reason": "collector_access_denied"` instead of the read counting as a denial.
+
+The Home Helm card and the MCP `get_dashboard` tool make the same split: they say access is restricted only when Kubernetes denied the caller's own read. Rejected credentials (401) and a missing `impersonate` permission show as a failed read, with the error.
 
 ## Failed Upgrades And Rollback Inference
 
@@ -63,7 +77,8 @@ Radar surfaces that as a Helm operation instead of making the operator infer it 
 The Helm Compare page is optimized for incident debugging. It starts with the rendered Kubernetes manifest diff as the source of truth, then keeps supporting evidence below it:
 
 - Rendered resources: a compact index of Kubernetes object identities and meaningful in-place field changes.
-- Values: key-aware redacted user values diff.
+- Effective values: revision-aware computed values diff, including each revision's chart defaults and user overrides.
+- User overrides: diff of values explicitly supplied to each revision; the UI shows the user's own values, while MCP applies key-aware redaction.
 - Hooks: stable hook definition diff, ignoring runtime timestamps and volatile hook status.
 - Notes: release notes diff.
 
@@ -99,7 +114,7 @@ Use `get_helm_release` for detail:
 - `include=history,operations` returns the full revision and operation trail.
 - `include=values` returns user-supplied values with key-aware secret redaction.
 - `include=diff` returns manifest diff.
-- `include=values_diff` returns redacted user-supplied values diff.
+- `include=values_diff` returns a user-supplied values diff with key-aware secret redaction applied to both revisions before comparison.
 - `include=notes_diff` returns release notes diff.
 - `include=resource_diff` returns added, removed, unchanged, and modified rendered resources between revisions.
 
@@ -113,3 +128,23 @@ Use `issues` for currently broken native Helm releases: active failed and stuck 
 - Hook evidence can disappear after Helm records the failure. Radar reports the absence and likely reasons, but cannot reconstruct deleted Job/Pod logs unless Kubernetes or Helm retained them.
 - Flux-managed releases should be changed through Flux. Radar links them to the owning `HelmRelease` and warns that direct `helm upgrade` changes may be reconciled back.
 - Upgrade source detection depends on source data available to the running Radar environment. Local OSS can use local Helm repo/OCI configuration; Radar Cloud should not assume that local repo config exists, so unresolved source states are reported explicitly.
+
+
+## Chart sources and upgrades
+
+Radar identifies a chart by its repository URL and chart name. Local repository aliases can differ between machines. OCI sources use the full registry/chart path. Charts with the same name or version in different repositories are separate choices.
+
+Normal upgrades use the saved source. If no source is confirmed, use **Choose chart source** in the release drawer. The picker shows the last recorded source first, followed by other configured sources. A name match is a suggestion, not proof of where the release was installed from.
+
+You can associate an original source when its installed package matches the chart Helm stored. Older source records may need confirmation again if they lack a chart binding or a later Helm command changed the chart. This comparison cannot establish the origin of identical copies or verify subchart bodies Helm omitted from release storage.
+
+Values-only edits can use the chart Helm stored. If Helm omitted dependencies from an umbrella chart, record its original source so Radar can restore the exact installed package before editing values.
+
+To use another repository, select it for the next upgrade. Choose an available version, review your settings and preview the rendered resource changes. The old installed version does not need to remain in the selected repository. Preview and apply use the same selected package and settings; if either changes, preview again.
+
+A preview does not guarantee compatibility of hooks, data or immutable fields. Helm does not upgrade CRDs from a chart's `crds/` directory. A failed source change records the attempted source on the failed revision and preserves earlier revision history. Select a source and preview again before retrying; a values-only edit cannot finish the source change.
+
+Programmatic upgrades require a confirmed saved source or an explicit source selection with the preview digest and expected release revision. Name-only inference never authorizes an upgrade. New source-selection controls require the backend's `helmSourceIdentity` capability. Flux-managed releases should be changed through their owning Flux configuration.
+
+
+Explicit source changes use `POST /api/helm/releases/{namespace}/{name}/source/preview`, followed by `/source/upgrade` or `/source/upgrade-stream`. These routes require the `sourceUpgrade` selection, explicit values and an exact version (body `version` for preview, query `version` for upgrade). Preview returns `previewDigest`; send it back in the selection when applying. The selection also carries `expectedRevision` and `expectedSource` from source status. Older backends return 404 for these routes instead of ignoring the selected source. Ordinary upgrade routes reject source-change fields.

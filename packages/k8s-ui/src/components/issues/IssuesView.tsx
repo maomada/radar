@@ -1,6 +1,7 @@
+import { summarizeSchedulerMessage } from '../resources/resource-utils'
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
-import { AlertOctagon, AlertTriangle, ArrowRight, CircleCheck, Clock, ExternalLink, Layers, Terminal, Workflow } from 'lucide-react';
-import { CardBody, CardSection, ClusterName, EmptyState, KIND_CHIP_CLASS, TerminalBlock } from '../ui';
+import { AlertOctagon, AlertTriangle, ArrowRight, CircleCheck, Clock, Eraser, ExternalLink, Layers, Terminal, Workflow } from 'lucide-react';
+import { CardBody, CardSection, ClusterName, Disclosure, EmptyState, KIND_CHIP_CLASS, TerminalBlock } from '../ui';
 import { Collapse, CollapseChevron, useDisclosure } from '../ui/Collapse';
 import { Tooltip } from '../ui/Tooltip';
 import { formatCompactAge, formatRelativeAgeTime } from '../../utils/format';
@@ -13,7 +14,7 @@ import {
   ISSUE_SEVERITY_RAIL_CLASS,
   ISSUE_SEVERITY_SOLID_CLASS,
   ISSUE_SEVERITY_TEXT_CLASS,
-  categoryLabel,
+  issueTitle,
   groupBadgeClass,
   groupLabel,
 } from './severity';
@@ -24,6 +25,7 @@ import {
   subjectRef,
   type Issue,
   type IssueAffected,
+  type IssueConditionalCleanup,
   type IssueResourceRef,
   type IssueSeverity,
 } from './types';
@@ -171,6 +173,7 @@ export interface IssueRowProps {
   resourceHref?: (ref: IssueResourceRef) => string;
   onResourceClick?: (ref: IssueResourceRef) => void;
   as?: 'li' | 'div';
+  compact?: boolean;
   className?: string;
   dimmed?: boolean;
   /** Suppress the "Subject" deep-link in the expanded body — set by hosts that
@@ -198,6 +201,7 @@ export function IssueRow({
   resourceHref,
   onResourceClick,
   as = 'li',
+  compact = false,
   className,
   dimmed,
   hideSubject,
@@ -211,6 +215,7 @@ export function IssueRow({
   const cluster = clusterLabel?.(issue);
   const affected = affectedSummary(issue.affected);
   const { headline } = issueMessageParts(issue);
+  const schedulingCause = compact && issue.reason === 'Unschedulable' ? summarizeSchedulerMessage(issue.cause || issue.message || headline || '', { plain: true }) : undefined;
   const { panelId, buttonProps } = useDisclosure(open);
   const Container = as;
   const severity = normalizeIssueSeverity(issue.severity);
@@ -286,13 +291,13 @@ export function IssueRow({
             onToggle();
           }
         }}
-        className={`group @container/issue flex cursor-pointer items-center gap-3 border-l-[3px] py-3 pl-3 pr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent)]/40 ${open ? ISSUE_SEVERITY_HEADER_BAND_CLASS[severity] : ISSUE_SEVERITY_RAIL_CLASS[severity]}`}
+        className={`group @container/issue flex cursor-pointer items-center gap-3 border-l-[3px] py-3 pl-3 pr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent,var(--accent))]/40 ${open ? ISSUE_SEVERITY_HEADER_BAND_CLASS[severity] : ISSUE_SEVERITY_RAIL_CLASS[severity]}`}
       >
         <SeverityIcon className={`h-[18px] w-[18px] shrink-0 ${ISSUE_SEVERITY_TEXT_CLASS[severity]}`} aria-hidden />
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="min-w-0 truncate text-sm font-medium text-theme-text-primary">{categoryLabel(issue.category)}</span>
+            <span className="min-w-0 truncate text-sm font-medium text-theme-text-primary">{issueTitle(issue)}</span>
             <span className={`shrink-0 self-center ${groupBadgeClass(issue.category_group)}`}>{groupLabel(issue.category_group)}</span>
             {renderBadges?.(slotCtx)}
             {/* The detector reason rides the title row while COLLAPSED so the
@@ -300,7 +305,7 @@ export function IssueRow({
                 cause lives in the WHAT'S WRONG section below, so it fades out
                 here (stays mounted — it's the flex-1 filler, so unmounting
                 wouldn't reflow anything, but fading avoids the pop). */}
-            {issue.reason ? (
+            {issue.reason && !schedulingCause ? (
               <span
                 aria-hidden={open || undefined}
                 className={`min-w-0 flex-1 truncate text-xs text-theme-text-tertiary transition-opacity duration-200 ${open ? 'opacity-0' : 'opacity-100'}`}
@@ -310,6 +315,7 @@ export function IssueRow({
               </span>
             ) : null}
           </div>
+          {schedulingCause && <div className="break-words text-xs text-theme-text-secondary">{schedulingCause}</div>}
           <div className="flex min-w-0 items-center gap-1.5 text-xs text-theme-text-tertiary">
             <span className={KIND_CHIP_CLASS}>{issue.kind}</span>
             <span className="min-w-0 truncate font-medium text-theme-text-secondary">
@@ -406,7 +412,16 @@ export function IssueRow({
 function Diagnosis({ issue, source }: { issue: Issue; source?: IssueDiagnosisSource }) {
   const crash =
     issue.restart_count || issue.last_terminated_reason
-      ? [issue.restart_count ? `${issue.restart_count} restart${issue.restart_count === 1 ? '' : 's'}` : null, issue.last_terminated_reason ? `last exit: ${issue.last_terminated_reason}` : null]
+      ? [
+          issue.restart_count ? `${issue.restart_count} restart${issue.restart_count === 1 ? '' : 's'}` : null,
+          issue.last_terminated_reason ? `last exit: ${issue.last_terminated_reason}` : null,
+          issue.restart_loop?.workload_pods && issue.restart_loop.workload_pods > 1
+            ? `${issue.restart_loop.looping_pods} of ${issue.restart_loop.workload_pods} pods looping`
+            : null,
+          issue.restart_loop?.startup_probe_failure ? 'startup probe failures seen' : null,
+          issue.restart_loop?.liveness_probe_failure ? 'liveness probe failures seen' : null,
+          issue.restart_loop?.readiness_probe_failure ? 'readiness probe failures seen' : null,
+        ]
           .filter(Boolean)
           .join(' · ')
       : null;
@@ -423,9 +438,12 @@ function Diagnosis({ issue, source }: { issue: Issue; source?: IssueDiagnosisSou
   const partialUnknown = issue.onset_coverage?.unknown ?? 0;
   const partialOnset = Boolean(issue.first_seen && partialUnknown > 0);
   const timing = issueTimingForDisplay(issue);
+  // A message Radar wrote itself is not raw output, so it never lands in the
+  // terminal block; its cause carries the same facts.
+  const messageIsRaw = issue.message_source !== 'radar';
   const rawError = [
     ...new Set(
-      [issue.raw_message ?? (issue.cause ? issue.message : undefined), detail].filter(
+      [issue.raw_message ?? (issue.cause && messageIsRaw ? issue.message : undefined), detail].filter(
         (s): s is string => !!s && s !== shownText,
       ),
     ),
@@ -538,12 +556,41 @@ function Diagnosis({ issue, source }: { issue: Issue; source?: IssueDiagnosisSou
         </CardSection>
       ) : null}
 
+      {issue.conditional_cleanup ? <ConditionalCleanup cleanup={issue.conditional_cleanup} /> : null}
+
       {rawError ? (
         <CardSection icon={Terminal} label="Raw error">
           <TerminalBlock>{rawError}</TerminalBlock>
         </CardSection>
       ) : null}
     </div>
+  );
+}
+
+// A step that is right only under its condition. It stays closed behind the
+// condition so the row's next step remains the default path, and it is not
+// toned as a fix.
+function ConditionalCleanup({ cleanup }: { cleanup: IssueConditionalCleanup }) {
+  return (
+    <CardSection icon={Eraser} label="Conditional cleanup">
+      <Disclosure
+        summary={<span className="text-sm leading-relaxed">{cleanup.condition}</span>}
+        summaryClassName="items-baseline text-theme-text-primary hover:text-theme-text-secondary"
+      >
+        <div className="flex flex-col gap-2 pt-2">
+          {cleanup.caution ? <p className="text-xs leading-relaxed text-theme-text-secondary">{cleanup.caution}</p> : null}
+          {cleanup.removals.map((removal) => (
+            <div key={removal.finalizer} className="flex flex-col gap-1.5">
+              <p className="text-xs text-theme-text-tertiary">
+                Finalizer <code className="inline-code">{removal.finalizer}</code>
+              </p>
+              <TerminalBlock label="patch_resource · dry run">{JSON.stringify(removal.patch_resource)}</TerminalBlock>
+              <TerminalBlock label="kubectl · server dry run">{removal.kubectl}</TerminalBlock>
+            </div>
+          ))}
+        </div>
+      </Disclosure>
+    </CardSection>
   );
 }
 
@@ -722,7 +769,7 @@ function ResourceLine({
       ) : (
         <span className="shrink-0 font-mono text-[11px] uppercase tracking-wide text-theme-text-tertiary">{r.kind}</span>
       )}
-      <span className={`min-w-0 truncate text-sm ${linkable ? `${compact ? 'font-semibold' : 'font-medium'} text-[var(--color-radar-accent)]` : 'font-medium text-theme-text-primary'}`}>
+      <span className={`min-w-0 truncate text-sm ${linkable ? `${compact ? 'font-semibold' : 'font-medium'} text-[var(--color-radar-accent,var(--accent))]` : 'font-medium text-theme-text-primary'}`}>
         {r.namespace ? `${r.namespace} / ` : ''}
         {r.name}
       </span>

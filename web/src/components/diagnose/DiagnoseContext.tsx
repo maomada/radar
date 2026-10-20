@@ -28,9 +28,11 @@ import {
   createRun,
   recordConsent,
   DiagnoseError,
+  investigationRefusal,
 } from "../../api/diagnose";
 import { getApiBase } from "../../api/config";
 import {
+  type InvestigationRefusal,
   type RunSummary,
   type AgentInfo,
   type ExecutionProfile,
@@ -58,11 +60,18 @@ export type DiagnoseView = "home" | "investigation";
 // Setup readiness of local AI investigations, derived from the agents API:
 //  - "ready":         an agent is installed and the engine is running (available)
 //  - "needs-install": the feature is supported here but no agent CLI is installed
-//  - "needs-restart": a supported agent is now on PATH but Radar booted before it
-//                     existed (the engine is decided once, at startup)
+//  - "needs-restart": a supported agent is installed but investigations are
+//                     still off. The server picks up new installs whenever the
+//                     agent list is fetched, so locally this means RADAR_AI_CLI_BIN
+//                     pins the engine to a file Radar can't run (cliOverride); an
+//                     embedding host may report it when its own runner is down
 //  - "off":           not available in this deployment (proxy/OIDC auth, --no-mcp,
 //                     or an embed host) — no install nudge would help
-export type DiagnoseSetup = "ready" | "needs-install" | "needs-restart" | "off";
+//  - "unknown":       the agents probe hasn't answered (in flight, or it failed
+//                     and was swallowed). Nothing about the machine or the
+//                     deployment is established yet, so say nothing about either
+export type DiagnoseSetup =
+  "ready" | "needs-install" | "needs-restart" | "off" | "unknown";
 
 interface DiagnoseCtx {
   available: boolean; // an agent CLI is present (button/entry gate)
@@ -70,6 +79,15 @@ interface DiagnoseCtx {
   // Why setupState is "off", when the server says: a team installation
   // ("shared") versus the MCP mount being off ("no-mcp").
   unavailableReason: "" | "shared" | "no-mcp";
+  // Re-reads the agent list; the server turns investigations on if a CLI was
+  // installed since the last check. Resolves once the new state is applied.
+  recheckAgents: () => Promise<void>;
+  checkingAgents: boolean;
+  // The latest agent check failed to reach the server, so nothing about the
+  // machine is known from it.
+  agentsCheckFailed: boolean;
+  // RADAR_AI_CLI_BIN is set; with "needs-restart" it is what's broken.
+  cliOverride: boolean;
   agentLabel: string; // label of the selected agent, e.g. "Claude Code"
   hosted: boolean; // selected agent runs on the host's backend, not this machine
   agents: AgentInfo[]; // supported agents detected on PATH (for the picker)
@@ -89,6 +107,9 @@ interface DiagnoseCtx {
   historyDegraded: boolean; // persistence broke — history won't survive a restart
   needsConsent: boolean; // a start is pending the one-time consent
   startError: string | null;
+  // The host's refusal behind startError, when it sent one, so the surface can
+  // offer the host's action beside the message.
+  startRefusal: InvestigationRefusal | null;
   // Kept apart from startError: the consent card renders this as "why your
   // approval was refused", and a run-start failure landing in the same slot
   // would be read as exactly that — the two paths don't share a lifecycle.
@@ -170,6 +191,31 @@ const MIN_APP_LEFT_OF_PANEL = 900;
 // area instead. Radar's own minimum width is about 856px, so this is the
 // drawer's floor: below it the investigation is the screen.
 const MIN_APP_PEEK_BESIDE_OVERLAY = 320;
+// resolveSetupState is the ONE mapping from the agents probe to what every
+// surface renders. Exported so it can be pinned by test, since each state drives
+// a different user-facing claim.
+//
+// "unknown" is not the same as "off". `eligible` starts false and the probe's
+// catch leaves it that way, so without a separate state a pending or failed
+// request reads as a confirmed deployment restriction. A non-empty agent list
+// while the engine is off means a drivable CLI appeared after Radar booted.
+export function resolveSetupState({
+  available,
+  eligibilityResolved,
+  eligible,
+  supportedAgentCount,
+}: {
+  available: boolean;
+  eligibilityResolved: boolean;
+  eligible: boolean;
+  supportedAgentCount: number;
+}): DiagnoseSetup {
+  if (available) return "ready";
+  if (!eligibilityResolved) return "unknown";
+  if (!eligible) return "off";
+  return supportedAgentCount > 0 ? "needs-restart" : "needs-install";
+}
+
 export function investigationPanelFillsViewport(
   viewportWidth: number,
   panelWidth: number,
@@ -431,7 +477,10 @@ function RoutedDiagnoseProvider({
   const [runsLoadFailed, setRunsLoadFailed] = useState(false);
   const [historyDegraded, setHistoryDegraded] = useState(false);
   const [pendingTarget, setPendingTarget] = useState<Target | null>(null);
-  const [startError, setStartError] = useState<string | null>(null);
+  const [startFailure, setStartFailure] = useState<{
+    message: string;
+    refusal: InvestigationRefusal | null;
+  } | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [width, setWidth] = useState<number>(() => {
     try {
@@ -449,53 +498,80 @@ function RoutedDiagnoseProvider({
   const narrow = viewportW - width < MIN_APP_LEFT_OF_PANEL;
   const fullWidthForced = investigationPanelFillsViewport(viewportW, width);
 
+  const mountedRef = useRef(true);
   useEffect(() => {
-    let live = true;
-    fetchAgents()
-      .then((r) => {
-        if (!live) return;
-        setConsented(r.consented ?? {});
-        setEligible(!!r.eligible);
-        setUnavailableReason(r.unavailableReason ?? "");
-        const supported = r.agents.filter(
-          (a) =>
-            a.supported &&
-            (a.hosted ||
-              (!!a.profiles?.length &&
-                a.profiles.every((p) => !!a.consentSurfaces?.[p]))),
-        );
-        setAvailable(r.enabled && supported.length > 0);
-        setAgents(supported);
-        // Keep the stored pick only if it's still installed; else default to the
-        // first supported agent (matches the server's default selection).
-        const stored = readStored(AGENT_KEY) || "";
-        const next =
-          stored && supported.some((a) => a.name === stored)
-            ? stored
-            : (supported[0]?.name ?? "");
-        setSelectedAgentState(next);
-        const profiles = supported.find((a) => a.name === next)?.profiles ?? [];
-        const storedProfile =
-          (readStored(PROFILE_KEY) as ExecutionProfile) || "safeguarded";
-        if (!profiles.includes(storedProfile) && profiles[0]) {
-          setProfileState(profiles[0]);
-          writeStored(PROFILE_KEY, profiles[0]);
-        }
-        // Model/effort are agent-specific; if the stored agent is gone, its values
-        // don't apply to the fallback agent (e.g. a Codex slug under Claude) — drop them.
-        if (next !== stored) {
-          setModelState("");
-          writeStored(MODEL_KEY, "");
-          setEffortState("");
-          writeStored(EFFORT_KEY, "");
-        }
-        setAgentEligibilityResolved(true);
-      })
-      .catch(() => {});
+    mountedRef.current = true;
     return () => {
-      live = false;
+      mountedRef.current = false;
     };
   }, []);
+  const [checkingAgents, setCheckingAgents] = useState(false);
+  const [agentsCheckFailed, setAgentsCheckFailed] = useState(false);
+  const [cliOverride, setCliOverride] = useState(false);
+  // A click and a window-focus re-check can overlap; only the newest one may
+  // apply its answer, or a stale "nothing installed" could land last.
+  const agentCheckSeq = useRef(0);
+  // The agent in use now, picked by hand or by default. A check compares
+  // against it, not just the stored pick, so seeing the same agent again
+  // keeps the model and effort set for it.
+  const agentInUseRef = useRef(selectedAgent);
+  const recheckAgents = useCallback(async () => {
+    const seq = ++agentCheckSeq.current;
+    const latest = () => mountedRef.current && seq === agentCheckSeq.current;
+    setCheckingAgents(true);
+    try {
+      const r = await fetchAgents();
+      if (!latest()) return;
+      setAgentsCheckFailed(false);
+      setCliOverride(!!r.cliOverride);
+      setConsented(r.consented ?? {});
+      setEligible(!!r.eligible);
+      setUnavailableReason(r.unavailableReason ?? "");
+      const supported = r.agents.filter(
+        (a) =>
+          a.supported &&
+          (a.hosted ||
+            (!!a.profiles?.length &&
+              a.profiles.every((p) => !!a.consentSurfaces?.[p]))),
+      );
+      setAvailable(r.enabled && supported.length > 0);
+      setAgents(supported);
+      // Keep the stored pick only if it's still installed; else default to the
+      // first supported agent. Runs always name it, so the server's own default
+      // doesn't apply.
+      const stored = readStored(AGENT_KEY) || "";
+      const next =
+        stored && supported.some((a) => a.name === stored)
+          ? stored
+          : (supported[0]?.name ?? "");
+      setSelectedAgentState(next);
+      const profiles = supported.find((a) => a.name === next)?.profiles ?? [];
+      const storedProfile =
+        (readStored(PROFILE_KEY) as ExecutionProfile) || "safeguarded";
+      if (!profiles.includes(storedProfile) && profiles[0]) {
+        setProfileState(profiles[0]);
+        writeStored(PROFILE_KEY, profiles[0]);
+      }
+      // Model/effort are agent-specific; if the agent changed, its values
+      // don't apply to the new one (e.g. a Codex slug under Claude), so drop them.
+      if (next !== agentInUseRef.current) {
+        setModelState("");
+        writeStored(MODEL_KEY, "");
+        setEffortState("");
+        writeStored(EFFORT_KEY, "");
+      }
+      agentInUseRef.current = next;
+      setAgentEligibilityResolved(true);
+    } catch {
+      // Leaves the previous state in place; "unknown" until a probe answers.
+      if (latest()) setAgentsCheckFailed(true);
+    } finally {
+      if (latest()) setCheckingAgents(false);
+    }
+  }, []);
+  useEffect(() => {
+    void recheckAgents();
+  }, [recheckAgents]);
 
   const setModel = useCallback((v: string) => {
     setModelState(v);
@@ -509,6 +585,7 @@ function RoutedDiagnoseProvider({
     (name: string) => {
       setSelectedAgentState(name);
       writeStored(AGENT_KEY, name);
+      agentInUseRef.current = name;
       const nextProfile = agents.find((agent) => agent.name === name)
         ?.profiles?.[0];
       if (nextProfile) {
@@ -539,15 +616,21 @@ function RoutedDiagnoseProvider({
     ? "standard"
     : (selectedAgentInfo?.consentSurfaces?.[effectiveProfile] ?? "");
 
-  // `agents` holds only supported CLIs (filtered on fetch), so a non-empty list
-  // while the engine is off means a drivable agent appeared on PATH after boot.
-  const setupState: DiagnoseSetup = available
-    ? "ready"
-    : !eligible
-      ? "off"
-      : agents.length > 0
-        ? "needs-restart"
-        : "needs-install";
+  const setupState = resolveSetupState({
+    available,
+    eligibilityResolved: agentEligibilityResolved,
+    eligible,
+    supportedAgentCount: agents.length,
+  });
+
+  // Coming back from a terminal after installing a CLI is when to look again,
+  // so the setup notice clears without the user hunting for a button.
+  useEffect(() => {
+    if (setupState === "ready" || setupState === "off") return;
+    const onFocus = () => void recheckAgents();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [setupState, recheckAgents]);
 
   useEffect(() => {
     const onResize = () => setViewportW(window.innerWidth);
@@ -699,25 +782,32 @@ function RoutedDiagnoseProvider({
         writeFocusedRunID(run.id, true);
       })
       .catch((e) => {
+        // The picked agent may have been uninstalled since the list was
+        // fetched; refresh it so the picker shows what's installed now.
+        void recheckAgents();
         if (seq !== startSeqRef.current) return;
-        setStartError(
-          e instanceof DiagnoseError
-            ? e.message
-            : "Couldn't start the investigation.",
-        );
+        setStartFailure({
+          message:
+            e instanceof DiagnoseError
+              ? e.message
+              : "Couldn't start the investigation.",
+          refusal: investigationRefusal(e),
+        });
       });
   };
 
   const openInvestigation = useCallback(
     (t: Target) => {
-      setStartError(null);
+      setStartFailure(null);
       setConsentError(null);
       setOpen(true);
       if (!hosted && !consentSurface) {
         setPendingTarget(null);
-        setStartError(
-          "Radar can’t run this agent with a verified execution profile.",
-        );
+        setStartFailure({
+          message:
+            "Radar can’t run this agent with a verified execution profile.",
+          refusal: null,
+        });
         setView("investigation");
         return;
       }
@@ -734,7 +824,7 @@ function RoutedDiagnoseProvider({
   const openRun = useCallback(
     (id: string) => {
       unavailableRunIDsRef.current.delete(id);
-      setStartError(null);
+      setStartFailure(null);
       setActiveRunId(id);
       setView("investigation");
       setOpen(true);
@@ -754,7 +844,7 @@ function RoutedDiagnoseProvider({
   );
 
   // Browser navigation is the source of truth for presentation: a dedicated
-  // /investigations route is the full workspace, while ?ai-run keeps the
+  // /investigations route is the full investigations page, while ?ai-run keeps the
   // contextual drawer on its underlying page. Fetch exact ids rather than
   // assuming the bounded recent list contains them.
   useEffect(() => {
@@ -762,7 +852,7 @@ function RoutedDiagnoseProvider({
       return;
     const workspace = isInvestigationWorkspacePath(location.pathname);
     // Eligibility is unresolved until the agent probe returns. Once it has
-    // definitively resolved to off, workspace routes cannot render anything
+    // definitively resolved to off, investigations-page routes cannot render anything
     // useful; return to the app instead of leaving an eternal loading panel.
     if (agentEligibilityResolved && !eligible) {
       setActiveRunId(null);
@@ -829,7 +919,7 @@ function RoutedDiagnoseProvider({
 
     urlRunIdRef.current = id;
     unavailableRunIDsRef.current.delete(id);
-    setStartError(null);
+    setStartFailure(null);
     setActiveRunId(id);
     setView("investigation");
     setOpen(true);
@@ -862,14 +952,14 @@ function RoutedDiagnoseProvider({
     unavailableRunIDsRef.current.clear();
     setActiveRunId(null);
     setView("home");
-    setStartError(null);
+    setStartFailure(null);
     setOpen(true);
     writeFocusedRunID(null, false);
   }, [writeFocusedRunID]);
   const openWorkspace = useCallback(
     (preferredRunID?: string | null) => {
       setOpen(true);
-      setStartError(null);
+      setStartFailure(null);
       if (!forceRouterURLState && !diagnoseURLStateEnabled(browserURLState)) {
         if (preferredRunID) {
           setActiveRunId(preferredRunID);
@@ -882,8 +972,8 @@ function RoutedDiagnoseProvider({
         return;
       }
       const current = locationRef.current;
-      // The global entry remains visible in the workspace. Treat clicking it
-      // there as an idempotent reveal rather than pushing another workspace
+      // The global entry remains visible on the investigations page. Treat clicking it
+      // there as an idempotent reveal rather than pushing another page
       // entry and replacing the page that Close should return to.
       if (isInvestigationWorkspacePath(current.pathname)) {
         setMaximized(true);
@@ -933,14 +1023,14 @@ function RoutedDiagnoseProvider({
     unavailableRunIDsRef.current.clear();
     setActiveRunId(null);
     setView("home");
-    setStartError(null);
+    setStartFailure(null);
     writeFocusedRunID(null, false);
   }, [writeFocusedRunID]);
   const dismissForNavigation = useCallback(() => {
     unavailableRunIDsRef.current.clear();
     setOpen(false);
     setView("home");
-    setStartError(null);
+    setStartFailure(null);
   }, []);
   const close = useCallback(() => {
     unavailableRunIDsRef.current.clear();
@@ -1005,7 +1095,7 @@ function RoutedDiagnoseProvider({
     setOpen(true);
     if (!activeRunIdRef.current) setView("home");
   }, []);
-  const dismissError = useCallback(() => setStartError(null), []);
+  const dismissError = useCallback(() => setStartFailure(null), []);
 
   // Reserve a right gutter on the CONTENT area (not the navbar/rail — those stay
   // global and static) so docked content reflows beside the panel. Wide viewports
@@ -1016,6 +1106,10 @@ function RoutedDiagnoseProvider({
     available,
     setupState,
     unavailableReason,
+    recheckAgents,
+    checkingAgents,
+    agentsCheckFailed,
+    cliOverride,
     agentLabel,
     hosted,
     agents,
@@ -1036,7 +1130,8 @@ function RoutedDiagnoseProvider({
     // pendingTarget is set ONLY when the current agent's consent is missing, and
     // cleared on approve/cancel — so its presence is exactly "consent needed now".
     needsConsent: !!pendingTarget,
-    startError,
+    startError: startFailure?.message ?? null,
+    startRefusal: startFailure?.refusal ?? null,
     consentError,
     openInvestigation,
     openRun,

@@ -7,6 +7,7 @@ import { TRANSITION_BACKDROP, TRANSITION_MENU, TW_EASE_UI, overlayExitMs, overla
 import { SearchPillInput, type SearchModifier } from '@skyhook-io/k8s-ui'
 import { getResourceIcon } from '../../utils/resource-icons'
 import type { SearchHit, SearchMatchedField } from '../../api/client'
+import { recordUsageEvent } from '../../api/usage-data'
 import { bestScore, type CommandItem } from './command-items'
 import { SearchSyntaxHelp } from './SearchSyntaxHelp'
 
@@ -181,6 +182,21 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
   const [anchor, setAnchor] = useState<{ centerX: number; top: number; width: number } | null>(null)
 
   useImperativeHandle(ref, () => ({ focus: () => { inputRef.current?.focus(); inputRef.current?.select() } }), [])
+
+  // Usage data: one count per opening, one per opening that searched. Never
+  // the query itself.
+  const searchedThisOpen = useRef(false)
+  useEffect(() => {
+    if (!open) return
+    searchedThisOpen.current = false
+    recordUsageEvent({ type: 'ui', name: 'command_palette' })
+  }, [open])
+  useEffect(() => {
+    if (open && text.trim() && !searchedThisOpen.current) {
+      searchedThisOpen.current = true
+      recordUsageEvent({ type: 'ui', name: 'search' })
+    }
+  }, [open, text])
 
   // Hero autofocus parks the cursor in the field on mount (Home's primary
   // action) but must NOT pop the dropdown — landing on the page shouldn't dim
@@ -527,7 +543,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
     >
       <SearchPillInput
         className={hero
-          ? `min-h-14 px-5 rounded-2xl bg-theme-surface border border-theme-border shadow-theme-sm transition-[color,background-color,border-color,box-shadow] duration-[140ms] ${TW_EASE_UI} focus-within:border-[var(--color-brand-500)] focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_15%,transparent)]`
+          ? `min-h-14 px-5 rounded-2xl bg-theme-surface border border-theme-border shadow-theme-sm transition-[color,background-color,border-color,box-shadow] duration-[140ms] ${TW_EASE_UI} focus-within:border-[var(--color-brand-500,var(--accent))] focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500,var(--accent))_15%,transparent)]`
           : `min-h-8 px-2.5 rounded-md bg-theme-elevated border border-transparent focus-within:border-theme-border focus-within:bg-theme-surface transition-[color,background-color,border-color] duration-[140ms] ${TW_EASE_UI}`}
         inputClassName={hero ? 'text-lg py-4' : undefined}
         text={text}

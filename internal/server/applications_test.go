@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -167,7 +168,7 @@ func TestEventsForWorkload_MatchesKindAndName(t *testing.T) {
 			{InvolvedObject: corev1.ObjectReference{Kind: "Deployment", Name: "api"}, Reason: "ProgressDeadlineExceeded", Type: "Warning", Message: "deployment stalled"},
 		},
 	}
-	got := eventsForWorkload(byObject, "apps", "Deployment", "api", nil)
+	got := eventsForWorkload(byObject, "apps", "Deployment", "api", "", nil)
 	if len(got) != 1 {
 		t.Fatalf("eventsForWorkload returned %d events: %+v", len(got), got)
 	}
@@ -186,13 +187,51 @@ func TestEventsForWorkloadPreservesAPIGroup(t *testing.T) {
 		},
 	}
 
-	core := eventsForWorkload(byObject, "batch", "Job", "train", nil)
-	volcano := eventsForWorkload(byObject, "batch.volcano.sh", "Job", "train", nil)
+	core := eventsForWorkload(byObject, "batch", "Job", "train", "", nil)
+	volcano := eventsForWorkload(byObject, "batch.volcano.sh", "Job", "train", "", nil)
 	if len(core) != 1 || core[0].Reason != "BackoffLimitExceeded" {
 		t.Fatalf("core Job events = %+v", core)
 	}
 	if len(volcano) != 1 || volcano[0].Reason != "VolcanoFailed" {
 		t.Fatalf("Volcano Job events = %+v", volcano)
+	}
+}
+
+// A replaced same-name Pod or workload leaves Warning events behind; they must
+// not join the current workload's "why is it broken" feed, which hosts render
+// as current issues and the history summary headlines as the latest incident.
+func TestEventsForWorkload_KeepsOnlyCurrentIncarnations(t *testing.T) {
+	warning := func(kind, name, uid, reason string) *corev1.Event {
+		return &corev1.Event{InvolvedObject: corev1.ObjectReference{Kind: kind, Name: name, UID: types.UID(uid)}, Reason: reason, Type: "Warning"}
+	}
+	byObject := map[string][]*corev1.Event{
+		resourceid.ResourceKey("apps", "StatefulSet", "", "db"): {
+			warning("StatefulSet", "db", "db-now", "FailedCreate"),
+			warning("StatefulSet", "db", "db-before", "RecreatedRootFailure"),
+		},
+		resourceid.ResourceKey("", "Pod", "", "db-0"): {
+			warning("Pod", "db-0", "pod-now", "BackOff"),
+			warning("Pod", "db-0", "pod-before", "Failed"),
+			warning("Pod", "db-0", "pod-before", "BackOff"),
+			warning("Pod", "db-0", "", "UIDless"),
+		},
+		resourceid.ResourceKey("", "Pod", "", "db-static"): {
+			warning("Pod", "db-static", "static-uid", "Unhealthy"),
+		},
+	}
+	pods := []*corev1.Pod{
+		{ObjectMeta: metav1.ObjectMeta{Name: "db-0", UID: "pod-now"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "db-static", UID: "mirror-uid", Annotations: map[string]string{corev1.MirrorPodAnnotationKey: "static-uid"}}},
+	}
+	got := eventsForWorkload(byObject, "apps", "StatefulSet", "db", "db-now", pods)
+	var reasons []string
+	for _, e := range got {
+		reasons = append(reasons, e.Object+":"+e.Reason+":"+strconv.Itoa(e.Count))
+	}
+	// The earlier Pod's BackOff must not be summed into the current one.
+	want := "StatefulSet/db:FailedCreate:1,Pod/db-0:BackOff:1,Pod/db-0:UIDless:1,Pod/db-static:Unhealthy:1"
+	if strings.Join(reasons, ",") != want {
+		t.Fatalf("current events = %v, want %s", reasons, want)
 	}
 }
 
@@ -630,7 +669,7 @@ func TestManagedSourceRefs_CrossNamespaceArgoApplication(t *testing.T) {
 	app := &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{"namespace": "argocd", "name": "billing"},
 		"spec": map[string]any{
-			"destination": map[string]any{"namespace": "team-a"},
+			"destination": map[string]any{"server": "https://kubernetes.default.svc", "namespace": "team-a"},
 		},
 		"status": map[string]any{"resources": []any{
 			map[string]any{"group": "apps", "kind": "Deployment", "name": "api"},
@@ -651,6 +690,7 @@ func TestManagedSourceRefs_CrossNamespaceArgoApplication(t *testing.T) {
 func TestManagedSourceRefs_ArgoStatusKeepsWorkloadGroup(t *testing.T) {
 	app := &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{"namespace": "argocd", "name": "training"},
+		"spec":     map[string]any{"destination": map[string]any{"server": "https://kubernetes.default.svc"}},
 		"status": map[string]any{"resources": []any{
 			map[string]any{"group": "batch.volcano.sh", "kind": "Job", "namespace": "ml", "name": "train"},
 		}},
@@ -856,9 +896,20 @@ func TestGroupApplications_EntrypointRefsDeduplicateAndClassify(t *testing.T) {
 }
 
 func TestAppGraphRelationshipsForIncludesServiceUpstreamEntrypoints(t *testing.T) {
+	// Route kinds are custom resources; the builder records their apiVersion.
+	apiVersions := map[string]string{
+		"HTTPRoute":      "gateway.networking.k8s.io/v1",
+		"IngressRoute":   "traefik.io/v1alpha1",
+		"VirtualService": "networking.istio.io/v1",
+		"HTTPProxy":      "projectcontour.io/v1",
+	}
 	node := func(kind, ns, name string) topology.Node {
 		id := strings.ToLower(kind) + "/" + ns + "/" + name
-		return topology.Node{ID: id, Kind: topology.NodeKind(kind), Name: name, Data: map[string]any{"namespace": ns}}
+		data := map[string]any{"namespace": ns}
+		if apiVersion := apiVersions[kind]; apiVersion != "" {
+			data["apiVersion"] = apiVersion
+		}
+		return topology.Node{ID: id, Kind: topology.NodeKind(kind), Name: name, Data: data}
 	}
 	edge := func(src, dst string, typ topology.EdgeType) topology.Edge {
 		return topology.Edge{ID: src + "->" + dst, Source: src, Target: dst, Type: typ}
@@ -1039,7 +1090,6 @@ func TestRelationshipsFor_RoutesCarryConcreteKind(t *testing.T) {
 			node("httproute/prod/web", "HTTPRoute", "prod", "web"),
 		},
 		Edges: []topology.Edge{
-			// A Gateway routes to an HTTPRoute → rel.Routes for the Gateway query.
 			{ID: "gw->web", Source: "gateway/prod/gw", Target: "httproute/prod/web", Type: topology.EdgeRoutesTo},
 		},
 	}
@@ -1283,22 +1333,6 @@ func TestGroupApplications_MatchKeys(t *testing.T) {
 	}
 }
 
-func TestImageRepo(t *testing.T) {
-	cases := map[string]string{
-		"nginx:1.27":                "nginx",
-		"ghcr.io/acme/api:1.2.0":    "ghcr.io/acme/api",
-		"registry:5000/team/img:v1": "registry:5000/team/img", // registry port colon is not the tag separator
-		"repo/img@sha256:abc":       "repo/img",
-		"registry:5000/team/img":    "registry:5000/team/img", // no tag
-		"":                          "",
-	}
-	for in, want := range cases {
-		if got := imageRepo(in); got != want {
-			t.Errorf("imageRepo(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 // A real class mix (service + scheduled job) reports "mixed", not "unknown" —
 // the per-workload classes are confident and the UI shows the composition.
 // service+worker stays "service" (operated primarily as a service), and an
@@ -1495,12 +1529,37 @@ func TestWarningEventIndexResolvesOnlyUnambiguousGroups(t *testing.T) {
 		"argo": {Kind: topology.KindRollout, Name: "api", Data: map[string]any{"namespace": "dev", "apiVersion": "argoproj.io/v1alpha1"}},
 	}}
 	index := indexWarningEventsByObject(cache, []string{"dev"}, graph)
-	if got := eventsForWorkload(index["dev"], "argoproj.io", "Rollout", "api", nil); len(got) != 1 {
+	if got := eventsForWorkload(index["dev"], "argoproj.io", "Rollout", "api", "", nil); len(got) != 1 {
 		t.Fatalf("unambiguous warning missing: %+v", index)
 	}
 	graph.byID["other"] = topology.Node{Kind: topology.KindRollout, Name: "api", Data: map[string]any{"namespace": "dev", "apiVersion": "other.io/v1"}}
 	index = indexWarningEventsByObject(cache, []string{"dev"}, graph)
-	if got := eventsForWorkload(index["dev"], "argoproj.io", "Rollout", "api", nil); len(got) != 0 {
+	if got := eventsForWorkload(index["dev"], "argoproj.io", "Rollout", "api", "", nil); len(got) != 0 {
 		t.Fatalf("ambiguous warning attributed: %+v", got)
+	}
+}
+
+// An Argo CD hub lists the same chart's resources for every cluster it deploys
+// to. Only the Application deploying to this cluster manages the local object;
+// another cluster's Application naming the same Deployment must not claim it.
+func TestManagedSourceRefs_IgnoreRemoteArgoDestinations(t *testing.T) {
+	app := func(name string, destination map[string]any) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"metadata": map[string]any{"namespace": "argocd", "name": name},
+			"spec":     map[string]any{"destination": destination},
+			"status": map[string]any{"resources": []any{
+				map[string]any{"group": "apps", "kind": "Deployment", "namespace": "sealed-secrets", "name": "controller"},
+			}},
+		}}
+	}
+	sources := map[string][]appSourceRef{}
+	addArgoManagedSourceRefs(sources, []*unstructured.Unstructured{
+		app("sealed-secrets-prod", map[string]any{"server": "https://prod.example.com", "namespace": "sealed-secrets"}),
+		app("sealed-secrets-hub", map[string]any{"server": "https://kubernetes.default.svc", "namespace": "sealed-secrets"}),
+		app("sealed-secrets-staging", map[string]any{"name": "staging", "namespace": "sealed-secrets"}),
+	})
+	ref := commonManagedSourceRef([]appWorkload{{Group: "apps", Kind: "Deployment", Namespace: "sealed-secrets", Name: "controller"}}, sources)
+	if ref == nil || ref.Name != "sealed-secrets-hub" {
+		t.Fatalf("source ref = %+v, want the in-cluster Application only", ref)
 	}
 }

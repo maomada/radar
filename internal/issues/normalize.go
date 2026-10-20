@@ -137,7 +137,7 @@ func fromProblem(p k8s.Detection, now time.Time, source Source) Issue {
 		since = p.OnsetAt.UTC()
 	}
 	reason := p.Reason
-	cause, action := p.Cause, p.Action
+	cause, action, cleanup := p.Cause, p.Action, p.ConditionalCleanup
 	issueTiming, issueTimingBasis := p.IssueTiming, p.IssueTimingBasis
 	if since.IsZero() && !issueTimingIndependentOfOnset(issueTimingBasis) {
 		issueTiming = ""
@@ -151,11 +151,13 @@ func fromProblem(p k8s.Detection, now time.Time, source Source) Issue {
 		if reason != "RBACForbidden" {
 			// Detector diagnoses describe the original reason and would mislead
 			// after the message promotes the issue to an RBAC failure.
-			cause, action = "", ""
+			cause, action, cleanup = "", "", nil
 		}
 		reason = "RBACForbidden"
 	}
 	iss := Issue{
+		RequiredReads:        p.RequiredReads,
+		Degraded:             p.Degraded,
 		Severity:             sev,
 		Source:               source,
 		Kind:                 p.Kind,
@@ -165,8 +167,10 @@ func fromProblem(p k8s.Detection, now time.Time, source Source) Issue {
 		Reason:               reason,
 		Message:              p.Message,
 		RawMessage:           p.RawMessage,
+		MessageSource:        p.MessageSource,
 		Cause:                cause,
 		Action:               action,
+		ConditionalCleanup:   cleanup,
 		RemediationKind:      p.RemediationKind,
 		RemediationTarget:    p.RemediationTarget,
 		OperationRetryCount:  p.OperationRetryCount,
@@ -180,6 +184,7 @@ func fromProblem(p k8s.Detection, now time.Time, source Source) Issue {
 		Count:                1,
 		RestartCount:         p.RestartCount,
 		LastTerminatedReason: p.LastTerminatedReason,
+		RestartLoop:          p.RestartLoop,
 		IssueTiming:          issueTiming,
 		IssueTimingBasis:     issueTimingBasis,
 	}
@@ -195,6 +200,12 @@ func fromProblem(p k8s.Detection, now time.Time, source Source) Issue {
 		}
 		iss.DiagnosticContext = &issuesapi.DiagnosticContext{Role: issuesapi.DiagnosticRoleContext, Facts: []issuesapi.DiagnosticFact{{Type: factNodeStartupCorroboration, Message: message, Refs: refs}}}
 	}
+	if reason == p.Reason {
+		if ctx := networkPolicyIsolationContext(p); ctx != nil {
+			iss.DiagnosticContext = ctx
+			iss.AffectedRefs = p.AffectedRefs
+		}
+	}
 	if p.OwnerKind != "" {
 		// Prefer the owner group resolved at detection (carries the real group
 		// for CRD controllers like Argo Rollout); fall back to the builtin
@@ -203,10 +214,16 @@ func fromProblem(p k8s.Detection, now time.Time, source Source) Issue {
 		if ownerGroup == "" {
 			ownerGroup = resolveGroup("", p.OwnerKind)
 		}
+		// A namespaced object's owner is in its namespace or cluster-scoped,
+		// like the Node that controls a mirror Pod.
+		ownerNamespace := p.Namespace
+		if b, ok := resourceid.BuiltinForKind(p.OwnerKind); ok && b.Group == ownerGroup && !b.Namespaced {
+			ownerNamespace = ""
+		}
 		iss.Owner = Ref{
 			Group:     ownerGroup,
 			Kind:      p.OwnerKind,
-			Namespace: p.Namespace,
+			Namespace: ownerNamespace,
 			Name:      p.OwnerName,
 		}
 	}
@@ -234,3 +251,9 @@ func classifyIssue(i *Issue) {
 // ---------------------------------------------------------------------------
 // Filter + sort helpers
 // ---------------------------------------------------------------------------
+
+// TimingSummary recomputes an issue's timing_summary from its current timing
+// fields, for callers that revise them after compose.
+func TimingSummary(i Issue) string {
+	return timingSummary(i)
+}

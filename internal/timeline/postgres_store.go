@@ -3,11 +3,15 @@ package timeline
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/url"
 	"path"
 	"sort"
@@ -18,8 +22,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/skyhook-io/radar/pkg/resourceid"
 	pkgtimeline "github.com/skyhook-io/radar/pkg/timeline"
 )
 
@@ -33,7 +39,21 @@ const (
 
 	postgresAppendLockNamespace int64 = 0x52414452
 	postgresAppendLockID        int64 = 2
+
+	postgresIndexBuildLockID  int32 = 3
+	postgresIndexBuildTimeout       = time.Hour
 )
+
+// postgresBackgroundIndexes are built after startup rather than by a
+// migration. A migration runs in one transaction under the startup deadline
+// and blocks writes while it builds: on a large retained table that stalls
+// startup, and during a rolling upgrade it stalls the older replicas'
+// appends. The queries these serve (scoped history by subject and owner UID)
+// work without them, only slower.
+var postgresBackgroundIndexes = []struct{ name, column string }{
+	{"radar_timeline_events_uid_idx", "uid"},
+	{"radar_timeline_events_owner_uid_idx", "owner_uid"},
+}
 
 var postgresPingTimeout = 10 * time.Second
 
@@ -48,6 +68,18 @@ const (
 	seenWriteQueueDepth = 4096
 	seenWriteBatchSize  = 500
 	seenWriteInterval   = time.Second
+
+	// maxUnclearedSeen bounds the clears kept for a retry, as
+	// maxDeletedWhileUnavailable bounds the deletes kept while no store is
+	// installed.
+	maxUnclearedSeen = 100_000
+)
+
+// How often failed seen-mark clears are retried, backing off while they keep
+// failing. Variables so tests need not wait.
+var (
+	seenClearRetryInitialInterval = 5 * time.Second
+	seenClearRetryMaxInterval     = 5 * time.Minute
 )
 
 // seenResourceWrite is one ordered mutation of the seen set. Marks and clears
@@ -77,9 +109,20 @@ var postgresMigrations embed.FS
 
 type PostgresStore struct {
 	db *sql.DB
+	// target names the database for log lines, without the password: a
+	// connection dropped mid-run fails with a bare EOF or timeout that does
+	// not say which database it was.
+	target string
 
 	seenResources map[string]bool
-	seenMu        sync.RWMutex
+	// Clears that did not reach the database. Their rows would make a resource
+	// recreated under the same name look already seen after the next restart,
+	// so they are applied again once the database answers. Guarded by seenMu,
+	// which a later mark of the same key also takes to remove it.
+	unclearedSeen map[string]struct{}
+	// Set once the backlog hit maxUnclearedSeen, so the loss is logged once.
+	unclearedOverflow bool
+	seenMu            sync.RWMutex
 
 	filterCache map[string]*CompiledFilter
 	cacheMu     sync.RWMutex
@@ -147,7 +190,9 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 
 	store := &PostgresStore{
 		db:            db,
+		target:        postgresTarget(dsn),
 		seenResources: make(map[string]bool),
+		unclearedSeen: make(map[string]struct{}),
 		filterCache:   make(map[string]*CompiledFilter),
 		seenWrites:    make(chan seenResourceWrite, seenWriteQueueDepth),
 		quit:          make(chan struct{}),
@@ -162,13 +207,81 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 		return closeOnError("hydrate PostgreSQL timeline seen resources", err)
 	}
 
-	store.wg.Add(1)
+	store.wg.Add(3)
 	go func() {
 		defer store.wg.Done()
 		store.runSeenWriter()
 	}()
+	go func() {
+		defer store.wg.Done()
+		store.runSeenClearRetry(seenClearRetryInitialInterval, seenClearRetryMaxInterval)
+	}()
+	go func() {
+		defer store.wg.Done()
+		store.buildBackgroundIndexes()
+	}()
 
 	return store, nil
+}
+
+// buildBackgroundIndexes creates postgresBackgroundIndexes without blocking
+// writes. One replica builds at a time; the rest skip. An index an
+// interrupted build left invalid is dropped and rebuilt.
+func (s *PostgresStore) buildBackgroundIndexes() {
+	ctx, cancel := context.WithTimeout(context.Background(), postgresIndexBuildTimeout)
+	defer cancel()
+	go func() {
+		select {
+		case <-s.quit:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		log.Printf("[timeline] Failed to build indexes: acquire connection: %v", err)
+		return
+	}
+	defer conn.Close()
+	var locked bool
+	if err := conn.QueryRowContext(ctx, "SELECT pg_try_advisory_lock($1, $2)",
+		postgresMigrationLockNamespace, postgresIndexBuildLockID).Scan(&locked); err != nil {
+		log.Printf("[timeline] Failed to build indexes: take build lock: %v", err)
+		return
+	}
+	if !locked {
+		return
+	}
+	defer func() {
+		unlockCtx, cancelUnlock := context.WithTimeout(context.Background(), postgresUnlockTimeout)
+		defer cancelUnlock()
+		_, _ = conn.ExecContext(unlockCtx, "SELECT pg_advisory_unlock($1, $2)",
+			postgresMigrationLockNamespace, postgresIndexBuildLockID)
+	}()
+
+	for _, index := range postgresBackgroundIndexes {
+		var valid bool
+		err := conn.QueryRowContext(ctx,
+			"SELECT i.indisvalid FROM pg_index i WHERE i.indexrelid = to_regclass($1)", index.name).Scan(&valid)
+		switch {
+		case err == nil && valid:
+			continue
+		case err == nil:
+			if _, err := conn.ExecContext(ctx, "DROP INDEX CONCURRENTLY IF EXISTS "+index.name); err != nil {
+				log.Printf("[timeline] Failed to drop invalid index %s: %v", index.name, err)
+				return
+			}
+		case !errors.Is(err, sql.ErrNoRows):
+			log.Printf("[timeline] Failed to check index %s: %v", index.name, err)
+			return
+		}
+		if _, err := conn.ExecContext(ctx, "CREATE INDEX CONCURRENTLY IF NOT EXISTS "+index.name+
+			" ON radar_timeline_events ("+index.column+")"); err != nil {
+			log.Printf("[timeline] Failed to build index %s: %v", index.name, err)
+			return
+		}
+	}
 }
 
 func validatePostgresSchema(ctx context.Context, db *sql.DB) error {
@@ -188,7 +301,7 @@ func validatePostgresSchema(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `
 		SELECT id, timestamp, source, kind, api_version, namespace, name, uid,
 		       event_type, reason, message, diff_json, health_state, owner_kind,
-		       owner_name, labels_json, count, correlation_id, created_at,
+		       owner_name, owner_api_version, owner_uid, owner_evidence, labels_json, count, correlation_id, created_at,
 		       cluster_context, resource_created_at, seq
 		FROM radar_timeline_events
 		LIMIT 0
@@ -201,13 +314,52 @@ func validatePostgresSchema(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+// noteError hands a failed read or write to the outage check, so whichever
+// caller first meets a lost database (a page, an AI tool, the informers) starts
+// the outage log.
+func (s *PostgresStore) noteError(err error) error {
+	NoteDatabaseError(s, err)
+	return err
+}
+
 func (s *PostgresStore) Close() error {
 	s.closeOnce.Do(func() {
+		// Under seenMu, so a retry queueing clears either finishes before the
+		// writer is told to drain, or sees the store closing and leaves them
+		// for the last attempt below.
+		s.seenMu.Lock()
 		close(s.quit)
+		s.seenMu.Unlock()
 		s.wg.Wait()
+		s.applyUnclearedSeenBeforeClose()
 		s.closeErr = s.db.Close()
 	})
 	return s.closeErr
+}
+
+// applyUnclearedSeenBeforeClose makes one last attempt at the clears still
+// waiting for a retry, so a restart soon after an outage does not load their
+// stale marks. The writer has drained and stopped, so nothing queued can land
+// after this statement.
+func (s *PostgresStore) applyUnclearedSeenBeforeClose() {
+	s.seenMu.Lock()
+	keys := make([][]byte, 0, len(s.unclearedSeen))
+	for k := range s.unclearedSeen {
+		keys = append(keys, []byte(k))
+	}
+	s.unclearedSeen = make(map[string]struct{})
+	s.seenMu.Unlock()
+	if len(keys) == 0 {
+		return
+	}
+	// Short: a database that is still gone should not hold up shutdown or a
+	// context switch.
+	ctx, cancel := context.WithTimeout(context.Background(), postgresPingTimeout)
+	defer cancel()
+	if _, err := s.db.ExecContext(ctx, "DELETE FROM radar_timeline_seen_resources WHERE resource_key = ANY($1)", keys); err != nil {
+		log.Printf("[timeline] %d seen-resource clear(s) could not be applied before closing: %v; "+
+			"after a restart, a resource among them recreated under the same name may not have its creation recorded", len(keys), err)
+	}
 }
 
 // Append adds a single event to the store.
@@ -223,6 +375,10 @@ func (s *PostgresStore) Append(ctx context.Context, event TimelineEvent) error {
 // (count, message, timestamp, seq) when the incoming revision is not older,
 // mirroring the SQLite and memory stores.
 func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent) error {
+	return s.noteError(s.appendBatch(ctx, events))
+}
+
+func (s *PostgresStore) appendBatch(ctx context.Context, events []TimelineEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
@@ -251,11 +407,11 @@ func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent)
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO radar_timeline_events (
 			id, timestamp, source, kind, api_version, namespace, name, uid, event_type,
-			reason, message, diff_json, health_state, owner_kind, owner_name,
+			reason, message, diff_json, health_state, owner_kind, owner_name, owner_api_version, owner_uid, owner_evidence,
 			labels_json, count, correlation_id, cluster_context, resource_created_at, seq
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-			$16, $17, $18, $19, $20, nextval('radar_timeline_event_seq')
+			$16, $17, $18, $19, $20, $21, $22, $23, nextval('radar_timeline_event_seq')
 		)
 		ON CONFLICT(id) DO UPDATE SET
 			timestamp = excluded.timestamp,
@@ -268,8 +424,12 @@ func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent)
 			namespace = excluded.namespace,
 			uid = excluded.uid,
 			resource_created_at = COALESCE(excluded.resource_created_at, radar_timeline_events.resource_created_at),
-			owner_kind = CASE WHEN excluded.owner_kind != '' THEN excluded.owner_kind ELSE radar_timeline_events.owner_kind END,
-			owner_name = CASE WHEN excluded.owner_name != '' THEN excluded.owner_name ELSE radar_timeline_events.owner_name END,
+			-- The owner tuple moves as one; OwnerReplacesOnUpsert states the rule.
+			owner_kind = CASE WHEN (excluded.owner_evidence IN ('enriched', 'unidentified') OR (COALESCE(excluded.owner_evidence, '') = '' AND COALESCE(excluded.owner_kind, '') != '')) THEN excluded.owner_kind ELSE radar_timeline_events.owner_kind END,
+			owner_name = CASE WHEN (excluded.owner_evidence IN ('enriched', 'unidentified') OR (COALESCE(excluded.owner_evidence, '') = '' AND COALESCE(excluded.owner_kind, '') != '')) THEN excluded.owner_name ELSE radar_timeline_events.owner_name END,
+			owner_api_version = CASE WHEN (excluded.owner_evidence IN ('enriched', 'unidentified') OR (COALESCE(excluded.owner_evidence, '') = '' AND COALESCE(excluded.owner_kind, '') != '')) THEN excluded.owner_api_version ELSE radar_timeline_events.owner_api_version END,
+			owner_uid = CASE WHEN (excluded.owner_evidence IN ('enriched', 'unidentified') OR (COALESCE(excluded.owner_evidence, '') = '' AND COALESCE(excluded.owner_kind, '') != '')) THEN excluded.owner_uid ELSE radar_timeline_events.owner_uid END,
+			owner_evidence = CASE WHEN (excluded.owner_evidence IN ('enriched', 'unidentified') OR (COALESCE(excluded.owner_evidence, '') = '' AND COALESCE(excluded.owner_kind, '') != '')) THEN excluded.owner_evidence ELSE radar_timeline_events.owner_evidence END,
 			labels_json = CASE WHEN excluded.labels_json IS NOT NULL THEN excluded.labels_json ELSE radar_timeline_events.labels_json END
 		WHERE radar_timeline_events.source = 'k8s_event'
 			AND excluded.source = 'k8s_event'
@@ -282,7 +442,7 @@ func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent)
 
 	for _, event := range events {
 		var diffJSON, labelsJSON any
-		var ownerKind, ownerName string
+		var ownerKind, ownerName, ownerAPIVersion, ownerUID string
 
 		if event.Diff != nil {
 			b, err := json.Marshal(event.Diff)
@@ -303,6 +463,8 @@ func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent)
 		if event.Owner != nil {
 			ownerKind = event.Owner.Kind
 			ownerName = event.Owner.Name
+			ownerAPIVersion = event.Owner.APIVersion
+			ownerUID = event.Owner.UID
 		}
 
 		var resourceCreatedAt any
@@ -326,6 +488,9 @@ func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent)
 			string(event.HealthState),
 			ownerKind,
 			ownerName,
+			ownerAPIVersion,
+			ownerUID,
+			string(event.OwnerEvidence),
 			labelsJSON,
 			event.Count,
 			event.CorrelationID,
@@ -342,9 +507,23 @@ func (s *PostgresStore) AppendBatch(ctx context.Context, events []TimelineEvent)
 
 // Query retrieves events matching the given options.
 func (s *PostgresStore) Query(ctx context.Context, opts QueryOptions) ([]TimelineEvent, error) {
+	events, err := s.query(ctx, opts)
+	return events, s.noteError(err)
+}
+
+func (s *PostgresStore) query(ctx context.Context, opts QueryOptions) ([]TimelineEvent, error) {
 	ctx, cancel := withPostgresOperationTimeout(ctx)
 	defer cancel()
-	q, args, err := s.buildQuery(opts)
+	// Resolve the preset first: whether it admits managed rows decides the SQL.
+	var cf *CompiledFilter
+	if opts.FilterPreset != "" {
+		var filterErr error
+		cf, filterErr = s.getOrCompileFilter(opts.FilterPreset)
+		if filterErr != nil {
+			log.Printf("Warning: failed to compile filter preset %q: %v", opts.FilterPreset, filterErr)
+		}
+	}
+	q, args, err := s.buildQuery(opts, !opts.IncludeManaged && !cf.IncludesManaged())
 	if err != nil {
 		return nil, err
 	}
@@ -354,15 +533,6 @@ func (s *PostgresStore) Query(ctx context.Context, opts QueryOptions) ([]Timelin
 		return nil, fmt.Errorf("query events: %w", err)
 	}
 	defer rows.Close()
-
-	var cf *CompiledFilter
-	if opts.FilterPreset != "" {
-		var filterErr error
-		cf, filterErr = s.getOrCompileFilter(opts.FilterPreset)
-		if filterErr != nil {
-			log.Printf("Warning: failed to compile filter preset %q: %v", opts.FilterPreset, filterErr)
-		}
-	}
 
 	events := make([]TimelineEvent, 0)
 	for rows.Next() {
@@ -375,6 +545,8 @@ func (s *PostgresStore) Query(ctx context.Context, opts QueryOptions) ([]Timelin
 			continue
 		}
 
+		// Managed rows and K8s Events are excluded in SQL; these checks stay
+		// as a guard.
 		if event.IsManaged() && !opts.IncludeManaged && !cf.IncludesManaged() {
 			continue
 		}
@@ -389,60 +561,17 @@ func (s *PostgresStore) Query(ctx context.Context, opts QueryOptions) ([]Timelin
 	return events, rows.Err()
 }
 
-// QueryGrouped retrieves events grouped according to the specified mode.
-func (s *PostgresStore) QueryGrouped(ctx context.Context, opts QueryOptions) (*TimelineResponse, error) {
-	startTime := time.Now()
-
-	queryOpts := opts
-	queryOpts.Limit = min(opts.Limit*10, 5000)
-
-	events, err := s.Query(ctx, queryOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.GroupBy == GroupByNone {
-		if len(events) > opts.Limit {
-			events = events[:opts.Limit]
-		}
-		return &TimelineResponse{
-			Ungrouped: events,
-			Meta: TimelineMeta{
-				TotalEvents: len(events),
-				QueryTimeMs: time.Since(startTime).Milliseconds(),
-				HasMore:     len(events) == opts.Limit,
-			},
-		}, nil
-	}
-
-	groups := pkgtimeline.GroupEvents(events, opts.GroupBy)
-
-	limit := opts.Limit
-	if limit <= 0 {
-		limit = 200
-	}
-	hasMore := len(groups) > limit
-	if hasMore {
-		groups = groups[:limit]
-	}
-
-	return &TimelineResponse{
-		Groups: groups,
-		Meta: TimelineMeta{
-			TotalEvents: len(events),
-			GroupCount:  len(groups),
-			QueryTimeMs: time.Since(startTime).Milliseconds(),
-			HasMore:     hasMore,
-		},
-	}, nil
-}
-
 // GetEvent retrieves a single event by ID.
 func (s *PostgresStore) GetEvent(ctx context.Context, id string) (*TimelineEvent, error) {
+	event, err := s.getEvent(ctx, id)
+	return event, s.noteError(err)
+}
+
+func (s *PostgresStore) getEvent(ctx context.Context, id string) (*TimelineEvent, error) {
 	ctx, cancel := withPostgresOperationTimeout(ctx)
 	defer cancel()
 	query := `SELECT id, timestamp, source, kind, api_version, namespace, name, uid, event_type,
-		reason, message, diff_json, health_state, owner_kind, owner_name,
+		reason, message, diff_json, health_state, owner_kind, owner_name, owner_api_version, owner_uid, owner_evidence,
 		labels_json, count, correlation_id, cluster_context, resource_created_at, seq
 		FROM radar_timeline_events WHERE id = $1`
 
@@ -457,58 +586,13 @@ func (s *PostgresStore) GetEvent(ctx context.Context, id string) (*TimelineEvent
 	return &event, nil
 }
 
-// GetChangesForOwner retrieves changes for resources owned by the given owner.
-func (s *PostgresStore) GetChangesForOwner(ctx context.Context, ownerKind, ownerNamespace, ownerName, clusterContext string, since time.Time, limit int) ([]TimelineEvent, error) {
-	ctx, cancel := withPostgresOperationTimeout(ctx)
-	defer cancel()
-	if limit <= 0 {
-		limit = 100
-	}
-
-	query := `SELECT id, timestamp, source, kind, api_version, namespace, name, uid, event_type,
-		reason, message, diff_json, health_state, owner_kind, owner_name,
-		labels_json, count, correlation_id, cluster_context, resource_created_at, seq
-		FROM radar_timeline_events
-		WHERE owner_kind = $1 AND owner_name = $2 AND namespace = $3`
-	args := []any{ownerKind, ownerName, ownerNamespace}
-
-	argN := 4
-	if clusterContext != "" {
-		query += fmt.Sprintf(" AND cluster_context = $%d", argN)
-		args = append(args, clusterContext)
-		argN++
-	}
-	if !since.IsZero() {
-		query += fmt.Sprintf(" AND timestamp >= $%d", argN)
-		args = append(args, since.UTC().UnixNano())
-		argN++
-	}
-	query += fmt.Sprintf(" ORDER BY timestamp DESC LIMIT %d", limit)
-
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	events := make([]TimelineEvent, 0)
-	for rows.Next() {
-		event, err := s.scanEvent(rows)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, event)
-	}
-
-	return events, rows.Err()
-}
-
 // MarkResourceSeen records that a resource has been seen.
 func (s *PostgresStore) MarkResourceSeen(clusterContext, group, kind, namespace, name string) {
 	key := SeenResourceKey(clusterContext, group, kind, namespace, name)
 
 	s.seenMu.Lock()
 	s.seenResources[key] = true
+	delete(s.unclearedSeen, key)
 	s.seenMu.Unlock()
 
 	s.enqueueSeenWrite(seenResourceWrite{key: key})
@@ -539,8 +623,9 @@ func (s *PostgresStore) ClearResourceSeen(clusterContext, group, kind, namespace
 	done := make(chan struct{})
 	if !s.enqueueSeenClear(ctx, seenResourceWrite{key: key, delete: true, done: done}) {
 		log.Printf("[timeline] seen-resource clear did not reach the write queue in %s; "+
-			"the resource stays marked as seen in the database until it is deleted again",
-			postgresOperationTimeout)
+			"Radar retries it until it reaches the database", postgresOperationTimeout)
+		s.noteUncleared([]string{key})
+		s.noteError(context.DeadlineExceeded)
 		return
 	}
 	select {
@@ -548,6 +633,99 @@ func (s *PostgresStore) ClearResourceSeen(clusterContext, group, kind, namespace
 	case <-ctx.Done():
 		log.Printf("[timeline] timed out waiting for a seen-resource clear to persist")
 	}
+}
+
+// forgetSeen clears seen marks in memory and in the database, together with
+// any earlier clear that did not reach it. The in-memory set is cleared at
+// once, so this process records the next creation either way.
+func (s *PostgresStore) forgetSeen(keys []string) error {
+	s.seenMu.Lock()
+	for _, k := range keys {
+		delete(s.seenResources, k)
+	}
+	s.seenMu.Unlock()
+	s.noteUncleared(keys)
+	return s.applyUnclearedSeen()
+}
+
+// noteUncleared keeps clears that did not reach the database for the next
+// attempt. A key marked again in the meantime is skipped: the resource exists
+// again, and its row is wanted.
+func (s *PostgresStore) noteUncleared(keys []string) {
+	s.seenMu.Lock()
+	overflowed := false
+	for _, k := range keys {
+		if s.seenResources[k] {
+			continue
+		}
+		if _, kept := s.unclearedSeen[k]; !kept && len(s.unclearedSeen) >= maxUnclearedSeen {
+			overflowed = overflowed || !s.unclearedOverflow
+			s.unclearedOverflow = true
+			continue
+		}
+		s.unclearedSeen[k] = struct{}{}
+	}
+	s.seenMu.Unlock()
+	if overflowed {
+		log.Printf("[timeline] more than %d seen-resource clears are waiting for PostgreSQL; "+
+			"after a restart, a resource among the others recreated under the same name may not have its creation recorded", maxUnclearedSeen)
+	}
+}
+
+// runSeenClearRetry retries failed seen-mark clears on its own. The outage
+// watch retries them as soon as the database answers again, but a clear the
+// database rejected while still answering (a lock timeout, a deadlock) starts
+// no watch, and would otherwise wait for the next outage or restart.
+func (s *PostgresStore) runSeenClearRetry(initial, max time.Duration) {
+	interval := initial
+	for {
+		select {
+		case <-s.quit:
+			return
+		case <-time.After(interval):
+		}
+		s.seenMu.RLock()
+		waiting := len(s.unclearedSeen)
+		s.seenMu.RUnlock()
+		if waiting == 0 {
+			interval = initial
+			continue
+		}
+		_ = s.applyUnclearedSeen() // what fails again stays in the set
+		interval = min(interval*2, max)
+	}
+}
+
+// applyUnclearedSeen queues the clears that earlier failed. They go through
+// the writer, behind every mutation already queued, so a mark queued before
+// the outage cannot flush after them and bring a deleted resource's row back.
+// Each is queued under seenMu, which MarkResourceSeen takes before queueing its
+// mark: a mark made before is seen here and its clear dropped, and a mark made
+// after queues behind the clear. The send does not wait, since the informers
+// need seenMu; what a full queue leaves stays for the next retry, as does a
+// clear the writer fails to apply.
+func (s *PostgresStore) applyUnclearedSeen() error {
+	s.seenMu.Lock()
+	defer s.seenMu.Unlock()
+	select {
+	case <-s.quit:
+		return errors.New("the store is closing; its last attempt applies the clears")
+	default:
+	}
+	for k := range s.unclearedSeen {
+		if s.seenResources[k] {
+			delete(s.unclearedSeen, k)
+			continue
+		}
+		select {
+		case s.seenWrites <- seenResourceWrite{key: k, delete: true}:
+			delete(s.unclearedSeen, k)
+		default:
+			return fmt.Errorf("seen-resource write queue is full; %d clear(s) wait for the next retry", len(s.unclearedSeen))
+		}
+	}
+	s.unclearedOverflow = false
+	return nil
 }
 
 // enqueueSeenWrite hands one mutation to the background writer without
@@ -662,6 +840,16 @@ func (s *PostgresStore) flushSeenWrites(pending []seenResourceWrite) {
 		}
 		if err != nil {
 			log.Printf("[timeline] failed to persist %d seen-resource changes: %v", end-start, err)
+			if pending[start].delete {
+				// Kept before the waiting clears are released, so a mark that
+				// follows one of them is the one that wins.
+				failed := make([]string, 0, end-start)
+				for _, w := range pending[start:end] {
+					failed = append(failed, w.key)
+				}
+				s.noteUncleared(failed)
+			}
+			s.noteError(err)
 		}
 		for _, w := range pending[start:end] {
 			if w.done != nil {
@@ -786,6 +974,19 @@ func (s *PostgresStore) StartCleanupLoop(retention, interval time.Duration, maxS
 	}()
 }
 
+// EvictedThrough implements EvictionBoundary: retention is the only deletion
+// here, so the boundary is its cutoff, whether or not a sweep has run yet.
+// Restart gaps are not tracked here: callers also bound history by when this
+// process started observing.
+func (s *PostgresStore) EvictedThrough() time.Time {
+	s.cleanupMu.RLock()
+	defer s.cleanupMu.RUnlock()
+	if s.retentionAge <= 0 {
+		return time.Time{}
+	}
+	return time.Now().Add(-s.retentionAge)
+}
+
 func (s *PostgresStore) runCleanup(retention time.Duration) {
 	ctx := context.Background()
 	n, err := s.Cleanup(ctx, retention)
@@ -827,10 +1028,108 @@ func (s *PostgresStore) storageBytes(ctx context.Context) int64 {
 	return total.Int64
 }
 
-func (s *PostgresStore) buildQuery(opts QueryOptions) (string, []any, error) {
+// OwnedUIDs returns the distinct UIDs of resources whose rows name one of
+// ownerUIDs as their owner.
+func (s *PostgresStore) OwnedUIDs(ctx context.Context, clusterContext string, ownerUIDs []string, limit int) ([]string, error) {
+	uids, err := s.ownedUIDs(ctx, clusterContext, ownerUIDs, limit)
+	return uids, s.noteError(err)
+}
+
+func (s *PostgresStore) ownedUIDs(ctx context.Context, clusterContext string, ownerUIDs []string, limit int) ([]string, error) {
+	ownerUIDs = nonEmpty(ownerUIDs)
+	if len(ownerUIDs) == 0 || limit <= 0 {
+		return nil, nil
+	}
+	ctx, cancel := withPostgresOperationTimeout(ctx)
+	defer cancel()
+	query := `SELECT DISTINCT uid FROM radar_timeline_events
+		WHERE COALESCE(uid, '') <> '' AND owner_uid = ANY($1::text[])`
+	args := []any{ownerUIDs}
+	if clusterContext != "" {
+		query += " AND cluster_context = $2"
+		args = append(args, clusterContext)
+	}
+	query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query owned uids: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		out = append(out, uid)
+	}
+	return out, rows.Err()
+}
+
+const postgresAPIGroupExpr = "CASE WHEN strpos(api_version, '/') > 0 THEN split_part(api_version, '/', 1) ELSE '' END"
+
+// Identities returns the distinct resources the rows matching q were about.
+func (s *PostgresStore) Identities(ctx context.Context, q IdentityQuery, limit int) ([]Identity, error) {
+	identities, err := s.identities(ctx, q, limit)
+	return identities, s.noteError(err)
+}
+
+func (s *PostgresStore) identities(ctx context.Context, q IdentityQuery, limit int) ([]Identity, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	ctx, cancel := withPostgresOperationTimeout(ctx)
+	defer cancel()
+	query := "SELECT DISTINCT COALESCE(api_version, ''), kind, name, COALESCE(uid, ''), COALESCE(owner_uid, '') FROM radar_timeline_events WHERE true"
+	var args []any
+	arg := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	if q.ClusterContext != "" {
+		query += " AND cluster_context = " + arg(q.ClusterContext)
+	}
+	if q.Namespace != "" {
+		query += " AND namespace = " + arg(q.Namespace)
+	}
+	if q.Ref != nil {
+		query += " AND kind = " + arg(q.Ref.Kind) + " AND namespace = " + arg(q.Ref.Namespace) + " AND name = " + arg(q.Ref.Name) +
+			" AND (COALESCE(api_version, '') = '' OR " + postgresAPIGroupExpr + " = " + arg(q.Ref.Group) + ")"
+	}
+	if len(q.Kinds) > 0 {
+		query += " AND kind = ANY(" + arg(q.Kinds) + "::text[])"
+	}
+	if q.NamePrefix != "" {
+		query += " AND starts_with(name, " + arg(q.NamePrefix) + ")"
+	}
+	if q.OwnerUnknown {
+		query += ownerUnknownSQL
+	}
+	query += " LIMIT " + arg(limit)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query identities: %w", err)
+	}
+	defer rows.Close()
+	var out []Identity
+	for rows.Next() {
+		var id Identity
+		if err := rows.Scan(&id.APIVersion, &id.Kind, &id.Name, &id.UID, &id.OwnerUID); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// buildQuery renders opts as SQL. excludeManaged applies IsManaged before
+// LIMIT, so managed rows cannot fill the limit and leave the page short; the
+// caller resolves it because a filter preset can admit managed rows.
+func (s *PostgresStore) buildQuery(opts QueryOptions, excludeManaged bool) (string, []any, error) {
 	query := strings.Builder{}
 	query.WriteString(`SELECT id, timestamp, source, kind, api_version, namespace, name, uid, event_type,
-		reason, message, diff_json, health_state, owner_kind, owner_name,
+		reason, message, diff_json, health_state, owner_kind, owner_name, owner_api_version, owner_uid, owner_evidence,
 		labels_json, count, correlation_id, cluster_context, resource_created_at, seq
 		FROM radar_timeline_events WHERE 1=1`)
 
@@ -910,8 +1209,42 @@ func (s *PostgresStore) buildQuery(opts QueryOptions) (string, []any, error) {
 	if opts.ExcludeDeleted {
 		addFilter(" AND event_type != $%d", string(EventTypeDelete))
 	}
+	if excludeManaged {
+		query.WriteString(" AND " + unmanagedRowsSQL)
+	}
+	if !opts.IncludeK8sEvents {
+		addFilter(" AND source != $%d", string(SourceK8sEvent))
+	}
 	if opts.ClusterContext != "" {
 		addFilter(" AND cluster_context = $%d", opts.ClusterContext)
+	}
+	if !opts.Scope.IsZero() {
+		var parts []string
+		if uids := nonEmpty(opts.Scope.UIDs); len(uids) > 0 {
+			parts = append(parts, fmt.Sprintf("uid = ANY($%d::text[])", argN))
+			args = append(args, uids)
+			argN++
+		}
+		if owners := nonEmpty(opts.Scope.OwnerUIDs); len(owners) > 0 {
+			parts = append(parts, fmt.Sprintf("owner_uid = ANY($%d::text[])", argN))
+			args = append(args, owners)
+			argN++
+		}
+		refs := func(list []resourceid.Ref, extra string) {
+			for _, g := range groupRefs(list) {
+				parts = append(parts, fmt.Sprintf("(kind = $%d AND namespace = $%d AND name = ANY($%d::text[]) AND (COALESCE(api_version, '') = '' OR "+
+					postgresAPIGroupExpr+" = $%d)"+extra+")", argN, argN+1, argN+2, argN+3))
+				args = append(args, g.kind, g.namespace, g.names, g.group)
+				argN += 4
+			}
+		}
+		refs(opts.Scope.Refs, "")
+		refs(opts.Scope.OwnerlessRefs, ownerUnknownSQL)
+		if len(parts) == 0 {
+			query.WriteString(" AND false")
+		} else {
+			query.WriteString(" AND (" + strings.Join(parts, " OR ") + ")")
+		}
 	}
 
 	seqPaging := opts.SeqPaging || opts.SinceSeq > 0
@@ -958,7 +1291,7 @@ func (s *PostgresStore) scanEvent(scanner eventScanner) (TimelineEvent, error) {
 	var event TimelineEvent
 	var source, eventType, healthState string
 	var apiVersion, uid, reason, message, correlationID, clusterContext sql.NullString
-	var ownerKind, ownerName sql.NullString
+	var ownerKind, ownerName, ownerAPIVersion, ownerUID, ownerEvidence sql.NullString
 	var diffJSON, labelsJSON []byte
 	var resourceCreatedAt sql.NullInt64
 	var timestampNanos int64
@@ -979,6 +1312,9 @@ func (s *PostgresStore) scanEvent(scanner eventScanner) (TimelineEvent, error) {
 		&healthState,
 		&ownerKind,
 		&ownerName,
+		&ownerAPIVersion,
+		&ownerUID,
+		&ownerEvidence,
 		&labelsJSON,
 		&event.Count,
 		&correlationID,
@@ -1017,10 +1353,13 @@ func (s *PostgresStore) scanEvent(scanner eventScanner) (TimelineEvent, error) {
 	}
 	if ownerKind.Valid && ownerKind.String != "" {
 		event.Owner = &OwnerInfo{
-			Kind: ownerKind.String,
-			Name: ownerName.String,
+			Kind:       ownerKind.String,
+			Name:       ownerName.String,
+			APIVersion: ownerAPIVersion.String,
+			UID:        ownerUID.String,
 		}
 	}
+	event.OwnerEvidence = OwnerEvidence(ownerEvidence.String)
 	if len(diffJSON) > 0 {
 		var diff DiffInfo
 		if json.Unmarshal(diffJSON, &diff) == nil {
@@ -1280,6 +1619,46 @@ func loadPostgresMigrations() ([]postgresMigration, error) {
 		return migrations[i].version < migrations[j].version
 	})
 	return migrations, nil
+}
+
+// DatabaseUnreachable reports whether err means Radar lost or could not open
+// its connection to PostgreSQL, as opposed to a query the server received and
+// rejected. A database that goes away mid-run first fails pooled connections
+// (EOF, or a shutdown code from the server) and then fails new ones to connect;
+// all of these are the same outage to the person reading the timeline. pgx
+// names the user and database in its connect error, never the password.
+func DatabaseUnreachable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var connectErr *pgconn.ConnectError
+	if errors.As(err, &connectErr) {
+		return true
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		// Class 08 is connection exception; 57P01-57P03 are the server shutting
+		// down, crashing, or not yet accepting connections.
+		return strings.HasPrefix(pgErr.Code, "08") || pgErr.Code == "57P01" || pgErr.Code == "57P02" || pgErr.Code == "57P03"
+	}
+	var opErr *net.OpError
+	return errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, driver.ErrBadConn) || errors.As(err, &opErr)
+}
+
+// Ping reports whether the database answers right now. Stats cannot tell an
+// unreachable database from an empty one, so diagnostics asks this first.
+func (s *PostgresStore) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
+
+// postgresTarget describes the database a DSN points at, leaving out the
+// password.
+func postgresTarget(dsn string) string {
+	config, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return "the configured database"
+	}
+	return fmt.Sprintf("host=%s port=%d database=%s user=%s", config.Host, config.Port, config.Database, config.User)
 }
 
 func postgresConnectionError(operation string, err error, dsn string) error {

@@ -5,6 +5,7 @@ import { ApiError, type PrometheusPVCUsage } from '../../api/client'
 
 let canConfigure = true
 let roleLoading = false
+let previousMetrics = false
 let statusResult: { data?: { connected: boolean; discovering?: boolean }; error?: Error }
 let usageResult: { data?: PrometheusPVCUsage; error?: Error }
 vi.mock('../../api/client', async (importActual) => ({
@@ -15,13 +16,28 @@ vi.mock('../../api/client', async (importActual) => ({
   useCloudRole: () => ({ canAtLeast: () => canConfigure, isLoading: roleLoading }),
 }))
 const { PVCUsageBar } = await import('./PVCUsageBar')
+vi.mock('../../hooks/usePreviousIntegrationSettings', () => ({
+  usePreviousIntegrationSettings: (relevant: boolean) => ({ metrics: relevant && previousMetrics }),
+  previousSettingsNote: () => 'You can copy your previous settings in Settings → Metrics.',
+}))
 const measured: PrometheusPVCUsage = { namespace: 'demo', name: 'disk', used: 0, capacity: 1024, ratio: 0, hasData: true, status: 'available' }
 const render = () => renderToString(<PVCUsageBar namespace="demo" name="disk" />)
 
 describe('PVC usage availability', () => {
+  it('offers previous settings only for a missing connection, not missing series or denied access', () => {
+    previousMetrics = true
+    statusResult = { data: { connected: false } }
+    expect(render()).toContain('copy your previous settings')
+    statusResult = { data: { connected: true } }
+    usageResult = { data: { ...measured, hasData: false, status: 'no_series' } }
+    expect(render()).not.toContain('copy your previous settings')
+    statusResult = { error: new ApiError('denied', 403) }
+    expect(render()).not.toContain('copy your previous settings')
+  })
   beforeEach(() => {
     canConfigure = true
     roleLoading = false
+    previousMetrics = false
     statusResult = { data: { connected: true } }
     usageResult = {}
   })
@@ -164,5 +180,37 @@ describe('PVC metrics next step', () => {
     if (state === 'available') usageResult = { data: measured }
     expect(render()).not.toContain('Configure metrics')
     expect(render()).not.toContain('Ask your operator')
+  })
+})
+
+describe('PVC scope remedies', () => {
+  it.each(['ambiguous_scope', 'scope_mismatch'] as const)('shows operator scope controls for %s to owners and viewers', scope => {
+    statusResult = { data: { connected: true } }
+    usageResult = { data: { ...measured, hasData: false, status: scope } }
+    roleLoading = false
+    for (const owner of [true, false]) {
+      canConfigure = owner
+      const html = render()
+      expect(html).toContain('--prometheus-cluster-label')
+      expect(html).toContain('traffic.prometheusClusterLabels')
+      expect(html).toContain('not available in Settings or Desktop')
+      expect(html).not.toContain('Configure metrics')
+      expect(html).not.toContain('verified labels')
+      if (scope === 'scope_mismatch') {
+        expect(html).toContain('align cluster labels')
+        expect(html).toContain('affects all these charts')
+        expect(html).toContain('dedicated to this cluster')
+      }
+    }
+  })
+
+  it('keeps connection settings when a cached scope failure outlives the connection', () => {
+    canConfigure = true
+    roleLoading = false
+    statusResult = { data: { connected: false } }
+    usageResult = { data: { ...measured, hasData: false, status: 'ambiguous_scope' } }
+    const html = render()
+    expect(html).toContain('Configure metrics')
+    expect(html).not.toContain('--prometheus-cluster-label')
   })
 })

@@ -4,7 +4,11 @@ import {
   ApplicationsList,
   ApplicationDetail,
   CenteredEmpty,
+  getRadarUpgradeRequirement,
   PageHeader,
+  RadarUpgradeAction,
+  radarUpgradeDetail,
+  radarUpgradeHeadline,
   FreshnessControl,
   IssueRow,
   ISSUE_SEVERITY_RANK,
@@ -51,6 +55,7 @@ import { useTimelineSource } from "../../context/TimelineSource";
 import { apiVersionToGroup, buildWorkloadPath, kindToPluralWithGroup } from "../../utils/navigation";
 import { WorkloadView } from "../workload/WorkloadView";
 import { ApplicationCostTab } from "../cost/ApplicationCostTab";
+import { useTimelineRetentionNote } from "../../context/TimelineCustomization";
 import { isOpenCostWorkloadKind } from "../cost/kinds";
 
 type ApplicationRouteView = ApplicationView | "cost";
@@ -166,6 +171,7 @@ export function ApplicationsView({
     );
   }
   if (query.error) {
+    const upgrade = getRadarUpgradeRequirement(query.error);
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-theme-border px-4 py-4">
@@ -175,12 +181,21 @@ export function ApplicationsView({
             description="Deployable software in this cluster — your services, workers, and jobs, grouped by app/release evidence."
           />
         </div>
-        <CenteredEmpty
-          tone="filtered"
-          icon={Boxes}
-          headline="Failed to load applications"
-          body={(query.error as Error).message}
-        />
+        {upgrade ? (
+          <CenteredEmpty
+            icon={Boxes}
+            headline={radarUpgradeHeadline("Applications")}
+            body={radarUpgradeDetail(upgrade)}
+            action={<RadarUpgradeAction requirement={upgrade} />}
+          />
+        ) : (
+          <CenteredEmpty
+            tone="filtered"
+            icon={Boxes}
+            headline="Failed to load applications"
+            body={(query.error as Error).message}
+          />
+        )}
       </div>
     );
   }
@@ -288,6 +303,7 @@ function AppDetailRoute({
         : historyRangeOptions[0].value;
   const historyTimelineEnabled =
     !selectedWorkloadKey && selectedView === "history";
+  const retentionNote = useTimelineRetentionNote();
   const historyTimelineQuery = timelineSource.useEvents({
     namespaces: appHistoryNamespaces,
     timeRange: historyRange,
@@ -651,6 +667,7 @@ function AppDetailRoute({
         historyCoverageRecordCount={historyTimelineQuery.coverage?.length ?? 0}
         historyRuntimeLimited={historyRuntimeLimited}
         historyRingTruncated={historyTimelineQuery.truncated ?? false}
+        historyRetentionNote={retentionNote}
         onHistoryRangeChange={setRetainedHistoryRange}
         onOpenTimeline={openApplicationTimeline}
         onOpenSource={openSource}

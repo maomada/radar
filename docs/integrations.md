@@ -70,6 +70,8 @@ relationship is not being reconciled.
 
 Every quantity carries per-value certainty (`= ≥ ≤ ?`): unavailable is never rendered as zero, partial is never rendered as exact, and **scheduling capacity is kept structurally distinct from actual usage** — Karpenter schedules on pod requests, so usage is an efficiency signal, never scheduler headroom. Issues, Pending-pod drawers, and the Home posture card deep-link into the right diagnosis. Full reference: [Capacity documentation](capacity.md).
 
+**Node removal:** Nodes marked for removal show an operational lifecycle status while keeping readiness and independent failures visible. The drawer shows current pods and a read-only drain/PDB estimate. See [Node status and removal](nodes.md) for the shared UI/API/MCP contract.
+
 **Topology:** Full provisioning chain — NodePool → NodeClaim → Node → Pod. See which NodePool owns which NodeClaims, which Nodes they provisioned, and what Pods are running on them. NodePool → NodeClass edges show the provider-specific configuration each pool uses.
 
 <p align="center">
@@ -133,6 +135,8 @@ All provider-specific NodeClass variants are automatically detected and supporte
 ### What Radar Shows
 
 **Topology:** Full CAPI ownership chain — ClusterClass → Cluster → KubeadmControlPlane → Machine → Node, and Cluster → MachineDeployment → MachineSet → Machine → Node. MachineHealthCheck → Cluster protection edges. Machine → Node edges use status.nodeRef (semantic, not owner-ref).
+
+ClusterClass links use the namespace declared by the Cluster, defaulting to the Cluster’s namespace when omitted. Both `spec.topology.classRef` and the older supported `class`/`classNamespace` API fields are read. Owner links require the declared API group as well as kind and name; same-named resources from unrelated groups remain distinct.
 
 **Cluster Detail View:**
 - Phase, version, cluster class, control plane endpoint
@@ -241,7 +245,7 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 
 ### What Radar Shows
 
-**Topology:** ScaledObject → target workload (Deployment, StatefulSet, or Rollout). See which workloads are managed by KEDA and trace the scaling relationship.
+**Topology:** ScaledObject → target workload (Deployment, StatefulSet, or Rollout). ScaledObject and ScaledJob triggers also link to observed TriggerAuthentication or ClusterTriggerAuthentication resources. Authentication is a dependency, not an autoscaler target; omitted kind defaults to a same-namespace TriggerAuthentication. Cluster-scoped targets retain per-kind read gating. These declarations do not prove credential validity or trigger readiness. Applications configuration references and counts exclude authentication objects the caller cannot read.
 
 <p align="center">
   <img src="screenshots/integrations/keda-topology.png" alt="KEDA Topology" width="800">
@@ -288,8 +292,8 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 |-----|-------|----------|-------------|------------|
 | ScaledObject | `keda.sh/v1alpha1` | Yes | Yes | Yes |
 | ScaledJob | `keda.sh/v1alpha1` | Yes | Yes | Yes |
-| TriggerAuthentication | `keda.sh/v1alpha1` | — | Yes | Yes |
-| ClusterTriggerAuthentication | `keda.sh/v1alpha1` | — | Yes | Yes |
+| TriggerAuthentication | `keda.sh/v1alpha1` | When referenced | Yes | Yes |
+| ClusterTriggerAuthentication | `keda.sh/v1alpha1` | When referenced | Yes | Yes |
 
 ---
 
@@ -302,6 +306,8 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 **Topology:** VPA nodes appear in the Resources view with `EdgeUses` edges to target workloads, grouped in the Scalers section alongside HPA and KEDA.
 
 **Detail View:** Target workload, update mode, per-container resource recommendations (target, lower bound, upper bound, uncapped), resource policy, and conditions.
+
+Target links use the API group in `targetRef.apiVersion`. Built-in targets without an API version use their standard group.
 
 **Problem Detection:** Alerts for unsupported configurations, missing recommendations, and low confidence scores.
 
@@ -319,7 +325,7 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 
 ### What Radar Shows
 
-**Topology:** Full network path — GatewayClass → Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute → Service → Pod. Visualize how traffic flows from the gateway controller through routes to your backend services.
+**Topology:** Full network path — GatewayClass → Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute/UDPRoute → Service → Pod. Visualize how traffic flows from the gateway controller through routes to your backend services.
 
 <p align="center">
   <img src="screenshots/integrations/gateway-topology.png" alt="Gateway API Topology" width="800">
@@ -344,6 +350,7 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 | GRPCRoute | `gateway.networking.k8s.io/v1` | Yes | Yes | Yes |
 | TCPRoute | `gateway.networking.k8s.io/v1alpha2` | Yes | Yes | Yes |
 | TLSRoute | `gateway.networking.k8s.io/v1alpha2` | Yes | Yes | Yes |
+| UDPRoute | `gateway.networking.k8s.io/v1alpha2` | Yes | Yes | Yes |
 
 ---
 
@@ -415,6 +422,8 @@ The legacy `traefik.containo.us` API group (pre-v2.11) is warm-listed alongside 
 
 **Topology:** Full Contour routing path — HTTPProxy (root) → HTTPProxy (child, via delegation) → Service, with TLS secret configuration edges. Root proxies with `spec.virtualhost` appear as entry points; child proxies referenced via `spec.includes` are connected via delegation edges. Both **Resources** and **Traffic** view modes are supported.
 
+TLS references resolve local Secret names and delegated `namespace/name` names consistently, including client CA/CRL and upstream validation bundles. Configuration graphs reuse cached Secret metadata even when general Secret display is disabled; unavailable metadata remains unknown. Declared references do not establish that Contour has accepted or authorized TLS delegation, and topology does not serialize Secret values.
+
 <p align="center">
   <img src="screenshots/integrations/contour-topology.png" alt="Contour Topology" width="800">
   <br><em>Contour in Topology View — HTTPProxy → Service routing with delegation</em>
@@ -444,7 +453,7 @@ The legacy `traefik.containo.us` API group (pre-v2.11) is warm-listed alongside 
 
 ### What Radar Shows
 
-**Topology:** Certificate → Issuer/ClusterIssuer edges show which issuer manages each certificate. The full provisioning chain (Certificate → CertificateRequest → Order → Challenge) is connected via owner references.
+**Topology:** Certificate → Issuer/ClusterIssuer edges connect each certificate to its observed built-in issuer, including ownerless issuers. Omitted `issuerRef.kind` and `issuerRef.group` use cert-manager defaults. Only referenced issuers are added; external issuer groups are not inferred. ClusterIssuer visibility uses its exact cluster-scoped read permission. Resource details and MCP context distinguish issuer dependencies from autoscaling. The full provisioning chain (Certificate → CertificateRequest → Order → Challenge) is connected via owner references.
 
 <p align="center">
   <img src="screenshots/integrations/certmanager-topology.png" alt="cert-manager Topology" width="800">
@@ -524,6 +533,23 @@ inspection of the Operator's Kubernetes resources and scrape configuration.
 
 ---
 
+## VictoriaMetrics chart reads
+
+The Helm chart grants Radar cluster-wide `get/list/watch` on VMAgent, VMCluster
+and VMSingle (`vmagents`, `vmclusters`, `vmsingles` in
+`operator.victoriametrics.com`) whenever it grants cluster-wide Secrets reads:
+`rbac.secrets: true`, `rbac.helm: true`, auth enabled (`auth.mode != none`), or
+cloud mode. These objects can carry inline credentials, so they share the same
+grant decision as Secrets. There is no separate VictoriaMetrics setting.
+
+This rule excludes VMUser/VMAuth, alerting and scrape/probe resources, and the
+Logs, Traces, Distributed and Anomaly families. The wildcard
+`rbac.crdGroups.all: true` still grants `get/list/watch` on every API group and
+resource, including core Secrets and these excluded kinds. See the
+[chart reference](../deploy/helm/radar/README.md#crd-access).
+
+---
+
 ## Trivy Operator
 
 [Trivy Operator](https://aquasecurity.github.io/trivy-operator/) continuously scans your cluster for vulnerabilities, misconfigurations, exposed secrets, and license compliance issues.
@@ -582,11 +608,21 @@ See the main [README](../README.md#gitops) for the user-facing overview. This se
 | GitRepository | `source.toolkit.fluxcd.io/v1` | Yes | Yes | — |
 | OCIRepository | `source.toolkit.fluxcd.io/v1beta2` | Yes | Yes | — |
 | HelmRepository | `source.toolkit.fluxcd.io/v1` | Yes | Yes | — |
+| Bucket / HelmChart / ExternalArtifact | `source.toolkit.fluxcd.io` | When referenced | Generic | — |
 | Kustomization | `kustomize.toolkit.fluxcd.io/v1` | Yes | Yes | Yes |
 | HelmRelease | `helm.toolkit.fluxcd.io/v2` | Yes | Yes | Yes |
 | Alert | `notification.toolkit.fluxcd.io/v1beta3` | — | Yes | — |
 
 **Workflow operations**: Reconcile, Reconcile-with-source (Kustomization/HelmRelease), Suspend/Resume.
+
+**Source relationships**: Topology, Related Resources and REST/MCP context link
+observed Flux sources in both directions within Radar's namespace scope.
+Kustomizations use `spec.sourceRef`; HelmReleases use `spec.chart.spec.sourceRef`
+or `spec.chartRef`. Inline releases also link the generated HelmChart named by
+`status.helmChart`; an observed HelmChart links its source in its own namespace.
+These are dependencies, not owners: topology draws each source upstream, with
+the edge pointing into the object that reads it. A link does not prove that Flux
+permits the reference or has produced an artifact.
 
 **Diagnosis**: Conditions extracted to issues (Ready=False, Stalled=True, Reconciling=True). Per-resource diff and recent events not yet available for Flux (HelmRelease-installed resources don't carry `last-applied-configuration`; tracked in [#601](https://github.com/skyhook-io/radar/issues/601)).
 
@@ -667,6 +703,8 @@ See the main [README](../README.md#gitops) for the user-facing overview. This se
 ### What Radar Shows
 
 **Topology:** Full Istio traffic path — IstioGateway → VirtualService → Service, and DestinationRule → Service configuration edges. See how traffic flows through gateway listeners, virtual service routing rules, and into backend services.
+
+Service links accept short names in the rule's namespace or full `name.namespace.svc.<domain>` names. Radar reads a unique registry domain from standard observed Istiod Deployments' `--domain` argument, using Istio's `cluster.local` default when no override is observed. Conflicting or unresolved control-plane arguments leave FQDN links unresolved. External control planes and nonstandard launch configurations may therefore need additional domain discovery; arbitrary dotted hosts are not treated as local Services.
 
 **VirtualService Detail View:**
 - HTTP/TCP/TLS routing rules with match conditions
@@ -851,6 +889,16 @@ The source contract is Strimzi's [KafkaConnector status schema](https://strimzi.
 
 [CloudNativePG](https://cloudnative-pg.io/) (CNPG) is the Kubernetes operator for PostgreSQL, covering the full lifecycle from bootstrapping to monitoring, with high availability, automated failover, and backup management.
 
+Beyond the per-kind views below, CloudNativePG gets its own views under Resources (`/cnpg`): the fleet, backups and recovery evidence, declarations, pooling and the operator. Each Cluster has a page organized by task (what needs attention, replication, storage, performance, backups) and guarded actions such as switchover, fencing, backup setup and restore, each followed until Radar observes the outcome. Radar does not provision object storage or credentials. Design detail is in [cnpg.md](cnpg.md).
+
+**Fleet:** every Cluster ordered by urgency, each with its top problem.
+
+![CloudNativePG Clusters view: three PostgreSQL clusters, two needing attention, each with its top problem](images/cnpg/cnpg-fleet.png)
+
+**Cluster page:** the cause first, then one line per health dimension.
+
+![A Cluster stuck because its first instance can't be scheduled: the scheduler's reason first, then Serving, Replication, Storage and Backups at a glance](images/cnpg/cnpg-cluster-overview.png)
+
 ### What Radar Shows
 
 **Cluster Detail View:**
@@ -884,13 +932,13 @@ The source contract is Strimzi's [KafkaConnector status schema](https://strimzi.
 - PgBouncer parameters
 - Degraded state detection (AlertBanner when not all instances are scheduled)
 
-Note `Pooler.status.instances` counts pods *trying to be scheduled*, not ready pods — a Pooler whose PgBouncer pods are all Pending still reports the full count. Radar therefore labels the healthy state **Scheduled** rather than Ready; actual readiness lives on the Deployment CNPG generates for the Pooler (same name, same namespace).
+Note `Pooler.status.instances` counts pods *trying to be scheduled*, not ready pods — a Pooler whose PgBouncer pods are all Pending still reports the full count. Radar labels the declared `spec.instances` count neutrally as **N instances requested**; actual readiness lives on the Deployment CNPG generates for the Pooler (same name, same namespace).
 
 **Resource Browser:** Smart columns show status, instance counts (with degraded highlighting), primary instance, image tag, storage size, cluster reference, and schedule expressions.
 
 ### Phase classification
 
-Cluster phases are full English sentences (`Cluster is unrecoverable and needs manual intervention`), not enum tokens, and are matched on equality. They are bucketed as healthy / transient / failing / terminal / attention; terminal phases outrank instance counts, so an unrecoverable cluster whose pods happen to still be Ready is still rendered red. An unrecognized phase from a newer CNPG minor surfaces verbatim as unknown rather than being guessed at.
+Cluster phases are full English sentences (`Cluster is unrecoverable and needs manual intervention`), not enum tokens, and are matched on equality. They are bucketed as healthy / transient / failing / terminal / attention; terminal phases outrank instance counts, so an unrecoverable cluster whose pods happen to still be Ready is still rendered red. "Terminal" means reconciliation is blocked, not that the operator gave up: it retries every one of them, the plugin phases clear on their own once the plugin loads and answers, and the banner quotes the operator's `status.phaseReason`. An unrecognized phase from a newer CNPG minor surfaces verbatim as unknown rather than being guessed at.
 
 Backup phases are lowercase tokens. `walArchivingFailing` is treated as a cluster-level signal, not an ordinary backup failure — archiving is broken upstream of that Backup, so the whole recovery window is affected.
 
@@ -904,7 +952,7 @@ The `ObjectStore` itself is rendered: destination and credential provider (never
 
 Two states carry the weight. A failure newer than the last success means the window has stopped advancing while its oldest point still ages out under retention — shrinking from both ends, so it is called out rather than left to be inferred from two timestamps. An ObjectStore with an empty `serverRecoveryWindow` is reported as holding nothing restorable rather than as healthy: on the plugin path the Cluster publishes no recovery point of its own, so a green badge here would be the only claim on screen and it would be wrong.
 
-`Backup` and `ScheduledBackup` with `spec.method: plugin` name the plugin and link to the ObjectStore they write into, and suppress the in-tree `destinationPath` / `serverName` rows, which are never populated on that path.
+`Backup` and `ScheduledBackup` with `spec.method: plugin` name the plugin and suppress the in-tree `destinationPath` / `serverName` rows, which are never populated on that path. For barman-cloud, their destination comes from the Cluster’s plugin entry; their own plugin parameters are ignored. The standalone renderers explain this without presenting a parameter as a destination link. Workspace destination links are inferred from the current Cluster configuration. Radar does not model third-party plugin destinations.
 
 ### Declarative objects: Database, Publication, Subscription
 
@@ -942,6 +990,7 @@ Deliberately narrow: the absence of a ScheduledBackup does not prove a cluster i
 | Database | `postgresql.cnpg.io/v1` | — | Yes | — |
 | Publication | `postgresql.cnpg.io/v1` | — | Yes | — |
 | Subscription | `postgresql.cnpg.io/v1` | — | Yes | — |
+| DatabaseRole | `postgresql.cnpg.io/v1` | — | Yes | — |
 | ImageCatalog | `postgresql.cnpg.io/v1` | — | Yes | — |
 | ClusterImageCatalog | `postgresql.cnpg.io/v1` | — | Yes | — |
 
@@ -1029,7 +1078,7 @@ The Helm chart's `rbac.crdGroups.crossplane: true` toggle grants read access to:
 - `crossplane.io`, `pkg.crossplane.io`, `apiextensions.crossplane.io` (Crossplane core)
 - `kubernetes.crossplane.io`, `helm.crossplane.io` (provider-kubernetes + provider-helm — useful in non-cloud installs)
 
-For Upbound provider CRDs (`s3.aws.upbound.io`, `compute.gcp.upbound.io`, etc.), list them in `rbac.additionalCrdGroups` — Kubernetes RBAC has no `apiGroups` wildcards. Alternative: set `rbac.crdGroups.all: true` to grant cluster-wide read on every CRD (simpler, broader).
+For Upbound provider CRDs (`s3.aws.upbound.io`, `compute.gcp.upbound.io`, etc.), list them in `rbac.additionalCrdGroups` — Kubernetes RBAC has no `apiGroups` wildcards. Alternative: set `rbac.crdGroups.all: true`, which grants `get/list/watch` on every API group and resource, core Secrets included (simpler, much broader).
 
 ### Supported CRDs
 
@@ -1133,6 +1182,8 @@ PolicyReport findings are policy posture, not live operational failure, so they 
 
 **Topology:** Full Knative Serving chain — Route → KnativeService → Configuration → Revision → Deployment → Pod. Eventing flow — PingSource → Broker → Trigger → subscriber target. See how traffic is split across revisions, which configurations are active, and how events flow from sources through brokers to triggers.
 
+Event destinations retain the reference’s API group, kind, namespace and name. Missing or conflicting identity remains unresolved rather than borrowing a same-named core Service. `Trigger.spec.brokerRef` uses its explicit Broker namespace and name; the older `spec.broker` field remains local to the Trigger. Channel objects and their observed backing channels are separate resources, and cached owner references establish their management links.
+
 <p align="center">
   <img src="screenshots/integrations/knative-topology.png" alt="Knative Topology" width="800">
   <br><em>Knative in Topology View — Serving chain and Eventing flow</em>
@@ -1230,14 +1281,28 @@ PolicyReport findings are policy posture, not live operational failure, so they 
 
 [OpenCost](https://www.opencost.io/) is a CNCF tool for Kubernetes cost monitoring, exposing cloud provider pricing and workload resource allocation as Prometheus metrics.
 
-Radar supports two read-only cost paths. Auto mode keeps OpenCost-compatible metrics from the
-already-discovered Prometheus when representative cost data is usable; when those metrics are
-absent, it tries the current allocation and asset APIs of a Kubecost 3 Aggregator. Source selection
-can also be pinned to `prometheus` or `kubecost` in Settings → Cost, `config.json`, or Helm. When
-Auto positively finds neither source, Radar reports that state and retries discovery; it does not
-label an absent Prometheus source as active. Settings tests Auto and Kubecost before saving, while an
-explicit Prometheus selection remains a saveable preference for installations being configured in
-stages.
+Radar supports two read-only cost sources. **Automatic** prefers usable OpenCost
+metrics from Prometheus, then tries a Kubecost 3 Aggregator when those metrics
+are absent. If neither source is found, Cost reports that state and retries
+discovery.
+
+If discovered Prometheus candidates are unreachable or detection times out,
+Automatic can use a working Kubecost temporarily. The next Cost request after
+one minute rechecks Prometheus and switches back when OpenCost metrics are usable.
+If Kubecost cannot be discovered either, Cost remains unavailable and retries.
+Settings → Metrics shows the Prometheus connection failure, including any
+NetworkPolicy diagnosis. Other Prometheus configuration or query failures do
+not start a new source switch; Cost shows the failure when it has no working
+fallback.
+
+Pin a source in Settings → Cost or Helm to prevent Automatic selection.
+Local CLI/Desktop saves the choice per context in `clusters.json`; shared
+installations use operator configuration.
+
+Local Settings tests Kubecost mode, and Automatic with any Kubecost override
+(URL, API key or cluster ID), before saving; a failed test blocks the save.
+Automatic without Kubecost overrides, or Prometheus mode, saves a preference
+without asserting that the backend is reachable.
 
 For Kubecost, Radar auto-discovers only an active Aggregator StatefulSet and its matching Service.
 It tries the official named `tcp-api` port 9004 first. When that port rejects unauthenticated access
@@ -1250,11 +1315,15 @@ local Aggregator. A Service exposing only port 9008 is not auto-discovered; conf
 explicitly. Radar accepts either a root API URL or one ending in `/model`, can send an optional
 service-account key as `X-API-KEY`, and requires an exact cluster ID
 to filter a central Aggregator. It detects one literal `CLUSTER_ID` from an active FinOps Agent or
-Aggregator; indirect, missing, or conflicting values require an override. Radar binds a cluster-ID
-override saved in Settings to the active kubeconfig context. It also binds a saved API key when the
-URL is blank and Radar auto-discovers a local Aggregator. Both fail closed after a context switch
-until the cluster-specific value is cleared or updated; an explicit central Aggregator URL and its
-key may still be shared.
+Aggregator; indirect, missing, or conflicting values require an override. Local CLI/Desktop stores
+Kubecost settings per kubeconfig context, and binds every saved URL, API key and cluster-ID override
+to that context's cluster identity. Switching contexts restores that context's own settings; changing
+its underlying cluster identity pauses them until you confirm. An explicit central Aggregator URL and
+key can be copied through **Copy settings from…**. Later edits are independent, and cluster IDs
+are not copied. See [local integration connections](configuration.md#local-integration-connections).
+Shared installations bind a cluster-ID override saved in `config.json` to the active kubeconfig
+context, and also bind a saved API key when the URL is blank and Radar auto-discovers a local
+Aggregator.
 
 OpenCost-compatible Prometheus data powers current cost and historical charts. Kubecost REST powers
 the current namespace summary, workload/application compute allocation, node costs, and the cluster
@@ -1472,9 +1541,9 @@ Radar statically evaluates Calico selectors against workload pod templates and t
 
 ## GPU & Batch Ecosystem (basic support)
 
-Basic resource support for the GPU scheduling, batch, and inference-serving ecosystem: **status badges, smart table columns, status filters, and sidebar grouping** for every kind below. JobSet `v1alpha2` also has typed definition and lifecycle detail plus contextual execution drilldown through controller-owned member Jobs, their Pods, logs, and activity. The remaining kinds use the standard spec/status renderer until their deeper per-tool integrations land.
+The baseline for the GPU scheduling, batch, and inference-serving ecosystem is **status badges, smart table columns, status filters, and sidebar grouping** for every kind below. Kueue Workloads, LocalQueues and ClusterQueues also have native detail views for admission evidence, quota accounting and policy. JobSet `v1alpha2` has typed definition and lifecycle detail plus contextual execution drilldown through controller-owned member Jobs, their Pods, logs, and activity. Other kinds use the standard spec/status renderer; selected resources also provide structured REST/MCP context as described below.
 
-This is resource reconnaissance, not GPU accounting or end-to-end workload diagnosis. It does not inventory physical devices, distinguish virtual or fractional GPUs such as HAMi, report utilization, or explain the complete workload-to-queue-to-Pod scheduling path.
+These integrations expose resource state and selected admission/execution relationships, not physical GPU accounting. They do not inventory physical devices, distinguish virtual or fractional GPUs such as HAMi, measure GPU utilization, or provide a complete scheduling simulation. JobSet's current CPU/memory observations and Kueue's request-based quota accounting have different meanings and are described separately below.
 
 ### Kueue + Cluster Autoscaler
 
@@ -1492,6 +1561,26 @@ quota reservations and assigned flavors, admission-check states and messages,
 and conditions. Links connect submission LocalQueues, reservation ClusterQueues,
 ResourceFlavors and AdmissionChecks. Reservation is distinguished from admission;
 resource totals are requests, not measured usage.
+
+LocalQueue and ClusterQueue detail distinguish reported state from configured stop
+policy, show pending/reserving/admitted counts, and link a LocalQueue to its
+ClusterQueue even before a Workload has a reservation. Per-flavor resource rows
+join quota reservations and admitted usage; ClusterQueues also show nominal quota,
+borrowing/lending limits, namespace eligibility and admission policies. These are
+controller-reported quota facts, not measured utilization or available physical
+capacity. Both v1beta1 and v1beta2 queue shapes are supported.
+
+AdmissionCheck detail distinguishes controller readiness from a Workload's check
+result and links the built-in provisioning configuration. ProvisioningRequest
+detail shows native outcomes, reasons, requested Pod counts and PodTemplate
+references, without treating provisioning as proof of running Pods. Both supported
+AdmissionCheck versions and ProvisioningRequest v1/v1beta1 have native detail.
+Workloads with admission checks also list currently retained, controller-owned
+ProvisioningRequests from the same namespace and cluster, with explicit lookup
+errors and bounded results. Requests may be cleaned up after completion or
+eviction; an empty list is not evidence that no request was made. The Workload's
+check message remains the primary explanation, and requests are not assigned to
+individual checks by parsing their names.
 
 For an exact `kueue.x-k8s.io/v1beta2` Workload, the REST AI resource endpoint
 and MCP `get_resource` also project a bounded admission summary into
@@ -1530,10 +1619,41 @@ coverage, or support for other Kueue API versions.
 
 | Resource | Group | Status source |
 |----------|-------|---------------|
-| RayCluster | `ray.io/v1` | state + provisioning conditions |
-| RayJob | `ray.io/v1` | jobStatus + jobDeploymentStatus |
-| RayService | `ray.io/v1` | lifecycle conditions (`serviceStatus` fallback) |
+| RayCluster | `ray.io/v1` | head/worker readiness, suspension and native runtime detail |
+| RayJob | `ray.io/v1` | application/controller lifecycle, submission and runtime detail, Kueue admission |
+| RayService | `ray.io/v1` | lifecycle conditions; native serving and revision detail |
 | RayCronJob | `ray.io/v1` | suspend |
+
+RayCluster detail separates head readiness from ready, running and desired worker
+Pod counts. Worker-group sizing and autoscaling are declared configuration; they
+do not imply per-group health. The OSS host provides a bounded Pod list filtered
+by the current RayCluster controller UID, with head/group selection and ordinary
+Pod/log navigation. Controller-reported counts use Ray labels and may differ from
+that owned-Pod list. Missing access, cache warming and recreated roots are explicit;
+no RayCluster-wide log stream or lifecycle actions are added.
+
+RayJob detail separates the controller lifecycle from the last reported application
+state, with links to the runtime RayCluster and a UID-verified submitter Job for
+Pods and logs. Submission modes, retries, deadlines and declared cleanup policy
+remain distinct from observed execution. Externally managed jobs do not resolve
+reported runtime names against the local cluster. Kueue-managed RayJobs show
+admission separately; admission does not establish that the application is running.
+
+RayService detail separates proxy readiness, rollout and suspension from active/pending
+runtime revisions. It shows native Serve application/deployment states and messages,
+with reported target capacity and configured route weights kept distinct from measured
+traffic. Missing application snapshots are unreported, including during `NewCluster`
+upgrades; they do not establish an outage. Lifecycle badges use controller conditions,
+not the deprecated `serviceStatus` field as proof of readiness. Positive readiness and rollout freshness compare
+the root observed generation because KubeRay does not restamp unchanged conditions.
+Suspension and failure observations remain visible when reconciliation retains an
+earlier generation.
+
+The OSS host reads at most the two named RayClusters and shows their directly observed
+conditions only after checking their controller owner against the RayService UID.
+Unreadable, missing and mismatched children are explicit. Embedded RayCluster status is
+not treated as live runtime evidence. Revision links navigate to the exact `ray.io`
+resource; this does not add a Ray topology adapter or generated-Service inventory.
 
 For an exact `ray.io/v1` RayService, REST AI detail and MCP `get_resource`
 include `resourceContext.serving.rayService` with named active/pending revisions, native
@@ -1602,11 +1722,12 @@ Root outcomes require root evidence; child failures alone are not terminal.
 Native spec/status remain available. This does not add JobSet `diagnose`, infer
 admission causes, or replace the JobSet→Job→Pod ownership chain.
 
-JobSet fullscreen detail also connects the root to exact controller-owned Kueue
-Workloads, showing each admission decision, native reason, queues, checks, and
+Job and JobSet drawer and fullscreen details connect the root to exact
+controller-owned Kueue Workloads, showing each admission decision, native reason, queues, checks, and
 disruption evidence independently of execution. The lookup preserves multiple
 records, reports unavailable observations explicitly, and permission-filters
-resource links. It does not infer admission from suspension or local Job absence.
+resource links. Ordinary Jobs without Kueue hints or observed admission evidence
+remain quiet. It does not infer admission from suspension or local Job absence.
 
 JobSet detail also provides controller-owned member Jobs with role, index, group,
 and restart-attempt metadata. Select a Job to inspect its Pods and logs, or follow

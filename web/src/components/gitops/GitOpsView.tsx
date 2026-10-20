@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import yaml from 'yaml'
+import { hasHealthSettingsHint } from '@skyhook-io/k8s-ui/components/gitops/GitOpsHealthSourceNotice'
+import { previousSettingsNote, usePreviousIntegrationSettings } from '../../hooks/usePreviousIntegrationSettings'
 import {
   GitOpsActivityInsightView,
   GitOpsChangesView,
@@ -19,10 +21,10 @@ import {
   formatGitOpsSourceUrl,
   getGitOpsResourceStatus,
   getGitOpsTool,
+  isDestinationRef,
   isArgoOperationInProgress,
   isArgoSuspendedByRadar,
   gitOpsInsightChangeKey,
-  initNavigationMap,
   kindToPluralWithGroup,
   normalizeArgoApplication,
   normalizeArgoApplicationSet,
@@ -40,11 +42,15 @@ import {
   type GitOpsRow,
   type GitOpsRowAction,
   type GitOpsTreeFilters,
+  type GitOpsTreeNode,
   type GitOpsTreeRef,
   type GitOpsTreePreset,
   type SelectedResource,
 } from '@skyhook-io/k8s-ui'
 import { useToast } from '../ui/Toast'
+import { useContextSwitchFlow } from '../useContextSwitchFlow'
+import { useDestinationCluster } from './useDestinationCluster'
+import { destinationToast } from './destination-toast'
 
 import {
   fetchJSON,
@@ -65,7 +71,7 @@ import {
   useGitOpsTree,
   useResource,
 } from '../../api/client'
-import { useAPIResources } from '../../api/apiResources'
+import { useAPIResources, GITOPS_KINDS } from '../../api/apiResources'
 import { useConnection } from '../../context/ConnectionContext'
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../../api/config'
 import { useRegisterShortcut } from '../../hooks/useKeyboardShortcuts'
@@ -77,17 +83,6 @@ import { RemoteDestinationCloudHint } from './RemoteDestinationCloudHint'
 const GITOPS_HEALTH_DOCS_URL = 'https://radarhq.io/docs/features/gitops#per-resource-health'
 import type { GitOpsHistoryItem } from '@skyhook-io/k8s-ui'
 
-const GITOPS_KINDS: APIResource[] = [
-  { name: 'applications', kind: 'Application', group: 'argoproj.io', version: 'v1alpha1', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'applicationsets', kind: 'ApplicationSet', group: 'argoproj.io', version: 'v1alpha1', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'appprojects', kind: 'AppProject', group: 'argoproj.io', version: 'v1alpha1', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'kustomizations', kind: 'Kustomization', group: 'kustomize.toolkit.fluxcd.io', version: 'v1', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'helmreleases', kind: 'HelmRelease', group: 'helm.toolkit.fluxcd.io', version: 'v2', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'gitrepositories', kind: 'GitRepository', group: 'source.toolkit.fluxcd.io', version: 'v1', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'ocirepositories', kind: 'OCIRepository', group: 'source.toolkit.fluxcd.io', version: 'v1beta2', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'helmrepositories', kind: 'HelmRepository', group: 'source.toolkit.fluxcd.io', version: 'v1', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-  { name: 'alerts', kind: 'Alert', group: 'notification.toolkit.fluxcd.io', version: 'v1beta3', namespaced: true, verbs: ['list', 'get'], isCrd: true },
-]
 
 type ArgoSyncDialogTarget =
   | { scope: 'application' }
@@ -157,9 +152,6 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
     })
   }
 
-  useEffect(() => {
-    initNavigationMap([...(apiResources ?? []), ...GITOPS_KINDS])
-  }, [apiResources])
 
   const hasGitOpsRowResource = useMemo(() => (
     hasAPIResource(apiResources, 'applications', 'argoproj.io') ||
@@ -352,7 +344,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
 function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOpsViewProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { showError, showSuccess } = useToast()
+  const { showError, showSuccess, showToast } = useToast()
   const parts = location.pathname.split('/').filter(Boolean)
   const kind = parts[2] || 'applications'
   const namespace = parts[3] === '_' ? '' : decodePathPart(parts[3] || '')
@@ -380,6 +372,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   const resourceQ = useResource<any>(kind, namespace, name, group)
   const treeQ = useGitOpsTree(kind, namespace, name, group, namespaces)
   const insightsQ = useGitOpsInsights(kind, namespace, name, group, namespaces)
+  const switchFlow = useContextSwitchFlow()
   const status = resourceQ.data ? getGitOpsResourceStatus(kind, resourceQ.data) : null
   const tool = getGitOpsTool(kind, group)
   // Argo "auto-sync ON" is determined by spec.syncPolicy.automated being set,
@@ -406,6 +399,14 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   const terminatingChipTooltip = terminatingDescriptions.chipTooltip
   const terminatingActionTooltip = terminatingDescriptions.actionDisabledTooltip
   const [appView, setAppView] = useState<GitOpsDetailTab>('topology')
+  const insight = insightsQ.data
+  const showDiffSettingsHint = appView === 'changes' && insight?.summary.tool === 'argocd' && insight.summary.kind === 'Application'
+    && !!insight.changes?.length && !insight.capabilities?.argoDiffAvailable
+  const previousSettings = usePreviousIntegrationSettings(!!onOpenSettings && (
+    hasHealthSettingsHint(insight?.summary, insight?.changes)
+    || showDiffSettingsHint
+  ))
+  const settingsNote = previousSettings.argocd ? previousSettingsNote('argocd', previousSettings.argocd) : undefined
   // When the user clicks an actionable issue alert ("OutOfSync — NodePool
   // default is out of sync · View →"), we navigate to Changes and focus
   // that resource. The ref is stringified to a stable key so GitOpsChangesView
@@ -463,8 +464,32 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
     roles: graphRoles,
   }), [graphHealth, graphKinds, graphNamespaces, graphRoles, graphSync])
   const graphFacets = useMemo(() => buildTreeFacets(tree), [tree])
+  // The tree and insights load separately; either one seeing a remote
+  // destination is enough to keep its resources from opening here.
+  const remoteDestination = !!(tree?.remoteDestination || insightsQ.data?.summary?.remoteDestination)
+  const destination = useDestinationCluster(remoteDestination, kind, namespace, name)
 
-  function openResourceFromTree(ref: GitOpsTreeRef | GitOpsInsightRef) {
+  function openResourceFromTree(ref: GitOpsTreeRef | GitOpsInsightRef, node?: GitOpsTreeNode) {
+    // Locality comes from the node, not the name: a remote app can deploy a
+    // same-named copy of itself to its destination.
+    if (node?.role !== 'root' && isDestinationRef(tree, remoteDestination, ref)) {
+      const toast = destinationToast(`${ref.kind} ${ref.namespace ? `${ref.namespace}/` : ''}${ref.name}`, destination)
+      const target = destination.context
+      showToast(toast.message, {
+        type: 'info',
+        detail: toast.detail,
+        action: toast.actionLabel && target ? {
+          label: toast.actionLabel,
+          onClick: () => switchFlow.requestSwitch(target, {
+            kind: kindToPluralWithGroup(ref.kind, ref.group ?? ''),
+            namespace: ref.namespace || '',
+            name: ref.name,
+            group: ref.group,
+          }),
+        } : undefined,
+      })
+      return
+    }
     if (isGitOpsDetailRef(ref) && isValidKubernetesName(ref.name)) {
       const detailKind = kindToPluralWithGroup(ref.kind, ref.group ?? '')
       // The tree's root node is this page's own subject — clicking it must not
@@ -640,6 +665,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
       healthDocsUrl={GITOPS_HEALTH_DOCS_URL}
       remoteDestinationHint={<RemoteDestinationCloudHint />}
       onOpenSettings={onOpenSettings}
+      settingsNote={showDiffSettingsHint ? undefined : settingsNote}
       renderRevisionMeta={
         isArgoApp && insightsQ.data?.capabilities?.revisionMetadataAvailable
           ? (revision) => (
@@ -775,10 +801,11 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
               ) : undefined}
               focusKey={changesFocusKey}
               tree={tree}
-              renderResourceDiff={isArgoApp ? (ref) => (
-                <ArgoResourceDiffLoader appNamespace={namespace} appName={name} resourceRef={ref} />
+              renderResourceDiff={isArgoApp ? (ref, fallbackDrift) => (
+                <ArgoResourceDiffLoader appNamespace={namespace} appName={name} resourceRef={ref} fallbackDrift={fallbackDrift} />
               ) : undefined}
               onOpenSettings={onOpenSettings}
+              settingsNote={settingsNote}
             />
           )
         }
@@ -822,6 +849,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
       }}
     >
       {/* Modals — portaled to body, only render the ones for the current tool. */}
+      {switchFlow.confirmDialog}
       {isArgoApp && (
         <>
           <SyncOptionsDialog
@@ -1054,18 +1082,26 @@ function newestConditionTime(resource: any): string {
 // many of them are healthy / drifted" at a glance, without making the user
 // count facets in the filter rail.
 function TopologyCounts({ tree }: { tree: GitOpsResourceTree }) {
-  const nodes = (tree.nodes ?? []).filter((n) => n.role !== 'group' && n.role !== 'root')
+  const counted = (tree.nodes ?? []).filter((n) => n.role !== 'group' && n.role !== 'root')
+  // Dependencies (Flux sources, charts, dependsOn targets) are consumed, not
+  // managed: they get their own count and never inflate the managed totals.
+  const nodes = counted.filter((n) => !n.dependency)
+  const dependencies = counted.length - nodes.length
   const total = nodes.length
-  if (total === 0) return null
-  const healthy = nodes.filter((n) => (n.health || '').toLowerCase() === 'healthy').length
-  const degraded = nodes.filter((n) => {
+  if (counted.length === 0) return null
+  const isDegraded = (n: GitOpsTreeNode) => {
     const h = (n.health || '').toLowerCase()
     return h === 'degraded' || h === 'missing' || h === 'unhealthy'
-  }).length
+  }
+  const healthy = nodes.filter((n) => (n.health || '').toLowerCase() === 'healthy').length
+  const degraded = nodes.filter(isDegraded).length
+  const failingDependencies = counted.filter((n) => n.dependency && isDegraded(n)).length
   const outOfSync = nodes.filter((n) => (n.sync || '').toLowerCase() === 'outofsync').length
   return (
     <div className="hidden min-w-0 flex-1 items-center gap-3 truncate text-[11px] text-theme-text-tertiary sm:flex">
       <span><span className="text-theme-text-primary">{total}</span> resources</span>
+      {dependencies > 0 && <span><span className="text-theme-text-primary">{dependencies}</span> {dependencies === 1 ? 'dependency' : 'dependencies'}</span>}
+      {failingDependencies > 0 && <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> {failingDependencies} {failingDependencies === 1 ? 'dependency' : 'dependencies'} failing</span>}
       {healthy > 0 && <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {healthy} healthy</span>}
       {/* Bad-news counts use status colors on the number itself so the worst
           fact in the row visually pops, not just the dot next to it. */}

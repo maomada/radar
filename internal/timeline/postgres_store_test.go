@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/url"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/skyhook-io/radar/pkg/timeline/storetest"
@@ -49,10 +51,20 @@ func testPostgresDSN(t *testing.T) string {
 	}
 
 	t.Cleanup(func() {
-		if _, err := admin.ExecContext(
-			context.Background(),
-			"DROP SCHEMA IF EXISTS "+schema+" CASCADE",
-		); err != nil {
+		// A store's Close cancels its background index build, but PostgreSQL
+		// applies the cancel a moment later, and a drop that meets the build
+		// still running loses a deadlock or a catalog update race. Both clear
+		// once the cancel lands.
+		var err error
+		for attempt := 0; attempt < 10; attempt++ {
+			_, err = admin.ExecContext(context.Background(), "DROP SCHEMA IF EXISTS "+schema+" CASCADE")
+			var pgErr *pgconn.PgError
+			if err == nil || !errors.As(err, &pgErr) || (pgErr.Code != "40P01" && pgErr.Code != "XX000") {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		if err != nil {
 			t.Errorf("drop PostgreSQL test schema: %v", err)
 		}
 		if err := admin.Close(); err != nil {
@@ -88,8 +100,8 @@ func TestNewPostgresStoreRunsMigrations(t *testing.T) {
 	).Scan(&versions); err != nil {
 		t.Fatalf("query migration versions: %v", err)
 	}
-	if versions != 1 {
-		t.Fatalf("migration versions = %d, want 1", versions)
+	if versions != embeddedPostgresMigrationCount(t) {
+		t.Fatalf("migration versions = %d, want %d", versions, embeddedPostgresMigrationCount(t))
 	}
 
 	for _, relation := range []string{
@@ -139,8 +151,8 @@ func TestNewPostgresStoreMigrationsAreIdempotent(t *testing.T) {
 	).Scan(&versions); err != nil {
 		t.Fatalf("query migration versions: %v", err)
 	}
-	if versions != 1 {
-		t.Fatalf("migration versions = %d, want 1", versions)
+	if versions != embeddedPostgresMigrationCount(t) {
+		t.Fatalf("migration versions = %d, want %d", versions, embeddedPostgresMigrationCount(t))
 	}
 }
 
@@ -214,8 +226,8 @@ func TestNewPostgresStoreConcurrentMigrations(t *testing.T) {
 	).Scan(&versions); err != nil {
 		t.Fatalf("query migration versions: %v", err)
 	}
-	if versions != 1 {
-		t.Fatalf("migration versions = %d, want 1", versions)
+	if versions != embeddedPostgresMigrationCount(t) {
+		t.Fatalf("migration versions = %d, want %d", versions, embeddedPostgresMigrationCount(t))
 	}
 }
 
@@ -878,37 +890,6 @@ func TestPostgresStore_GetEvent(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_GetChangesForOwner(t *testing.T) {
-	store, err := NewPostgresStore(testPostgresDSN(t))
-	if err != nil {
-		t.Fatalf("NewPostgresStore: %v", err)
-	}
-	defer store.Close()
-
-	base := time.Now().UTC()
-	events := []TimelineEvent{
-		{ID: "owner-a", Timestamp: base, Source: SourceInformer, Kind: "Pod", Namespace: "default", Name: "pod-0", EventType: EventTypeAdd, Owner: &OwnerInfo{Kind: "ReplicaSet", Name: "rs-1"}},
-		{ID: "owner-b", Timestamp: base.Add(time.Minute), Source: SourceInformer, Kind: "Pod", Namespace: "default", Name: "pod-1", EventType: EventTypeAdd, Owner: &OwnerInfo{Kind: "ReplicaSet", Name: "rs-1"}},
-		{ID: "owner-c", Timestamp: base.Add(2 * time.Minute), Source: SourceInformer, Kind: "Pod", Namespace: "default", Name: "pod-2", EventType: EventTypeAdd, Owner: &OwnerInfo{Kind: "ReplicaSet", Name: "rs-2"}},
-	}
-	if err := store.AppendBatch(t.Context(), events); err != nil {
-		t.Fatalf("AppendBatch: %v", err)
-	}
-
-	got, err := store.GetChangesForOwner(t.Context(), "ReplicaSet", "default", "rs-1", "", time.Time{}, 10)
-	if err != nil {
-		t.Fatalf("GetChangesForOwner: %v", err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("got %d events, want 2", len(got))
-	}
-	for _, e := range got {
-		if e.Owner == nil || e.Owner.Name != "rs-1" {
-			t.Fatalf("unexpected event: %+v", e)
-		}
-	}
-}
-
 func TestPostgresStore_SeenResourcesPersist(t *testing.T) {
 	dsn := testPostgresDSN(t)
 	store1, err := NewPostgresStore(dsn)
@@ -1277,5 +1258,41 @@ func TestPostgresStore_ClearSurvivesQueuePressure(t *testing.T) {
 	})
 	if reopened.IsResourceSeen("cluster-a", "", "Deployment", "default", "recreated") {
 		t.Fatal("clear was lost under queue pressure: the resource is still marked seen after restart")
+	}
+}
+
+func embeddedPostgresMigrationCount(t *testing.T) int {
+	t.Helper()
+	entries, err := fs.ReadDir(postgresMigrations, "migrations/postgres")
+	if err != nil {
+		t.Fatalf("read embedded migrations: %v", err)
+	}
+	return len(entries)
+}
+
+func TestNewPostgresStoreBuildsUIDIndexesInTheBackground(t *testing.T) {
+	store, err := NewPostgresStore(testPostgresDSN(t))
+	if err != nil {
+		t.Fatalf("NewPostgresStore: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	})
+	deadline := time.Now().Add(30 * time.Second)
+	for _, index := range postgresBackgroundIndexes {
+		for {
+			var valid bool
+			err := store.db.QueryRowContext(t.Context(),
+				"SELECT i.indisvalid FROM pg_index i WHERE i.indexrelid = to_regclass($1)", index.name).Scan(&valid)
+			if err == nil && valid {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("index %s not built and valid: %v", index.name, err)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
 }

@@ -198,13 +198,6 @@ func (s *Server) handlePodFileDownload(w http.ResponseWriter, r *http.Request) {
 // fails, so the desktop app asks the backend to do the whole thing.
 // POST /api/pods/{ns}/{name}/files/save?container=X&path=/some/file
 func (s *Server) handlePodFileSave(w http.ResponseWriter, r *http.Request) {
-	// Runs a command in a pod and writes a file to the user's disk, which is
-	// exactly what the same-origin check exists to keep a page on another site
-	// from triggering.
-	if !s.sameOriginOK(r) {
-		s.writeError(w, http.StatusForbidden, "cross-origin request rejected")
-		return
-	}
 	if s.saveFileStreamFunc == nil {
 		s.writeError(w, http.StatusNotFound, "not available")
 		return
@@ -811,21 +804,19 @@ func parseLSOutput(output, dirPath string) []*images.FileNode {
 		}
 
 		// ls -la output: permissions links owner group size month day time name [-> target]
-		fields := strings.Fields(line)
-		if len(fields) < 9 {
+		fields, name, ok := splitLSLine(line, 8)
+		if !ok {
 			continue
 		}
-
+		size, _ := strconv.ParseInt(fields[4], 10, 64)
+		if strings.HasSuffix(fields[4], ",") {
+			// Character and block devices print "major, minor" where the size goes.
+			if fields, name, ok = splitLSLine(line, 9); !ok {
+				continue
+			}
+			size = 0
+		}
 		perms := fields[0]
-		sizeStr := fields[4]
-		name := fields[8]
-
-		// Skip . and ..
-		if name == "." || name == ".." {
-			continue
-		}
-
-		size, _ := strconv.ParseInt(sizeStr, 10, 64)
 
 		var nodeType string
 		var linkTarget string
@@ -834,15 +825,16 @@ func parseLSOutput(output, dirPath string) []*images.FileNode {
 			nodeType = "dir"
 		case perms[0] == 'l':
 			nodeType = "symlink"
-			// Extract link target (after "->")
-			for i, f := range fields {
-				if f == "->" && i+1 < len(fields) {
-					linkTarget = strings.Join(fields[i+1:], " ")
-					break
-				}
+			if i := strings.Index(name, " -> "); i >= 0 {
+				name, linkTarget = name[:i], name[i+len(" -> "):]
 			}
 		default:
 			nodeType = "file"
+		}
+
+		// Skip . and ..
+		if name == "." || name == ".." {
+			continue
 		}
 
 		nodePath := path.Join(dirPath, name)
@@ -861,6 +853,24 @@ func parseLSOutput(output, dirPath string) []*images.FileNode {
 
 	sortFileNodes(nodes)
 	return nodes
+}
+
+// splitLSLine returns the first n whitespace-separated fields of an `ls -l`
+// line and the rest of the line verbatim, so a name keeps its inner spaces.
+// ok is false when the line has no name after those fields.
+func splitLSLine(line string, n int) (fields []string, rest string, ok bool) {
+	rest = line
+	for len(fields) < n {
+		rest = strings.TrimLeft(rest, " \t")
+		end := strings.IndexAny(rest, " \t")
+		if end <= 0 {
+			return nil, "", false
+		}
+		fields = append(fields, rest[:end])
+		rest = rest[end:]
+	}
+	rest = strings.TrimLeft(rest, " \t")
+	return fields, rest, rest != ""
 }
 
 // buildRootNode wraps file nodes in a root directory node

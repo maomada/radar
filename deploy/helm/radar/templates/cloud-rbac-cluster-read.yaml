@@ -12,6 +12,12 @@ bindings to the radar:* groups — deliberately NOT via `aggregate-to-view` labe
 which would widen the shared built-in `view`/`edit` roles cluster-wide for every
 other subject bound to them (mirrors the radar-helm add-on pattern).
 
+Leases are namespaced but read here like infrastructure: a Lease's spec is
+only a holder identity and renew times (controller leader election, node
+heartbeats, CloudNativePG primary election). `edit` and `admin` already include them, so
+only the grants built on `view` gain anything: viewers, radar:system and
+radar:ai:reader.
+
 No Secrets and no RBAC objects here — those stay gated behind the tier roles
 (view excludes Secrets; RBAC visibility is rbac.viewRBAC) so this is a pure
 infrastructure-read widening.
@@ -47,8 +53,10 @@ from being truthy.
 {{- $_ := set $csrOn $tier (ne (toString (index $csr $tier)) "false") }}
 {{- end }}
 {{- $rbacDefaults := .Values.cloud.defaultRbac }}
-{{- $anyTier := or (and $rbacDefaults.viewer (get $csrOn "viewer")) (and $rbacDefaults.member (get $csrOn "member")) (and $rbacDefaults.owner (get $csrOn "owner")) }}
-{{- if and .Values.cloud.enabled .Values.cloud.defaultRbac.create .Values.rbac.create $anyTier -}}
+{{- $anyTier := and $rbacDefaults.create (or (and $rbacDefaults.viewer (get $csrOn "viewer")) (and $rbacDefaults.member (get $csrOn "member")) (and $rbacDefaults.owner (get $csrOn "owner"))) }}
+{{- $systemOn := include "radar.cloudSystemRbac" . | eq "true" }}
+{{- $aiOn := include "radar.cloudAiRbac" . | eq "true" }}
+{{- if and .Values.cloud.enabled .Values.rbac.create (or $anyTier $systemOn $aiOn) -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -68,6 +76,9 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["scheduling.k8s.io"]
     resources: ["priorityclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["certificates.k8s.io"]
     resources: ["clustertrustbundles"]
@@ -151,7 +162,7 @@ rules:
 {{- $labels := include "radar.labels" . }}
 {{- $rbac := .Values.cloud.defaultRbac }}
 {{- range $tier := list "viewer" "member" "owner" }}
-{{- if and (index $rbac $tier) (get $csrOn $tier) }}
+{{- if and $rbac.create (index $rbac $tier) (get $csrOn $tier) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -172,5 +183,39 @@ subjects:
     name: cloud:{{ $tier }}
     apiGroup: rbac.authorization.k8s.io
 {{- end }}
+{{- end }}
+{{- if $systemOn }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}-cloud-system-cluster-read
+  labels:
+    {{- $labels | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}-cluster-read
+subjects:
+  - kind: Group
+    name: radar:system
+    apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- if $aiOn }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}-cloud-ai-cluster-read
+  labels:
+    {{- $labels | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}-cluster-read
+subjects:
+  - kind: Group
+    name: radar:ai:reader
+    apiGroup: rbac.authorization.k8s.io
 {{- end }}
 {{- end -}}

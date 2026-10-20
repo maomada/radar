@@ -1039,6 +1039,75 @@ describe('group-qualified lane identity', () => {
     expect(lanes.map((lane) => lane.id)).toEqual(['Cluster.postgresql.cnpg.io/prod/main'])
   })
 
+  it("builds a workload's detail lanes from its scoped history without its Service's other backends", () => {
+    const events = [
+      changeEvent('Deployment', 'prod', 'web', { apiVersion: 'apps/v1' }),
+      changeEvent('ReplicaSet', 'prod', 'web-1', { apiVersion: 'apps/v1', owner: { kind: 'Deployment', name: 'web' } }),
+      changeEvent('Pod', 'prod', 'web-1-a', { apiVersion: 'v1', owner: { kind: 'ReplicaSet', name: 'web-1' } }),
+      changeEvent('Service', 'prod', 'web', { apiVersion: 'v1' }),
+    ]
+    // The Service also fronts a sibling Deployment; with scoped history the
+    // sibling has no events, so nothing of it may appear.
+    const topology = {
+      nodes: [
+        { id: 'service/prod/web', kind: 'Service', name: 'web', status: 'healthy', data: { namespace: 'prod', apiVersion: 'v1' } },
+        { id: 'deployment/prod/web', kind: 'Deployment', name: 'web', status: 'healthy', data: { namespace: 'prod', apiVersion: 'apps/v1' } },
+        { id: 'deployment/prod/api', kind: 'Deployment', name: 'api', status: 'healthy', data: { namespace: 'prod', apiVersion: 'apps/v1' } },
+      ],
+      edges: [
+        { id: 'e1', source: 'service/prod/web', target: 'deployment/prod/web', type: 'exposes' },
+        { id: 'e2', source: 'service/prod/web', target: 'deployment/prod/api', type: 'exposes' },
+      ],
+    } as unknown as Topology
+    const lanes = buildResourceHierarchy({
+      events,
+      topology,
+      rootResource: { kind: 'Deployment', group: 'apps', namespace: 'prod', name: 'web' },
+      groupByApp: true,
+    })
+    const ids = getAllEventsFromHierarchy(lanes).map((e) => e.id).sort()
+    expect(ids).toEqual(['Deployment/prod/web', 'Pod/prod/web-1-a', 'ReplicaSet/prod/web-1', 'Service/prod/web'])
+    const laneNames: string[] = []
+    const walk = (list: ResourceLane[]) => list.forEach((l) => { laneNames.push(l.name); walk(l.children ?? []) })
+    walk(lanes)
+    expect(laneNames).not.toContain('api')
+  })
+
+  describe('history already scoped to the root', () => {
+    const laneNames = (lanes: ResourceLane[]) => {
+      const out: string[] = []
+      const walk = (list: ResourceLane[]) => list.forEach((l) => { out.push(`${l.kind}/${l.name}`); walk(l.children ?? []) })
+      walk(lanes)
+      return out.sort()
+    }
+    const build = (root: { kind: string; group: string; name: string }, events: TimelineEvent[], eventsScopedToRoot: boolean) =>
+      buildResourceHierarchy({ events, rootResource: { ...root, namespace: 'prod' }, eventsScopedToRoot, groupByApp: true })
+
+    it("keeps a StatefulSet's ownerless Pod", () => {
+      const events = [
+        changeEvent('StatefulSet', 'prod', 'db', { apiVersion: 'apps/v1' }),
+        changeEvent('Pod', 'prod', 'db-2', { apiVersion: 'v1' }),
+      ]
+      const root = { kind: 'StatefulSet', group: 'apps', name: 'db' }
+      expect(laneNames(build(root, events, false))).toEqual(['StatefulSet/db'])
+      const lanes = build(root, events, true)
+      expect(laneNames(lanes)).toEqual(['Pod/db-2', 'StatefulSet/db'])
+      expect(getAllEventsFromHierarchy(lanes).map((e) => e.id).sort()).toEqual(['Pod/prod/db-2', 'StatefulSet/prod/db'])
+    })
+
+    it("keeps a CronJob's past runs when the CronJob and a run's Job left no events", () => {
+      const events = [
+        changeEvent('Job', 'prod', 'backup-29012345', { apiVersion: 'batch/v1' }),
+        changeEvent('Pod', 'prod', 'backup-29012346-bcdfg', { apiVersion: 'v1' }),
+      ]
+      const lanes = build({ kind: 'CronJob', group: 'batch', name: 'backup' }, events, true)
+      expect(lanes).toHaveLength(1)
+      expect(lanes[0].name).toBe('backup')
+      expect(laneNames(lanes)).toEqual(['CronJob/backup', 'Job/backup-29012345', 'Pod/backup-29012346-bcdfg'])
+      expect(lanes[0].allEventsSorted).toHaveLength(2)
+    })
+  })
+
   it('keeps core/built-in resource ids bare (byte-stable)', () => {
     const lanes = buildResourceHierarchy({
       events: [
@@ -1457,5 +1526,74 @@ describe('structural app members survive the window filter', () => {
       name: 'old-pod', events: [], isWorkload: false,
     }
     expect(isChildVisibleInWindow(stray, 0, 1000, { pinned: false, userExpanded: false })).toBe(false)
+  })
+})
+
+describe('uses edges in the timeline hierarchy', () => {
+  const node = (kind: string, apiVersion: string, name: string) => ({
+    id: `${kind.toLowerCase()}/team/${name}`, kind, name, status: 'healthy', data: { namespace: 'team', apiVersion },
+  })
+  const topology = {
+    nodes: [
+      node('HorizontalPodAutoscaler', 'autoscaling/v2', 'web'),
+      node('Deployment', 'apps/v1', 'web'),
+      node('Certificate', 'cert-manager.io/v1', 'tls'),
+      node('Issuer', 'cert-manager.io/v1', 'ca'),
+    ],
+    edges: [
+      { id: 'hpa', source: 'horizontalpodautoscaler/team/web', target: 'deployment/team/web', type: 'uses' },
+      { id: 'issuer', source: 'certificate/team/tls', target: 'issuer/team/ca', type: 'uses' },
+    ],
+  } as unknown as Topology
+  const events = [
+    changeEvent('HorizontalPodAutoscaler', 'team', 'web', { apiVersion: 'autoscaling/v2' }),
+    changeEvent('Deployment', 'team', 'web', { apiVersion: 'apps/v1' }),
+    changeEvent('Certificate', 'team', 'tls', { apiVersion: 'cert-manager.io/v1' }),
+    changeEvent('Issuer', 'team', 'ca', { apiVersion: 'cert-manager.io/v1' }),
+  ]
+
+  it('files an autoscaler under its workload but not a dependent under its dependency', () => {
+    const lanes = buildResourceHierarchy({ events, topology, grouping: 'owner' })
+    const top = lanes.map(lane => `${lane.kind}/${lane.name}`).sort()
+    expect(top).toEqual(['Certificate/tls', 'Deployment/web', 'Issuer/ca'])
+    const deployment = lanes.find(lane => lane.kind === 'Deployment')!
+    expect(deployment.children?.map(child => child.kind)).toEqual(['HorizontalPodAutoscaler'])
+  })
+})
+
+describe('buildResourceHierarchy Flux sources', () => {
+  it('keeps a shared Flux source as its own lane instead of nesting it under one consumer', () => {
+    const event = (kind: string, name: string, apiVersion: string): TimelineEvent => ({
+      id: `${kind}/flux-system/${name}`,
+      timestamp: '2024-01-01T00:00:00.000Z',
+      source: 'informer',
+      kind,
+      apiVersion,
+      namespace: 'flux-system',
+      name,
+      eventType: 'update',
+    } as TimelineEvent)
+    const events = [
+      event('GitRepository', 'podinfo', 'source.toolkit.fluxcd.io/v1'),
+      event('Kustomization', 'base', 'kustomize.toolkit.fluxcd.io/v1'),
+      event('Kustomization', 'overlay', 'kustomize.toolkit.fluxcd.io/v1'),
+    ]
+    const topology = {
+      nodes: [
+        { id: 'gitrepository/flux-system/podinfo', kind: 'GitRepository', name: 'podinfo', status: 'healthy', data: { namespace: 'flux-system', apiVersion: 'source.toolkit.fluxcd.io/v1' } },
+        { id: 'kustomization/flux-system/base', kind: 'Kustomization', name: 'base', status: 'healthy', data: { namespace: 'flux-system', apiVersion: 'kustomize.toolkit.fluxcd.io/v1' } },
+        { id: 'kustomization/flux-system/overlay', kind: 'Kustomization', name: 'overlay', status: 'healthy', data: { namespace: 'flux-system', apiVersion: 'kustomize.toolkit.fluxcd.io/v1' } },
+      ],
+      edges: [
+        { id: 'e1', source: 'gitrepository/flux-system/podinfo', target: 'kustomization/flux-system/base', type: 'configures' },
+        { id: 'e2', source: 'gitrepository/flux-system/podinfo', target: 'kustomization/flux-system/overlay', type: 'configures' },
+      ],
+    } as unknown as Topology
+    const lanes = buildResourceHierarchy({ events, topology, grouping: 'owner' })
+    expect(lanes.map((lane) => `${lane.kind}/${lane.name}`).sort()).toEqual([
+      'GitRepository/podinfo',
+      'Kustomization/base',
+      'Kustomization/overlay',
+    ])
   })
 })

@@ -10,11 +10,13 @@ func TestForwardedIdentityAllowed(t *testing.T) {
 		cloudMode bool
 		want      bool
 	}{
-		// Outside Cloud: operator owns the identity chain — never filtered,
-		// including reserved principals a real admin legitimately carries.
+		// Outside Cloud: any group vocabulary, but never reserved principals.
 		{"non-cloud: ordinary identity allowed", "alice@company.com", []string{"sre-team"}, false, true},
-		{"non-cloud: system:masters allowed (operator's cluster)", "admin", []string{"system:masters"}, false, true},
 		{"non-cloud: unprefixed groups allowed", "alice", []string{"platform", "sre"}, false, true},
+		{"non-cloud: prefixed system group allowed", "alice", []string{"oidc:system:masters"}, false, true},
+		{"non-cloud: system:masters group rejected", "admin", []string{"sre-team", "system:masters"}, false, false},
+		{"non-cloud: system username rejected", "system:kube-controller-manager", nil, false, false},
+		{"non-cloud: serviceaccount username rejected", "system:serviceaccount:kube-system:default", nil, false, false},
 
 		// Cloud: reserved-principal rejection.
 		{"cloud: system:masters group rejected", "user_01ABC", []string{"radar:owner", "system:masters"}, true, false},
@@ -29,6 +31,7 @@ func TestForwardedIdentityAllowed(t *testing.T) {
 		{"cloud: non-vocabulary group rejected", "user_01ABC", []string{"radar:owner", "sre-team"}, true, false},
 		{"cloud: empty username rejected", "", []string{"radar:owner"}, true, false},
 		{"cloud mode internal synthetic username allowed", "radar:system:alerts:o1", []string{"radar:owner"}, true, true},
+		{"cloud: AI reader identity allowed", "radar:ai:o1", []string{"radar:ai:reader"}, true, true},
 		{"cloud: no groups, valid user, allowed", "user_01ABC", nil, true, true},
 	}
 	for _, tc := range cases {

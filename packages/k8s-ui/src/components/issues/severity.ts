@@ -70,13 +70,14 @@ const CATEGORY_LABEL: Record<string, string> = {
   pdb_blocks_evictions: 'Evictions blocked',
   secret_sync_failed: 'Secret sync failed',
   service_no_endpoints: 'No endpoints',
+  service_mixed_backends: 'Mixed Service backends',
   ingress_backend_missing: 'Ingress backend missing',
   ingress_class_missing: 'Ingress class missing',
   load_balancer_pending: 'Load balancer pending',
   gateway_not_ready: 'Gateway not ready',
   gateway_route_invalid: 'Gateway route invalid',
   dns_failure: 'DNS failure',
-  network_policy_block: 'Network policy block',
+  network_policy_denied: 'Traffic denied by NetworkPolicy',
   pvc_pending: 'PVC pending',
   pvc_lost: 'PVC lost',
   pv_failed: 'PV failed',
@@ -134,6 +135,27 @@ function humanize(raw: string): string {
 
 export function categoryLabel(category: string): string {
   return CATEGORY_LABEL[category] ?? humanize(category);
+}
+
+// Reasons filed under a category whose label names a different operation:
+// CNPG archiving and an unanswered scheduled run sit under backup_failed.
+const REASON_TITLE: Record<string, string> = {
+  CNPGWALArchivingFailing: "WAL archiving failing",
+  CNPGLastBackupFailed: "Latest backup failed",
+  CNPGScheduleDestinationMissing: "Backup schedule has no destination",
+  CNPGInstanceReadinessMismatch: "Instance Pods contradict Cluster readiness",
+  CNPGPrimaryLabelMismatch: "Primary Pod label contradicts Cluster status",
+  CNPGScheduledRunNoBackup: "No successful backup since a scheduled run",
+};
+
+/** The title a reason has wherever it is shown, when its category's label would name the wrong operation. */
+export function issueReasonTitle(reason: string | undefined): string | undefined {
+  return reason ? REASON_TITLE[reason] : undefined;
+}
+
+/** An issue row's title: its category, unless the reason names it better. */
+export function issueTitle(issue: { category: string; reason?: string }): string {
+  return issueReasonTitle(issue.reason) || categoryLabel(issue.category);
 }
 
 export function groupLabel(group: string): string {

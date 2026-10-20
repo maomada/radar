@@ -23,7 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/skyhook-io/radar/pkg/issuesapi"
 	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/skyhook-io/radar/pkg/timeutil"
 )
 
 const probeFailureWindow = 10 * time.Minute
@@ -43,13 +45,17 @@ const ScaledToZeroReason = "Backing workload scaled to 0"
 
 const livenessProbeFailedReason = "LivenessProbeFailed"
 
+// startupProbeFailedReason is evidence only: a failed startup probe restarts
+// the container like a liveness failure, but it never becomes a row reason.
+const startupProbeFailedReason = "StartupProbeFailed"
+
 // Core ConfigMaps and Secrets have no kind-specific graceful termination phase.
 // Once deletion starts, a remaining finalizer is the only thing keeping the
 // object present, so delayed cleanup is actionable sooner than workload drain.
 const configMapSecretTerminatingWarningAfter = 2 * time.Minute
 
-const terminatingWarningAfter = 10 * time.Minute
-const terminatingCriticalAfter = 30 * time.Minute
+const terminatingWarningAfter = health.NodeRemovalWarningAfter
+const terminatingCriticalAfter = health.NodeRemovalCriticalAfter
 
 type NodeStartupCorroboration struct {
 	Node       string
@@ -74,8 +80,14 @@ type NodeStartupCorroboration struct {
 // successor to the v0 standalone "problems" feature, NOT a parallel surface to
 // issues.
 type Detection struct {
-	NodeStartupCorroboration   *NodeStartupCorroboration `json:"-"`
-	MessageBeforeCorroboration string                    `json:"-"`
+	TerminatingFinalizers []string `json:"-"`
+	// TerminatingRemovals maps each operator finalizer to a dry-run removal.
+	// Issue composition offers one only as a ConditionalCleanup, after finding
+	// no running copy of the finalizer's catalog controller.
+	TerminatingRemovals        map[string]issuesapi.FinalizerRemoval `json:"-"`
+	ConditionalCleanup         *issuesapi.ConditionalCleanup         `json:"-"`
+	NodeStartupCorroboration   *NodeStartupCorroboration             `json:"-"`
+	MessageBeforeCorroboration string                                `json:"-"`
 	Kind                       string
 	Namespace                  string
 	Name                       string
@@ -84,12 +96,15 @@ type Detection struct {
 	Reason                     string
 	Message                    string
 	RawMessage                 string
-	Age                        string // human-readable
-	AgeSeconds                 int64  // for sorting
-	Duration                   string // how long the problem has persisted
-	DurationSeconds            int64
-	OnsetAt                    time.Time
-	ResourceCreatedAt          time.Time
+	// MessageSource is issuesapi.MessageSourceRadar when Message is Radar's
+	// own summary rather than text from Kubernetes or a controller.
+	MessageSource     string
+	Age               string // human-readable
+	AgeSeconds        int64  // for sorting
+	Duration          string // how long the problem has persisted
+	DurationSeconds   int64
+	OnsetAt           time.Time
+	ResourceCreatedAt time.Time
 	// OnsetUnknown is set when the snapshot proves the issue exists but carries
 	// no defensible evidence for when the failing state began. Resource age may
 	// still be populated independently.
@@ -103,6 +118,20 @@ type Detection struct {
 	// mean either non-Pod problem or no crash data on this Pod yet.
 	RestartCount         int32
 	LastTerminatedReason string
+	// RestartLoop is set on a Pod crashloop row emitted because a container is
+	// in an active restart loop (see activeRestartLoop). Nil otherwise.
+	RestartLoop *issuesapi.RestartLoop
+	// AffectedRefs names resources a detection on another subject affects
+	// (the Services, workloads and Pods a NetworkPolicy isolates), so the issue
+	// also shows up on those resources. Ordered most to least important; the
+	// issues layer caps them.
+	AffectedRefs []issuesapi.Ref `json:"-"`
+	// RequiredReads names the inventories a detection read beyond its own
+	// resource whose access is checked per kind, such as a Secret's history.
+	// A caller who can't make them gets Degraded instead, or nothing when
+	// Degraded is nil.
+	RequiredReads []issuesapi.EvidenceRead   `json:"-"`
+	Degraded      *issuesapi.DegradedFinding `json:"-"`
 	// OwnerKind + OwnerName name the topmost stable controller of a Pod
 	// problem (Pod→Deployment, not the intermediate ReplicaSet), resolved
 	// via topOwnerForPod when the Pod is detected. Empty for non-Pod and
@@ -172,7 +201,7 @@ func setDetectionOnset(d *Detection, now, onsetAt time.Time) {
 	}
 	d.OnsetAt = onsetAt.UTC()
 	duration := now.Sub(onsetAt)
-	d.Duration = FormatAge(duration)
+	d.Duration = timeutil.FormatAgeShort(duration)
 	d.DurationSeconds = int64(duration.Seconds())
 	d.OnsetUnknown = false
 }
@@ -272,7 +301,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Action:            "Check the ReplicaSet's events — pod creation is being rejected (often a quota, admission webhook, or PodSecurity rule).",
 					Message:           replicaFailure.Message,
 					Fingerprint:       "deployment:replica-failure",
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: d.CreationTimestamp.Time,
 					IssueTiming:       timingR.IssueTiming,
@@ -304,7 +333,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Group:             "apps",
 					Severity:          "critical",
 					Reason:            fmt.Sprintf("%d/%d available", d.Status.AvailableReplicas, desired),
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: d.CreationTimestamp.Time,
 					IssueTiming:       timingR.IssueTiming,
@@ -352,7 +381,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Reason:            "Rollout stuck",
 					Action:            "Inspect the new pods (image, readiness probe, resources) — the rollout is waiting on them to become ready.",
 					Message:           message,
-					Age:               FormatAge(now.Sub(d.CreationTimestamp.Time)),
+					Age:               timeutil.FormatAgeShort(now.Sub(d.CreationTimestamp.Time)),
 					AgeSeconds:        int64(now.Sub(d.CreationTimestamp.Time).Seconds()),
 					ResourceCreatedAt: d.CreationTimestamp.Time,
 					IssueTiming:       timingR.IssueTiming,
@@ -394,7 +423,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Group:             "apps",
 					Severity:          "critical",
 					Reason:            fmt.Sprintf("%d/%d ready", ss.Status.ReadyReplicas, desired),
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: ss.CreationTimestamp.Time,
 					OnsetUnknown:      true,
@@ -426,7 +455,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Severity:          severity,
 					Reason:            reason,
 					Fingerprint:       fingerprint,
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: ds.CreationTimestamp.Time,
 					OnsetUnknown:      true,
@@ -447,7 +476,8 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 		}
 	}
 
-	probeFailures := latestProbeFailures(cache, namespace, now)
+	probeFailures, containerProbeFailures := latestProbeFailures(cache, namespace, now)
+	var loopRows []loopRow
 	pvcPendingFailures := latestPVCPendingFailures(cache, namespace)
 
 	// Pod problems: high-signal container waiting/terminated states, old
@@ -461,7 +491,10 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 			}
 			healthStr := health.Pod(pod, now).LegacyString()
 			earlyProbeTargetProblem, hasEarlyProbeTargetProblem := activeProbeTargetProblem(pod, "")
-			if healthStr == "healthy" && !hasEarlyProbeTargetProblem {
+			// A restart loop keeps its row through the ticks where the pod
+			// looks healthy between crashes; see restart_loop.go.
+			loop, looping := activeRestartLoop(pod, containerProbeFailures, now)
+			if healthStr == "healthy" && !hasEarlyProbeTargetProblem && !looping {
 				continue
 			}
 			// Unschedulable pods are owned by the scheduling source, which
@@ -478,10 +511,33 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 			ownerGroup, ownerKind, ownerName := podOwnerKindName(cache, pod)
 			reason := health.PodProblemReason(pod, now)
 			message := health.PodProblemMessage(pod)
-			if pf, ok := probeFailures[pod.Namespace+"/"+pod.Name]; ok && shouldUseProbeFailure(pod, reason, lastTermReason, pf.reason, now) {
+			if pf, ok := newestProbeFailure(probeFailures, pod, ""); ok && shouldUseProbeFailure(pod, reason, lastTermReason, pf.reason, now) {
 				reason = pf.reason
 				message = pf.message
 			}
+			// Every per-tick face of a restart loop (crash backoff, a bare
+			// phase, probe failures, high restarts) becomes the one crashloop
+			// row, so the issue id holds for the whole loop. Specific reasons
+			// (image pulls, create errors) and an active OOM keep their own
+			// paths. Applied before the structural checks below so an invalid
+			// probe target still wins on every tick, not only on some.
+			loopActive := looping
+			// An OOM loop replaces the OOM reason too: the row keeps the
+			// crashloop reason and classifies as oom_killed through the loop
+			// container's OOMKilled termination. Another container's active
+			// OOM still owns the row.
+			oomLoop := looping && loop.lastReason == "OOMKilled"
+			oomVeto := health.PodHasActiveOOMKilled(pod, now)
+			if oomLoop {
+				oomVeto = otherContainerActiveOOM(pod, loop.container, now)
+			}
+			if looping && (restartLoopMayReplace(reason) || (oomLoop && reason == "OOMKilled")) && !oomVeto {
+				reason = crashLoopReason
+				message = loop.message()
+			} else {
+				looping = false
+			}
+			rawMessage := ""
 			fingerprint := ""
 			if inv, ok := activeProbeTargetProblem(pod, reason); ok {
 				reason = inv.reason
@@ -491,14 +547,41 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				reason = earlyProbeTargetProblem.reason
 				message = earlyProbeTargetProblem.message
 				fingerprint = earlyProbeTargetProblem.fingerprint
-			} else if init, ok := stalledInitContainerProblem(pod, now); ok {
+			} else if init, ok := stalledInitContainerProblem(pod, now, loopingInitContainer(loop, looping)); ok {
 				reason = init.reason
 				message = init.message
 				fingerprint = init.fingerprint
 			}
-			cause, action, diagnosisSource := oomLimitDiagnosis(cache, pod, reason, lastTermReason, now)
+			// Severity is pinned for the loop (set by setLoopSeverities once
+			// every pod has been seen): serving or down at this instant is a
+			// per-tick fact, and letting it move the severity would drop the
+			// issue out of severity-filtered alerts and bring it back on every
+			// cycle. A structural root (an invalid probe target) that wins the
+			// row during a loop is pinned the same way.
+			pinLoopSeverity := loopActive && (fingerprint != "" || (looping && reason == crashLoopReason))
+			// Rows pinned for a loop carry its evidence, including a
+			// structural root's row: the evidence is what lets the issues
+			// layer fold the workload's availability row into either.
+			var restartLoopEvidence *issuesapi.RestartLoop
+			var oomStatuses []corev1.ContainerStatus
+			if pinLoopSeverity {
+				restartLoopEvidence = loop.evidence()
+			}
+			isLoopRow := looping && reason == crashLoopReason
+			if isLoopRow {
+				// The loop container's own restart count and last termination
+				// replace the pod-wide ones so every field on the row
+				// describes one container.
+				restartCount = loop.restartCount
+				lastTermReason = loop.lastReason
+				rawMessage = loop.lastMessage
+				oomStatuses = loop.oomStatuses()
+			}
+			cause, action, diagnosisSource := oomLimitDiagnosis(cache, pod, reason, lastTermReason, oomStatuses, now)
 			if cause == "" {
-				if reason == crashLoopReason {
+				if isLoopRow {
+					cause, action = loop.diagnosis()
+				} else if reason == crashLoopReason {
 					cause, action = health.PodCrashLoopDiagnosis(pod, now)
 				} else {
 					cause, action = imagePullDiagnosis(reason, message)
@@ -601,12 +684,14 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				Severity:             severity,
 				Reason:               reason,
 				Message:              message,
+				RawMessage:           rawMessage,
 				Fingerprint:          fingerprint,
-				Age:                  FormatAge(ageDur),
+				Age:                  timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:           int64(ageDur.Seconds()),
 				ResourceCreatedAt:    pod.CreationTimestamp.Time,
 				RestartCount:         restartCount,
 				LastTerminatedReason: lastTermReason,
+				RestartLoop:          restartLoopEvidence,
 				OwnerGroup:           ownerGroup,
 				OwnerKind:            ownerKind,
 				OwnerName:            ownerName,
@@ -619,9 +704,13 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 			// The evidence above classifies workload/rollout timing, not when this
 			// Pod's specific waiting or termination reason began.
 			setDetectionOnset(&detection, now, time.Time{})
+			if pinLoopSeverity {
+				loopRows = append(loopRows, loopRow{index: len(problems), owner: loopOwnerKey(pod, ownerGroup, ownerKind, ownerName), fast: loop.fast()})
+			}
 			problems = append(problems, detection)
 		}
 	}
+	setLoopSeverities(cache, problems, loopRows, podsByNamespace)
 
 	// Service problems: routing health that workload .status often misses.
 	// EndpointSlice would be the strongest source for realized backend state,
@@ -651,7 +740,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Action:            "Check the cloud load-balancer controller and provider quota / subnet annotations.",
 					Message:           "Service is type LoadBalancer but has no assigned external address",
 					Fingerprint:       "svc:loadbalancer-pending",
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					OnsetUnknown:      true,
 					ResourceCreatedAt: svc.CreationTimestamp.Time,
@@ -660,6 +749,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 			problems = append(problems, detectServiceBackendProblems(cache, svc, podsByNamespace[svc.Namespace], now)...)
 		}
 	}
+	problems = append(problems, detectNetworkPolicyDenyAllIngress(cache, namespace, podsByNamespace, now)...)
 
 	// HPA problems
 	if hpaLister := cache.HorizontalPodAutoscalers(); hpaLister != nil {
@@ -723,7 +813,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				// problems with distinct fixes. Fingerprint on the problem kind so
 				// they don't collapse into one hpa_limited_or_failed row.
 				Fingerprint:       "hpa:" + hp.Problem,
-				Age:               FormatAge(ageDur),
+				Age:               timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:        int64(ageDur.Seconds()),
 				ResourceCreatedAt: hpaCreatedAt,
 				IssueTiming:       hpaIssueTiming.IssueTiming,
@@ -771,7 +861,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				Severity:          "medium",
 				Reason:            cp.Problem,
 				Message:           cp.Reason,
-				Age:               FormatAge(ageDur),
+				Age:               timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:        int64(ageDur.Seconds()),
 				ResourceCreatedAt: createdAt,
 			}
@@ -817,7 +907,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				Action:            "Relax the PDB (minAvailable / maxUnavailable) or add replicas so drains and node upgrades can proceed.",
 				Message:           pdbBlocksEvictionsMessage(pdb),
 				Fingerprint:       "pdb:zero-disruptions",
-				Age:               FormatAge(ageDur),
+				Age:               timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:        int64(ageDur.Seconds()),
 				ResourceCreatedAt: pdb.CreationTimestamp.Time,
 			}
@@ -839,11 +929,14 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				}
 				ageDur = now.Sub(n.CreationTimestamp.Time)
 				nodeCreatedAt = n.CreationTimestamp.Time
+				if np.Problem == "Removal delayed" {
+					nodeOnsetAt = health.NodeLifecycle(n, now).StartedAt
+				}
 				// Map each problem type to its own condition so issue_timing and
 				// DurationSeconds reflect the right LTT:
 				//   NotReady      → NodeReady condition
 				//   *Pressure     → matching pressure condition
-				//   Cordoned      → no condition, omit issue_timing
+				//   Removal delayed → removal marker timestamp
 				var targetCondType corev1.NodeConditionType
 				switch np.Problem {
 				case "NotReady":
@@ -854,6 +947,8 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					targetCondType = corev1.NodeDiskPressure
 				case "PIDPressure":
 					targetCondType = corev1.NodePIDPressure
+				case "NetworkUnavailable":
+					targetCondType = corev1.NodeNetworkUnavailable
 				}
 				if targetCondType != "" {
 					for _, cond := range n.Status.Conditions {
@@ -878,13 +973,17 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				Kind:              "Node",
 				Name:              np.NodeName,
 				Severity:          np.Severity,
+				Action:            np.Action,
 				Reason:            np.Problem,
 				Message:           np.Reason,
-				Age:               FormatAge(ageDur),
+				Age:               timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:        int64(ageDur.Seconds()),
 				ResourceCreatedAt: nodeCreatedAt,
 				IssueTiming:       nodeIssueTiming.IssueTiming,
 				IssueTimingBasis:  nodeIssueTiming.Basis,
+			}
+			if np.Problem != "NotReady" {
+				detection.Fingerprint = "node:" + np.Problem
 			}
 			setDetectionOnset(&detection, now, nodeOnsetAt)
 			problems = append(problems, detection)
@@ -914,7 +1013,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Reason:            "Lost",
 					Message:           "PVC has lost its bound volume",
 					Action:            "The bound PersistentVolume is gone — restore it from backup or recreate the PVC (data may be unrecoverable).",
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: pvc.CreationTimestamp.Time,
 					OnsetUnknown:      true,
@@ -943,7 +1042,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Reason:            resize.reason,
 					Message:           resize.message,
 					Fingerprint:       "pvc:resize:" + resize.reason,
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: pvc.CreationTimestamp.Time,
 					IssueTiming:       resizeIssueTiming.IssueTiming,
@@ -977,7 +1076,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 						Severity:          "high",
 						Reason:            "Pending",
 						Message:           message,
-						Age:               FormatAge(ageDur),
+						Age:               timeutil.FormatAgeShort(ageDur),
 						AgeSeconds:        int64(ageDur.Seconds()),
 						ResourceCreatedAt: pvc.CreationTimestamp.Time,
 						Cause:             cause,
@@ -1012,7 +1111,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 				Reason:            "Failed",
 				Message:           pv.Status.Message,
 				Action:            "Check the volume's status message and the storage backend / CSI driver events; replace the PV only after confirming the data and its reclaim policy.",
-				Age:               FormatAge(ageDur),
+				Age:               timeutil.FormatAgeShort(ageDur),
 				AgeSeconds:        int64(ageDur.Seconds()),
 				ResourceCreatedAt: pv.CreationTimestamp.Time,
 				OnsetUnknown:      true,
@@ -1051,7 +1150,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Severity:          "critical",
 					Reason:            reason,
 					Message:           cond.Message,
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: job.CreationTimestamp.Time,
 				}
@@ -1070,8 +1169,8 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					Name:              job.Name,
 					Group:             "batch",
 					Severity:          "high",
-					Reason:            fmt.Sprintf("Running for %s with no completions", FormatAge(ageDur)),
-					Age:               FormatAge(ageDur),
+					Reason:            fmt.Sprintf("Running for %s with no completions", timeutil.FormatAgeShort(ageDur)),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: job.CreationTimestamp.Time,
 				}
@@ -1112,7 +1211,7 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 					// One Deployment can share multiple distinct RWO PVCs; fingerprint
 					// per PVC so each is its own row rather than collapsing into one.
 					Fingerprint:       "pvc-rwo-multireplica:" + pvcName,
-					Age:               FormatAge(ageDur),
+					Age:               timeutil.FormatAgeShort(ageDur),
 					AgeSeconds:        int64(ageDur.Seconds()),
 					ResourceCreatedAt: d.CreationTimestamp.Time,
 					OnsetUnknown:      true,
@@ -1226,6 +1325,23 @@ func detectServiceBackendProblems(cache *ResourceCache, svc *corev1.Service, pod
 			"svc:unresolved-targetport",
 		))
 	}
+	if backends := AnalyzeServiceBackends(cache, svc, selected); backends.Mismatched() {
+		det := serviceBackendDetection(svc, ageDur, "warning", ServiceMixedBackendsReason, backends.Problem(svc.Name), ServiceMixedBackendsFingerprint)
+		det.Cause = backends.Cause()
+		det.Action = "If only one of these workloads should receive this traffic, narrow the Service selector to labels only its pods carry, or remove the matching label from the other workload's pod template."
+		// The workload names and their ports come from the Pods, and from the
+		// ReplicaSets behind them for a Deployment or Rollout.
+		det.RequiredReads = []issuesapi.EvidenceRead{{Resource: "pods", Namespace: svc.Namespace, Verb: "list"}}
+		if backends.ResolvedThroughReplicaSets {
+			det.RequiredReads = append(det.RequiredReads, issuesapi.EvidenceRead{Group: "apps", Resource: "replicasets", Namespace: svc.Namespace, Verb: "list"})
+		}
+		det.Degraded = &issuesapi.DegradedFinding{
+			Message: fmt.Sprintf("Service %s routes to pods of more than one %s", svc.Name, backends.Noun()),
+			Cause:   fmt.Sprintf("The Service selector matches pods of more than one %s, so part of its traffic reaches pods that may not serve it.", backends.Noun()),
+			Action:  det.Action,
+		}
+		problems = append(problems, det)
+	}
 	return problems
 }
 
@@ -1238,7 +1354,7 @@ func serviceBackendDetection(svc *corev1.Service, age time.Duration, severity, r
 		Reason:            reason,
 		Message:           message,
 		Fingerprint:       fingerprint,
-		Age:               FormatAge(age),
+		Age:               timeutil.FormatAgeShort(age),
 		AgeSeconds:        int64(age.Seconds()),
 		ResourceCreatedAt: svc.CreationTimestamp.Time,
 		OnsetUnknown:      true,
@@ -1324,18 +1440,28 @@ func missingNamedProbePort(c corev1.Container, probe *corev1.Probe) (string, boo
 	return port.StrVal, true
 }
 
-func stalledInitContainerProblem(pod *corev1.Pod, now time.Time) (podSpecificProblem, bool) {
+// stalledInitContainerProblem reports an init container that has been running
+// long enough to block the pod. skip names an init container already reported
+// as a restart loop: each of its long attempts is part of that loop, not a
+// separate stall.
+func stalledInitContainerProblem(pod *corev1.Pod, now time.Time, skip string) (podSpecificProblem, bool) {
 	if pod.Status.Phase != corev1.PodPending {
 		return podSpecificProblem{}, false
 	}
 	for _, cs := range pod.Status.InitContainerStatuses {
-		if cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
+		if cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() || cs.Name == skip {
+			continue
+		}
+		// A started native sidecar is meant to keep running and no longer
+		// blocks the pod. One whose startup probe has not passed
+		// (Started=false) still holds back the containers after it.
+		if isNativeSidecarName(pod, cs.Name) && cs.Started != nil && *cs.Started {
 			continue
 		}
 		if now.Sub(cs.State.Running.StartedAt.Time) < 5*time.Minute {
 			continue
 		}
-		msg := fmt.Sprintf("init container %q has been running for %s and is blocking the pod from starting", cs.Name, FormatAge(now.Sub(cs.State.Running.StartedAt.Time)))
+		msg := fmt.Sprintf("init container %q has been running for %s and is blocking the pod from starting", cs.Name, timeutil.FormatAgeShort(now.Sub(cs.State.Running.StartedAt.Time)))
 		if detail := initContainerSpecSummary(pod, cs.Name); detail != "" {
 			msg += "; " + detail
 		}
@@ -1506,10 +1632,17 @@ func pvcPendingFailureFromEvent(e *corev1.Event) (pvcPendingFailure, bool) {
 	return f, true
 }
 
-func latestProbeFailures(cache *ResourceCache, namespace string, now time.Time) map[string]probeFailure {
+// latestProbeFailures returns, per pod incarnation (probeFailureKey), the
+// newest liveness or readiness probe failure inside probeFailureWindow, and
+// the same newest failure per container and probe type (key + "/container/
+// reason"; container is empty when the event carries no container fieldPath).
+// Reducing within one incarnation keeps a predecessor's later-stamped event
+// from displacing the current pod's.
+func latestProbeFailures(cache *ResourceCache, namespace string, now time.Time) (map[string]probeFailure, map[string]probeFailure) {
 	out := map[string]probeFailure{}
+	byContainer := map[string]probeFailure{}
 	if cache == nil || cache.Events() == nil {
-		return out
+		return out, byContainer
 	}
 	var events []*corev1.Event
 	if namespace != "" {
@@ -1529,13 +1662,34 @@ func latestProbeFailures(cache *ResourceCache, namespace string, now time.Time) 
 		if t.IsZero() || now.Sub(t) > probeFailureWindow {
 			continue
 		}
-		key := e.InvolvedObject.Namespace + "/" + e.InvolvedObject.Name
+		key := probeFailureKey(e.InvolvedObject.Namespace, e.InvolvedObject.Name, e.InvolvedObject.UID)
+		pf := probeFailure{reason: reason, message: strings.TrimSpace(e.Message), at: t}
+		containerKey := key + "/" + eventContainerName(e.InvolvedObject.FieldPath) + "/" + reason
+		if cur, exists := byContainer[containerKey]; !exists || t.After(cur.at) {
+			byContainer[containerKey] = pf
+		}
+		if reason == startupProbeFailedReason {
+			continue
+		}
 		if cur, exists := out[key]; exists && !t.After(cur.at) {
 			continue
 		}
-		out[key] = probeFailure{reason: reason, message: strings.TrimSpace(e.Message), at: t}
+		out[key] = pf
 	}
-	return out
+	return out, byContainer
+}
+
+// eventContainerName extracts the container from a pod event's fieldPath
+// ("spec.containers{app}" or "spec.initContainers{proxy}"); empty otherwise.
+func eventContainerName(fieldPath string) string {
+	for _, prefix := range []string{"spec.containers{", "spec.initContainers{"} {
+		if rest, ok := strings.CutPrefix(fieldPath, prefix); ok {
+			if name, ok := strings.CutSuffix(rest, "}"); ok {
+				return name
+			}
+		}
+	}
+	return ""
 }
 
 func classifyProbeFailureEvent(reason, msg string) (string, bool) {
@@ -1548,6 +1702,8 @@ func classifyProbeFailureEvent(reason, msg string) (string, bool) {
 		return livenessProbeFailedReason, true
 	case strings.Contains(lower, "readiness probe failed"):
 		return readinessProbeFailedReason, true
+	case strings.Contains(lower, "startup probe failed"):
+		return startupProbeFailedReason, true
 	default:
 		return "", false
 	}
@@ -1575,15 +1731,19 @@ func terminatingProblem(kind, group string, obj metav1.Object, now time.Time) (D
 	if obj.GetDeletionTimestamp() == nil {
 		return Detection{}, false
 	}
+	return terminatingProblemSince(kind, group, obj, now, obj.GetDeletionTimestamp().Time)
+}
+
+func terminatingProblemSince(kind, group string, obj metav1.Object, now, startedAt time.Time) (Detection, bool) {
 	finalizers := obj.GetFinalizers()
 	usesShortWarningWindow := group == "" &&
 		(kind == "ConfigMap" || kind == "Secret") &&
-		hasNonGarbageCollectionFinalizer(finalizers)
+		HasNonGarbageCollectionFinalizer(finalizers)
 	warningAfter := terminatingWarningAfter
 	if usesShortWarningWindow {
 		warningAfter = configMapSecretTerminatingWarningAfter
 	}
-	duration := now.Sub(obj.GetDeletionTimestamp().Time)
+	duration := now.Sub(startedAt)
 	if duration < warningAfter {
 		return Detection{}, false
 	}
@@ -1603,7 +1763,7 @@ func terminatingProblem(kind, group string, obj metav1.Object, now time.Time) (D
 	// existed for a real window before deletion classifies post-healthy. A
 	// hardcoded post-healthy label would overstate the evidence for
 	// create-then-delete churn.
-	timingR := IssueTimingFromConditionLTT(obj.GetDeletionTimestamp().Time, obj.GetCreationTimestamp().Time, "deletion")
+	timingR := IssueTimingFromConditionLTT(startedAt, obj.GetCreationTimestamp().Time, "deletion")
 	detection := Detection{
 		Kind:              kind,
 		Group:             group,
@@ -1614,17 +1774,17 @@ func terminatingProblem(kind, group string, obj metav1.Object, now time.Time) (D
 		Action:            "Check for finalizers holding the object (metadata.finalizers) and whether their controller is running.",
 		Message:           msg,
 		Fingerprint:       "lifecycle:terminating",
-		Age:               FormatAge(now.Sub(obj.GetCreationTimestamp().Time)),
+		Age:               timeutil.FormatAgeShort(now.Sub(obj.GetCreationTimestamp().Time)),
 		AgeSeconds:        int64(now.Sub(obj.GetCreationTimestamp().Time).Seconds()),
 		ResourceCreatedAt: obj.GetCreationTimestamp().Time,
 		IssueTiming:       timingR.IssueTiming,
 		IssueTimingBasis:  timingR.Basis,
 	}
-	setDetectionOnset(&detection, now, obj.GetDeletionTimestamp().Time)
+	setDetectionOnset(&detection, now, startedAt)
 	return detection, true
 }
 
-func hasNonGarbageCollectionFinalizer(finalizers []string) bool {
+func HasNonGarbageCollectionFinalizer(finalizers []string) bool {
 	for _, finalizer := range finalizers {
 		// Garbage collection may legitimately wait for dependents to finish
 		// terminating, so it keeps the generic grace period.

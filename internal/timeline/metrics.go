@@ -21,6 +21,10 @@ type EventMetrics struct {
 	RecentDrops    []DropRecord
 	maxRecentDrops int
 
+	// lastStoreFailure is when each kind last failed to store, kept apart
+	// from the RecentDrops ring so routine drops cannot push it out.
+	lastStoreFailure map[string]time.Time
+
 	// Query counters
 	EventsQueried  int64
 	EventsFiltered int64
@@ -48,12 +52,12 @@ type DropRecord struct {
 
 // DropReason constants for categorizing why events are dropped
 const (
-	DropReasonNoisyFilter    = "noisy_filter"
-	DropReasonChannelFull    = "channel_full"
-	DropReasonAlreadySeen    = "already_seen"
-	DropReasonHistoryNil     = "history_nil"
-	DropReasonStoreFailed    = "store_failed"
-	DropReasonSubscriberFull = "subscriber_full"
+	DropReasonNoisyFilter = "noisy_filter"
+	DropReasonChannelFull = "channel_full"
+	DropReasonAlreadySeen = "already_seen"
+	DropReasonHistoryNil  = "history_nil"
+	DropReasonStoreFailed = "store_failed"
+	DropReasonStoreDown   = "store_unavailable"
 	// DropReasonNoDiff: update event for a kind whose diff function found no
 	// observable change. Heartbeats, managed-fields-only updates, reconcile
 	// counters — see KindHasDiffer for the audited set.
@@ -74,12 +78,13 @@ var (
 func initMetrics() {
 	metricsOnce.Do(func() {
 		globalMetrics = &EventMetrics{
-			EventsReceived: make(map[string]int64),
-			EventsDropped:  make(map[string]int64),
-			EventsRecorded: make(map[string]int64),
-			RecentDrops:    make([]DropRecord, 0, 100),
-			maxRecentDrops: 100,
-			startTime:      time.Now(),
+			EventsReceived:   make(map[string]int64),
+			EventsDropped:    make(map[string]int64),
+			EventsRecorded:   make(map[string]int64),
+			RecentDrops:      make([]DropRecord, 0, 100),
+			maxRecentDrops:   100,
+			lastStoreFailure: make(map[string]time.Time),
+			startTime:        time.Now(),
 		}
 	})
 }
@@ -141,6 +146,9 @@ func RecordDrop(kind, namespace, name, reason, operation, clusterContext string)
 	defer m.mu.Unlock()
 
 	m.EventsDropped[reason]++
+	if reason == DropReasonStoreFailed {
+		m.lastStoreFailure[kind] = time.Now()
+	}
 
 	record := DropRecord{
 		Kind:           kind,
@@ -160,6 +168,14 @@ func RecordDrop(kind, namespace, name, reason, operation, clusterContext string)
 	} else {
 		m.RecentDrops = append(m.RecentDrops, record)
 	}
+}
+
+// LastStoreFailure returns when kind last failed to store, or the zero time.
+func LastStoreFailure(kind string) time.Time {
+	m := GetMetrics()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.lastStoreFailure[kind]
 }
 
 // GetSnapshot returns a snapshot of the current metrics
@@ -202,6 +218,7 @@ func (m *EventMetrics) Reset() {
 	m.EventsDropped = make(map[string]int64)
 	m.EventsRecorded = make(map[string]int64)
 	m.RecentDrops = make([]DropRecord, 0, m.maxRecentDrops)
+	m.lastStoreFailure = make(map[string]time.Time)
 	m.EventsQueried = 0
 	m.EventsFiltered = 0
 	m.startTime = time.Now()
@@ -247,6 +264,7 @@ func ResetMetricsForContextSwitch() {
 	m.EventsDropped = make(map[string]int64)
 	m.EventsRecorded = make(map[string]int64)
 	m.RecentDrops = make([]DropRecord, 0, m.maxRecentDrops)
+	m.lastStoreFailure = make(map[string]time.Time)
 	m.EventsQueried = 0
 	m.EventsFiltered = 0
 }
@@ -420,9 +438,6 @@ func GetDiagnosis(kind, namespace, name, clusterContext string, allow func(kind,
 			case DropReasonAlreadySeen:
 				resp.Recommendations = append(resp.Recommendations,
 					"Resource marked as already seen - this is normal for informer restarts")
-			case DropReasonSubscriberFull:
-				resp.Recommendations = append(resp.Recommendations,
-					"SSE subscriber channel full - clients may not be keeping up with event stream")
 			}
 		}
 	}

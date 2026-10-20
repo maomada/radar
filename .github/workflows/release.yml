@@ -24,6 +24,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Require What's New notes for minor releases
+        run: bash scripts/check-whats-new.sh "$GITHUB_REF_NAME"
+
       - name: Get version
         id: version
         run: |
@@ -58,7 +61,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 

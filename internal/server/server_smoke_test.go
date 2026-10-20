@@ -975,11 +975,6 @@ func TestSmokeChangesNameFilter(t *testing.T) {
 	}
 }
 
-func TestSmokeChangeChildren(t *testing.T) {
-	var body []any
-	assertOK(t, get(t, "/api/changes/deployments/default/nginx/children"), &body)
-}
-
 // --- AI resources ---
 
 func TestSmokeAIListDeployments(t *testing.T) {
@@ -1991,8 +1986,14 @@ func TestSmokeCapabilitiesShape(t *testing.T) {
 		}
 	}
 
-	if !body.Features["yamlReview"] || !body.Features["yamlSchemas"] || !body.Features["workloadImages"] {
-		t.Fatalf("capabilities.features = %v, want YAML review, schemas, and workload images enabled", body.Features)
+	// Every advertised feature flag must be on: a false one would make a newer
+	// embedded frontend tell the user to upgrade a Radar that already serves it.
+	featuresType := reflect.TypeOf(k8s.FeatureCapabilities{})
+	for i := 0; i < featuresType.NumField(); i++ {
+		tag := featuresType.Field(i).Tag.Get("json")
+		if !body.Features[tag] {
+			t.Errorf("capabilities.features[%q] = false, want true (features = %v)", tag, body.Features)
+		}
 	}
 }
 
@@ -2052,5 +2053,19 @@ func TestSmokeChangesExactGroup(t *testing.T) {
 	}
 	if got := versions("batch.volcano.sh"); len(got) != 1 || !got["batch.volcano.sh/v1alpha1"] {
 		t.Fatalf("Volcano Job history = %v, want only its own versioned rows", got)
+	}
+}
+
+func TestPodMetricsHistoryAPIReachability(t *testing.T) {
+	for _, tc := range []struct {
+		lastSuccess string
+		failures    int
+		reachable   bool
+	}{{"", 0, false}, {"2026-10-06T00:00:00Z", 0, true}, {"2026-10-06T00:00:00Z", 1, false}} {
+		health := k8s.MetricsCollectionHealth{PodMetrics: k8s.MetricsSourceHealth{LastSuccess: tc.lastSuccess, ConsecutiveErrors: tc.failures, LastError: "transport failed"}}
+		got := podMetricsHistoryResponse(context.Background(), nil, "default", "nginx", health, false)
+		if got.MetricsAPIReachable != tc.reachable {
+			t.Fatalf("%+v: %+v", tc, got)
+		}
 	}
 }

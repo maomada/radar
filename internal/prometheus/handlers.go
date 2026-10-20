@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,9 +47,9 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 
 // handleStatus returns the current Prometheus connection status.
 func handleStatus(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeJSON(w, http.StatusOK, prom.Status{Available: false, Error: "Prometheus client not initialized"})
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeJSON(w, http.StatusOK, prom.Status{Available: false, Error: connectionErr.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, client.GetStatus())
@@ -60,9 +61,9 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 // here would let any caller redirect Prometheus queries to an arbitrary
 // host (SSRF) since radar binds to 0.0.0.0 by default.
 func handleConnect(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 
@@ -164,9 +165,9 @@ const restMaxScopePods = 500
 // handleResourceMetrics returns Prometheus metrics for a specific resource.
 // Query params: category (cpu|memory|network_rx|network_tx|filesystem, default: cpu), range (10m|30m|1h|...|14d, default: 1h)
 func handleResourceMetrics(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 
@@ -227,7 +228,7 @@ func handleResourceMetrics(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "cluster cache not ready")
 			return
 		}
-		resolved, err := ResolvePodScope(cache, kind, namespace, name, restMaxScopePods)
+		resolved, err := ResolvePodScope(r.Context(), cache, kind, namespace, name, restMaxScopePods)
 		if err != nil {
 			switch {
 			case errors.Is(err, k8s.ErrWorkloadCacheWarming):
@@ -237,9 +238,15 @@ func handleResourceMetrics(w http.ResponseWriter, r *http.Request) {
 				// identity may not have, or a namespace its informer was
 				// scoped away from. Retrying will not change it, and 503
 				// tells the caller it might.
-				writeError(w, http.StatusForbidden, "cluster cache cannot list the workload's pods: "+err.Error())
+				writeError(w, http.StatusForbidden, "cluster cache cannot establish the workload's Pod membership: "+err.Error())
 			case errors.Is(err, ErrPodScopeUnsupportedKind):
 				writeError(w, http.StatusBadRequest, "cannot resolve pods for "+kind)
+			case errors.Is(err, context.Canceled):
+				// The caller left while a Rollout or Workflow inventory was
+				// still starting; there is nobody to answer.
+				return
+			case errors.Is(err, k8s.ErrUnknownDynamicKind):
+				writeError(w, http.StatusBadRequest, k8s.CanonicalWorkloadKind(kind)+" (argoproj.io) is not installed or not yet discovered in this cluster")
 			default:
 				log.Printf("[prometheus] Pod scope failed for %q/%q/%q: %v", kind, namespace, name, err)
 				writeError(w, http.StatusBadGateway, "could not resolve the workload's pods: "+err.Error())
@@ -299,9 +306,9 @@ func handleResourceMetrics(w http.ResponseWriter, r *http.Request) {
 
 // handleClusterScopedResourceMetrics handles metrics for cluster-scoped resources (e.g. Node).
 func handleClusterScopedResourceMetrics(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 
@@ -381,9 +388,9 @@ type NamespaceMetricsResponse struct {
 
 // handleNamespaceMetrics returns aggregate metrics for a namespace.
 func handleNamespaceMetrics(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 
@@ -442,9 +449,9 @@ type ClusterMetricsResponse struct {
 
 // handleClusterMetrics returns aggregate metrics for the entire cluster.
 func handleClusterMetrics(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 
@@ -506,9 +513,9 @@ type RawQueryResponse struct {
 // handleRawQuery proxies a raw PromQL query to Prometheus.
 // Query params: query (PromQL), range (time range), type (instant|range)
 func handleRawQuery(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 	if !canReadClusterWideMetrics(r) {
@@ -577,9 +584,9 @@ type HPAMetricsResponse struct {
 // cluster-wide grant raw PromQL requires.
 // Query params: range (10m|30m|1h|...|14d, default: 1h)
 func handleHPAMetrics(w http.ResponseWriter, r *http.Request) {
-	client := GetClient()
-	if client == nil {
-		writeError(w, http.StatusServiceUnavailable, "Prometheus client not initialized")
+	client, connectionErr := ClientForOperation()
+	if connectionErr != nil {
+		writeError(w, http.StatusServiceUnavailable, connectionErr.Error())
 		return
 	}
 

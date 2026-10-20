@@ -13,9 +13,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/skyhook-io/radar/internal/issues"
 	"github.com/skyhook-io/radar/internal/k8s"
@@ -23,7 +25,6 @@ import (
 	"github.com/skyhook-io/radar/internal/reachability"
 	"github.com/skyhook-io/radar/internal/trace"
 	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
 	"github.com/skyhook-io/radar/pkg/issuesapi"
 	"github.com/skyhook-io/radar/pkg/k8score"
 	"github.com/skyhook-io/radar/pkg/probe"
@@ -198,6 +199,8 @@ type startupBlocker struct {
 	Reason   string `json:"reason"`
 	Severity string `json:"severity"`
 	Message  string `json:"message"`
+	Cause    string `json:"cause,omitempty"`
+	Action   string `json:"action,omitempty"`
 }
 
 type diagnoseDNSContext struct {
@@ -314,6 +317,10 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 		}
 	}
 	k8s.SetTypeMeta(obj)
+	objectMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read resource metadata: %w", err)
+	}
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	canonicalGroup := gvk.Group
 	canonicalKind := gvk.Kind
@@ -325,11 +332,11 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 		return nil, nil, fmt.Errorf("failed to minify: %w", err)
 	}
 
-	pods, err := resolveDiagnosePods(cache, kindNorm, input.Namespace, input.Name, obj)
-	podsNotListable := errors.Is(err, errPodsNotListable)
-	podsCacheWarming := errors.Is(err, errPodsCacheWarming)
-	if err != nil && !podsNotListable && !podsCacheWarming {
-		return nil, nil, err
+	pods, podsErr := resolveDiagnosePods(cache, kindNorm, input.Namespace, input.Name, obj)
+	podsNotListable := errors.Is(podsErr, errPodsNotListable)
+	podsCacheWarming := errors.Is(podsErr, errPodsCacheWarming)
+	if podsErr != nil && !podsNotListable && !podsCacheWarming {
+		return nil, nil, podsErr
 	}
 	issueSummary, issueRows := computeMCPIssueContext(ctx, cache, canonicalGroup, canonicalKind, input.Namespace, input.Name, true)
 	resCtx := buildMCPResourceContextWithStaleChecks(
@@ -366,7 +373,7 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 	metricsWG.Add(1)
 	go func() {
 		defer metricsWG.Done()
-		metrics = diagnoseWorkloadMetrics(ctx, input.Group, kindNorm, input.Namespace, input.Name, pods, diagnoseMetricsSince(sinceSeconds), time.Now())
+		metrics = diagnoseWorkloadMetrics(ctx, input.Group, kindNorm, input.Namespace, input.Name, pods, podsErr, diagnoseMetricsSince(sinceSeconds), time.Now())
 	}()
 
 	podNames, podNamesTruncated := diagnosePodNames(pods)
@@ -434,7 +441,7 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 		)
 	}
 
-	events, eventsTotalGroups, eventsErr := fetchEventsForResource(cache, kindNorm, canonicalGroup, input.Namespace, input.Name, pods, 10)
+	events, eventsTotalGroups, eventsExcluded, eventsErr := fetchEventsForResource(cache, kindNorm, canonicalGroup, input.Namespace, input.Name, objectMeta.GetUID(), types.UID(objectMeta.GetAnnotations()[corev1.MirrorPodAnnotationKey]), pods, 10)
 	resp.Events = events
 	resp.EventsTotalGroups = eventsTotalGroups
 	if eventsErr != nil {
@@ -453,7 +460,7 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 		}
 	}
 	changeSourceAPIVersion := func(sourceKind string) string {
-		if meaningfulchanges.ConfigMapKind(sourceKind) {
+		if meaningfulchanges.ConfigMapKind(sourceKind) || sourceKind == "Secret" {
 			return "v1"
 		}
 		return gvk.GroupVersion().String()
@@ -475,6 +482,7 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 				mcpChangeAuthorizer(ctx),
 			)
 		},
+		recentChangeViewer(ctx),
 	)
 	resp.RecentChangesCoverageLimited = changesCoverageLimited
 	resp.RecentChangesSaturated = changesResult.OutputCapped || changesResult.FetchSaturated
@@ -491,10 +499,13 @@ func handleDiagnose(ctx context.Context, _ *mcp.CallToolRequest, input diagnoseI
 	if podsNotListable {
 		// Say it plainly: everything pod-derived is empty because the pods
 		// could not be listed, not because the workload has none.
-		resp.Warnings = append(resp.Warnings, "Radar cannot list pods in this namespace, so pod logs, pod events and workload metrics are missing from this bundle.")
+		resp.Warnings = append(resp.Warnings, "Radar cannot establish this workload's Pod membership, so pod logs, pod events and workload metrics are missing from this bundle. Details: "+boundDiagnoseMetricsError(podsErr.Error()))
 	}
 	if podsCacheWarming {
-		resp.Warnings = append(resp.Warnings, "Radar is still loading the caches this workload's pods are resolved through, so pod logs, pod events and workload metrics are missing from this bundle. Retry in a moment.")
+		resp.Warnings = append(resp.Warnings, "Radar is still loading the caches this workload's pods are resolved through, so pod logs, pod events and workload metrics are missing from this bundle. Retry in a moment. Details: "+boundDiagnoseMetricsError(podsErr.Error()))
+	}
+	if eventsExcluded > 0 {
+		resp.Warnings = append(resp.Warnings, earlierIncarnationEventsNote(eventsExcluded, true))
 	}
 	capped, capStats := capMultiPodLogBundles(resp.LogsCurrent, resp.LogsPrevious)
 	resp.LogsCurrent = capped[0]
@@ -613,6 +624,8 @@ func handleGitOpsDiagnose(ctx context.Context, input diagnoseInput, canonicalKin
 			Namespaces:           issueNamespacesForResource(input.Namespace),
 			CanReadClusterScoped: issueClusterScopedAccess(ctx),
 			CanReadRelated:       issueRelatedResourceAccess(ctx),
+			CanReadSubject:       issueSubjectAccess(ctx),
+			CanReadEvidence:      issueEvidenceAccess(ctx),
 		}, group, canonicalKind, input.Namespace, input.Name),
 		Warnings: k8score.EnrichRuntimeObjectWarnings(u),
 	}
@@ -782,6 +795,8 @@ func startupBlockersForWorkload(cache *k8s.ResourceCache, kind, group, namespace
 			Reason:   p.Reason,
 			Severity: p.Severity,
 			Message:  p.Message,
+			Cause:    p.Cause,
+			Action:   p.Action,
 		})
 	}
 	return out
@@ -822,8 +837,8 @@ func workloadDiagnoseGroup(kind string) string {
 
 // resolveDiagnosePods returns the set of pods to fetch logs from. For
 // kind=pods that's just the requested pod; for workload kinds it resolves
-// via the workload's pod selector and the cache's pod-by-workload index.
-func resolveDiagnosePods(cache *k8s.ResourceCache, kindNorm, namespace, name string, obj any) ([]*corev1.Pod, error) {
+// via the current root UID and the cached controller ownership chain.
+func resolveDiagnosePods(cache *k8s.ResourceCache, kindNorm, namespace, name string, obj runtime.Object) ([]*corev1.Pod, error) {
 	if kindNorm == "pods" {
 		pod, ok := obj.(*corev1.Pod)
 		if !ok || pod == nil {
@@ -831,19 +846,22 @@ func resolveDiagnosePods(cache *k8s.ResourceCache, kindNorm, namespace, name str
 		}
 		return []*corev1.Pod{pod}, nil
 	}
-	// Membership is controller ownership, the relation kube-state-metrics
-	// records too, so the bundle, its vitals and the workload page name the
-	// same pods; a selector would also match bare pods and a sibling
-	// controller's pods during a Rollout migration.
-	pods, err := k8s.WorkloadPods(cache, kindNorm, namespace, name)
+	// Qualify the full controller chain by the root already read for this
+	// diagnosis. Same-name previous roots and replaced intermediate owners
+	// must not enter the resolved Pod set.
+	objectMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read workload metadata: %w", err)
+	}
+	pods, err := k8s.WorkloadPodsForUID(cache, kindNorm, namespace, name, obj.GetObjectKind().GroupVersionKind().Group, objectMeta.GetUID())
 	if errors.Is(err, k8s.ErrWorkloadCacheWarming) {
-		return nil, errPodsCacheWarming
+		return nil, fmt.Errorf("%w: %v", errPodsCacheWarming, err)
 	}
 	if errors.Is(err, k8s.ErrWorkloadAccessDenied) {
 		// The rest of the bundle — resource context, issues, events, changes —
 		// does not depend on listing pods, so an install that cannot list them
 		// still gets a useful diagnose. The caller records the denial.
-		return nil, errPodsNotListable
+		return nil, fmt.Errorf("%w: %v", errPodsNotListable, err)
 	}
 	return pods, err
 }
@@ -866,47 +884,55 @@ var errPodsCacheWarming = errors.New("the pod cache is still loading")
 // "no warnings exist" from "apiserver list failed and we couldn't tell"
 // — diagnose surfaces it as EventsError so the agent doesn't read empty
 // events as ground truth.
-func fetchEventsForResource(cache *k8s.ResourceCache, kind, group, namespace, name string, pods []*corev1.Pod, limit int) ([]aicontext.DeduplicatedEvent, int, error) {
+func fetchEventsForResource(cache *k8s.ResourceCache, kind, group, namespace, name string, uid, mirrorUID types.UID, pods []*corev1.Pod, limit int) ([]aicontext.DeduplicatedEvent, int, int, error) {
 	eventLister := cache.Events()
 	if eventLister == nil {
 		// Mirror attachResourceExtras / get_resource(include=events): surface
 		// "couldn't load" rather than returning empty, so handleDiagnose sets
 		// EventsError and agents don't read silence as "no warnings."
-		return nil, 0, fmt.Errorf("events lister unavailable (insufficient permissions or cache cold)")
+		return nil, 0, 0, fmt.Errorf("events lister unavailable (insufficient permissions or cache cold)")
 	}
 	events, err := eventLister.Events(namespace).List(labels.Everything())
 	if err != nil {
 		log.Printf("[mcp] diagnose: failed to list events for %s/%s/%s: %v", kind, namespace, name, err)
-		return nil, 0, err
+		return nil, 0, 0, err
 	}
-	podNames := make(map[string]bool, len(pods))
+	podUIDs := make(map[string]types.UID, len(pods))
 	for _, p := range pods {
 		if p != nil {
-			podNames[p.Name] = true
+			podUIDs[p.Name] = p.UID
 		}
 	}
-	matched := filterEventsByInvolvedObject(events, normalizeDisplayKind(kind), group, name, podNames)
+	matched, excluded := filterEventsByInvolvedObject(events, normalizeDisplayKind(kind), group, name, uid, mirrorUID, podUIDs)
 	if len(matched) == 0 {
-		return nil, 0, nil
+		return nil, 0, excluded, nil
 	}
 	// This remains a fixed-size evidence sample, but return the pre-cap group
 	// count so the composite response can report when groups were omitted.
 	dedup, totalGroups := aicontext.DeduplicateEventsN(matched, limit)
-	return dedup, totalGroups, nil
+	return dedup, totalGroups, excluded, nil
 }
 
-// filterEventsByInvolvedObject keeps Warning events whose InvolvedObject
-// matches either the controller (displayKind+name) OR any of the pods in
-// podNames (skipped when displayKind is "Pod" — the controller branch
-// above already covers single-pod and otherwise this branch would
-// double-count).
-//
-// Filters to Type==Warning intentionally — the diagnose tool description
-// + get_resource(include=events) both promise warning events only.
-// Normal events (Pulled / Created / Scheduled) would pollute triage by
-// reading as "things worth diagnosing" when they're just lifecycle
-// breadcrumbs.
-//
+// earlierIncarnationEventsNote tells an agent that history was withheld from
+// current evidence, so an empty or short event list is not read as "nothing
+// ever failed", and that the withheld events may still explain what came
+// before. It counts cached Event objects, not occurrences, and covers only
+// the resource and, when withPods, Pods sharing a current Pod's name.
+func earlierIncarnationEventsNote(excluded int, withPods bool) string {
+	if excluded == 1 {
+		subject := "an earlier incarnation of this resource"
+		if withPods {
+			subject += " or of a current Pod's name"
+		}
+		return fmt.Sprintf("Left out 1 Warning event about %s: it does not describe the current object. It may still explain what happened before, such as why a Pod was replaced; use get_events to read it.", subject)
+	}
+	subject := "earlier incarnations of this resource"
+	if withPods {
+		subject += " or of current Pod names"
+	}
+	return fmt.Sprintf("Left out %d Warning events about %s: they do not describe the current objects. They may still explain what happened before, such as why a Pod was replaced; use get_events to read them.", excluded, subject)
+}
+
 // networkTraceKind returns the canonical entry-kind name for trace
 // diagnostics, accepting plural and lowercase forms the way agents tend to
 // write them. Empty string + false means "not a network entry kind" - the
@@ -1096,6 +1122,12 @@ func handleNetworkTraceDiagnose(ctx context.Context, input diagnoseInput, kind s
 		Dynamic:   k8s.GetDynamicResourceCache(),
 		Discovery: k8s.GetResourceDiscovery(),
 		Issues:    issues.NewCacheProvider(),
+		IssueAccess: trace.IssueAccess{
+			CanReadClusterScoped: issueClusterScopedAccess(ctx),
+			CanReadRelated:       issueRelatedResourceAccess(ctx),
+			CanReadSubject:       issueSubjectAccess(ctx),
+			CanReadEvidence:      issueEvidenceAccess(ctx),
+		},
 		// Probes call services/proxy + pods/proxy on this client. Use the
 		// per-request impersonated identity (or the SA when auth is disabled)
 		// so the apiserver enforces the caller's RBAC on the proxy verbs.
@@ -1110,6 +1142,7 @@ func handleNetworkTraceDiagnose(ctx context.Context, input diagnoseInput, kind s
 		// (every cross-namespace dependency would redact even ones the
 		// caller can read), so pass the full allowed set.
 		AllowedNamespaces: filterNamespacesForUser(ctx, nil),
+		CanReadWorkload:   workloadReadAccess(ctx),
 	}
 	// in_cluster only has routes to test when probing ran (static known-break routes
 	// carry no InClusterRequest). Force the probe path when the caller asked to
@@ -1120,13 +1153,6 @@ func handleNetworkTraceDiagnose(ctx context.Context, input diagnoseInput, kind s
 	}
 	var inClusterTests []reachability.InClusterTestResult
 	if input.InCluster {
-		// Creating transient probe pods is a mutating, product-gated action. Mirror
-		// the REST handler (reachability_run.go requireCloudRole) and the helm
-		// precedent (tools_helm.go) so a sub-Member Cloud Viewer can't bypass the
-		// RoleMember gate via MCP. probe=true / static paths stay viewer-accessible.
-		if role := pkgauth.CloudRoleFromContext(ctx); !role.AtLeast(pkgauth.RoleMember) {
-			return nil, nil, fmt.Errorf("Radar Cloud role %q cannot run an in-cluster reachability test (requires member or higher)", role.String())
-		}
 		var byTarget map[string][]probe.Result
 		inClusterTests, byTarget = reachability.RunInClusterTests(ctx, tr, input.Namespace)
 		// Fold the live results back in: an in-cluster pass upgrades the route to
@@ -1138,29 +1164,51 @@ func handleNetworkTraceDiagnose(ctx context.Context, input diagnoseInput, kind s
 	return toJSONResult(resp)
 }
 
-// Shared between diagnose (passes resolved pod names for full workload
-// coverage) and attachResourceExtras / get_resource include=events
-// (passes nil — supplemental fetch; callers wanting pod-level events should
-// use the diagnose tool which does the workload→pods resolution).
-func filterEventsByInvolvedObject(events []*corev1.Event, displayKind, group, name string, podNames map[string]bool) []corev1.Event {
+// filterEventsByInvolvedObject keeps Warning events for the current resource
+// or its resolved Pods. A known UID mismatch rejects a previous incarnation;
+// UID-less events remain identity-matched evidence without proof of incarnation.
+// Namespace is scoped by the event lister. get_resource passes no Pods; diagnose
+// supplies its authorized current Pod set. Normal lifecycle events stay out.
+// It also returns how many Warning records were rejected for a known UID
+// mismatch.
+func filterEventsByInvolvedObject(events []*corev1.Event, displayKind, group, name string, uid, mirrorUID types.UID, podUIDs map[string]types.UID) ([]corev1.Event, int) {
 	var matched []corev1.Event
+	excluded := 0
 	for _, e := range events {
 		if e.Type != corev1.EventTypeWarning {
 			continue
 		}
-		involvedGroup := resourceid.GroupFromAPIVersion(e.InvolvedObject.APIVersion)
-		if e.InvolvedObject.APIVersion == "" {
-			involvedGroup = resourceid.GroupForBuiltinKind(e.InvolvedObject.Kind)
+		subject := resourceid.EventSubject(e.InvolvedObject.APIVersion, e.InvolvedObject.Kind, e.InvolvedObject.Namespace, e.InvolvedObject.Name, string(e.InvolvedObject.UID), e.Namespace)
+		involvedGroup := subject.Group
+		if !subject.HasGroup() {
+			involvedGroup = resourceid.GroupForBuiltinKind(subject.Kind)
 		}
+		staticUID := types.UID("")
+		if displayKind == "Pod" && group == "" {
+			staticUID = mirrorUID
+		}
+		matchesUID := k8s.EventDescribesIncarnation(types.UID(subject.UID), uid, staticUID)
 		if strings.EqualFold(e.InvolvedObject.Kind, displayKind) && strings.EqualFold(involvedGroup, group) && e.InvolvedObject.Name == name {
-			matched = append(matched, *e)
+			if matchesUID {
+				matched = append(matched, *e)
+			} else {
+				excluded++
+			}
 			continue
 		}
-		if displayKind != "Pod" && involvedGroup == "" && strings.EqualFold(e.InvolvedObject.Kind, "Pod") && podNames[e.InvolvedObject.Name] {
-			matched = append(matched, *e)
+		if displayKind != "Pod" && involvedGroup == "" && strings.EqualFold(e.InvolvedObject.Kind, "Pod") {
+			podUID, ok := podUIDs[e.InvolvedObject.Name]
+			if !ok {
+				continue
+			}
+			if k8s.EventDescribesIncarnation(types.UID(subject.UID), podUID, "") {
+				matched = append(matched, *e)
+			} else {
+				excluded++
+			}
 		}
 	}
-	return matched
+	return matched, excluded
 }
 
 // diagnosePodNames is the bundle's pod list: sorted names, capped like the

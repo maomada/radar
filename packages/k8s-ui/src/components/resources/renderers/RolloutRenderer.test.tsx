@@ -269,7 +269,7 @@ describe('rolloutProblems', () => {
     )
     expect(problems).toHaveLength(1)
     expect(problems[0].color).toBe('yellow')
-    expect(problems[0].message).toMatch(/^Rollout is paused: CanaryPauseStep \(since .+\)$/)
+    expect(problems[0].message).toMatch(/^Rollout is paused: CanaryPauseStep \(for \d+d\)$/)
   })
 
   it('does not report a paused rollout that is actually aborted', () => {
@@ -371,7 +371,7 @@ describe('rolloutActions promote reachability', () => {
 
   it('blocks promote, promote-full and skip-step alike on an aborted rollout', () => {
     const data = canaryRollout({ phase: 'Degraded', abort: true, currentStepIndex: 1 })
-    for (const action of ['promote', 'promote-full', 'skip-step']) {
+    for (const action of ['promote', 'promote-full', 'skip-step'] as const) {
       expect(blockedReason(data, action)).toBe('Retry the rollout first')
     }
   })

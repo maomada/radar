@@ -1,6 +1,6 @@
 // The right-docked shell of the AI surface. Two layouts:
 //  - docked: a single-pane right column (app reflows left via the provider's push)
-//  - expanded: a master-detail workspace that fills ONLY the content area (does
+//  - expanded: the investigations page, a master-detail layout that fills ONLY the content area (does
 //    not cover the left nav rail or top bar) — recent list on the left, the
 //    selected investigation/report on the right.
 import {
@@ -38,6 +38,7 @@ import {
   type DiagnoseView,
 } from "./DiagnoseContext";
 import { useDiagnoseCustomization } from "../../context/DiagnoseCustomization";
+import { InvestigationRefusalAction } from "./InvestigationRefusalAction";
 import { useNavCustomization } from "../../context/NavCustomization";
 import { InvestigationView } from "./InvestigationView";
 import type { InvestigationTimelineScope } from "./InvestigationEvidencePane";
@@ -53,7 +54,7 @@ import { useCloudHintsEnabled } from "../cloudHints/cloudHints";
 import { ConsentCard } from "./parts";
 import { buildLaunchCommand, launchAgentLabel, openInTerminal } from "./launch";
 import { type RunSummary, type ExecutionProfile } from "../../api/diagnose";
-import { routePath } from "../../api/config";
+import { mcpEndpointUrl } from "../../api/config";
 import { useCapabilitiesContext } from "../../contexts/CapabilitiesContext";
 import { useContexts } from "../../api/client";
 import { formatInvestigationTarget } from "./target";
@@ -94,11 +95,11 @@ function InvestigationMenu({ run }: { run: RunSummary }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { localTerminal } = useCapabilitiesContext();
+  const { localTerminal, mcpReadOnly } = useCapabilitiesContext();
   const label = launchAgentLabel(run);
   const command = buildLaunchCommand(
     run,
-    `${window.location.origin}${routePath("/mcp")}`,
+    mcpEndpointUrl(mcpReadOnly),
   );
 
   // The diagnose root is a CSS container, so a position:fixed click-away layer
@@ -421,7 +422,7 @@ export function DiagnoseSurface({
     panelWidthKey: widthKey,
   } = useDiagnoseLayout();
   // Home has no detail pane competing for width, so its history is always part
-  // of the workspace. Only a focused run collapses history into a drawer when
+  // of the page. Only a focused run collapses history into a drawer when
   // the two-pane layout would become cramped.
   const persistentHistory = investigationHistoryIsPersistent({
     maximized,
@@ -503,7 +504,8 @@ export function DiagnoseSurface({
   };
 
   // Feature is eligible here but not runnable yet (no agent installed, or one
-  // appeared after boot) — Home leads with the setup notice instead of an empty list.
+  // found that investigations couldn't start with): Home leads with the setup
+  // notice instead of an empty list.
   const cloudHints = useCloudHintsEnabled();
   const setupPending =
     d.setupState === "needs-install" || d.setupState === "needs-restart";
@@ -607,18 +609,25 @@ export function DiagnoseSurface({
   ) : d.startError ? (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
       <p className="text-sm text-theme-text-secondary">{d.startError}</p>
-      <button
-        onClick={d.dismissError}
-        className="rounded-lg border border-theme-border px-3 py-1.5 text-sm text-theme-text-secondary hover:bg-theme-hover"
-      >
-        Dismiss
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <InvestigationRefusalAction refusal={d.startRefusal} />
+        <button
+          onClick={d.dismissError}
+          className="rounded-lg border border-theme-border px-3 py-1.5 text-sm text-theme-text-secondary hover:bg-theme-hover"
+        >
+          Dismiss
+        </button>
+      </div>
     </div>
   ) : setupPending ? (
     <div className="flex-1 overflow-y-auto">
       <AgentSetupNotice
         setupState={d.setupState}
         cloudOption={cloudHints ? <AgentSetupCloudRow /> : undefined}
+        cliOverride={d.cliOverride}
+        checkingAgents={d.checkingAgents}
+        agentsCheckFailed={d.agentsCheckFailed}
+        recheckAgents={d.recheckAgents}
       />
     </div>
   ) : (
@@ -644,6 +653,10 @@ export function DiagnoseSurface({
       <AgentSetupNotice
         setupState={d.setupState}
         cloudOption={cloudHints ? <AgentSetupCloudRow /> : undefined}
+        cliOverride={d.cliOverride}
+        checkingAgents={d.checkingAgents}
+        agentsCheckFailed={d.agentsCheckFailed}
+        recheckAgents={d.recheckAgents}
       />
     </div>
   ) : (
