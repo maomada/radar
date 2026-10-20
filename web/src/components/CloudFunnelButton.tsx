@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useId, useRef, useState } from 'react'
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Check, Cloud, Globe, History, Sparkles, Users, X } from 'lucide-react'
 import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
 import { DialogPortal } from '@skyhook-io/k8s-ui/components/ui/DialogPortal'
@@ -22,6 +22,7 @@ import {
   type CloudConnectSelf,
   type CloudInstallConnectedRadar,
   type CloudInstallBlocked,
+  type CloudInstallStage,
   type CloudInstallStatus,
   prepareCloudInstall,
   useCapabilities,
@@ -76,6 +77,7 @@ const ABOUT_URL = 'https://radarhq.io/about'
 const BENCHMARK_URL = 'https://radarhq.io/benchmark'
 const PRICING_URL = 'https://radarhq.io/pricing'
 const SEEN_KEY = 'radar.cloudFunnel.seen'
+const PREPARE_MUTATION_KEY = ['cloud-install-prepare']
 
 // localStorage access can throw (SecurityError) where storage is denied —
 // sandboxed embeds, some privacy modes. This button mounts in the top bar
@@ -104,6 +106,16 @@ export function CloudFunnelButton() {
   const [inFlowView, setInFlowView] = useState(false)
   const [selfManaged, setSelfManaged] = useState(false)
   const [blocked, setBlocked] = useState<CloudInstallBlocked | null>(null)
+  // The furthest check this attempt was seen at. A blocked preparation clears
+  // the server flow before the request returns, so a poll in between reads
+  // idle; the synthesized view resumes here rather than at the first step.
+  const [lastPrepareStep, setLastPrepareStep] = useState<CloudInstallStage | undefined>(undefined)
+  // Identifies the latest Connect attempt. The status poll can show a plan
+  // before its prepare request answers, so the person may move on and start
+  // again; a late answer from an earlier attempt must not act on the new one.
+  // prior is the status cached when the attempt began, so a poll result that
+  // predates the attempt is never mistaken for its outcome.
+  const attemptRef = useRef<{ id: number; prior?: CloudInstallStatus }>({ id: 0 })
   // Set once an in-app attempt has ended without connecting, naming what
   // happened (a flow failure kind, a blocked plan, a canceled plan, or the
   // prepare call itself failing) and whether it is worth trying again. It
@@ -157,7 +169,8 @@ export function CloudFunnelButton() {
 
   // The flow is server-owned: polling here both drives the live progress view
   // and re-attaches to an ongoing flow after a reload or modal close.
-  const flowStatus = useCloudInstallStatus(lane === 'driver')
+  const preparing = useIsMutating({ mutationKey: PREPARE_MUTATION_KEY }) > 0
+  const flowStatus = useCloudInstallStatus(lane === 'driver', preparing)
   const flow = flowStatus.data
   const flowLive = cloudInstallActive(flow?.state) || flow?.state === 'connected' || flow?.state === 'failed'
 
@@ -168,18 +181,36 @@ export function CloudFunnelButton() {
   }
 
   const prepare = useMutation({
-    mutationFn: prepareCloudInstall,
-    onSuccess: (st) => {
+    mutationKey: PREPARE_MUTATION_KEY,
+    mutationFn: (_attempt: number) => prepareCloudInstall(),
+    onSuccess: (st, attempt) => {
+      if (attempt !== attemptRef.current.id) return
       if (st.state === 'blocked' && st.blocked) setBlocked(st.blocked)
       else applyStatus(st)
     },
-    onError: (err) => {
+    onError: (err, attempt) => {
+      if (attempt !== attemptRef.current.id) return
       // A single-flight 409 is not a failure: its body IS the live flow (one
       // started in another tab, or before this tab's status cache refreshed).
       // Attach to it rather than showing an error over a running install.
       const live = err instanceof ApiError && err.status === 409 ? (err.data as CloudInstallStatus | undefined) : undefined
       if (live?.state) {
         applyStatus(live)
+        return
+      }
+      // The status poll may already have seen this attempt's preparation
+      // finish (and the flow move on from there): only this request's answer
+      // was lost. Stay on what the server reports rather than calling a
+      // finished inspection a failure.
+      const polled = queryClient.getQueryData<CloudInstallStatus>(['cloud-install-status'])
+      const prior = attemptRef.current.prior
+      if (
+        polled?.flowId &&
+        polled.state !== 'idle' &&
+        polled.state !== 'preparing' &&
+        (polled.flowId !== prior?.flowId || polled.state !== prior?.state)
+      ) {
+        flowStatus.invalidate()
         return
       }
       // Anything else failed before a flow existed. Return to the pitch rather
@@ -205,8 +236,10 @@ export function CloudFunnelButton() {
   const startConnect = () => {
     setBlocked(null)
     setHandoff(null)
+    setLastPrepareStep(undefined)
     setInFlowView(true)
-    prepare.mutate()
+    attemptRef.current = { id: attemptRef.current.id + 1, prior: flow }
+    prepare.mutate(attemptRef.current.id)
   }
 
   // A flow that ended without connecting returns to a pitch whose CTA must
@@ -241,6 +274,11 @@ export function CloudFunnelButton() {
     if (st.state === 'connected' || st.state === 'idle') return null
     return { outcome: 'install_plan_canceled', retryable: false }
   }
+
+  const observedStep = prepare.isPending && flow?.state === 'preparing' ? flow.prepareStep : undefined
+  useEffect(() => {
+    if (observedStep) setLastPrepareStep(observedStep)
+  }, [observedStep])
 
   useEffect(() => {
     window.addEventListener(OPEN_EVENT, openModal)
@@ -280,7 +318,7 @@ export function CloudFunnelButton() {
   // explanation back to the pitch.
   const flowForView: CloudInstallStatus | undefined =
     prepare.isPending && !flowLive
-      ? { state: 'preparing' }
+      ? { state: 'preparing', prepareStep: lastPrepareStep }
       : (flow ?? (blocked ? { state: 'blocked', blocked } : undefined))
 
   return (
