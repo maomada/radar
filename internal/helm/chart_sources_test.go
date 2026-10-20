@@ -14,6 +14,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/kube/fake"
 	"helm.sh/helm/v3/pkg/release"
@@ -76,7 +77,19 @@ func TestCanonicalClassicRepositoryURL(t *testing.T) {
 
 func chartSourceTestServer(t *testing.T, versions ...string) *httptest.Server {
 	t.Helper()
+	archives := map[string]string{}
+	for _, version := range versions {
+		filename, err := chartutil.Save(&chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: version}}, t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		archives["/app-"+version+".tgz"] = filename
+	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if archive, ok := archives[r.URL.Path]; ok {
+			http.ServeFile(w, r, archive)
+			return
+		}
 		if r.URL.Path != "/index.yaml" {
 			http.NotFound(w, r)
 			return
@@ -245,8 +258,8 @@ func TestClassicProvenanceCrossMachineAliasRecoveryAndMismatchFailsClosed(t *tes
 	if err := f.WriteFile(c.settings.RepositoryConfig, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := c.configuredRepositoryForSource(recorded); got != nil {
-		t.Fatalf("mismatched recorded alias must fail closed, got %+v", got)
+	if got := c.configuredRepositoryForSource(recorded); got == nil || got.Name != "new-alias" || got.URL != server.URL {
+		t.Fatalf("saved URL must win over repointed alias: %+v", got)
 	}
 }
 
@@ -269,7 +282,7 @@ func TestSourceStatusReadOnlyAndManualAssociation(t *testing.T) {
 	if _, err := c.ensureClassicRepository(server.URL, "configured-alias"); err != nil {
 		t.Fatal(err)
 	}
-	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{Name: "app", Version: "1.2.3"}}}
+	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: "1.2.3"}}}
 	cfg := chartSourceActionConfig(t, rel)
 	status, err := c.sourceStatusWith(cfg, rel.Name)
 	if err != nil || status.Recorded != nil || status.Configured || status.Available || len(status.Candidates) != 1 {
@@ -309,15 +322,16 @@ func TestSetSourceMovesRecordedRepositoryToLocalNameWhenVersionPruned(t *testing
 	}
 	recordedURL, _ := canonicalClassicRepositoryURL(recordedServer.URL)
 	recorded := ChartSourceCandidate{Type: "repository", Reference: "podinfo", URL: recordedURL}
-	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Labels: chartSourceLabels(&recorded), Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{Name: "app", Version: "1.2.3"}}}
+	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Labels: chartSourceLabels(&recorded), Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: "1.2.3"}}}
+	rel.Labels[chartSourceBindingLabel] = chartSourceBinding(rel.Chart)
 	cfg := chartSourceActionConfig(t, rel)
 
 	otherURL, _ := canonicalClassicRepositoryURL(otherServer.URL)
 	if err := c.setSourceWith(cfg, rel.Name, ChartSourceCandidate{Type: "repository", Reference: "podinfo", URL: otherURL}); err == nil {
 		t.Fatal("a repository other than the recorded one was associated")
 	}
-	if err := c.setSourceWith(cfg, rel.Name, ChartSourceCandidate{Type: "repository", Reference: "podinfo", URL: recordedURL}); err == nil {
-		t.Fatal("the recorded URL was associated under a local name that points elsewhere")
+	if err := c.setSourceWith(cfg, rel.Name, ChartSourceCandidate{Type: "repository", Reference: "podinfo", URL: recordedURL}); err != nil {
+		t.Fatalf("URL identity must resolve to the matching local alias: %v", err)
 	}
 	if err := c.setSourceWith(cfg, rel.Name, ChartSourceCandidate{Type: "repository", Reference: "podinfo-2", URL: recordedURL}); err != nil {
 		t.Fatalf("recorded repository under its local name: %v", err)
@@ -340,7 +354,7 @@ func TestRecordedButUnavailableIsDistinctFromAbsentProvenance(t *testing.T) {
 	withOCISources(t, nil)
 	c := newChartSourceTestClient(t)
 	source := ChartSourceCandidate{Type: "repository", Reference: "missing", URL: "https://charts.example.test"}
-	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Labels: chartSourceLabels(&source), Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{Name: "app", Version: "1.2.3"}}}
+	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Labels: chartSourceLabels(&source), Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: "1.2.3"}}}
 	status, err := c.sourceStatusWith(chartSourceActionConfig(t, rel), rel.Name)
 	if err != nil || status.Recorded == nil || status.Configured || status.Available {
 		t.Fatalf("unavailable status = %+v, %v", status, err)
@@ -399,7 +413,7 @@ func TestInstallSourceClassicUsesCanonicalURLAndStableAlias(t *testing.T) {
 
 func TestRejectedPreInstallDoesNotPersistSource(t *testing.T) {
 	c := newChartSourceTestClient(t)
-	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{Name: "app", Version: "1.2.3"}}}
+	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Info: &release.Info{Status: release.StatusDeployed}, Chart: &chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: "1.2.3"}}}
 	cfg := chartSourceActionConfig(t, rel)
 	req := &InstallRequest{ReleaseName: rel.Name, Namespace: rel.Namespace, ChartName: "app", Version: "1.2.3", Repository: "oci://user:secret@registry.example.test/charts"}
 	if _, err := c.installWith(cfg, req); err == nil {
@@ -485,7 +499,7 @@ func TestSetSourceRefusesPendingRelease(t *testing.T) {
 	if _, err := c.ensureClassicRepository(server.URL, "repo"); err != nil {
 		t.Fatal(err)
 	}
-	rel := &release.Release{Name: "app", Namespace: "ns", Version: 2, Info: &release.Info{Status: release.StatusPendingUpgrade}, Chart: &chart.Chart{Metadata: &chart.Metadata{Name: "app", Version: "1.2.3"}}}
+	rel := &release.Release{Name: "app", Namespace: "ns", Version: 2, Info: &release.Info{Status: release.StatusPendingUpgrade}, Chart: &chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: "1.2.3"}}}
 	cfg := chartSourceActionConfig(t, rel)
 	err := c.setSourceWith(cfg, rel.Name, ChartSourceCandidate{Type: "repository", Reference: "repo", URL: server.URL})
 	if !errors.Is(err, errReleaseChanging) {
@@ -570,7 +584,7 @@ func TestInstallFromCredentialedBlockedAliasStillFails(t *testing.T) {
 
 func TestSetSourceRefusesUninstallingRelease(t *testing.T) {
 	c := newChartSourceTestClient(t)
-	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Info: &release.Info{Status: release.StatusUninstalling}, Chart: &chart.Chart{Metadata: &chart.Metadata{Name: "app", Version: "1.2.3"}}}
+	rel := &release.Release{Name: "app", Namespace: "ns", Version: 1, Info: &release.Info{Status: release.StatusUninstalling}, Chart: &chart.Chart{Metadata: &chart.Metadata{APIVersion: "v2", Name: "app", Version: "1.2.3"}}}
 	err := c.setSourceWith(chartSourceActionConfig(t, rel), rel.Name, ChartSourceCandidate{Type: "repository", Reference: "repo", URL: "https://charts.example.test"})
 	if !errors.Is(err, errReleaseChanging) {
 		t.Fatalf("association during uninstall = %v, want errReleaseChanging", err)

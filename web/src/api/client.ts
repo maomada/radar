@@ -44,6 +44,7 @@ import type {
   UpgradeInfo,
   BatchUpgradeInfo,
   ChartSourceCandidate,
+  SourceUpgradeSelection,
   ChartSourceStatus,
   ValuesDiff,
   ValuesPreviewResponse,
@@ -6167,6 +6168,8 @@ export function useHelmUninstall() {
   });
 }
 
+export class HelmSourceSelectionError extends Error {}
+
 // Stream SSE progress events from a Helm operation endpoint.
 // Resolves on 'complete', rejects on 'error'. Returns the complete event data for install (which includes release).
 function streamHelmProgress(
@@ -6216,7 +6219,7 @@ function streamHelmProgress(
                   resolve(data);
                   return;
                 } else if (data.type === "error") {
-                  reject(new Error(data.message || failureLabel));
+                  reject(data.errorCode === 'chart_source_changed' || data.errorCode === 'chart_source_required' ? new HelmSourceSelectionError(data.message || failureLabel) : new Error(data.message || failureLabel));
                   return;
                 }
               } catch (err) {
@@ -6246,18 +6249,19 @@ export function upgradeWithProgress(
   repositoryName: string | undefined,
   onProgress: (event: InstallProgressEvent) => void,
   values?: Record<string, unknown>,
+  sourceUpgrade?: SourceUpgradeSelection,
 ): Promise<void> {
   const params = new URLSearchParams({ version });
   if (repositoryName) params.set("repository", repositoryName);
-  const options: RequestInit = values
+  const options: RequestInit = values || sourceUpgrade
     ? {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ values }),
+        body: JSON.stringify({ values, sourceUpgrade }),
       }
     : { method: "POST" };
   return streamHelmProgress(
-    `${getApiBase()}/helm/releases/${namespace}/${name}/upgrade-stream?${params.toString()}`,
+    `${getApiBase()}/helm/releases/${namespace}/${name}/${sourceUpgrade ? "source/upgrade-stream" : "upgrade-stream"}?${params.toString()}`,
     options,
     onProgress,
     "Upgrade failed",
@@ -6291,20 +6295,21 @@ export function useHelmPreviewValues() {
       values: Record<string, unknown>;
       version?: string;
       repository?: string;
+ sourceUpgrade?: SourceUpgradeSelection;
     }
   >({
-    mutationFn: async ({ namespace, name, values, version, repository }) => {
+    mutationFn: async ({ namespace, name, values, version, repository, sourceUpgrade }) => {
       const response = await apiFetch(
-        `${getApiBase()}/helm/releases/${namespace}/${name}/values/preview`,
+        `${getApiBase()}/helm/releases/${namespace}/${name}/${sourceUpgrade ? "source/preview" : "values/preview"}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ values, version, repository }),
+          body: JSON.stringify({ values, version, repository, sourceUpgrade }),
         },
       );
       if (!response.ok) {
         const error = await readErrorBody(response);
-        throw new Error(error.error || `HTTP ${response.status}`);
+        throw response.status === 409 ? new HelmSourceSelectionError(error.error || 'Source changed; select it again') : new Error(error.error || `HTTP ${response.status}`);
       }
       return response.json();
     },
@@ -6435,6 +6440,20 @@ export function useHelmSourceStatus(namespace: string, releaseName: string, enab
   });
 }
 
+export function useHelmSourceVersions(namespace: string, releaseName: string, selection: SourceUpgradeSelection | null, enabled: boolean) {
+ const { support, gatedKey, guard } = useRadarFeature('helmSourceIdentity')
+ return useQuery<string[]>({
+  queryKey: ['helm-source-versions', namespace, releaseName, selection, gatedKey],
+  enabled: enabled && selection !== null && support === 'supported',
+  queryFn: () => guard(() => {
+   if (!selection) throw new Error('Select a chart source')
+   const params = new URLSearchParams({type: selection.source.type, reference: selection.source.reference})
+   if (selection.source.url) params.set('url', selection.source.url)
+   return fetchJSON(`/helm/releases/${encodeURIComponent(namespace)}/${encodeURIComponent(releaseName)}/source/versions?${params}`)
+  }),
+ })
+}
+
 async function mutateHelmSource(namespace: string, releaseName: string, source: ChartSourceCandidate): Promise<void> {
   const response = await apiFetch(apiUrl(`/helm/releases/${encodeURIComponent(namespace)}/${encodeURIComponent(releaseName)}/source`), {
     method: "PUT",
@@ -6454,6 +6473,7 @@ export function useSetHelmSource(namespace: string, releaseName: string) {
     meta: { errorMessage: "Failed to associate chart source", successMessage: "Chart source associated" },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["helm-source-status", namespace, releaseName] });
+ queryClient.invalidateQueries({ queryKey: ["helm-source-versions", namespace, releaseName] });
       queryClient.invalidateQueries({ queryKey: ["helm-upgrade-info"] });
       queryClient.invalidateQueries({ queryKey: ["helm-release-versions"] });
       queryClient.invalidateQueries({ queryKey: ["helm-batch-upgrade-info"] });
@@ -6615,6 +6635,7 @@ export function useInstallChart() {
 
 // Install progress event types
 export interface InstallProgressEvent {
+  errorCode?: string;
   type: "progress" | "complete" | "error";
   phase?: string;
   message?: string;

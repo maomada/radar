@@ -499,10 +499,9 @@ func (c *Client) configuredRepositoryForSource(source ChartSourceCandidate) *rep
 	}
 	if byName != nil {
 		configuredURL, err := canonicalClassicRepositoryURL(byName.URL)
-		if err != nil || configuredURL != recordedURL {
-			return nil
+		if err == nil && configuredURL == recordedURL {
+			return byName
 		}
-		return byName
 	}
 	for _, configured := range f.Repositories {
 		configuredURL, err := canonicalClassicRepositoryURL(configured.URL)
@@ -621,36 +620,7 @@ func (c *Client) resolveRecordedChartPathWithLister(_ *action.Configuration, sou
 }
 
 func (c *Client) sourceStatusWith(actionConfig *action.Configuration, name string) (*ChartSourceStatus, error) {
-	rel, err := action.NewGet(actionConfig).Run(name)
-	if err != nil {
-		return nil, err
-	}
-	if rel.Chart == nil || rel.Chart.Metadata == nil {
-		return nil, fmt.Errorf("release has no usable chart metadata")
-	}
-	status := &ChartSourceStatus{}
-	status.Recorded, _ = chartSourceFromRelease(rel)
-	status.Candidates, err = c.configuredChartSourceCandidates(rel.Chart.Metadata.Name, rel.Chart.Metadata.Version, nil)
-	if err != nil {
-		return nil, err
-	}
-	if status.Recorded == nil {
-		return status, nil
-	}
-	if status.Recorded.Type == "repository" {
-		status.Configured = c.configuredRepositoryForSource(*status.Recorded) != nil
-	} else {
-		status.Configured = ociSourceConfigured(status.Recorded.Reference)
-	}
-	if status.Configured {
-		for _, candidate := range status.Candidates {
-			if sameChartSource(candidate, *status.Recorded) {
-				status.Available = true
-				break
-			}
-		}
-	}
-	return status, nil
+	return c.sourceStatusForOperation(actionConfig, name)
 }
 
 func sameChartSource(a, b ChartSourceCandidate) bool {
@@ -663,7 +633,7 @@ func sameChartSource(a, b ChartSourceCandidate) bool {
 	if a.URL != "" && b.URL != "" {
 		return a.URL == b.URL
 	}
-	return a.Reference == b.Reference
+	return false
 }
 
 func (c *Client) SourceStatus(namespace, name string) (*ChartSourceStatus, error) {
@@ -696,22 +666,31 @@ func (c *Client) setSourceWith(actionConfig *action.Configuration, name string, 
 	if rel.Info == nil || releaseChanging(rel.Info.Status) {
 		return fmt.Errorf("%w: another Helm operation on %s is in progress or just finished; try again", errReleaseChanging, name)
 	}
-	candidates, err := c.configuredChartSourceCandidates(rel.Chart.Metadata.Name, rel.Chart.Metadata.Version, nil)
+	expectedSource, _ := chartSourceFromRelease(rel)
+	expectedSelection := SourceUpgradeSelection{ExpectedRevision: rel.Version, ExpectedSource: expectedSource}
+	expectedBinding := rel.Labels[chartSourceBindingLabel]
+	expectedChart := chartSourceBinding(rel.Chart)
+	selected, err = c.exactConfiguredSource(selected, rel.Chart.Metadata.Name)
 	if err != nil {
 		return err
 	}
-	var persisted *ChartSourceCandidate
-	for i := range candidates {
-		if sameChartSource(candidates[i], selected) {
-			persisted = &candidates[i]
-			break
+	if recorded, ok := confirmedChartSource(rel); ok && !sameChartSource(*recorded, selected) {
+		return errSourceAlreadyConfirmed
+	}
+	persisted := &selected
+	if recorded := c.recordedRepositoryUnderLocalName(rel, selected); recorded != nil && rel.Labels[chartSourceBindingLabel] == chartSourceBinding(rel.Chart) {
+		persisted = recorded
+	} else {
+		loaded, _, err := c.loadSourceChart(actionConfig, selected, rel.Chart.Metadata.Name, rel.Chart.Metadata.Version)
+		if err != nil {
+			return fmt.Errorf("%w: could not verify the selected installed chart version: %v", errInvalidChartSource, err)
 		}
-	}
-	if persisted == nil {
-		persisted = c.recordedRepositoryUnderLocalName(rel, selected)
-	}
-	if persisted == nil {
-		return fmt.Errorf("%w: selected source does not publish %s version %s", errInvalidChartSource, rel.Chart.Metadata.Name, rel.Chart.Metadata.Version)
+		if chartSourceBinding(loaded) != chartSourceBinding(rel.Chart) {
+			return fmt.Errorf("%w: selected package differs from the installed chart", errInvalidChartSource)
+		}
+		if err := storedChartMatchesReconstructed(rel.Chart, loaded); err != nil {
+			return fmt.Errorf("%w: %v", errInvalidChartSource, err)
+		}
 	}
 	// Update rewrites the whole release record. Refuse while another operation
 	// is in flight, and re-read so a revision written while sources were being
@@ -720,13 +699,14 @@ func (c *Client) setSourceWith(actionConfig *action.Configuration, name string, 
 	if err != nil {
 		return err
 	}
-	if latest.Version != rel.Version || latest.Info == nil || releaseChanging(latest.Info.Status) ||
+	if !sourceSelectionMatches(expectedSelection, latest) || latest.Labels[chartSourceBindingLabel] != expectedBinding || chartSourceBinding(latest.Chart) != expectedChart || latest.Version != rel.Version || latest.Info == nil || releaseChanging(latest.Info.Status) ||
 		latest.Chart == nil || latest.Chart.Metadata == nil ||
 		latest.Chart.Metadata.Name != rel.Chart.Metadata.Name || latest.Chart.Metadata.Version != rel.Chart.Metadata.Version ||
 		!latest.Info.FirstDeployed.Equal(rel.Info.FirstDeployed) {
 		return fmt.Errorf("%w: another Helm operation on %s is in progress or just finished; try again", errReleaseChanging, name)
 	}
 	latest.Labels = mergeChartSourceLabels(latest.Labels, persisted)
+	latest.Labels[chartSourceBindingLabel] = chartSourceBinding(latest.Chart)
 	return actionConfig.Releases.Update(latest)
 }
 

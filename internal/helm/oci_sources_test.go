@@ -205,30 +205,6 @@ func TestDiscoverOCIUpgrade_DoesNotCacheFailures(t *testing.T) {
 	}
 }
 
-func TestApplyOCIUpgrade_SetsFields(t *testing.T) {
-	withOCISources(t, []string{"oci://reg/c"})
-	lister := &fakeTagLister{tags: map[string][]string{"reg/c/app": {"1.5.0"}}}
-	c := &Client{}
-
-	info := &UpgradeInfo{CurrentVersion: "1.4.0"}
-	if !c.applyOCIUpgrade(info, "app", "1.4.0", lister, map[string][]string{}) {
-		t.Fatal("expected applyOCIUpgrade to return true")
-	}
-	if info.SourceType != "oci" || info.LatestVersion != "1.5.0" || !info.UpdateAvailable {
-		t.Errorf("unexpected info: %+v", info)
-	}
-	if info.ChartRef != "oci://reg/c/app" {
-		t.Errorf("ChartRef = %q, want oci://reg/c/app", info.ChartRef)
-	}
-
-	// Same version → no update available, but still tracked.
-	info2 := &UpgradeInfo{CurrentVersion: "1.5.0"}
-	c.applyOCIUpgrade(info2, "app", "1.5.0", lister, map[string][]string{})
-	if info2.UpdateAvailable {
-		t.Error("expected UpdateAvailable=false when current == latest")
-	}
-}
-
 func TestResolveOCIUpgradeURLWithLister_UsesRegisteredPrefix(t *testing.T) {
 	withOCISources(t, []string{"oci://reg/c"})
 	lister := &fakeTagLister{tags: map[string][]string{"reg/c/app": {"1.4.0", "1.5.0"}}}

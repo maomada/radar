@@ -143,6 +143,7 @@ type CloudConnectCapability struct {
 // here in the same change, plus an entry in web/src/api/radarFeatures.ts
 // (TestFeatureFlagsHaveFrontendGates enforces the pairing).
 type FeatureCapabilities struct {
+	HelmSourceIdentity    bool `json:"helmSourceIdentity"`
 	YAMLReview            bool `json:"yamlReview"`
 	YAMLSchemas           bool `json:"yamlSchemas"`
 	WorkloadImages        bool `json:"workloadImages"`
