@@ -22,7 +22,7 @@ type manageGitOpsInput struct {
 	Name      string `json:"name" jsonschema:"resource name"`
 
 	// ArgoCD sync options (all optional; ignored for FluxCD).
-	Revision    string   `json:"revision,omitempty" jsonschema:"sync only — branch/tag/commit. Empty = use targetRevision."`
+	Revision    string   `json:"revision,omitempty" jsonschema:"sync only — branch/tag/commit; single-source only; omit to use each source's targetRevision."`
 	Prune       *bool    `json:"prune,omitempty" jsonschema:"sync/rollback — delete resources no longer in source. Default false."`
 	DryRun      *bool    `json:"dry_run,omitempty" jsonschema:"sync/rollback — preview only, do not apply."`
 	Force       *bool    `json:"force,omitempty" jsonschema:"sync only — kubectl --force; required for some immutable-field changes."`

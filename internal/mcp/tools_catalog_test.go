@@ -241,7 +241,7 @@ func TestTrimmedToolsPreserveLoadBearingSteers(t *testing.T) {
 	}
 }
 
-func TestManageGitOpsSyncOptionsDescription(t *testing.T) {
+func TestManageGitOpsSyncDescriptions(t *testing.T) {
 	for _, tool := range listRegisteredTools(t) {
 		if tool.Name != "manage_gitops" {
 			continue
@@ -262,6 +262,10 @@ func TestManageGitOpsSyncOptionsDescription(t *testing.T) {
 		if got := schema.Properties["sync_options"].Description; got != want {
 			t.Fatalf("sync_options description = %q, want %q", got, want)
 		}
+		wantRevision := "sync only — branch/tag/commit; single-source only; omit to use each source's targetRevision."
+		if got := schema.Properties["revision"].Description; got != wantRevision {
+			t.Fatalf("revision description = %q, want %q", got, wantRevision)
+		}
 		return
 	}
 	t.Fatal("manage_gitops is not registered")
@@ -274,7 +278,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// node in errors/pendingPods/skippedPods, is not safe to take down) is one
 	// such uncertainty boundary.
 	const (
-		maxCatalogBytes         = 61780
+		maxCatalogBytes         = 61816
 		maxToolDescriptionBytes = 3000
 	)
 

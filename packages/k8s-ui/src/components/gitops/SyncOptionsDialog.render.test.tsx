@@ -7,6 +7,7 @@ import { SyncOptionsDialog, type ArgoSyncOpts } from './SyncOptionsDialog'
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 
 const APP_OPTIONS = ['CreateNamespace=true', 'ServerSideApply=true']
+const STALE_OPTIONS_NOTICE = "The Application's sync options changed while this dialog was open. This sync uses the options shown here. Cancel and reopen to load the latest."
 let host: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 let confirmed: ArgoSyncOpts[]
@@ -50,6 +51,7 @@ it('starts with prune off and submits nothing for the options, so the Applicatio
   expect(toggle('Server-side apply').disabled).toBe(false)
   expect(toggle('Replace').checked).toBe(false)
   expect(toggle('Replace').disabled).toBe(false)
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
   await click(button('Sync now'))
   expect(confirmed).toEqual([{ revision: undefined, prune: false, dryRun: false, force: false, applyOnly: false }])
 })
@@ -81,11 +83,11 @@ it('explains selective sync hooks, dependencies and namespace management without
   expect(document.body.textContent).not.toContain('bypasses hooks and normal sync-wave ordering')
 })
 
-it('disables unknown sync options and inherits them when confirming', async () => {
+it('disables unknown sync options and omits them when confirming', async () => {
   await render({ applicationSyncOptions: undefined })
   expect(toggle('Replace').disabled).toBe(true)
   expect(toggle('Server-side apply').disabled).toBe(true)
-  expect(document.body.textContent).toContain("This sync uses the Application's own sync options. This view can't show them, so Replace and Server-side apply can't be changed here.")
+  expect(document.body.textContent).toContain("This view can't show or change the Application's sync options, so Replace and Server-side apply are unavailable here.")
   await click(toggle('Replace'))
   await click(toggle('Server-side apply'))
   await click(toggle('Prune'))
@@ -93,7 +95,7 @@ it('disables unknown sync options and inherits them when confirming', async () =
   expect(confirmed).toEqual([{ revision: undefined, prune: true, dryRun: false, force: false, applyOnly: false }])
 })
 
-it('inherits unknown sync options for selective sync and its dry-run, even after earlier edits', async () => {
+it('omits unknown sync options for selective sync and its dry-run, even after earlier edits', async () => {
   const props = {
     resource: { kind: 'Deployment', group: 'apps', namespace: 'guestbook', name: 'web' },
     onValidate: (opts: ArgoSyncOpts) => validated.push(opts),
@@ -115,7 +117,7 @@ it('keeps toggles editable when the Application has an explicitly empty option l
   expect(toggle('Replace').checked).toBe(false)
   expect(toggle('Server-side apply').disabled).toBe(false)
   expect(toggle('Server-side apply').checked).toBe(false)
-  expect(document.body.textContent).not.toContain("This view can't show them")
+  expect(document.body.textContent).not.toContain("This view can't show or change")
   await click(button('Sync now'))
   expect(confirmed[0]).not.toHaveProperty('syncOptions')
   await click(toggle('Replace'))
@@ -184,6 +186,8 @@ it("keeps the user's dry-run and revision when the Application's options change 
   expect(toggle('Dry run').checked).toBe(true)
   expect(toggle('Server-side apply').checked).toBe(false)
   expect(onValidationReset).toHaveBeenCalledTimes(1)
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
+  expect(toggle("Keep the Application's other sync options").checked).toBe(true)
   await click(button('Run dry-run'))
   expect(confirmed[0]).toEqual({ revision: 'release-1', prune: false, dryRun: true, force: false, applyOnly: false })
 })
@@ -191,7 +195,13 @@ it("keeps the user's dry-run and revision when the Application's options change 
 it("keeps the user's option edits when the Application's options change while open", async () => {
   await render()
   await click(toggle('Replace'))
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
+  await render({ applicationSyncOptions: [...APP_OPTIONS] })
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
   await render({ applicationSyncOptions: ['PruneLast=true'] })
+  expect(document.body.textContent).toContain(STALE_OPTIONS_NOTICE)
+  expect(toggle('Keep the other sync options shown here').checked).toBe(true)
+  expect(document.body.textContent).not.toContain("Keep the Application's other sync options")
   expect(toggle('Replace').checked).toBe(true)
   expect(toggle('Server-side apply').checked).toBe(true)
   await click(button('Sync now'))
@@ -207,4 +217,33 @@ it('sends the options it shows once they are no longer the Application’s curre
   expect(toggle('Server-side apply').checked).toBe(true)
   await click(button('Sync now'))
   expect(confirmed[0].syncOptions).toEqual(APP_OPTIONS)
+})
+
+it('clears the stale-options notice when live options match again or the dialog reopens', async () => {
+  await render()
+  await click(toggle('Replace'))
+  await render({ applicationSyncOptions: [] })
+  expect(document.body.textContent).toContain(STALE_OPTIONS_NOTICE)
+  await render()
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
+  expect(toggle("Keep the Application's other sync options").checked).toBe(true)
+  await render({ applicationSyncOptions: ['PruneLast=true'] })
+  expect(document.body.textContent).toContain(STALE_OPTIONS_NOTICE)
+  await render({ open: false, applicationSyncOptions: ['PruneLast=true'] })
+  await render({ applicationSyncOptions: ['PruneLast=true'] })
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
+  expect(toggle('Replace').checked).toBe(false)
+  expect(toggle("Keep the Application's other sync options").checked).toBe(true)
+  await click(button('Sync now'))
+  expect(confirmed[0]).not.toHaveProperty('syncOptions')
+})
+
+it('shows the stale-options notice even when the snapshot has no other options', async () => {
+  await render({ applicationSyncOptions: [] })
+  await click(toggle('Replace'))
+  await render({ applicationSyncOptions: ['PruneLast=true'] })
+  expect(document.body.textContent).toContain(STALE_OPTIONS_NOTICE)
+  expect(document.body.textContent).not.toContain('Keep the other sync options shown here')
+  await click(button('Sync now'))
+  expect(confirmed[0].syncOptions).toEqual(['Replace=true'])
 })

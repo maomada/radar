@@ -47,7 +47,7 @@ export interface SyncOptionsDialogProps {
   multiSource?: boolean
   resource?: GitOpsInsightRef
   // The Application's spec.syncPolicy.syncOptions. Without it the toggles
-  // are disabled and the sync inherits the Application's options.
+  // are disabled and the submitted syncOptions are omitted.
   applicationSyncOptions?: string[]
   pending?: boolean
   autoSyncEnabled?: boolean
@@ -81,6 +81,7 @@ export function SyncOptionsDialog({ open, appLabel, multiSource, resource, appli
   // while the dialog is open never replaces what the user sees or chose.
   const [appOptions, setAppOptions] = useState(liveAppOptions)
   const [optionsEdited, setOptionsEdited] = useState(false)
+  const optionsChangedWhileEditing = optionsEdited && liveAppOptionsKey !== appOptions.join('\n')
   const appReplace = appOptions.includes(REPLACE_OPTION)
   const appServerSideApply = appOptions.includes(SERVER_SIDE_APPLY_OPTION)
   const otherAppOptions = appOptions.filter((option) => !isToggledOption(option))
@@ -215,11 +216,14 @@ export function SyncOptionsDialog({ open, appLabel, multiSource, resource, appli
           <Toggle label="Replace" checked={replace} onChange={(value) => updateSyncOption(setReplace, value)} disabled={optionsDisabled || syncOptionsUnknown} hint={`kubectl replace instead of apply (drops fields not in source).${appReplace ? FROM_APPLICATION : ''}`} />
           <Toggle label="Server-side apply" checked={serverSideApply} onChange={(value) => updateSyncOption(setServerSideApply, value)} disabled={optionsDisabled || syncOptionsUnknown} hint={`Use the K8s server-side apply mechanism for ownership tracking.${appServerSideApply ? FROM_APPLICATION : ''}`} />
           {syncOptionsUnknown && (
-            <p className="text-xs text-theme-text-tertiary">This sync uses the Application's own sync options. This view can't show them, so Replace and Server-side apply can't be changed here.</p>
+            <p className="text-xs text-theme-text-tertiary">This view can't show or change the Application's sync options, so Replace and Server-side apply are unavailable here.</p>
+          )}
+          {optionsChangedWhileEditing && (
+            <p className="text-xs text-theme-text-secondary">The Application's sync options changed while this dialog was open. This sync uses the options shown here. Cancel and reopen to load the latest.</p>
           )}
           {otherAppOptions.length > 0 && (
             <Toggle
-              label="Keep the Application's other sync options"
+              label={optionsChangedWhileEditing ? "Keep the other sync options shown here" : "Keep the Application's other sync options"}
               checked={keepApplicationSyncOptions}
               onChange={(value) => updateSyncOption(setKeepApplicationSyncOptions, value)}
               disabled={optionsDisabled}
