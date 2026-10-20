@@ -154,7 +154,7 @@ func DrainNode(ctx context.Context, client kubernetes.Interface, nodeName string
 	// SIGKILLs pods mid-shutdown, the exact thing draining is meant to avoid.
 	if opts.WaitForDeletion && len(evicted) > 0 {
 		result.WaitedForDeletion = true
-		remaining, verificationErr := waitForPodsGone(drainCtx, client, nodeName, evicted)
+		remaining, verificationErr := waitForPodsGone(ctx, drainCtx, client, nodeName, evicted)
 		if verificationErr != nil {
 			result.UnconfirmedPods = pendingPodNames(remaining)
 			result.VerificationError = verificationErr.Error()
@@ -167,7 +167,6 @@ func DrainNode(ctx context.Context, client kubernetes.Interface, nodeName string
 	return result, nil
 }
 
-// logSkippedPods records the pods a drain left alone, if any.
 func logSkippedPods(nodeName string, skipped []PodDrainDecision) {
 	if len(skipped) == 0 {
 		return
@@ -222,21 +221,23 @@ func pendingPodNames(pods []drainedPod) []string {
 	return names
 }
 
-// waitForPodsGone blocks until every pod in evicted has left the node or ctx is done, and
-// returns remaining pod identities and any final verification error. A pod counts as gone once it is absent from the
-// node's pod list or has reappeared under a new UID (the old instance was deleted). Once ctx
-// is done, one last list runs under its own short timeout (see drainFinalCheckTimeout).
-func waitForPodsGone(ctx context.Context, client kubernetes.Interface, nodeName string, evicted []drainedPod) ([]drainedPod, error) {
+// A changed UID confirms the original pod was deleted, even if a controller reused its name.
+// The final read outlives the drain deadline so PDB retries cannot hide completed deletions,
+// but it remains bounded by the caller's cancellation and drainFinalCheckTimeout.
+func waitForPodsGone(callerCtx, drainCtx context.Context, client kubernetes.Interface, nodeName string, evicted []drainedPod) ([]drainedPod, error) {
 	remaining := make(map[types.UID]drainedPod, len(evicted))
 	for _, p := range evicted {
 		remaining[p.uid] = p
 	}
 
-	if pollUntilPodsGone(ctx, client, nodeName, remaining) {
+	if pollUntilPodsGone(drainCtx, client, nodeName, remaining) {
 		return nil, nil
 	}
+	if err := callerCtx.Err(); err != nil {
+		return mapValues(remaining), err
+	}
 
-	finalCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), drainFinalCheckTimeout)
+	finalCtx, cancel := context.WithTimeout(callerCtx, drainFinalCheckTimeout)
 	defer cancel()
 	if gone, err := pruneDepartedPods(finalCtx, client, nodeName, remaining); err != nil {
 		return mapValues(remaining), err

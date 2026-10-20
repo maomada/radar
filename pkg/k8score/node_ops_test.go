@@ -59,6 +59,30 @@ func TestDrainNodeDistinguishesFailedVerificationFromPresence(t *testing.T) {
 	}
 }
 
+func TestDrainNodeSkipsFinalVerificationAfterCallerCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pod := drainTestPod("web-1")
+	pod.UID = "old-web-uid"
+	client := fake.NewSimpleClientset(&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "worker-1"}}, &pod)
+	lists := 0
+	client.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		lists++
+		return false, nil, nil
+	})
+	acceptEvictions(client, cancel)
+	result, err := DrainNode(ctx, client, "worker-1", DrainOptions{WaitForDeletion: true, Timeout: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lists != 1 {
+		t.Fatalf("caller cancellation must prevent further verification reads; got %d lists", lists)
+	}
+	if result.Outcome != DrainUnconfirmed || result.VerificationError != context.Canceled.Error() || len(result.UnconfirmedPods) != 1 || len(result.PendingPods) != 0 {
+		t.Fatalf("canceled verification must stay unconfirmed: %+v", result)
+	}
+}
+
 func TestDrainTimeout(t *testing.T) {
 	tests := []struct {
 		name string
