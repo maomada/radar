@@ -29,10 +29,10 @@ type ReadSession interface {
 	Catalog() *Catalog
 	// Object reads one object. It does no I/O and waits for nothing.
 	Object(ref resourceid.Ref) ObjectRead
-	// OwnerCandidates finds the objects of the catalog's dependent kinds in
+	// DependentCandidates finds the objects of the catalog's dependent kinds in
 	// domain whose owner references name uid, at most limit of them (0 for
 	// no limit). It does no I/O and waits for nothing.
-	OwnerCandidates(uid types.UID, domain Domain, limit int) CandidateRead
+	DependentCandidates(uid types.UID, domain SearchScope, limit int) DependentCandidatesRead
 	// ValidateStores returns nil if every store the session read is still the one
 	// serving what it served then, and no version of a resource it read, left
 	// unread because nothing watched it then, is watched now; otherwise

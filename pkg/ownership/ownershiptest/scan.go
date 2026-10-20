@@ -189,12 +189,12 @@ func (s scanSession) dependentKinds() []dependentKind {
 	return out
 }
 
-func (s scanSession) OwnerCandidates(uid types.UID, domain ownership.Domain, limit int) ownership.CandidateRead {
-	var r ownership.CandidateRead
+func (s scanSession) DependentCandidates(uid types.UID, domain ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	var r ownership.DependentCandidatesRead
 	gap := func(gk resourceid.GroupKind, namespace string, reason readreason.Code) {
 		r.Gaps = append(r.Gaps, ownership.Gap{Kind: gk, Namespace: namespace, Reason: reason})
 	}
-	searches := domain.AllNamespaces || len(domain.Namespaces) > 0 || domain.ClusterScoped
+	searches := domain.AllNamespaces || len(domain.Namespaces) > 0 || domain.IncludeClusterScoped
 	if s.w.Partial && searches {
 		gap(resourceid.GroupKind{}, "", readreason.ReadError)
 	}
@@ -210,7 +210,7 @@ func (s scanSession) OwnerCandidates(uid types.UID, domain ownership.Domain, lim
 	}
 	var found []Object
 	for _, k := range s.dependents {
-		if k.namespaced && !domain.AllNamespaces && len(domain.Namespaces) == 0 || !k.namespaced && !domain.ClusterScoped {
+		if k.namespaced && !domain.AllNamespaces && len(domain.Namespaces) == 0 || !k.namespaced && !domain.IncludeClusterScoped {
 			continue
 		}
 		c := s.w.collection(k.gk)
@@ -260,7 +260,7 @@ func (s scanSession) OwnerCandidates(uid types.UID, domain ownership.Domain, lim
 	for gk, a := range s.ambiguousKinds {
 		event := gk.Kind == "Event" && (gk.Group == "" || gk.Group == "events.k8s.io")
 		namespacedSearched := domain.AllNamespaces || len(domain.Namespaces) > 0
-		if !event && (a.namespaced && namespacedSearched || a.clusterScoped && domain.ClusterScoped) {
+		if !event && (a.namespaced && namespacedSearched || a.clusterScoped && domain.IncludeClusterScoped) {
 			gap(gk, "", readreason.ReadError)
 		}
 	}

@@ -23,16 +23,16 @@ type candidate struct {
 	obj        apiruntime.Object
 }
 
-// search collects one OwnerCandidates call's candidates and gaps.
+// search collects one DependentCandidates call's candidates and gaps.
 type search struct {
 	uid        string
-	domain     ownership.Domain
+	domain     ownership.SearchScope
 	namespaces []string
 	found      []candidate
 	gaps       []ownership.Gap
 }
 
-func (s *session) OwnerCandidates(uid types.UID, domain ownership.Domain, limit int) ownership.CandidateRead {
+func (s *session) DependentCandidates(uid types.UID, domain ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
 	q := &search{uid: string(uid), domain: domain}
 	if !domain.AllNamespaces {
 		for _, ns := range slices.Compact(slices.Sorted(slices.Values(domain.Namespaces))) {
@@ -64,7 +64,7 @@ func (s *session) OwnerCandidates(uid types.UID, domain ownership.Domain, limit 
 		}
 	}
 	slices.SortFunc(q.found, func(a, b candidate) int { return compareRefs(a.ref, b.ref) })
-	r := ownership.CandidateRead{Gaps: q.gaps}
+	r := ownership.DependentCandidatesRead{Gaps: q.gaps}
 	if limit > 0 && len(q.found) > limit {
 		q.found, r.Truncated = q.found[:limit], true
 	}

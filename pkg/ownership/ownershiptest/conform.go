@@ -17,7 +17,7 @@ import (
 type Queries struct {
 	Refs    []resourceid.Ref
 	UIDs    []types.UID
-	Domains []ownership.Domain
+	Domains []ownership.SearchScope
 	Limits  []int
 }
 
@@ -75,10 +75,10 @@ func QueriesFor(w World) Queries {
 
 	slices.Sort(namespaces)
 	namespaces = slices.Compact(namespaces)
-	q.Domains = []ownership.Domain{
+	q.Domains = []ownership.SearchScope{
 		ownership.Everywhere(),
 		{AllNamespaces: true},
-		{ClusterScoped: true},
+		{IncludeClusterScoped: true},
 		{},
 		{Namespaces: []string{"no-such-namespace"}},
 	}
@@ -89,13 +89,13 @@ func QueriesFor(w World) Queries {
 		// AllNamespaces wins over a namespace list; an empty entry never
 		// means every namespace.
 		q.Domains = append(q.Domains,
-			ownership.Domain{AllNamespaces: true, Namespaces: namespaces[:1]},
-			ownership.Domain{Namespaces: []string{"", namespaces[0]}},
+			ownership.SearchScope{AllNamespaces: true, Namespaces: namespaces[:1]},
+			ownership.SearchScope{Namespaces: []string{"", namespaces[0]}},
 		)
 	}
-	q.Domains = append(q.Domains, ownership.Domain{Namespaces: []string{""}, ClusterScoped: true})
+	q.Domains = append(q.Domains, ownership.SearchScope{Namespaces: []string{""}, IncludeClusterScoped: true})
 	if len(namespaces) >= 2 {
-		q.Domains = append(q.Domains, ownership.Domain{Namespaces: []string{namespaces[1], namespaces[0], namespaces[1]}, ClusterScoped: true})
+		q.Domains = append(q.Domains, ownership.SearchScope{Namespaces: []string{namespaces[1], namespaces[0], namespaces[1]}, IncludeClusterScoped: true})
 	}
 	q.Limits = []int{0, 1}
 	return q
@@ -111,11 +111,11 @@ type Difference struct {
 	// truncation), not only about objects.
 	Coverage bool
 	// The question itself: Object(Ref), or, when Candidates is set,
-	// OwnerCandidates(UID, Domain, Limit).
+	// DependentCandidates(UID, SearchScope, Limit).
 	Ref        resourceid.Ref
 	Candidates bool
 	UID        types.UID
-	Domain     ownership.Domain
+	Domain     ownership.SearchScope
 	Limit      int
 	// WantGaps are the gaps the first session reported for a search.
 	WantGaps []ownership.Gap
@@ -141,10 +141,10 @@ func Differences(want, got ownership.ReadSession, q Queries) []Difference {
 	for _, uid := range q.UIDs {
 		for _, d := range q.Domains {
 			for _, limit := range q.Limits {
-				w, g := want.OwnerCandidates(uid, d, limit), got.OwnerCandidates(uid, d, limit)
+				w, g := want.DependentCandidates(uid, d, limit), got.DependentCandidates(uid, d, limit)
 				if !sameCandidates(w, g) {
 					diffs = append(diffs, Difference{
-						Question: fmt.Sprintf("OwnerCandidates(%q, %+v, %d)", uid, d, limit),
+						Question: fmt.Sprintf("DependentCandidates(%q, %+v, %d)", uid, d, limit),
 						Want:     describeCandidates(w), Got: describeCandidates(g),
 						Objects:    differingCandidates(w, g),
 						Coverage:   w.Truncated != g.Truncated || !slices.Equal(w.Gaps, g.Gaps),
@@ -175,7 +175,7 @@ func Conform(t testing.TB, want, got ownership.ReadSession, q Queries) int {
 
 // differingCandidates returns the objects one answer has and the other
 // doesn't, or has differently.
-func differingCandidates(a, b ownership.CandidateRead) []resourceid.Ref {
+func differingCandidates(a, b ownership.DependentCandidatesRead) []resourceid.Ref {
 	seen := map[resourceid.Ref]ownership.Observation{}
 	for _, c := range a.Candidates {
 		seen[c.Ref] = c
@@ -198,7 +198,7 @@ func sameRead(a, b ownership.ObjectRead) bool {
 	return a.State == b.State && a.Gap == b.Gap && sameObservation(a.Object, b.Object)
 }
 
-func sameCandidates(a, b ownership.CandidateRead) bool {
+func sameCandidates(a, b ownership.DependentCandidatesRead) bool {
 	if a.Truncated != b.Truncated || !slices.Equal(a.Gaps, b.Gaps) || len(a.Candidates) != len(b.Candidates) {
 		return false
 	}
@@ -235,7 +235,7 @@ func describeRead(r ownership.ObjectRead) string {
 	return fmt.Sprintf("unavailable %+v", r.Gap)
 }
 
-func describeCandidates(r ownership.CandidateRead) string {
+func describeCandidates(r ownership.DependentCandidatesRead) string {
 	var refs []string
 	for _, c := range r.Candidates {
 		refs = append(refs, describeObservation(c))

@@ -104,7 +104,7 @@ func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]o
 		}
 	}
 	if d.Candidates {
-		fresh := cache.OwnerCandidates(d.UID, d.Domain, d.Limit)
+		fresh := cache.DependentCandidates(d.UID, d.Domain, d.Limit)
 		if fresh.Truncated || !slices.Equal(fresh.Gaps, d.WantGaps) {
 			return unresolved
 		}
@@ -181,9 +181,9 @@ func unread(gaps []ownership.Gap, ref resourceid.Ref) bool {
 
 // inDomain reports whether a search of d covers ref, an object of a
 // cluster-scoped kind when it has no namespace.
-func inDomain(ref resourceid.Ref, d ownership.Domain) bool {
+func inDomain(ref resourceid.Ref, d ownership.SearchScope) bool {
 	if ref.Namespace == "" {
-		return d.ClusterScoped
+		return d.IncludeClusterScoped
 	}
 	return d.AllNamespaces || slices.Contains(d.Namespaces, ref.Namespace)
 }

@@ -18,8 +18,8 @@ var quick = settle{tries: 3, pause: time.Millisecond}
 // candidateDrop drops every candidate: a broken owner index.
 type candidateDrop struct{ ownership.ReadSession }
 
-func (c candidateDrop) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := c.ReadSession.OwnerCandidates(uid, d, limit)
+func (c candidateDrop) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := c.ReadSession.DependentCandidates(uid, d, limit)
 	r.Candidates = nil
 	return r
 }
@@ -27,8 +27,8 @@ func (c candidateDrop) OwnerCandidates(uid types.UID, d ownership.Domain, limit 
 // inventedUID returns every candidate under a UID it doesn't have.
 type inventedUID struct{ ownership.ReadSession }
 
-func (c inventedUID) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := c.ReadSession.OwnerCandidates(uid, d, limit)
+func (c inventedUID) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := c.ReadSession.DependentCandidates(uid, d, limit)
 	for i := range r.Candidates {
 		r.Candidates[i].UID = "invented"
 	}
@@ -60,8 +60,8 @@ type extraCandidate struct {
 	extra ownership.Observation
 }
 
-func (e extraCandidate) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := e.ReadSession.OwnerCandidates(uid, d, limit)
+func (e extraCandidate) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := e.ReadSession.DependentCandidates(uid, d, limit)
 	r.Candidates = append(r.Candidates, e.extra)
 	return r
 }
@@ -69,8 +69,8 @@ func (e extraCandidate) OwnerCandidates(uid types.UID, d ownership.Domain, limit
 // twice returns every candidate twice.
 type twice struct{ ownership.ReadSession }
 
-func (c twice) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := c.ReadSession.OwnerCandidates(uid, d, limit)
+func (c twice) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := c.ReadSession.DependentCandidates(uid, d, limit)
 	r.Candidates = append(r.Candidates, r.Candidates...)
 	return r
 }
@@ -83,8 +83,8 @@ type dropsLater struct {
 	calls *int
 }
 
-func (l dropsLater) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := l.ReadSession.OwnerCandidates(uid, d, limit)
+func (l dropsLater) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := l.ReadSession.DependentCandidates(uid, d, limit)
 	if *l.calls++; *l.calls > 1 {
 		r.Candidates = slices.DeleteFunc(r.Candidates, func(c ownership.Observation) bool { return c.Ref == l.drop })
 	}
@@ -97,8 +97,8 @@ type earlyGap struct {
 	calls *int
 }
 
-func (e earlyGap) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := e.ReadSession.OwnerCandidates(uid, d, limit)
+func (e earlyGap) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := e.ReadSession.DependentCandidates(uid, d, limit)
 	if *e.calls++; *e.calls == 1 {
 		r.Gaps = append(r.Gaps, ownership.Gap{Kind: resourceid.GroupKind{Kind: "Pod"}, Namespace: "beta", Reason: "kind_sync_pending"})
 	}
@@ -111,8 +111,8 @@ type laterGap struct {
 	calls *int
 }
 
-func (l laterGap) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	r := l.ReadSession.OwnerCandidates(uid, d, limit)
+func (l laterGap) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	r := l.ReadSession.DependentCandidates(uid, d, limit)
 	if *l.calls++; *l.calls > 1 {
 		r.Gaps = append(r.Gaps, ownership.Gap{Kind: resourceid.GroupKind{Kind: "Pod"}, Namespace: "beta", Reason: "kind_sync_pending"})
 	}
@@ -137,8 +137,8 @@ func (l lagging) view() ownership.ReadSession {
 
 func (l lagging) Object(ref resourceid.Ref) ownership.ObjectRead { return l.view().Object(ref) }
 
-func (l lagging) OwnerCandidates(uid types.UID, d ownership.Domain, limit int) ownership.CandidateRead {
-	return l.view().OwnerCandidates(uid, d, limit)
+func (l lagging) DependentCandidates(uid types.UID, d ownership.SearchScope, limit int) ownership.DependentCandidatesRead {
+	return l.view().DependentCandidates(uid, d, limit)
 }
 
 func world(objects ...ownershiptest.Object) ownershiptest.World {
@@ -192,7 +192,7 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 
 	listed := world(rs, pod)
 	behindList, listedWithSibling := world(rs, orphaned), world(rs, pod, sibling)
-	q := ownershiptest.Queries{Refs: []resourceid.Ref{pod.Ref}, UIDs: []types.UID{"uid-rs"}, Domains: []ownership.Domain{ownership.InNamespace("alpha")}, Limits: []int{0}}
+	q := ownershiptest.Queries{Refs: []resourceid.Ref{pod.Ref}, UIDs: []types.UID{"uid-rs"}, Domains: []ownership.SearchScope{ownership.InNamespace("alpha")}, Limits: []int{0}}
 	for _, tc := range []struct {
 		name  string
 		now   ownershiptest.World
@@ -204,11 +204,11 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 		listed *ownershiptest.World
 	}{
 		{"the Pod was updated, and the cache has the update", world(rs, updated), nil,
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": confirmed}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": confirmed}, nil},
 		{"the Pod lost its owner, and the cache knows", world(rs, orphaned), nil,
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": confirmed}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": confirmed}, nil},
 		{"the Pod was deleted, and the cache knows", world(rs), nil,
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": confirmed}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": confirmed}, nil},
 		// The list already saw the Pod orphaned; the cache, behind, still
 		// had it as a candidate and catches up only on its third answer. The
 		// disputed question is asked afresh after the objects settle, and
@@ -216,57 +216,61 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 		// behind.
 		{"the cache was behind the list", world(rs, orphaned),
 			func(now ownership.ReadSession) ownership.ReadSession { return lagging{now, begin(t, listed), new(int)} },
-			map[string]outcome{"Object": caughtUp, "OwnerCandidates": caughtUp}, &behindList},
+			map[string]outcome{"Object": caughtUp, "DependentCandidates": caughtUp}, &behindList},
 		// The cache's own absence is not evidence: the API server still has it.
 		{"the cache keeps reporting the Pod absent", world(rs, pod),
-			func(now ownership.ReadSession) ownership.ReadSession { return falseAbsence{now, pod.Ref, false, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession {
+				return falseAbsence{now, pod.Ref, false, new(int)}
+			},
 			map[string]outcome{"Object": unresolved}, nil},
 		// Right once asked again, with nothing changed: not a confirmed
 		// change, whatever made the first answer wrong.
 		{"the cache reports the Pod absent once", world(rs, pod),
-			func(now ownership.ReadSession) ownership.ReadSession { return falseAbsence{now, pod.Ref, true, new(int)} },
+			func(now ownership.ReadSession) ownership.ReadSession {
+				return falseAbsence{now, pod.Ref, true, new(int)}
+			},
 			map[string]outcome{"Object": caughtUp}, nil},
 		// A write that kept the Pod's owner doesn't excuse a missing
 		// candidate.
 		{"a status write, and the index drops the Pod", world(rs, updated),
 			func(now ownership.ReadSession) ownership.ReadSession { return candidateDrop{now} },
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 		// Membership right, copy wrong.
 		{"a candidate under a UID it doesn't have", world(rs, updated),
 			func(now ownership.ReadSession) ownership.ReadSession { return inventedUID{now} },
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 		// A Pod outside the searched namespace, named in a search for alpha.
 		{"a candidate outside the domain", world(rs, updated, elsewhere),
 			func(now ownership.ReadSession) ownership.ReadSession {
 				return extraCandidate{now, ownershiptest.Observe(elsewhere)}
 			},
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 		// Every copy right, but one object named twice, with or without a
 		// write since the list.
 		{"a candidate returned twice", world(rs, pod),
 			func(now ownership.ReadSession) ownership.ReadSession { return twice{now} },
-			map[string]outcome{"OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"DependentCandidates": unresolved}, nil},
 		{"a candidate returned twice after a write", world(rs, updated),
 			func(now ownership.ReadSession) ownership.ReadSession { return twice{now} },
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 		// The sibling agreed at first and was never disputed; asked again,
 		// the search drops it.
 		{"a candidate that agreed, dropped when asked again", world(rs, updated, sibling),
 			func(now ownership.ReadSession) ownership.ReadSession { return dropsLater{now, sibling.Ref, new(int)} },
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, &listedWithSibling},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, &listedWithSibling},
 		// Asked again, the search covers less than the expected answer.
 		{"the fresh answer leaves more unread", world(rs, updated),
 			func(now ownership.ReadSession) ownership.ReadSession { return laterGap{now, new(int)} },
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 		// A coverage difference fails even when it's gone by the time the
 		// question is asked again: the caches are loaded before comparing.
 		{"a coverage difference that passes", world(rs, updated),
 			func(now ownership.ReadSession) ownership.ReadSession { return earlyGap{now, new(int)} },
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 		// Discovery went partial while the Pod changed: a coverage difference
 		// beside an object one, never explained by the object.
 		{"coverage and an object differ together", partial, nil,
-			map[string]outcome{"Object": confirmed, "OwnerCandidates": unresolved}, nil},
+			map[string]outcome{"Object": confirmed, "DependentCandidates": unresolved}, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cache := begin(t, tc.now)
@@ -281,7 +285,7 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 			for _, d := range ownershiptest.Differences(begin(t, from), cache, q) {
 				question := "Object"
 				if d.Candidates {
-					question = "OwnerCandidates"
+					question = "DependentCandidates"
 				}
 				seen[question] = true
 				want, expected := tc.want[question]
@@ -312,16 +316,16 @@ func TestRecheckDoesNotLetAKindlessGapExcuseAnOmission(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		partial bool
-		domain  ownership.Domain
+		domain  ownership.SearchScope
 	}{
-		{"an empty namespace entry", false, ownership.Domain{Namespaces: []string{""}, ClusterScoped: true}},
-		{"partial discovery", true, ownership.Domain{ClusterScoped: true}},
+		{"an empty namespace entry", false, ownership.SearchScope{Namespaces: []string{""}, IncludeClusterScoped: true}},
+		{"partial discovery", true, ownership.SearchScope{IncludeClusterScoped: true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			listedWorld, now := world(owner, a, sibling), world(owner, updated, sibling)
 			listedWorld.Partial, now.Partial = tc.partial, tc.partial
 			cache := dropsLater{begin(t, now), sibling.Ref, new(int)}
-			q := ownershiptest.Queries{UIDs: []types.UID{"uid-parent"}, Domains: []ownership.Domain{tc.domain}, Limits: []int{0}}
+			q := ownershiptest.Queries{UIDs: []types.UID{"uid-parent"}, Domains: []ownership.SearchScope{tc.domain}, Limits: []int{0}}
 			diffs := ownershiptest.Differences(begin(t, listedWorld), cache, q)
 			if len(diffs) != 1 || diffs[0].Coverage || len(diffs[0].WantGaps) == 0 || diffs[0].WantGaps[0].Kind != (resourceid.GroupKind{}) {
 				t.Fatalf("scenario: want one object difference beside a kindless gap, got %v", diffs)
