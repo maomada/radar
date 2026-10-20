@@ -820,34 +820,48 @@ func RollbackArgoApp(ctx context.Context, dynClient dynamic.Interface, namespace
 // explicit operation marker records rollback intent; a later sync replaces
 // that evidence.
 func ArgoSuccessfulRollback(app *unstructured.Unstructured) (revision, username string) {
+	targets, revisions, username := argoCompletedRollbackRevisions(app)
+	if len(revisions) == 0 || !slices.Equal(targets, revisions) {
+		return "", ""
+	}
+	return strings.Join(revisions, ", "), username
+}
+
+// ArgoRollbackRevisionMismatch returns the requested and applied revisions when
+// a completed, marked rollback deployed different revisions. A successful
+// operation phase alone does not prove the controller honored the target.
+func ArgoRollbackRevisionMismatch(app *unstructured.Unstructured) (target, applied string) {
+	targets, revisions, _ := argoCompletedRollbackRevisions(app)
+	if len(targets) == 0 || len(revisions) == 0 || slices.Equal(targets, revisions) {
+		return "", ""
+	}
+	return strings.Join(targets, ", "), strings.Join(revisions, ", ")
+}
+
+func argoCompletedRollbackRevisions(app *unstructured.Unstructured) (targets, revisions []string, username string) {
 	phase, _, _ := unstructured.NestedString(app.Object, "status", "operationState", "phase")
 	if phase != "Succeeded" || argoOperationInProgress(app) {
-		return "", ""
+		return nil, nil, ""
 	}
 	operation, _, _ := unstructured.NestedMap(app.Object, "status", "operationState", "operation")
 	if !argoOperationHasInfo(operation, argoRollbackInfoName, "true") {
-		return "", ""
+		return nil, nil, ""
 	}
 	dryRun, _, _ := unstructured.NestedBool(operation, "sync", "dryRun")
 	if dryRun {
-		return "", ""
+		return nil, nil, ""
 	}
-	revisions, _, _ := unstructured.NestedStringSlice(app.Object, "status", "operationState", "syncResult", "revisions")
-	if len(revisions) > 0 {
-		targets, _, _ := unstructured.NestedStringSlice(operation, "sync", "revisions")
-		if !slices.Equal(targets, revisions) {
-			return "", ""
-		}
-		revision = strings.Join(revisions, ", ")
-	} else {
-		revision, _, _ = unstructured.NestedString(app.Object, "status", "operationState", "syncResult", "revision")
+	targets, _, _ = unstructured.NestedStringSlice(operation, "sync", "revisions")
+	revisions, _, _ = unstructured.NestedStringSlice(app.Object, "status", "operationState", "syncResult", "revisions")
+	if len(targets) == 0 && len(revisions) == 0 {
 		target, _, _ := unstructured.NestedString(operation, "sync", "revision")
-		if target != revision {
-			return "", ""
+		revision, _, _ := unstructured.NestedString(app.Object, "status", "operationState", "syncResult", "revision")
+		if target != "" && revision != "" {
+			targets, revisions = []string{target}, []string{revision}
 		}
 	}
 	username, _, _ = unstructured.NestedString(operation, "initiatedBy", "username")
-	return revision, username
+	return targets, revisions, username
 }
 
 // Argo merge-patches operation state, so omitted fields from a completed

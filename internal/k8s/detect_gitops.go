@@ -377,6 +377,10 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 				fmt.Sprintf("Application has been out of sync for %s and auto-sync is not enabled", timeutil.FormatAgeShort(manualDriftFor)), createdAt)
 			setDetectionOnset(&dd, now, outOfSyncAt)
 			dd.Action = "Review the drift in Changes, then Sync the application (or enable auto-sync) if the drift is unintended."
+			if revision, _ := gitops.ArgoSuccessfulRollback(app); revision != "" {
+				dd.Message = "Last rollback deployed " + revision + "; Git points to a different revision and auto-sync is off."
+				dd.Action = "Syncing or enabling auto-sync deploys Git again and undoes the rollback. Fix or revert Git first, or keep holding with auto-sync off. Review Changes for any changes made since the rollback."
+			}
 			out = append(out, dd)
 		}
 	}

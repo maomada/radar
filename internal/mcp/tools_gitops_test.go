@@ -81,7 +81,7 @@ func TestHandleManageGitOpsRollback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handleManageGitOps: %v", err)
 		}
-		want := "Rollback to history #0 initiated for ArgoCD Application argocd/demo. Once it succeeds, the application stays on that revision with auto-sync off until you sync or use manage_gitops with tool=argocd and action=resume."
+		want := "Rollback to history #0 initiated for ArgoCD Application argocd/demo. Auto-sync is off. Later changes can still cause drift. Syncing or using manage_gitops with tool=argocd and action=resume deploys current Git and can undo the rollback."
 		if got := decodeToolResult(t, result)["message"]; got != want {
 			t.Fatalf("message = %q, want %q", got, want)
 		}

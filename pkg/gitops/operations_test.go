@@ -1538,3 +1538,64 @@ func TestTerminateArgoSyncRepairsStaleRunningStatus(t *testing.T) {
 
 // Suppress the unused-metav1 lint when this file is compiled alone.
 var _ = metav1.ObjectMeta{}
+
+func TestArgoRollbackRevisionMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name                             string
+		target, result                   []string
+		multi, dryRun, unmarked, pending bool
+		phase                            string
+		wantTarget, wantResult           string
+	}{
+		{name: "single mismatch", target: []string{"old"}, result: []string{"new"}, wantTarget: "old", wantResult: "new"},
+		{name: "single match", target: []string{"old"}, result: []string{"old"}},
+		{name: "multi mismatch", multi: true, target: []string{"old-a", "old-b"}, result: []string{"new-a", "new-b"}, wantTarget: "old-a, old-b", wantResult: "new-a, new-b"},
+		{name: "multi partial mismatch", multi: true, target: []string{"old-a", "old-b"}, result: []string{"old-a", "new-b"}, wantTarget: "old-a, old-b", wantResult: "old-a, new-b"},
+		{name: "multi match", multi: true, target: []string{"a", "b"}, result: []string{"a", "b"}},
+		{name: "dry run", dryRun: true, target: []string{"old"}, result: []string{"new"}},
+		{name: "multi dry run", multi: true, dryRun: true, target: []string{"old"}, result: []string{"new"}},
+		{name: "unmarked sync", unmarked: true, target: []string{"old"}, result: []string{"new"}},
+		{name: "failed", phase: "Failed", target: []string{"old"}, result: []string{"new"}},
+		{name: "running", phase: "Running", target: []string{"old"}, result: []string{"new"}},
+		{name: "pending operation", pending: true, target: []string{"old"}, result: []string{"new"}},
+		{name: "no result", target: []string{"old"}},
+		{name: "no target", result: []string{"new"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := argoAppForTest("argocd", "demo", nil)
+			sync, result := map[string]any{"dryRun": tc.dryRun}, map[string]any{}
+			if tc.multi {
+				_ = unstructured.SetNestedStringSlice(sync, tc.target, "revisions")
+				_ = unstructured.SetNestedStringSlice(result, tc.result, "revisions")
+			} else {
+				if len(tc.target) > 0 {
+					sync["revision"] = tc.target[0]
+				}
+				if len(tc.result) > 0 {
+					result["revision"] = tc.result[0]
+				}
+			}
+			operation := map[string]any{"sync": sync, "initiatedBy": map[string]any{"username": "alice"}}
+			if !tc.unmarked {
+				operation["info"] = []any{map[string]any{"name": argoRollbackInfoName, "value": "true"}}
+			}
+			phase := tc.phase
+			if phase == "" {
+				phase = "Succeeded"
+			}
+			_ = unstructured.SetNestedMap(app.Object, map[string]any{"phase": phase, "operation": operation, "syncResult": result}, "status", "operationState")
+			if tc.pending {
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
+			}
+			target, applied := ArgoRollbackRevisionMismatch(app)
+			if target != tc.wantTarget || applied != tc.wantResult {
+				t.Fatalf("mismatch = (%q, %q), want (%q, %q)", target, applied, tc.wantTarget, tc.wantResult)
+			}
+			if tc.wantTarget != "" {
+				if revision, _ := ArgoSuccessfulRollback(app); revision != "" {
+					t.Fatalf("mismatch reported as successful rollback: %q", revision)
+				}
+			}
+		})
+	}
+}

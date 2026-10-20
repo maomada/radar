@@ -15,7 +15,7 @@ afterEach(async () => {
 })
 
 describe('RollbackDialog confirmation', () => {
-  it('explains the persistent revision and keeps dry-run copy distinct', async () => {
+  it('explains rollback risk and keeps dry-run copy distinct', async () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     root = createRoot(host)
@@ -24,13 +24,26 @@ describe('RollbackDialog confirmation', () => {
       <RollbackDialog open appLabel="argocd/demo" revision="abc123" historyId="0" onCancel={() => {}} onConfirm={onConfirm} />,
     ))
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
-    expect(dialog.textContent).toContain('Once it succeeds, the application stays on that revision with auto-sync off until you sync or enable auto-sync.')
+    expect(dialog.textContent).toContain('Auto-sync is off. Later changes can still cause drift. Syncing or enabling auto-sync deploys current Git and can undo the rollback.')
     const dryRun = dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
     await act(async () => dryRun.click())
     expect(dialog.textContent).toContain('Argo will preview syncing this application to a previous revision without applying changes.')
-    expect(dialog.textContent).not.toContain('Once it succeeds')
+    expect(dialog.textContent).not.toContain('Later changes can still cause drift.')
     const confirm = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === 'Run dry-run')!
     await act(async () => confirm.click())
     expect(onConfirm).toHaveBeenCalledWith({ prune: false, dryRun: true })
   })
+
+  it.each([true, false])('shows controller compatibility only for multi-source entries (%s)', async (multiSource) => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    await act(async () => root?.render(
+      <RollbackDialog open appLabel="argocd/demo" revision="aaa111, bbb222" multiSource={multiSource} onCancel={() => {}} onConfirm={() => {}} />,
+    ))
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+    const note = 'Rolling back a multi-source Application needs Argo CD 2.12 or later. A 2.11 controller ignores the history entry’s revisions and syncs the current ones.'
+    expect(dialog.textContent?.includes(note)).toBe(multiSource)
+  })
+
 })
