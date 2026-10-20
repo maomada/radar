@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { act } from 'react'
+import { act, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { NodeDrainStatus } from './NodeDrainStatus'
-import { useDrainNode, nodeDrainActivityKey, type NodeDrainActivity } from '../../api/client'
+import { useDrainNode, useSetActiveNamespace, nodeDrainActivityKey, type NodeDrainActivity, type NamespaceScope } from '../../api/client'
 import { setApiBase } from '../../api/config'
+import { refreshQueriesAfterReconnect } from '../../context/ConnectionContext'
 
 let host: HTMLDivElement
 let root: Root
@@ -15,8 +16,10 @@ let respond: (response: Response) => void
 let reject: (error: Error) => void
 
 function Harness({ uid = 'node-uid', visible = true }: { uid?: string; visible?: boolean }) {
-  const mutation = useDrainNode(uid)
-  start = () => mutation.mutateAsync({ name: 'worker' }).catch(() => undefined)
+  const { mutateAsync } = useDrainNode(uid)
+  useEffect(() => {
+    start = () => mutateAsync({ name: 'worker' }).catch(() => undefined)
+  }, [mutateAsync])
   return visible ? <NodeDrainStatus name="worker" nodeUID={uid} /> : null
 }
 
@@ -129,6 +132,80 @@ it('dismisses the recorded result and retains it past the normal cache lifetime 
   await render('', false)
   await render()
   expect(host.textContent).toBe('')
+})
+
+it('retains a running drain and its final result across a same-context reconnect', async () => {
+  client.setQueryData(['cluster-info'], { context: 'same' })
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  await render()
+  let pending: Promise<unknown> | undefined
+  await act(async () => { pending = start() })
+  await act(async () => { refreshQueriesAfterReconnect(client, 'same', 'same') })
+  await flush()
+  expect(host.textContent).toContain('Drain in progress')
+  await act(async () => { respond(Response.json({ outcome: 'complete' })); await pending })
+  await flush()
+  expect(host.textContent).toContain('Nothing to evict')
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['topology'] })
+})
+
+it('refreshes the node when cluster-info first arrives during a drain', async () => {
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  await render()
+  let pending: Promise<unknown> | undefined
+  await act(async () => { pending = start() })
+  await act(async () => {
+    client.setQueryData(['cluster-info'], { context: 'first-load' })
+    respond(Response.json({ outcome: 'complete' }))
+    await pending
+  })
+  await flush()
+  expect(host.textContent).toContain('Nothing to evict')
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['resource', 'nodes', '', 'worker'] })
+})
+
+it('records completion for the original API base without showing it on another host', async () => {
+  await render()
+  let pending: Promise<unknown> | undefined
+  await act(async () => { pending = start() })
+  setApiBase('/c/other/api')
+  await render()
+  await act(async () => { respond(Response.json({ outcome: 'complete' })); await pending })
+  await flush()
+  expect(host.textContent).toBe('')
+  setApiBase('/api')
+  await render()
+  expect(host.textContent).toContain('Nothing to evict')
+})
+
+it('keeps cluster-scoped drain activity when changing the namespace inventory', async () => {
+  let change: (() => Promise<unknown>) | undefined
+  function Switch() {
+    const { mutateAsync } = useSetActiveNamespace()
+    useEffect(() => { change = () => mutateAsync({ namespaces: ['team-a'] }) }, [mutateAsync])
+    return <NodeDrainStatus name="worker" nodeUID="node-uid" />
+  }
+  client.setQueryData(nodeDrainActivityKey('/api', 'worker', 'node-uid'), {
+    status: 'pending', startedAt: Date.now(), timeoutSeconds: 120, requestId: 1,
+  })
+  client.setQueryData(['resources', 'pods'], ['old-pod'])
+  await act(async () => {
+    root.render(<QueryClientProvider client={client}><Switch /></QueryClientProvider>)
+  })
+  let pending: Promise<unknown> | undefined
+  await act(async () => { pending = change?.() })
+  const scope: NamespaceScope = {
+    actives: ['team-a'], kubeconfigNamespace: '', mode: 'namespace',
+    accessibleNamespaces: ['team-a'], deniedNamespaces: [], authoritative: true,
+    canClearNamespace: false, cacheScoped: true, namespaceRescope: true,
+  }
+  await act(async () => {
+    respond(Response.json(scope))
+    await pending
+  })
+  await flush()
+  expect(host.textContent).toContain('Drain in progress')
+  expect(client.getQueryData(['resources', 'pods'])).toBeUndefined()
 })
 
 it('does not recreate a result after the context cache was cleared', async () => {

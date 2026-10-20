@@ -14,7 +14,6 @@ export function NodeDrainStatus({ name, nodeUID }: { name: string; nodeUID: stri
   const pending = activity?.status === 'pending'
   useEffect(() => {
     if (!pending) return
-    setNow(Date.now())
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [pending, activity?.startedAt])

@@ -5599,6 +5599,7 @@ export type NodeDrainActivity = {
   requestId: number;
   startedAt: number;
   timeoutSeconds: number;
+  contextName?: string;
 } & ({ status: "pending" } | {
   status: "finished";
   finishedAt: number;
@@ -5641,7 +5642,7 @@ export function useDrainNode(nodeUID = "") {
       name: string;
       options?: DrainNodeOptions;
     }) => {
-      const response = await apiFetch(`${apiBase}/nodes/${encodeURIComponent(name)}/drain`, {
+      const response = await apiFetch(apiUrl(`/nodes/${encodeURIComponent(name)}/drain`, apiBase), {
         method: "POST",
         headers: options ? { "Content-Type": "application/json" } : {},
         body: options ? JSON.stringify(options) : undefined,
@@ -5653,15 +5654,18 @@ export function useDrainNode(nodeUID = "") {
       return response.json();
     },
     onMutate: ({ name }) => {
+      const contextName = queryClient.getQueryData<ClusterInfo>(["cluster-info"])?.context
+        ?? queryClient.getQueryData<{ context: string }>(["connection-status"])?.context;
       const activity: NodeDrainActivity = {
         status: "pending",
         requestId: ++nextNodeDrainRequestId,
         startedAt: Date.now(),
         timeoutSeconds: 120,
+        contextName,
       };
       const queryKey = nodeDrainActivityKey(apiBase, name, nodeUID);
       if (nodeUID) queryClient.setQueryData(queryKey, activity);
-      return { queryKey, activity, tracked: Boolean(nodeUID), contextName: queryClient.getQueryData<ClusterInfo>(["cluster-info"])?.context };
+      return { queryKey, activity, tracked: Boolean(nodeUID), contextName };
     },
     onError: (error, _variables, context) => {
       if (!context?.tracked) return;
@@ -5698,6 +5702,8 @@ export function useDrainNode(nodeUID = "") {
       variables,
       context,
     ) => {
+      const currentContext = queryClient.getQueryData<ClusterInfo>(["cluster-info"])?.context;
+      if (context?.tracked && queryClient.getQueryData<NodeDrainActivity | null>(context.queryKey)?.requestId !== context.activity.requestId) return;
       const { title, detail, type } = describeDrainResult(data);
       if (context?.tracked) {
         queryClient.setQueryData<NodeDrainActivity | null>(context.queryKey, (previous) =>
@@ -5709,7 +5715,8 @@ export function useDrainNode(nodeUID = "") {
           } : previous,
         );
       }
-      if (context && (context.queryKey[1] !== getApiBase() || context.contextName !== queryClient.getQueryData<ClusterInfo>(["cluster-info"])?.context)) return;
+      if (context && (context.queryKey[1] !== getApiBase() ||
+        (context.contextName && currentContext && context.contextName !== currentContext))) return;
       queryClient.invalidateQueries({ queryKey: ["resources", "nodes"] });
       queryClient.invalidateQueries({
         queryKey: ["resource", "nodes", "", variables.name],
@@ -7271,7 +7278,7 @@ export function useSetActiveNamespace() {
       });
       if (scope.cacheScoped) {
         queryClient.removeQueries({
-          predicate: (query) => query.queryKey[0] !== "namespace-scope",
+          predicate: (query) => query.queryKey[0] !== "namespace-scope" && query.queryKey[0] !== "node-drain-activity",
         });
       }
       queryClient.setQueryData<NamespaceScope>(["namespace-scope"], scope);
