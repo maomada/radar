@@ -891,6 +891,29 @@ func TestValidateRefusesASessionOnceAVersionItDidNotReadIsWatched(t *testing.T) 
 	}
 }
 
+// A search reads each kind at the versions watched when the session chose
+// them, as a read does; a version watched later refuses the session, whether
+// the search covered one namespace or all of them.
+func TestValidateRefusesASearchOnceAVersionItDidNotReadIsWatched(t *testing.T) {
+	beta := schema.GroupVersionResource{Group: "example.io", Version: "v1beta1", Resource: "widgets"}
+	for name, domain := range map[string]ownership.Domain{"in alpha": ownership.InNamespace("alpha"), "everywhere": ownership.Everywhere()} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t, k8score.CacheConfig{}, func(f *fixture) {
+				f.dynamic = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(),
+					map[schema.GroupVersionResource]string{widgets: "WidgetList", beta: "WidgetList", gadgets: "GadgetList", summaries: "SummaryList"},
+					betaWidget(widget("alpha", "w1", "uid-w1")))
+			})
+			f.watch(t, widgets)
+			s := begin(t, f.source())
+			s.OwnerCandidates("uid-deploy", domain, 0)
+			f.watch(t, beta)
+			if err := s.Validate(); !errors.Is(err, ownership.ErrStoreReplaced) {
+				t.Fatalf("Validate = %v; the search read v1 alone after v1beta1 came to be watched", err)
+			}
+		})
+	}
+}
+
 // When no watched version answers, a version watched where the read is says
 // why: v1 watched only in alpha says nothing about beta, while v1beta1's
 // cluster-wide watch is loading and a retry gets its answer.
