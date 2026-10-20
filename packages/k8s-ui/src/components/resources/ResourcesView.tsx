@@ -5,6 +5,8 @@ import { PaneLoader } from '../ui/PaneLoader'
 import { RestrictedState } from '../ui/RestrictedState'
 import { FetchResult } from '../ui/FetchResult'
 import { Input } from '../ui/Input'
+import { ColumnPickerList } from './ColumnPickerList'
+import { applyColumnOrder, sanitizeColumnOrder } from './column-order'
 import type { TopPodMetrics, TopNodeMetrics, ContainerResourceMetrics } from '../../types'
 import {
   Search,
@@ -3281,6 +3283,9 @@ interface ColumnSettings {
    *  load tell a column they hid from one that did not exist yet. Absent on
    *  blobs written before this field. */
   known?: string[]
+  /** Movable column keys in the user's order, hidden ones included. Absent
+   *  until the user reorders. */
+  order?: string[]
 }
 
 function loadColumnSettings(kind: string, group?: string): ColumnSettings | null {
@@ -3808,6 +3813,7 @@ export function ResourcesView({
   // Column visibility and resize state
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set())
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const [columnOrder, setColumnOrder] = useState<string[] | null>(null)
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [customColumns, setCustomColumns] = useState<CustomColumnDef[]>([])
   const [customColumnDraft, setCustomColumnDraft] = useState<CustomColumnDef>({ source: 'label', path: '' })
@@ -3948,13 +3954,16 @@ export function ResourcesView({
     [printerTable, builtPrinterColumns],
   )
 
-  const allColumns = useMemo(() => {
+  const definedColumns = useMemo(() => {
     const kindColumns = columnsForKindWithPrinter(selectedKind.name, selectedKind.group, builtPrinterColumns)
     if (!extraLeadingColumns?.length && !builtCustomColumns.length) return kindColumns
     const builtinKeys = new Set(kindColumns.map(c => c.key))
     const filteredExtras = filterHostExtras(extraLeadingColumns, builtinKeys, selectedKind.name)
     return [...filteredExtras, ...kindColumns, ...builtCustomColumns]
   }, [selectedKind.name, selectedKind.group, extraLeadingColumns, builtCustomColumns, builtPrinterColumns])
+  // Display order. Everything downstream reads this, so the picker, the header
+  // and the resize width snapshot (which maps <th> index to key) agree.
+  const allColumns = useMemo(() => applyColumnOrder(definedColumns, columnOrder), [definedColumns, columnOrder])
 
   // The offered key set, and a stable signature for it. allColumns is a new
   // identity on every printer-column refetch; depending on the array itself
@@ -4089,15 +4098,18 @@ export function ResourcesView({
         hadSavedColumnSettings.current = false
         setVisibleColumns(getDefaultVisibleColumns(effective))
         setColumnWidths({})
+        setColumnOrder(null)
       } else {
         setVisibleColumns(mergeSavedVisibleColumns(
           saved.visible, extraKeys, builtPrinterColumns, effective, savedKnown,
         ))
         setColumnWidths(saved.widths || {})
+        setColumnOrder(sanitizeColumnOrder(saved.order))
       }
     } else {
       setVisibleColumns(getDefaultVisibleColumns(effective))
       setColumnWidths({})
+      setColumnOrder(null)
     }
     // printerColumnsKey, not builtPrinterColumns: the built array is a new
     // identity on every refetch, and re-running this effect would reset the
@@ -4119,12 +4131,13 @@ export function ResourcesView({
       widths: columnWidths,
       custom: customColumns,
       known: Array.from(knownColumnKeys.current),
+      order: columnOrder ?? undefined,
     })
     // A persisted blob blocks GPU auto-show from here on — same rule in-session
     // as across sessions, so a later data refresh can't override user choices.
     hadSavedColumnSettings.current = true
     // allColumnKeysSig, not allColumnKeys: see the memo above.
-  }, [visibleColumns, columnWidths, customColumns, selectedKind.name, selectedKind.group, allColumnKeysSig, tableActive])
+  }, [visibleColumns, columnWidths, customColumns, columnOrder, selectedKind.name, selectedKind.group, allColumnKeysSig, tableActive])
 
   // Close column picker on outside click or Escape
   useEffect(() => {
@@ -4232,6 +4245,7 @@ export function ResourcesView({
     const customKeys = new Set(builtCustomColumns.map(c => c.key))
     setVisibleColumns(getDefaultVisibleColumns(allColumns.filter(c => !customKeys.has(c.key))))
     setColumnWidths({})
+    setColumnOrder(null)
     setSortColumn(null)
     setSortDirection(null)
     saveSavedSort(selectedKind.name, selectedKind.group, null)
@@ -6321,41 +6335,14 @@ export function ResourcesView({
                 {/* Column list scrolls; the add-column footer stays pinned so
                     its input isn't pushed below the fold on kinds with many columns. */}
                 <div className="overflow-y-auto flex-1 min-h-0">
-                {allColumns.map(col => {
-                  const isCustom = customColumnKeySet.has(col.key)
-                  return (
-                    <div
-                      key={col.key}
-                      className="group flex items-center gap-2 px-3 py-1.5 hover:bg-theme-elevated"
-                    >
-                      <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={visibleColumns.has(col.key)}
-                          onChange={() => toggleColumnVisibility(col.key)}
-                          disabled={col.key === 'name'}
-                          className="rounded border-theme-border"
-                        />
-                        <span className={clsx(
-                          'text-sm truncate',
-                          col.key === 'name' ? 'text-theme-text-tertiary' : 'text-theme-text-primary'
-                        )} title={col.tooltip || col.label}>
-                          {col.label}
-                        </span>
-                      </label>
-                      {isCustom && (
-                        <button
-                          type="button"
-                          onClick={() => removeCustomColumn(col.key)}
-                          className="shrink-0 p-0.5 text-theme-text-tertiary hover:text-red-500 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          title="Remove column"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
+                <ColumnPickerList
+                  columns={allColumns}
+                  visibleColumns={visibleColumns}
+                  customColumnKeys={customColumnKeySet}
+                  onToggle={toggleColumnVisibility}
+                  onRemoveCustom={removeCustomColumn}
+                  onReorder={setColumnOrder}
+                />
                 </div>
                 {/* Add a label/annotation column */}
                 <div className="shrink-0 border-t border-theme-border pt-2 px-3 pb-1">
