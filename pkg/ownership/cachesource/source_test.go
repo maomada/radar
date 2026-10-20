@@ -1015,3 +1015,32 @@ func TestBeginWithoutDiscoveryReadsTypedKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A catalog belongs to one discovery, not to a generation number: after a
+// context switch the new cluster's discovery can be at the same generation as
+// the old one's, and its sessions must still read its own catalog.
+func TestSessionsReadTheCatalogOfTheirOwnDiscovery(t *testing.T) {
+	f := newFixture(t, k8score.CacheConfig{}, nil)
+	client := fake.NewClientset()
+	client.Discovery().(*fakediscovery.FakeDiscovery).Resources = append(discoveryLists(), &metav1.APIResourceList{
+		GroupVersion: "other.example.io/v1",
+		APIResources: []metav1.APIResource{{Name: "gizmos", Kind: "Gizmo", Namespaced: true, Verbs: []string{"delete", "get", "list", "watch"}}},
+	})
+	other, err := k8score.NewResourceDiscovery(client.Discovery())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if other.Generation() != f.caches.Discovery.Generation() {
+		t.Fatalf("generations %d and %d; the test needs them equal", other.Generation(), f.caches.Discovery.Generation())
+	}
+	current := f.caches
+	source := New(func() Caches { return current })
+	gizmo := resourceid.GroupKind{Group: "other.example.io", Kind: "Gizmo"}
+	if _, known := begin(t, source).Catalog().Kind(gizmo); known {
+		t.Fatal("the first cluster's catalog lists Gizmo")
+	}
+	current.Discovery = other
+	if _, known := begin(t, source).Catalog().Kind(gizmo); !known {
+		t.Fatal("a session over the second cluster's discovery read the first one's catalog")
+	}
+}
