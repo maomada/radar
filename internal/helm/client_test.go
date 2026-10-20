@@ -53,93 +53,6 @@ func TestMarkUpgradeSourceIssue_AmbiguousRepositoryIsNotUntracked(t *testing.T) 
 	}
 }
 
-func TestChartSourceHosts(t *testing.T) {
-	tests := []struct {
-		name    string
-		home    string
-		sources []string
-		want    []string
-	}{
-		{
-			name: "empty inputs",
-			want: nil,
-		},
-		{
-			name: "bitnami home only",
-			home: "https://bitnami.com",
-			want: []string{"bitnami.com"},
-		},
-		{
-			name: "subdomain expands to registered domain",
-			home: "https://charts.bitnami.com",
-			want: []string{"charts.bitnami.com", "bitnami.com"},
-		},
-		{
-			name:    "deduplicates across home and sources",
-			home:    "https://github.com/argoproj/argo-helm",
-			sources: []string{"https://github.com/argoproj/argo-cd"},
-			want:    []string{"github.com", "argoproj.github.io"},
-		},
-		{
-			name: "argo-cd realistic chart metadata derives argoproj.github.io",
-			home: "https://github.com/argoproj/argo-helm",
-			want: []string{"github.com", "argoproj.github.io"},
-		},
-		{
-			name: "github.io chart home does not seed bare github.io (multi-tenant)",
-			home: "https://argoproj.github.io",
-			want: []string{"argoproj.github.io"},
-		},
-		{
-			name: "ipv4 host does not seed a bogus registered domain",
-			home: "http://127.0.0.1:8080/charts",
-			want: []string{"127.0.0.1"},
-		},
-		{
-			name:    "skips invalid urls",
-			sources: []string{"not a url", "ftp://", ""},
-			want:    nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := chartSourceHosts(tt.home, tt.sources)
-			if !equalStringSlices(got, tt.want) {
-				t.Errorf("chartSourceHosts() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRepoURLMatchesAny(t *testing.T) {
-	tests := []struct {
-		name    string
-		repoURL string
-		hosts   []string
-		want    bool
-	}{
-		{name: "empty repo url", repoURL: "", hosts: []string{"bitnami.com"}, want: false},
-		{name: "empty hosts", repoURL: "https://charts.bitnami.com", hosts: nil, want: false},
-		{name: "exact host match", repoURL: "https://argoproj.github.io/argo-helm", hosts: []string{"argoproj.github.io"}, want: true},
-		{name: "registered-domain match", repoURL: "https://charts.bitnami.com/bitnami", hosts: []string{"bitnami.com"}, want: true},
-		{name: "no match", repoURL: "https://charts.bitnami.com", hosts: []string{"argoproj.github.io"}, want: false},
-		{name: "github.io is multi-tenant: unrelated github.io repos do not match each other", repoURL: "https://kubernetes-sigs.github.io/external-dns", hosts: []string{"argoproj.github.io"}, want: false},
-		{name: "oci registry host match", repoURL: "oci://registry-1.docker.io/bitnamicharts/argo-cd", hosts: []string{"docker.io"}, want: true},
-		{name: "https with explicit port", repoURL: "https://charts.example.com:8443/charts", hosts: []string{"example.com"}, want: true},
-		{name: "https with userinfo", repoURL: "https://user:pass@charts.bitnami.com/bitnami", hosts: []string{"bitnami.com"}, want: true},
-		{name: "invalid url", repoURL: "://broken", hosts: []string{"bitnami.com"}, want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := repoURLMatchesAny(tt.repoURL, tt.hosts); got != tt.want {
-				t.Errorf("repoURLMatchesAny(%q, %v) = %v, want %v", tt.repoURL, tt.hosts, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestToHelmRelease_StorageNamespace(t *testing.T) {
 	rel := &release.Release{
 		Name:      "podinfo",
@@ -1541,64 +1454,6 @@ func secretsToObjects(secrets []*corev1.Secret) []runtime.Object {
 	return objects
 }
 
-func TestResolveUpgradeChartPath_UsesRepositoryHint(t *testing.T) {
-	client := testHelmClientWithRepos(t)
-
-	chartPath, repoName, err := client.resolveUpgradeChartPath("argo-cd", "9.5.11", "argo", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repoName != "argo" {
-		t.Fatalf("repo = %q, want argo", repoName)
-	}
-	if !strings.Contains(chartPath, "argoproj.github.io") {
-		t.Fatalf("chart path = %q, want argo repo URL", chartPath)
-	}
-}
-
-func TestResolveUpgradeChartPath_RepositoryIndexOCIURLIsAbsolute(t *testing.T) {
-	dir := t.TempDir()
-	cacheDir := filepath.Join(dir, "cache")
-	if err := os.Mkdir(cacheDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	repoFile := filepath.Join(dir, "repositories.yaml")
-	if err := os.WriteFile(repoFile, []byte(`apiVersion: v1
-generated: "2026-05-05T00:00:00Z"
-repositories:
-- name: bitnami
-  url: https://charts.bitnami.com/bitnami
-`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(cacheDir, "bitnami-index.yaml"), []byte(`apiVersion: v1
-entries:
-  nginx:
-  - name: nginx
-    version: 25.0.5
-    urls:
-    - oci://registry-1.docker.io/bitnamicharts/nginx
-generated: "2026-05-05T00:00:00Z"
-`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	client := &Client{settings: &cli.EnvSettings{
-		RepositoryConfig: repoFile,
-		RepositoryCache:  cacheDir,
-	}}
-
-	chartPath, repoName, err := client.resolveUpgradeChartPath("nginx", "25.0.5", "bitnami", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repoName != "bitnami" {
-		t.Fatalf("repo = %q, want bitnami", repoName)
-	}
-	if chartPath != "oci://registry-1.docker.io/bitnamicharts/nginx" {
-		t.Fatalf("chart path = %q, want OCI URL unchanged", chartPath)
-	}
-}
-
 func TestListReleasesAcrossNamespacesEmptySerializesAsArray(t *testing.T) {
 	releases, err := (&Client{}).ListReleasesAcrossNamespaces(context.Background(), []string{}, "", nil)
 	if err != nil {
@@ -1610,33 +1465,6 @@ func TestListReleasesAcrossNamespacesEmptySerializesAsArray(t *testing.T) {
 	}
 	if string(data) != "[]" {
 		t.Fatalf("empty releases JSON = %s, want []", data)
-	}
-}
-
-func TestResolveUpgradeChartPath_AmbiguousWithoutHintOrAffinity(t *testing.T) {
-	client := testHelmClientWithRepos(t)
-
-	_, _, err := client.resolveUpgradeChartPath("argo-cd", "9.5.11", "", nil)
-	if err == nil {
-		t.Fatal("expected ambiguous chart error")
-	}
-	if !strings.Contains(err.Error(), "could not identify upstream chart repository") {
-		t.Fatalf("error = %q", err)
-	}
-}
-
-func TestResolveUpgradeChartPath_UsesSourceAffinity(t *testing.T) {
-	client := testHelmClientWithRepos(t)
-
-	chartPath, repoName, err := client.resolveUpgradeChartPath("argo-cd", "9.5.11", "", []string{"argoproj.github.io"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repoName != "argo" {
-		t.Fatalf("repo = %q, want argo", repoName)
-	}
-	if !strings.Contains(chartPath, "argoproj.github.io") {
-		t.Fatalf("chart path = %q, want argo repo URL", chartPath)
 	}
 }
 
@@ -1770,63 +1598,6 @@ generated: "2026-10-14T00:00:00Z"
 	_, err := client.loadTargetChart(nil, rel, "1.0.11", "bitnami", func(string, string, string) {})
 	if err == nil || !errors.Is(err, errSourceRequired) {
 		t.Fatalf("upgrade resolution error = %v, want unrelated-source refusal", err)
-	}
-}
-
-func TestResolveUpgradeChartPath_RepositoryHintDoesNotFallback(t *testing.T) {
-	client := testHelmClientWithRepoVersions(t, map[string][]string{
-		"bitnami": {"9.5.11"},
-		"argo":    {"9.5.10"},
-	})
-
-	_, _, err := client.resolveUpgradeChartPath("argo-cd", "9.5.11", "argo", nil)
-	if err == nil {
-		t.Fatal("expected target version missing from hinted repo")
-	}
-	if !strings.Contains(err.Error(), "chart argo-cd version 9.5.11 not found in repository argo") {
-		t.Fatalf("error = %q", err)
-	}
-}
-
-func TestResolveUpgradeChartPath_ReportsIndexErrorAfterOCIFallbackFails(t *testing.T) {
-	withOCISources(t, nil)
-	client := testHelmClientWithRepoConfigOnly(t)
-
-	_, _, err := client.resolveUpgradeChartPath("postgres", "0.19.6", "", nil)
-	if err == nil {
-		t.Fatal("expected index error after OCI fallback miss")
-	}
-	if !strings.Contains(err.Error(), "not found in configured repositories or registered OCI sources") {
-		t.Fatalf("error = %q", err)
-	}
-	if !strings.Contains(err.Error(), "failed to load indexes") {
-		t.Fatalf("error = %q", err)
-	}
-}
-
-func TestResolveUpgradeChartPath_UsesOCIBeforeUnrelatedIndexError(t *testing.T) {
-	client := testHelmClientWithRepoConfigOnly(t)
-
-	chartPath, repoName, err := client.resolveUpgradeChartPathWithOCIResolver(
-		"postgres",
-		"0.19.6",
-		"",
-		nil,
-		func(chartName, targetVersion string) (string, bool) {
-			if chartName != "postgres" || targetVersion != "0.19.6" {
-				return "", false
-			}
-			return "oci://registry-1.docker.io/cloudpirates/postgres", true
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repoName != "oci" {
-		t.Fatalf("repoName = %q, want oci", repoName)
-	}
-	if chartPath != "oci://registry-1.docker.io/cloudpirates/postgres" {
-		t.Fatalf("chartPath = %q, want OCI chart path", chartPath)
 	}
 }
 

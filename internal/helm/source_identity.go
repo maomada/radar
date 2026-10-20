@@ -150,9 +150,12 @@ func failedSourceChange(ctx releaseSourceContext) bool {
 	if ctx.Latest == nil || ctx.Latest.Info == nil || ctx.Latest.Info.Status != release.StatusFailed {
 		return false
 	}
+	if ctx.Latest.Labels[chartSourceAttemptLabel] == "true" {
+		return true
+	}
 	a, aOK := chartSourceFromRelease(ctx.Latest)
 	b, bOK := chartSourceFromRelease(ctx.Baseline)
-	return aOK && ((bOK && !sameChartSource(*a, *b)) || (!bOK && ctx.Latest.Labels[chartSourceAttemptLabel] == "true"))
+	return aOK && bOK && !sameChartSource(*a, *b)
 }
 
 func upgradeSourceState(ctx releaseSourceContext) (*ChartSourceCandidate, UpgradeSourceIssue, string) {

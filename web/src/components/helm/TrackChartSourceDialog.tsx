@@ -171,10 +171,10 @@ export function TrackChartSourceDialog({ operationError, onSelectUpgradeSource, 
               ? <>Saved in Helm as <span className="font-mono">{recordedName}</span>.</>
               : <>Saved in Helm as <span className="font-mono">{recordedName}</span>. The name <span className="font-mono">{missingRecordedRepository.reference}</span> already points to a different repository here.</>}</p>
       </div>}
-      {sourceFeature.support === 'supported' && onSelectUpgradeSource && status?.revision && status.suggestions && <div className="space-y-2">
+      {sourceFeature.support === 'supported' && onSelectUpgradeSource && status?.revision && <div className="space-y-2">
         <p className="text-sm font-medium">Sources to use for the next upgrade</p>
         <p className="text-xs text-theme-text-secondary">Matching chart names can contain different settings and resources. Review the selected chart before applying.</p>
-        {status.suggestions.map(suggestion => <div key={`${suggestion.source.type}:${suggestion.source.url ?? suggestion.source.reference}`} className="w-full rounded-lg border border-theme-border px-3 py-2">
+        {(status.suggestions ?? []).map(suggestion => <div key={`${suggestion.source.type}:${suggestion.source.url ?? suggestion.source.reference}`} className="w-full rounded-lg border border-theme-border px-3 py-2">
           <span className="text-xs text-theme-text-secondary">{suggestion.current ? status.confirmed && !status.sourceChangeRequired && !status.changing ? 'Current source' : 'Last recorded source' : 'Other source'}{suggestion.state === 'unchecked' ? ' - check versions' : suggestion.state === 'index_unavailable' ? ' - refresh its index first' : ''}</span>
           <span className="block font-mono text-sm break-all">{suggestion.source.url ?? suggestion.source.reference}</span>
           <button type="button" aria-label={`Select for upgrade: ${suggestion.source.url ?? suggestion.source.reference}`} disabled={status.changing || statusFetching} onClick={() => {
@@ -183,7 +183,7 @@ export function TrackChartSourceDialog({ operationError, onSelectUpgradeSource, 
           }} className="mt-1 text-sm text-accent hover:underline disabled:opacity-50">Select for upgrade</button>
           {suggestion.source.type === 'oci' && !status.confirmed && !status.sourceChangeRequired && <button type="button" disabled={status.changing || statusFetching || setSource.isPending} onClick={() => setSource.mutate(suggestion.source, { onSuccess: onClose })} className="ml-3 text-sm text-accent hover:underline disabled:opacity-50">Verify and record original source</button>}
         </div>)}
-        {status.suggestions.length === 0 && <p className="text-sm text-theme-text-secondary">No configured sources found. Add a repository or OCI source.</p>}
+        {(status.suggestions ?? []).length === 0 && <p className="text-sm text-theme-text-secondary">No configured sources found. Add a repository or OCI source.</p>}
       </div>}
       {!status?.confirmed && !status?.sourceChangeRequired && status?.candidates && status.candidates.length > 0 && <div>
         <p className="text-xs uppercase tracking-wide text-theme-text-tertiary mb-2">Configured sources that publish {chartName || 'this chart'} at the installed version</p>

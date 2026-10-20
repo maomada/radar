@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -10,6 +11,8 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/repo"
 )
+
+var errSourceUnavailable = errors.New("chart source is unavailable")
 
 type ChartSourceSuggestion struct {
 	Source              ChartSourceCandidate `json:"source"`
@@ -36,7 +39,7 @@ func (c *Client) sourceVersionsWithIndexes(source ChartSourceCandidate, chartNam
 			}
 		}
 		if err != nil || index == nil {
-			return nil, fmt.Errorf("repository index is unavailable; refresh the selected repository")
+			return nil, fmt.Errorf("%w: repository index could not be read; refresh the selected repository", errSourceUnavailable)
 		}
 		versions := make([]string, 0, len(index.Entries[chartName]))
 		for _, entry := range index.Entries[chartName] {
@@ -46,11 +49,11 @@ func (c *Client) sourceVersionsWithIndexes(source ChartSourceCandidate, chartNam
 	}
 	lister := c.newRegistryClient()
 	if lister == nil {
-		return nil, fmt.Errorf("selected OCI source is unavailable")
+		return nil, fmt.Errorf("%w: selected OCI registry could not be reached", errSourceUnavailable)
 	}
 	tags, err := lister.Tags(strings.TrimPrefix(selected.Reference, "oci://"))
 	if err != nil {
-		return nil, fmt.Errorf("could not read versions from the selected OCI source")
+		return nil, fmt.Errorf("%w: could not read versions from the selected OCI source", errSourceUnavailable)
 	}
 	return capVersions(sortVersionsDesc(tags)), nil
 }

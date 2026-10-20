@@ -2,10 +2,6 @@ package helm
 
 import (
 	"errors"
-	"github.com/go-chi/chi/v5"
-	"helm.sh/helm/v3/pkg/storage"
-	"helm.sh/helm/v3/pkg/storage/driver"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +10,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"helm.sh/helm/v3/pkg/storage"
+	"helm.sh/helm/v3/pkg/storage/driver"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -432,5 +433,88 @@ func TestSourceUpgradeRoutesRequireExplicitSelection(t *testing.T) {
 				t.Fatalf("dedicated=%v selected=%v status=%d", dedicated, selected, response.Code)
 			}
 		}
+	}
+}
+
+func TestFailedExplicitSourceAttemptWithoutDeployedRevisionRequiresRetry(t *testing.T) {
+	cfg := memoryActionConfig(t)
+	seedRelease(t, cfg, "demo", release.StatusFailed, 1)
+	seedRelease(t, cfg, "demo", release.StatusFailed, 2)
+	latest, _ := cfg.Releases.Last("demo")
+	latest.Chart = sourceTestChart("attempted")
+	bindTestRelease(latest, ChartSourceCandidate{Type: "repository", Reference: "attempted", URL: "https://example.test/charts"})
+	latest.Labels[chartSourceAttemptLabel] = "true"
+	if err := cfg.Releases.Update(latest); err != nil {
+		t.Fatal(err)
+	}
+	op, err := releaseContext(cfg, "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !failedSourceChange(op) {
+		t.Fatal("failed explicit attempt compared with itself and bypassed source selection")
+	}
+	c := newChartSourceTestClient(t)
+	if err := c.applyValuesWith(cfg, "demo", map[string]any{}); !errors.Is(err, errSourceRequired) {
+		t.Fatalf("values retry: %v", err)
+	}
+	if _, err := c.normalUpgradeSource(cfg, latest, ""); !errors.Is(err, errSourceRequired) {
+		t.Fatalf("normal retry: %v", err)
+	}
+}
+
+func TestPreparedUpgradeRefreshesOrClearsSourceBinding(t *testing.T) {
+	for _, recordable := range []bool{true, false} {
+		cfg := memoryActionConfig(t)
+		seedRelease(t, cfg, "demo", release.StatusDeployed, 1)
+		old, _ := cfg.Releases.Last("demo")
+		old.Chart = sourceTestChart("old")
+		old.Labels = map[string]string{"owner-team": "example"}
+		for key, value := range boundChartSourceLabels(nil, &ChartSourceCandidate{Type: "repository", Reference: "old", URL: "https://old.example.test/charts"}, old.Chart) {
+			if value != "null" {
+				old.Labels[key] = value
+			}
+		}
+		if err := cfg.Releases.Update(old); err != nil {
+			t.Fatal(err)
+		}
+		ch := sourceTestChart("new")
+		req := InstallRequest{Namespace: old.Namespace, ReleaseName: old.Name}
+		if recordable {
+			req.resolvedSource = &ChartSourceCandidate{Type: "repository", Reference: "new", URL: "https://new.example.test/charts"}
+		}
+		upgrade := preparedUpgradeAction(cfg, &req, ch, old.Labels)
+		rel, err := upgrade.Run("demo", ch, map[string]any{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		source, confirmed := confirmedChartSource(rel)
+		if confirmed != recordable {
+			t.Fatalf("recordable=%v confirmed=%v", recordable, confirmed)
+		}
+		if confirmed && source.Reference != "new" {
+			t.Fatalf("stale source: %+v", source)
+		}
+		if !recordable {
+			if _, ok := chartSourceFromRelease(rel); ok {
+				t.Fatal("unrecordable source inherited stale provenance")
+			}
+		}
+		if rel.Labels["owner-team"] != "example" {
+			t.Fatal("unrelated Helm label removed")
+		}
+	}
+}
+
+func TestUnavailableSourceVersionsReturnServiceUnavailable(t *testing.T) {
+	c := testHelmClientWithRepoConfigOnly(t)
+	_, err := c.sourceVersions(ChartSourceCandidate{Type: "repository", Reference: "broken", URL: "https://charts.example.invalid"}, "app")
+	if !errors.Is(err, errSourceUnavailable) || chartSourceErrorStatus(err) != http.StatusServiceUnavailable {
+		t.Fatalf("unavailable index: %v, status %d", err, chartSourceErrorStatus(err))
+	}
+	response := httptest.NewRecorder()
+	writeChartSourceOperationError(response, errSourceRequired, "preview", "default", "demo")
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), `"errorCode":"chart_source_required"`) {
+		t.Fatalf("source error envelope: %d %s", response.Code, response.Body.String())
 	}
 }

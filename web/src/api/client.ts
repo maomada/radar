@@ -6309,7 +6309,7 @@ export function useHelmPreviewValues() {
       );
       if (!response.ok) {
         const error = await readErrorBody(response);
-        throw response.status === 409 ? new HelmSourceSelectionError(error.error || 'Source changed; select it again') : new Error(error.error || `HTTP ${response.status}`);
+        throw error.errorCode === 'chart_source_changed' || error.errorCode === 'chart_source_required' ? new HelmSourceSelectionError(error.error || 'Source changed; select it again') : new Error(error.error || `HTTP ${response.status}`);
       }
       return response.json();
     },

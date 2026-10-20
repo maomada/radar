@@ -184,3 +184,9 @@ describe('OCI original-source verification', () => {
     expect(select).not.toHaveBeenCalled()
   })
 })
+
+it('shows the no-source hint when the backend omits empty suggestions', async () => {
+ state.status = { configured: false, available: false, revision: 1 }
+ await renderDialog(vi.fn())
+ expect(document.body.textContent).toContain('No configured sources found. Add a repository or OCI source.')
+})

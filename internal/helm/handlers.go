@@ -1047,6 +1047,8 @@ func (h *Handlers) handleAddRepository(w http.ResponseWriter, r *http.Request) {
 
 func chartSourceErrorStatus(err error) int {
 	switch {
+	case errors.Is(err, errSourceUnavailable):
+		return http.StatusServiceUnavailable
 	case errors.Is(err, driver.ErrReleaseNotFound):
 		return http.StatusNotFound
 	case isReleaseReadForbidden(err):
@@ -1066,9 +1068,7 @@ func writeChartSourceOperationError(w http.ResponseWriter, err error, action, na
 		log.Printf("[helm] %s %q/%q failed: %v", action, namespace, releaseName, err)
 	}
 	if code := sourceErrorCode(err); code != "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error(), "errorCode": code})
+		writeErrorPayload(w, status, map[string]string{"error": err.Error(), "errorCode": code})
 		return
 	}
 	writeError(w, status, err.Error())
@@ -1438,6 +1438,11 @@ func writeJSON(w http.ResponseWriter, data any) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
+	writeErrorPayload(w, status, map[string]string{"error": message})
+}
+
+func writeErrorPayload(w http.ResponseWriter, status int, payload map[string]string) {
+	message := payload["error"]
 	if status >= 500 && k8s.MarkDisconnectedIfClusterUnreachable(message) {
 		status = http.StatusServiceUnavailable
 	}
@@ -1446,22 +1451,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	json.NewEncoder(w).Encode(payload)
 }
 
-// writeErrorCode is writeError with a stable machine-readable error_code
-// in the response body so the frontend + MCP clients can branch on the error
-// type without parsing the human message.
 func writeErrorCode(w http.ResponseWriter, status int, code, message string) {
-	if status >= 500 {
-		errorlog.Record("helm", "error", "%s", message)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":      message,
-		"error_code": code,
-	})
+	writeErrorPayload(w, status, map[string]string{"error": message, "error_code": code})
 }
 
 // ============================================================================

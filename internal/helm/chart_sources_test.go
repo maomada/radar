@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -220,25 +218,6 @@ func TestCanonicalClassicRepositoryURLAppliesExistingAddressPolicy(t *testing.T)
 	}
 }
 
-func TestConfiguredCandidatesExactAndAmbiguous(t *testing.T) {
-	withOCISources(t, []string{"oci://registry.example.test/charts"})
-	server := chartSourceTestServer(t, "1.2.3", "2.0.0")
-	defer server.Close()
-	c := newChartSourceTestClient(t)
-	if _, err := c.ensureClassicRepository(server.URL, "classic"); err != nil {
-		t.Fatal(err)
-	}
-	lister := &fakeTagLister{tags: map[string][]string{"registry.example.test/charts/app": {"1.2.3"}}}
-	candidates, err := c.configuredChartSourceCandidates("app", "1.2.3", lister)
-	if err != nil || len(candidates) != 2 {
-		t.Fatalf("exact candidates = %+v, %v", candidates, err)
-	}
-	missing, err := c.configuredChartSourceCandidates("app", "9.9.9", lister)
-	if err != nil || len(missing) != 0 {
-		t.Fatalf("version mismatch candidates = %+v, %v", missing, err)
-	}
-}
-
 func TestClassicProvenanceCrossMachineAliasRecoveryAndMismatchFailsClosed(t *testing.T) {
 	server := chartSourceTestServer(t, "1.2.3")
 	defer server.Close()
@@ -361,39 +340,6 @@ func TestRecordedButUnavailableIsDistinctFromAbsentProvenance(t *testing.T) {
 	}
 }
 
-func TestInstallChartSourceStripsOCISelectorForRecovery(t *testing.T) {
-	for _, tc := range []struct {
-		name       string
-		repository string
-	}{
-		{name: "tag", repository: "oci://registry.example.test/team/charts/app:1.2.3"},
-		{name: "digest", repository: "oci://registry.example.test/team/charts/app@sha256:" + strings.Repeat("a", 64)},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			withOCISources(t, []string{"oci://registry.example.test/team/charts"})
-			c := newChartSourceTestClient(t)
-			installRef, err := resolveOCIChartURL(tc.repository, "app")
-			if err != nil || installRef != tc.repository {
-				t.Fatalf("install resolution = %q, %v; selector must be preserved", installRef, err)
-			}
-			source, err := c.installChartSource(&InstallRequest{Repository: tc.repository, ChartName: "app"})
-			want := ChartSourceCandidate{Type: "oci", Reference: "oci://registry.example.test/team/charts/app"}
-			if err != nil || *source != want {
-				t.Fatalf("recorded source = %+v, %v; want %+v", source, err, want)
-			}
-			lister := &fakeTagLister{tags: map[string][]string{"registry.example.test/team/charts/app": {"1.2.3", "1.2.2"}}}
-			versions := c.candidateVersions(*source, "app", lister)
-			if !slices.Equal(versions, []string{"1.2.3", "1.2.2"}) {
-				t.Fatalf("version discovery = %v", versions)
-			}
-			resolved, kind, err := c.resolveRecordedChartPathWithLister(nil, *source, "app", "1.2.3", lister)
-			if err != nil || resolved != want.Reference || kind != "oci" {
-				t.Fatalf("recorded source resolution = %q, %q, %v", resolved, kind, err)
-			}
-		})
-	}
-}
-
 func TestInstallChartSourceNeverPersistsOCICredentials(t *testing.T) {
 	c := newChartSourceTestClient(t)
 	credentialed, err := c.installChartSource(&InstallRequest{Repository: "oci://user:secret@registry.example.test/charts", ChartName: "app"})
@@ -436,9 +382,9 @@ func TestRepositoryConfigurationPersistsAcrossClientRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	restarted := &Client{settings: &cli.EnvSettings{RepositoryConfig: c.settings.RepositoryConfig, RepositoryCache: c.settings.RepositoryCache}}
-	candidates, err := restarted.configuredChartSourceCandidates("app", "1.2.3", &fakeTagLister{})
-	if err != nil || len(candidates) != 1 || candidates[0].Reference != "repo" {
-		t.Fatalf("restart recovery = %+v, %v", candidates, err)
+	versions, err := restarted.sourceVersions(ChartSourceCandidate{Type: "repository", Reference: "repo", URL: server.URL}, "app")
+	if err != nil || len(versions) != 1 || versions[0] != "1.2.3" {
+		t.Fatalf("restart recovery = %+v, %v", versions, err)
 	}
 	if _, err := os.Stat(c.settings.RepositoryConfig); err != nil {
 		t.Fatal(err)
@@ -544,23 +490,6 @@ func TestInstallFromBlockedAliasStillFails(t *testing.T) {
 	}
 	if source, err := c.installChartSource(&InstallRequest{Repository: "metadata", ChartName: "app"}); err == nil || source != nil {
 		t.Fatalf("link-local alias = %+v, %v; want the address policy to reject it", source, err)
-	}
-}
-
-func TestCachedTagListerListsEachReferenceOnce(t *testing.T) {
-	calls := 0
-	inner := tagListerFunc(func(ref string) ([]string, error) {
-		calls++
-		return []string{"1.0.0"}, nil
-	})
-	lister := cachedTagLister{inner: inner, cache: map[string][]string{}}
-	for range 3 {
-		if _, err := lister.Tags("registry.example.test/charts/app"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if calls != 1 {
-		t.Fatalf("registry listed %d times, want 1", calls)
 	}
 }
 

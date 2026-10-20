@@ -1,3 +1,4 @@
+import { AlertBanner } from '@skyhook-io/k8s-ui/components/ui/drawer-components'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { FetchResult, useDockReservedHeight, compareVersions } from '@skyhook-io/k8s-ui'
@@ -1057,14 +1058,10 @@ export function HelmReleaseDrawer({ release, onClose, onNavigateToResource, isOp
                       />
                     )}
                     {upgradeYamlError && (
-                      <div className="mt-2 px-3 py-2 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded">
-                        {upgradeYamlError}
-                      </div>
+                      <AlertBanner variant="error" title="Check your values" message={upgradeYamlError} className="mt-2" />
                     )}
                     {upgradePreviewMutation.error && (
-                      <div className="mt-2 px-3 py-2 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded">
-                        Couldn’t preview against {targetVersion}: {upgradePreviewMutation.error.message}. {selectedSourceUpgrade ? 'Preview must succeed before you can apply this source.' : 'You can still upgrade.'}
-                      </div>
+                      <AlertBanner variant="error" title={`Couldn’t preview against ${targetVersion}`} message={<>{upgradePreviewMutation.error.message}. {selectedSourceUpgrade ? 'Preview must succeed before you can apply this source.' : 'You can still upgrade.'}</>} className="mt-2" />
                     )}
                     <div className="mt-2 flex justify-end">
                       <Tooltip

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"helm.sh/helm/v3/pkg/action"
@@ -433,54 +432,6 @@ func publishStagedRepositoryCache(stageDir, stagedIndex, cacheDir string) error 
 	return nil
 }
 
-func (c *Client) configuredChartSourceCandidates(chartName, version string, lister ociTagLister) ([]ChartSourceCandidate, error) {
-	var candidates []ChartSourceCandidate
-	f, err := repo.LoadFile(c.settings.RepositoryConfig)
-	if err == nil {
-		for _, configured := range f.Repositories {
-			repositoryURL, urlErr := canonicalClassicRepositoryURL(configured.URL)
-			if urlErr != nil {
-				continue
-			}
-			idx, loadErr := repo.LoadIndexFile(filepath.Join(c.settings.RepositoryCache, configured.Name+"-index.yaml"))
-			if loadErr != nil {
-				continue
-			}
-			for _, entry := range idx.Entries[chartName] {
-				if entry.Version == version {
-					candidates = append(candidates, ChartSourceCandidate{Type: "repository", Reference: configured.Name, URL: repositoryURL})
-					break
-				}
-			}
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("load repository configuration: %w", err)
-	}
-	if len(ListOCISources()) > 0 {
-		if lister == nil {
-			lister = c.newRegistryClient()
-		}
-		if lister != nil {
-			for _, prefix := range ListOCISources() {
-				tags, tagErr := lister.Tags(ociRef(prefix, chartName))
-				if tagErr == nil && slices.Contains(tags, version) {
-					candidate := ChartSourceCandidate{Type: "oci", Reference: ociChartURL(prefix, chartName)}
-					if validateChartSourceCandidate(&candidate) == nil {
-						candidates = append(candidates, candidate)
-					}
-				}
-			}
-		}
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].Type != candidates[j].Type {
-			return candidates[i].Type < candidates[j].Type
-		}
-		return candidates[i].Reference < candidates[j].Reference
-	})
-	return candidates, nil
-}
-
 func (c *Client) configuredRepositoryForSource(source ChartSourceCandidate) *repo.Entry {
 	if source.Type != "repository" || source.Reference == "" {
 		return nil
@@ -582,41 +533,6 @@ func ociSourceConfigured(reference string) bool {
 	}
 	prefix := "oci://" + ref[:lastSlash]
 	return slices.Contains(ListOCISources(), prefix)
-}
-
-func (c *Client) resolveRecordedChartPath(actionConfig *action.Configuration, source ChartSourceCandidate, chartName, version string) (string, string, error) {
-	return c.resolveRecordedChartPathWithLister(actionConfig, source, chartName, version, nil)
-}
-
-func (c *Client) resolveRecordedChartPathWithLister(_ *action.Configuration, source ChartSourceCandidate, chartName, version string, lister ociTagLister) (string, string, error) {
-	switch source.Type {
-	case "repository":
-		configured := c.configuredRepositoryForSource(source)
-		if configured == nil {
-			return "", "", fmt.Errorf("recorded chart repository is not configured on this Radar installation")
-		}
-		return c.resolveUpgradeChartPathWithOCIResolver(chartName, version, configured.Name, nil, func(string, string) (string, bool) { return "", false })
-	case "oci":
-		if !ociSourceConfigured(source.Reference) {
-			return "", "", fmt.Errorf("recorded OCI chart source is not configured on this Radar installation")
-		}
-		if lister == nil {
-			lister = c.newRegistryClient()
-		}
-		if lister == nil {
-			return "", "", fmt.Errorf("recorded OCI chart source is unavailable")
-		}
-		tags, err := lister.Tags(strings.TrimPrefix(source.Reference, "oci://"))
-		if err != nil {
-			return "", "", fmt.Errorf("recorded OCI chart source is unavailable: %w", err)
-		}
-		if !slices.Contains(tags, version) {
-			return "", "", fmt.Errorf("recorded OCI chart source does not publish %s version %s", chartName, version)
-		}
-		return source.Reference, "oci", nil
-	default:
-		return "", "", fmt.Errorf("recorded chart source type is invalid")
-	}
 }
 
 func (c *Client) sourceStatusWith(actionConfig *action.Configuration, name string) (*ChartSourceStatus, error) {
