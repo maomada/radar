@@ -84,6 +84,7 @@ it('paginates unfiltered search results even when a page has no exact matches', 
 it('filters unsafe addresses and maps OCI chart references to their parent prefix', () => {
   const source = (url: string) => artifactHubChartSource({ ...chart, repository: { name: 'example', url } }, 'podinfo')
   expect(source('oci://registry.example.test/team/podinfo/')).toEqual({ type: 'oci', url: 'oci://registry.example.test/team/podinfo', prefix: 'oci://registry.example.test/team' })
+  expect(source('oci://REGISTRY.example.test/Team/podinfo')).toEqual({ type: 'oci', url: 'oci://registry.example.test/Team/podinfo', prefix: 'oci://registry.example.test/Team' })
   for (const url of ['file:///tmp/chart', 'javascript:alert(1)', 'https://user:password@example.test/charts', 'https://example.test/charts?token=secret', 'https://example.test/#secret', 'oci://registry.example.test/team/other']) {
     expect(source(url)).toBeUndefined()
   }

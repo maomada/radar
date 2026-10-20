@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   addRepository: vi.fn(),
   addOCI: vi.fn(),
   searchCharts: [] as ArtifactHubChart[],
+  ociSources: [] as string[],
 }))
 
 vi.mock('@skyhook-io/k8s-ui/components/ui/DialogPortal', () => ({
@@ -30,7 +31,7 @@ vi.mock('../../api/client', () => {
     useRadarFeature: () => ({ support: state.featureSupported ? 'supported' : 'unsupported' }),
     useHelmSourceStatus: () => ({ data: state.status, error: null, refetch: vi.fn() }),
     useHelmRepositories: () => ({ data: state.repositories, isLoading: false }),
-    useHelmOCISources: () => ({ data: [] }),
+    useHelmOCISources: () => ({ data: state.ociSources }),
     useClusterInfo: () => ({ data: { inCluster: false } }),
     useCapabilities: () => ({ data: { configManagement: 'local' } }),
     useCloudRole: () => ({ canAtLeast: () => state.isOwner }),
@@ -62,6 +63,7 @@ beforeEach(() => {
   state.addRepository.mockReset()
   state.addOCI.mockReset()
   state.searchCharts = []
+  state.ociSources = []
   const element = document.createElement('div')
   document.body.appendChild(element)
   root = createRoot(element)
@@ -235,6 +237,17 @@ describe('public source discovery', () => {
     await search()
     expect(document.body.textContent).toContain('Already configured.')
     expect(document.querySelector('button[aria-label^="Add source:"]')).toBeNull()
+  })
+
+  it('recognizes equivalent OCI hosts without changing the case of repository paths', async () => {
+    state.searchCharts = [{ ...chart, repository: { name: 'podinfo', url: 'oci://registry.example.test/Team/podinfo' } }]
+    state.ociSources = ['oci://REGISTRY.example.test/Team/']
+    await renderDialog()
+    await search()
+    expect(document.querySelector('button[aria-label^="Add source:"]')).toBeNull()
+    state.ociSources = ['oci://registry.example.test/team']
+    await renderDialog()
+    expect(document.querySelector('button[aria-label^="Add source:"]')).not.toBeNull()
   })
 
   it('does not let non-owners add discovered sources', async () => {

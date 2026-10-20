@@ -5,19 +5,23 @@ import type { ArtifactHubChart } from '../../types'
 
 type PublicChartSource = { type: 'repository'; url: string } | { type: 'oci'; url: string; prefix: string }
 
-export function artifactHubChartSource(chart: ArtifactHubChart, chartName: string): PublicChartSource | undefined {
-  if (chart.name !== chartName) return
+export function publicChartSourceURL(raw: string): string | undefined {
   try {
-    const url = new URL(chart.repository.url)
-    if (!url.hostname || url.username || url.password || url.search || url.hash) return
-    const address = url.toString().replace(/\/+$/, '')
-    if (url.protocol === 'http:' || url.protocol === 'https:') return { type: 'repository', url: address }
-    if (url.protocol === 'oci:' && url.pathname.replace(/\/+$/, '').endsWith(`/${chartName}`)) {
-      return { type: 'oci', url: address, prefix: address.slice(0, -(chartName.length + 1)) }
-    }
+    const url = new URL(raw)
+    if (!['http:', 'https:', 'oci:'].includes(url.protocol) || !url.hostname || url.username || url.password || url.search || url.hash) return
+    url.hostname = url.hostname.toLowerCase()
+    return url.toString().replace(/\/+$/, '')
   } catch {
     return
   }
+}
+
+export function artifactHubChartSource(chart: ArtifactHubChart, chartName: string): PublicChartSource | undefined {
+  if (chart.name !== chartName) return
+  const address = publicChartSourceURL(chart.repository.url)
+  if (!address) return
+  if (!address.startsWith('oci://')) return { type: 'repository', url: address }
+  if (address.endsWith(`/${chartName}`)) return { type: 'oci', url: address, prefix: address.slice(0, -(chartName.length + 1)) }
 }
 
 interface ArtifactHubSourceSearchProps {

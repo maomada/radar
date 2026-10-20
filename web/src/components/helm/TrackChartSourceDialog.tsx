@@ -4,7 +4,7 @@ import { AlertTriangle, Link2, Plus, Trash2, X } from 'lucide-react'
 import { Input } from '@skyhook-io/k8s-ui'
 import { useAddHelmRepository, useAddOCISource, useCapabilities, useCloudRole, useClusterInfo, useHelmOCISources, useHelmRepositories, useHelmSourceStatus, useRemoveOCISource, useSetHelmSource, useRadarFeature } from '../../api/client'
 import { OperatorManagedNotice } from '../settings/OperatorManagedNotice'
-import { ArtifactHubSourceSearch } from './ArtifactHubSourceSearch'
+import { ArtifactHubSourceSearch, publicChartSourceURL } from './ArtifactHubSourceSearch'
 import type { ChartSourceStatus, HelmRepository, UpgradeInfo, SourceUpgradeSelection } from '../../types'
 
 interface TrackChartSourceDialogProps {
@@ -194,8 +194,8 @@ export function TrackChartSourceDialog({ operationError, onSelectUpgradeSource, 
       {open && chartName && sourceFeature.support === 'supported' && <ArtifactHubSourceSearch key={`${namespace}/${releaseName}/${chartName}`} chartName={chartName}
         disabled={Boolean(!canEditSources || repositoriesLoading || statusFetching || !status || status.changing || addRepository.isPending || addOCI.isPending)}
         isConfigured={source => source.type === 'oci'
-          ? (ociSources ?? []).some(prefix => prefix.replace(/\/+$/, '') === source.prefix)
-          : (repositories ?? []).some(repository => repository.url.replace(/\/+$/, '') === source.url)}
+          ? (ociSources ?? []).some(prefix => publicChartSourceURL(prefix) === source.prefix)
+          : (repositories ?? []).some(repository => publicChartSourceURL(repository.url) === source.url)}
         onAdd={(chart, source) => {
           if (source.type === 'oci') addOCI.mutate(source.prefix, { onSuccess: () => { void refetchStatus() } })
           else addRepository.mutate({ name: recordedRepositoryName(chart.repository.name, repositories ?? []), url: source.url }, { onSuccess: () => { void refetchStatus() } })
