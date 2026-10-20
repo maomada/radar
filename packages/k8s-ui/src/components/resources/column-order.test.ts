@@ -7,7 +7,7 @@ const keysOf = (list: { key: string }[]) => list.map(c => c.key)
 const PODS = cols('name', 'namespace', 'ready', 'status', 'restarts', 'age', 'node')
 
 describe('applyColumnOrder', () => {
-  it('keeps definition order for settings saved before order existed', () => {
+  it('keeps definition order when no saved order is provided', () => {
     expect(keysOf(applyColumnOrder(PODS, undefined))).toEqual(keysOf(PODS))
     expect(keysOf(applyColumnOrder(PODS, null))).toEqual(keysOf(PODS))
     expect(keysOf(applyColumnOrder(PODS, []))).toEqual(keysOf(PODS))

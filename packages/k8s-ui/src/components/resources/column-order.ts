@@ -28,7 +28,7 @@ export function sanitizeColumnOrder(raw: unknown): string[] | null {
  * Columns in the user's saved order.
  *
  * Saved keys that no longer exist are ignored. A column the saved order does not
- * name (added in a later version, a printer column, a new custom column) goes
+ * name (a built-in, printer, or custom column) goes
  * where it sits by default: right before the column that follows it in the
  * definition, or at the end when nothing that follows it is in the saved order.
  */

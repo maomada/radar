@@ -62,6 +62,7 @@ export function ColumnPickerList({
     const up = e.key === 'ArrowUp'
     refocus.current = e.target instanceof HTMLElement ? e.target : null
     if (!commitMove(key, movableIndex + (up ? -1 : 1))) {
+      refocus.current = null
       const label = columns.find(c => c.key === key)?.label ?? key
       setAnnouncement(up ? `${label} is already at the top.` : `${label} is already at the bottom.`)
     }
@@ -89,7 +90,6 @@ export function ColumnPickerList({
         const movableIndex = i - pinned
         const movable = movableIndex >= 0
         const fromIndex = dragKey ? columns.findIndex(c => c.key === dragKey) - pinned : -1
-        // A gap right above or below the dragged row would not move it.
         const showGap = (gap: number) => dropGap === gap && gap !== fromIndex && gap !== fromIndex + 1
         return (
           <div

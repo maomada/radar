@@ -3283,8 +3283,7 @@ interface ColumnSettings {
    *  load tell a column they hid from one that did not exist yet. Absent on
    *  blobs written before this field. */
   known?: string[]
-  /** Movable column keys in the user's order, hidden ones included. Absent
-   *  until the user reorders. */
+  /** Optional display order for movable columns, including hidden ones. */
   order?: string[]
 }
 
