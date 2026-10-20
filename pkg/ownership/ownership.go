@@ -37,7 +37,8 @@ type ReadSession interface {
 	Object(ref resourceid.Ref) ObjectRead
 	// DependentCandidates finds the objects of the catalog's dependent kinds in
 	// domain whose owner references name uid, at most limit of them (0 for
-	// no limit). It does no I/O and waits for nothing.
+	// no limit). The limit caps what it returns, not the search: it gathers
+	// every match first. It does no I/O and waits for nothing.
 	DependentCandidates(uid types.UID, domain SearchScope, limit int) DependentCandidatesRead
 	// ValidateStores returns nil if every store the session read is still the one
 	// serving what it served then, and no version of a resource it read, left
