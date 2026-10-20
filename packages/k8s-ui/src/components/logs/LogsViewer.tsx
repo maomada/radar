@@ -123,6 +123,7 @@ export function LogsViewer({
         return
       }
       console.error('Failed to fetch logs:', err)
+      set([])
       setFetchError(err instanceof Error ? err.message : 'Failed to fetch logs')
     } finally {
       if (seq === loadSeqRef.current) setIsLoading(false)
@@ -242,7 +243,7 @@ export function LogsViewer({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-    {(fetchError || streamError) && entries.length > 0 && <div role="alert" className="shrink-0 border-b border-theme-border bg-theme-surface px-3 py-2 text-xs text-theme-text-secondary">{fetchError || streamError} · Previously loaded logs remain below.</div>}
+    {streamError && !fetchError && entries.length > 0 && <div role="alert" className="shrink-0 border-b border-theme-border bg-theme-surface px-3 py-2 text-xs text-theme-text-secondary">{streamError} · Previously loaded logs remain below.</div>}
     <div className="min-h-0 flex-1">
     <LogCore
       entries={entries}
@@ -253,7 +254,7 @@ export function LogsViewer({
       missingLineCount={missingLineCount}
       getRetainedEntries={getRetainedEntries}
       isLoading={isLoading || isConnecting}
-      errorMessage={entries.length === 0 ? fetchError || (!emptyMessage && !streamAnswer ? streamError : null) : null}
+      errorMessage={fetchError || (entries.length === 0 && !emptyMessage && !streamAnswer ? streamError : null)}
       isStreaming={isStreaming}
       onStartStream={createStream ? handleStartStreaming : undefined}
       onStopStream={handleStopStreaming}
