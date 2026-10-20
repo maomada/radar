@@ -392,39 +392,55 @@ func TestRecordersDistrustAFluxInventoryFromBeforeItsSpec(t *testing.T) {
 	}
 }
 
-// Opening a member of a large Application searches for the managers recording
-// it; that costs the same however long the list naming it is. Counting
-// allocations can't tell: building a list sized up front is one allocation at
-// any length.
+// Opening a member of a large Application or Kustomization searches for the
+// managers recording it; that costs the same however long the list naming it
+// is, RBAC names Flux encodes included. Counting allocations can't tell:
+// building a list sized up front is one allocation at any length.
 func TestRecordersCostDoesNotGrowWithTheManagersList(t *testing.T) {
-	target := resourceid.Ref{Kind: "Service", Namespace: "shop", Name: "ui"}
-	bytesPerSearch := func(n int) uint64 {
-		members := []resourceid.Ref{target}
-		for i := 1; i < n; i++ {
-			members = append(members, resourceid.Ref{Kind: "Service", Namespace: "shop", Name: fmt.Sprint("svc-", i)})
-		}
-		k, _ := ownershiptest.KindOf(ownership.ArgoApplication)
-		app := ownershiptest.Object{Ref: resourceid.Ref{Group: k.Group, Kind: k.Kind, Namespace: "argocd", Name: "big"}, APIVersion: k.APIVersion(),
-			UID: "uid-big", ResourceVersion: "1", Membership: ownership.MembersRecorded, Members: members}
-		w := ownershiptest.World{Resources: ownershiptest.Resources(), Collection: map[resourceid.GroupKind]ownershiptest.Collection{}, Objects: []ownershiptest.Object{app}}
-		for _, item := range ownershiptest.Kinds {
-			w.Collection[item.GroupKind] = ownershiptest.Collection{OnDemand: !item.Typed}
-		}
-		s := begin(t, render(t, w).source())
-		if got := s.Recorders(target); len(got.Recorders) != 1 {
-			t.Fatalf("Recorders(%v) = %+v", target, got)
-		}
-		const searches = 20
-		var before, after runtime.MemStats
-		runtime.ReadMemStats(&before)
-		for range searches {
-			s.Recorders(target)
-		}
-		runtime.ReadMemStats(&after)
-		return (after.TotalAlloc - before.TotalAlloc) / searches
+	rbac := func(name string) resourceid.Ref {
+		return resourceid.Ref{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding", Namespace: "shop", Name: name}
 	}
-	small, large := bytesPerSearch(40), bytesPerSearch(10000)
-	if large > small+64<<10 {
-		t.Fatalf("%d bytes per search when a 10,000-entry list names the object, %d for 40", large, small)
+	service := func(name string) resourceid.Ref {
+		return resourceid.Ref{Kind: "Service", Namespace: "shop", Name: name}
+	}
+	for _, tc := range []struct {
+		manager resourceid.GroupKind
+		member  func(string) resourceid.Ref
+	}{
+		{ownership.ArgoApplication, service},
+		{ownership.FluxKustomization, func(name string) resourceid.Ref { return rbac("metrics-server:" + name) }},
+	} {
+		t.Run(tc.manager.Kind, func(t *testing.T) {
+			target := tc.member("ui")
+			bytesPerSearch := func(n int) uint64 {
+				members := []resourceid.Ref{target}
+				for i := 1; i < n; i++ {
+					members = append(members, tc.member(fmt.Sprint("svc-", i)))
+				}
+				k, _ := ownershiptest.KindOf(tc.manager)
+				m := ownershiptest.Object{Ref: resourceid.Ref{Group: k.Group, Kind: k.Kind, Namespace: "ops", Name: "big"}, APIVersion: k.APIVersion(),
+					UID: "uid-big", ResourceVersion: "1", Membership: ownership.MembersRecorded, Members: members}
+				w := ownershiptest.World{Resources: ownershiptest.Resources(), Collection: map[resourceid.GroupKind]ownershiptest.Collection{}, Objects: []ownershiptest.Object{m}}
+				for _, item := range ownershiptest.Kinds {
+					w.Collection[item.GroupKind] = ownershiptest.Collection{OnDemand: !item.Typed}
+				}
+				s := begin(t, render(t, w).source())
+				if got := s.Recorders(target); len(got.Recorders) != 1 {
+					t.Fatalf("Recorders(%v) = %+v", target, got)
+				}
+				const searches = 20
+				var before, after runtime.MemStats
+				runtime.ReadMemStats(&before)
+				for range searches {
+					s.Recorders(target)
+				}
+				runtime.ReadMemStats(&after)
+				return (after.TotalAlloc - before.TotalAlloc) / searches
+			}
+			small, large := bytesPerSearch(40), bytesPerSearch(10000)
+			if large > small+64<<10 {
+				t.Fatalf("%d bytes per search when a 10,000-entry list names the object, %d for 40", large, small)
+			}
+		})
 	}
 }
