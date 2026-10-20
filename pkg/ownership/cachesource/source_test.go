@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -909,6 +910,59 @@ func TestValidateRefusesASearchOnceAVersionItDidNotReadIsWatched(t *testing.T) {
 			f.watch(t, beta)
 			if err := s.Validate(); !errors.Is(err, ownership.ErrStoreReplaced) {
 				t.Fatalf("Validate = %v; the search read v1 alone after v1beta1 came to be watched", err)
+			}
+		})
+	}
+}
+
+// A search answered from a cluster-wide store covers every namespace, so a
+// version it didn't read, watched later in just one namespace, refuses the
+// session too.
+func TestValidateRefusesASearchOnceAVersionItDidNotReadIsWatchedInOneNamespace(t *testing.T) {
+	beta := schema.GroupVersionResource{Group: "example.io", Version: "v1beta1", Resource: "widgets"}
+	for name, domain := range map[string]ownership.Domain{"in alpha": ownership.InNamespace("alpha"), "everywhere": ownership.Everywhere()} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t, k8score.CacheConfig{}, func(f *fixture) {
+				f.dynamic = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(),
+					map[schema.GroupVersionResource]string{widgets: "WidgetList", beta: "WidgetList", gadgets: "GadgetList", summaries: "SummaryList"},
+					betaWidget(widget("alpha", "w1", "uid-w1")))
+				// v1beta1 can be watched only namespace by namespace.
+				f.dynamic.PrependReactor("list", "widgets", func(a k8stesting.Action) (bool, runtime.Object, error) {
+					if a.GetResource() == beta && a.GetNamespace() == "" {
+						return true, nil, apierrors.NewForbidden(beta.GroupResource(), "", errors.New("namespaces only"))
+					}
+					return false, nil, nil
+				})
+			})
+			f.watch(t, widgets)
+			s := begin(t, f.source())
+			s.OwnerCandidates("uid-deploy", domain, 0)
+			if _, err := f.caches.Dynamic.List(beta, "alpha"); err != nil {
+				t.Fatal(err)
+			}
+			if !f.caches.Dynamic.WaitForSync(beta, 5*time.Second) {
+				t.Fatal("v1beta1's alpha watch never synced")
+			}
+			if err := s.Validate(); !errors.Is(err, ownership.ErrStoreReplaced) {
+				t.Fatalf("Validate = %v; v1beta1 came to be watched in alpha after the search read v1 alone", err)
+			}
+		})
+	}
+}
+
+// A search over two watched versions needs them to hold each object at the
+// same update, as a read does: one watch holding an adoption the other lacks
+// leaves the namespace loading.
+func TestOwnerCandidatesNeedVersionsToAgreeOnTheUpdate(t *testing.T) {
+	for name, domain := range map[string]ownership.Domain{"in alpha": ownership.InNamespace("alpha"), "everywhere": ownership.Everywhere()} {
+		t.Run(name, func(t *testing.T) {
+			f := versionsFixture(t, []runtime.Object{atVersion(widget("alpha", "w1", "uid-w1"), "41")}, []runtime.Object{betaWidget(atVersion(widget("alpha", "w1", "uid-w1"), "42"))}, nil)
+			got := begin(t, f.source()).OwnerCandidates("uid-deploy", domain, 0)
+			widget := resourceid.GroupKind{Group: "example.io", Kind: "Widget"}
+			listed := slices.ContainsFunc(got.Candidates, func(c ownership.Observation) bool { return c.Ref.GroupKind() == widget })
+			loading := slices.ContainsFunc(got.Gaps, func(g ownership.Gap) bool { return g.Kind == widget && g.Reason == readreason.KindSyncPending })
+			if listed || !loading || got.Complete() {
+				t.Fatalf("got %+v; the two versions hold w1 at two updates", got)
 			}
 		})
 	}
