@@ -275,7 +275,7 @@ func TestDetectMissingRefs(t *testing.T) {
 		{"HorizontalPodAutoscaler", "hpa-ok", "Missing"},
 		{"HorizontalPodAutoscaler", "hpa-crd", "Missing"}, // unknown kind → not verifiable → not flagged
 		{"PersistentVolumeClaim", "pvc-ok-sc", "Missing"},
-		{"PersistentVolumeClaim", "pvc-default", "Missing"}, // nil storageClassName uses default
+		{"PersistentVolumeClaim", "pvc-default", "Missing"},      // nil storageClassName uses default
 		{"PersistentVolumeClaim", "pvc-bound-bad-sc", "Missing"}, // already bound; class no longer consulted
 		{"RoleBinding", "rb-ok", "Missing"},
 		{"ClusterRoleBinding", "crb-ok", "Missing"},
