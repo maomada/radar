@@ -2,6 +2,31 @@
 
 Radar includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents inspect, investigate, and operate your Kubernetes cluster.
 
+## Node drain timeouts
+
+`manage_node` with `action: drain` waits for pod deletion by default. Its default
+two-minute deadline covers eviction retries and deletion waiting together. A final
+verification read can take up to five seconds more. An explicit `timeout` replaces
+the operation deadline; it is not an additional deletion-wait allowance.
+
+Configure the MCP client's tool-call timeout and every reverse proxy in the path
+to exceed the selected drain deadline plus five seconds, with room for network
+latency. For the default, use at least 150 seconds. Radar's drain route is outside
+its normal 60-second HTTP timeout group, but that does not change external client
+or proxy limits. See [ingress timeout guidance](in-cluster.md#node-drain-requests-time-out).
+
+If a client or proxy times out, the outcome is unknown to that caller. Evictions
+may already have been accepted. Inspect the node's pods before retrying or taking
+it down. An accepted eviction is not proof of deletion.
+
+Use `wait_for_deletion: false` only when you want eviction requests started without
+waiting for deletion. A `started` result is not completion. `incomplete` and
+`unconfirmed` results need attention even when the HTTP request succeeded.
+
+The node page retains this tab's last UI drain result until dismissal, reload or
+context switch. It is a recorded result, not live node health or a history of
+drains started by other users or MCP clients.
+
 ## Why MCP instead of raw kubectl?
 
 Giving an AI agent raw `kubectl` access has problems:
