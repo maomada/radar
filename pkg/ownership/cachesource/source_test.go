@@ -127,7 +127,7 @@ type fixture struct {
 // newFixture starts caches over the fixture objects. cfg selects the typed
 // kinds (default: Pods, ReplicaSets, Deployments, Nodes, Events); prepare runs
 // before any cache starts, for reactors.
-func newFixture(t *testing.T, cfg k8score.CacheConfig, prepare func(*fixture)) *fixture {
+func newFixture(t testing.TB, cfg k8score.CacheConfig, prepare func(*fixture)) *fixture {
 	t.Helper()
 	f := &fixture{
 		typed: fake.NewClientset(typedObjects()...),
