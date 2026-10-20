@@ -422,11 +422,11 @@ func publishStagedRepositoryCache(stageDir, stagedIndex, cacheDir string) error 
 		if entry.IsDir() || entry.Name() == indexBase {
 			continue
 		}
-		if err := os.Rename(filepath.Join(stageDir, entry.Name()), filepath.Join(cacheDir, entry.Name())); err != nil {
+		if err := replaceRepositoryCacheFile(filepath.Join(stageDir, entry.Name()), filepath.Join(cacheDir, entry.Name())); err != nil {
 			return fmt.Errorf("publish repository cache metadata: %w", err)
 		}
 	}
-	if err := os.Rename(stagedIndex, filepath.Join(cacheDir, indexBase)); err != nil {
+	if err := replaceRepositoryCacheFile(stagedIndex, filepath.Join(cacheDir, indexBase)); err != nil {
 		return fmt.Errorf("publish repository index: %w", err)
 	}
 	return nil

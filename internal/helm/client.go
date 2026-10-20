@@ -29,7 +29,6 @@ import (
 	pkgauth "github.com/skyhook-io/radar/pkg/auth"
 	"github.com/skyhook-io/radar/pkg/gitops"
 	"github.com/skyhook-io/radar/pkg/helmhistory"
-	"github.com/skyhook-io/radar/pkg/prom"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -55,6 +54,9 @@ const (
 	releaseHistoryMax        = 256
 	releaseListMaxOperations = 3
 )
+
+// Repository credentials may also appear in URL paths, so hide the whole URL.
+var repositoryRefreshErrorURL = regexp.MustCompile(`[a-zA-Z][a-zA-Z0-9+.-]*://[^\s"<>]*`)
 
 // HTTP client for ArtifactHub requests
 var httpClient = &http.Client{
@@ -3176,7 +3178,7 @@ func (c *Client) UpdateRepository(repoName string) error {
 	// Create chart repository and download index
 	chartRepo, err := repo.NewChartRepository(repoEntry, getter.All(c.settings))
 	if err != nil {
-		return fmt.Errorf("failed to create chart repository %q: %s", repoName, prom.RedactURLs(err.Error()))
+		return fmt.Errorf("failed to create chart repository %q: %s", repoName, repositoryRefreshErrorURL.ReplaceAllString(err.Error(), "<redacted>"))
 	}
 
 	if err := os.MkdirAll(c.settings.RepositoryCache, 0o755); err != nil {
@@ -3191,7 +3193,7 @@ func (c *Client) UpdateRepository(repoName string) error {
 
 	stagedIndex, err := chartRepo.DownloadIndexFile()
 	if err != nil {
-		return fmt.Errorf("failed to download index for repository %q: %s", repoName, prom.RedactURLs(err.Error()))
+		return fmt.Errorf("failed to download index for repository %q: %s", repoName, repositoryRefreshErrorURL.ReplaceAllString(err.Error(), "<redacted>"))
 	}
 
 	c.mu.Lock()

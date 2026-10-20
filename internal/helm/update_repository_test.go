@@ -197,13 +197,14 @@ func TestUpdateRepositoryRedactsCredentialURLs(t *testing.T) {
 		t.Fatal(err)
 	}
 	u.User = url.UserPassword("reader", "secret/p@ss")
+	u.Path = "/private/path-credential"
 	u.RawQuery = "token=private-token"
 	client := updateRepositoryTestClient(t, &repo.Entry{Name: "private", URL: u.String()})
 	err = client.UpdateRepository("private")
 	if err == nil {
 		t.Fatal("want failed refresh")
 	}
-	for _, secret := range []string{"reader", "secret", "p%40ss", "private-token"} {
+	for _, secret := range []string{"reader", "secret", "p%40ss", "private-token", "path-credential"} {
 		if strings.Contains(err.Error(), secret) {
 			t.Fatalf("refresh error exposes credential %q", secret)
 		}
