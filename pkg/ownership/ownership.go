@@ -14,26 +14,26 @@ import (
 type Source interface {
 	// Begin opens a session. It does no I/O, starts no watch and waits for
 	// nothing.
-	Begin() (Session, error)
+	Begin() (ReadSession, error)
 }
 
-// Session reads observations and records which store served each read, so an
+// ReadSession reads observations and records which store served each read, so an
 // answer assembled from several reads can be checked for having mixed a store
 // with its replacement. Reads are not a snapshot: each sees its store as it is
 // when read, so an answer should read each object once. A session is not safe
 // for concurrent use.
-type Session interface {
+type ReadSession interface {
 	// Catalog is the served API as of Begin. It never changes.
 	Catalog() *Catalog
 	// Object reads one object. It does no I/O and waits for nothing.
 	Object(ref resourceid.Ref) ObjectRead
-	// Validate returns nil if every store the session read is still the one
+	// ValidateStores returns nil if every store the session read is still the one
 	// serving what it served then, and no version of a resource it read, left
 	// unread because nothing watched it then, is watched now; otherwise
 	// ErrCachesReplaced or ErrStoreReplaced. It says the reads came from live
 	// stores, not that they are still current. An answer built in a session
-	// must pass Validate before it is used.
-	Validate() error
+	// must pass ValidateStores before it is used.
+	ValidateStores() error
 }
 
 var (
