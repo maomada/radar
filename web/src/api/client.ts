@@ -5733,7 +5733,7 @@ export function describeDrainResult(data: DrainResultData): {
   }
   const titles: Record<DrainCompletionOutcome, string> = {
     complete: evicted > 0 ? `Drain complete: ${pluralize(evicted, "pod")} removed` : "Nothing to evict",
-    incomplete: errors.length > 0 ? `Drain incomplete: ${errors.length} failed evictions` :
+    incomplete: errors.length > 0 ? `Drain incomplete: ${pluralize(errors.length, "failed eviction")}` :
       `Drain incomplete: ${pluralize(pending.length + blocking.length, "pod")} left on the node`,
     unconfirmed: "Could not confirm drain completion",
     started: `Evictions started: ${evicted} accepted`,

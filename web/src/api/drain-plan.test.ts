@@ -69,7 +69,7 @@ describe("describeDrainResult", () => {
 
   it("reports failed evictions and unknown siblings together", () => {
     const result = describeDrainResult({ errors: ["shop/db: refused"], unconfirmedPods: ["shop/web"], verificationError: "list failed", outcome: "incomplete" });
-    expect(result).toMatchObject({ type: "error", outcome: "incomplete" });
+    expect(result).toMatchObject({ title: "Drain incomplete: 1 failed eviction", type: "error", outcome: "incomplete" });
     expect(result.detail).toContain("Failed evictions 1: shop/db: refused");
     expect(result.detail).toContain("Deletion unconfirmed 1: shop/web");
     expect(result.detail).not.toContain("Still on the node");
