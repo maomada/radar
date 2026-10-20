@@ -400,7 +400,7 @@ export function GitOpsDetailLayout(props: GitOpsDetailLayoutProps) {
                   <Collapse open={permissionsOpen} id={permissionsDisclosure.panelId}>
                     <div className="mt-2 max-w-xl space-y-2 rounded border border-theme-border bg-theme-surface p-3">
                       {denialReasons.map(reason => <p key={reason}>{reason}</p>)}
-                      {props.isCloudDeployment && isArgoApp && <p>For Radar Cloud owners using the default roles, run <code>helm upgrade</code> on the Radar chart to apply the Argo CD write grant. One-click upgrades update only the image.</p>}
+                      {props.isCloudDeployment && isArgoApp && <p>Radar Cloud owners: the Argo CD write grant delegates the Argo CD controller's deployment authority. Review Chart RBAC settings, then apply it with <code>helm upgrade</code>; one-click upgrades update only the image.</p>}
                       <p>{props.isCloudDeployment && isArgoApp ? 'For other roles, an admin can grant access with' : 'An admin can grant access with'} a RoleBinding{deniedGrants.length > 0 ? ' allowing:' : '.'}</p>
                       {deniedGrants.length > 0 && <ul className="list-disc space-y-1 pl-4">
                         {deniedGrants.slice(0, 4).map(grant => <li key={grant}>{grant.split(' ').map((word, index) => <span key={index}><span className="inline-block max-w-full [overflow-wrap:anywhere]">{word}</span>{' '}</span>)}</li>)}
@@ -543,6 +543,11 @@ export function GitOpsDetailLayout(props: GitOpsDetailLayoutProps) {
               )}
             </div>
           </div>
+          {props.actionPermissions?.['sync-with-source']?.unsupported && props.actionDisabledReasons?.['sync-with-source'] && (
+            <p className="mt-2 text-xs text-theme-text-tertiary">
+              {props.actionDisabledReasons?.['sync-with-source']}
+            </p>
+          )}
         </div>
       )}
       {!fullscreen && (

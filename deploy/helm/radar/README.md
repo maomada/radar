@@ -244,9 +244,10 @@ Updating only the Radar binary, including Radar Cloud self-upgrade, installs no
 RBAC.
 
 GitOps action controls check the caller's permissions per object and disable
-denied actions with an explanation. While a check loads or retries, controls
-stay available. The checks are advisory: each action still runs as the caller,
-and Kubernetes makes the final authorization decision.
+denied actions with an explanation. Controls stay available while the first check
+loads or fails. After a confirmed denial, failed checks keep that result for up to
+two minutes, then allow another attempt. The checks are advisory: each action still
+runs as the caller, and Kubernetes makes the final authorization decision.
 
 ### Radar Cloud background services (`radar:system`)
 

@@ -44,13 +44,13 @@ describe('GitOps permission gates on rendered controls', () => {
       expect(actionButton(html, label)).toContain('disabled=""')
     }
   })
-  it('tells Cloud owners using default roles to upgrade the chart after an image-only upgrade', () => {
+  it('explains the deployment authority Cloud owners grant before advising a chart upgrade', () => {
     const html = renderToString(<GitOpsDetailLayout {...base} isCloudDeployment
       actionDisabledReasons={{ sync: reason, refresh: reason, suspend: reason }}
       actionPermissions={{ sync: argoDenial, refresh: argoDenial, suspend: argoDenial }} />)
     const doc = new DOMParser().parseFromString(html, 'text/html')
     expect(doc.body.textContent).toContain("Your role can't sync, refresh or change auto-sync for this Application.")
-    expect(doc.body.textContent).toContain('For Radar Cloud owners using the default roles, run helm upgrade on the Radar chart to apply the Argo CD write grant. One-click upgrades update only the image.')
+    expect(doc.body.textContent).toContain("Radar Cloud owners: the Argo CD write grant delegates the Argo CD controller's deployment authority. Review Chart RBAC settings, then apply it with helm upgrade; one-click upgrades update only the image.")
     expect(doc.querySelector('code')?.textContent).toBe('helm upgrade')
     expect(html).toContain('Chart RBAC settings')
     expect(html).toContain('README.md#cloud-owner-integration-writes')
@@ -123,16 +123,26 @@ describe('GitOps permission gates on rendered controls', () => {
     expect(doc.body.textContent).not.toContain("Your role can't sync")
     expect(doc.body.textContent).not.toContain('roll back')
   })
-  it('keeps an unsupported action out of the role restrictions', () => {
+  it.each([
+    'HelmChart charts/shared was not found. Check the chart reference and that the object exists.',
+    'The generated HelmChart is not available yet. Wait for Flux to create it.',
+  ])('shows an unsupported source-sync reason below the actions, outside role guidance: %s', disabledReason => {
     const html = renderToString(<GitOpsDetailLayout {...base}
       identity={{ ...base.identity, kind: 'helmreleases', group: 'helm.toolkit.fluxcd.io', namespace: 'apps' }}
       isArgoApp={false} isFlux isFluxWorkload
       flux={{ onReconcile: noop, onSyncWithSource: noop, onSuspend: noop, onResume: noop, reconciling: false, syncingWithSource: false, suspending: false, resuming: false }}
-      actionDisabledReasons={{ 'sync-with-source': 'Sync with source is unsupported here.' }}
+      actionDisabledReasons={{ 'sync-with-source': disabledReason }}
       actionPermissions={{ reconcile: { allowed: true }, 'sync-with-source': { unsupported: true } }}
     />)
     expect(html).not.toContain('restricted for your role')
+    expect(html).not.toContain('Why?')
     expect(actionButton(html, 'Sync with source')).toContain('disabled=""')
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const note = [...doc.querySelectorAll('p')].find(p => p.textContent === disabledReason)
+    expect(note).toBeDefined()
+    expect(note!.closest('[inert], [hidden], [aria-hidden="true"]')).toBeNull()
+    const syncButton = [...doc.querySelectorAll('button')].find(button => button.textContent === 'Sync with source')!
+    expect(syncButton.compareDocumentPosition(note!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
   })
   it('deduplicates permission tuples across actions, lists distinct verbs and scopes, and bounds the list', () => {
     const html = renderToString(<GitOpsDetailLayout {...base} actionDisabledReasons={{ sync: reason }} actionPermissions={{
