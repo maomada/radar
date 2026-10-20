@@ -47,6 +47,7 @@ export const RADAR_FEATURES = {
   // resume reports success while leaving automated.enabled: false in place.
   argoRollback: { label: 'Argo CD rollbacks', flag: 'argoRollbackSync', flagShippedWithEndpoint: true },
   argoAutoSyncEnable: { label: 'Auto-sync controls for Applications with automated.enabled: false', flag: 'argoRollbackSync', flagShippedWithEndpoint: true },
+  helmSourceIdentity: { label: 'Helm source selection', flag: 'helmSourceIdentity', flagShippedWithEndpoint: true },
 } as const satisfies Record<string, RadarFeatureSpec>
 
 export type RadarFeature = keyof typeof RADAR_FEATURES

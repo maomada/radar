@@ -46,6 +46,7 @@ import {
   pluralToKind,
   relatedResourcePath,
   buildWorkloadPath,
+  namespacesFromSearch,
   type NavigateToResource,
 } from '../../utils/navigation'
 import {
@@ -82,6 +83,7 @@ import {
   useCordonNode,
   useUncordonNode,
   useDrainNode,
+  useNodeDrainActivity,
   useDrainPlan,
   useCascadeDeletePreview,
   useResourceEvents,
@@ -128,6 +130,7 @@ import { cleanYamlForDuplicate } from '../../utils/skeleton-yaml'
 import { useDesktopDownload } from '../../hooks/useDesktopDownload'
 import { useCompareLauncher } from '../compare/useCompareLauncher'
 import { useDiagnoseCustomization } from '../../context/DiagnoseCustomization'
+import { NodeDrainStatus } from './NodeDrainStatus'
 
 type TabType = WorkloadTabType
 const BATCH_EXECUTION_KINDS = new Set([
@@ -290,6 +293,7 @@ function useActionsBarProps(
   name: string,
   group: string | undefined,
   cascadeEnabled: boolean,
+  nodeUID: string,
 ) {
   const { showCopied } = useToast()
   const { features } = useCapabilitiesContext()
@@ -369,7 +373,8 @@ function useActionsBarProps(
   const canNodeWrite = useCanNodeWrite()
   const cordonMutation = useCordonNode()
   const uncordonMutation = useUncordonNode()
-  const drainMutation = useDrainNode()
+  const drainMutation = useDrainNode(nodeUID)
+  const { activity: drainActivity } = useNodeDrainActivity(name, nodeUID)
   const drainPlanMutation = useDrainPlan()
 
   const { renderAction: renderDiagnose } = useDiagnoseCustomization()
@@ -476,7 +481,7 @@ function useActionsBarProps(
     isUncordoningNode: uncordonMutation.isPending,
     onDrainNode: (params: Parameters<typeof drainMutation.mutate>[0]) =>
       drainMutation.mutate(params),
-    isDrainingNode: drainMutation.isPending,
+    isDrainingNode: nodeUID ? drainActivity?.status === 'pending' : drainMutation.isPending,
     onPlanDrain: (params: Parameters<typeof drainPlanMutation.mutate>[0]) =>
       drainPlanMutation.mutate(params),
     onPlanDrainReset: () => drainPlanMutation.reset(),
@@ -499,6 +504,8 @@ export function WorkloadView({
 }: WorkloadViewProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
+  const viewNamespacesKey = namespacesFromSearch(searchParams).join(',')
+  const viewNamespaces = useMemo(() => (viewNamespacesKey ? viewNamespacesKey.split(',') : []), [viewNamespacesKey])
   const apiKind = kindToPluralWithGroup(kindProp, rest.group ?? '')
   const queryClient = useQueryClient()
   const [imageTargetOwnership, setImageTargetOwnership] =
@@ -566,6 +573,7 @@ export function WorkloadView({
   const batchRunsQuery = useWorkloadRuns(apiKind, namespace, name, expanded && batchExecution, {
     refetchActive: true,
     clusterScoped: batchKind === 'ClusterWorkflowTemplate',
+    namespaces: viewNamespaces,
   })
   const relatedTimelineEvents = useMemo(
     () => batchKind === 'JobSet' ? [] : workloadRunTimelineEvents(batchRunsQuery.data?.runs ?? []),
@@ -789,6 +797,7 @@ export function WorkloadView({
     name,
     effectiveGroup,
     !resourceLoading && Boolean(resource),
+    apiKind === 'nodes' && !effectiveGroup ? resource?.metadata?.uid ?? '' : '',
   )
   const desktopDownload = useDesktopDownload()
 
@@ -1183,6 +1192,7 @@ export function WorkloadView({
             group={effectiveGroup}
             selectedRunKey={selectedRunKey}
             onSelectRun={handleSelectedRunChange}
+            viewNamespaces={viewNamespaces}
           />
         )}
         {...resourceDetailSlots({ kind: apiKind, group: resource?.apiVersion ? resourceGroup : effectiveGroup, namespace, name }, rest.extraTabs)}
@@ -1201,6 +1211,7 @@ export function WorkloadView({
               onSwitchToLogs={() => handleTabChange('logs')}
               onSwitchToTimeline={() => handleTabChange('timeline')}
               onNavigateToResource={rest.onNavigateToResource}
+              viewNamespaces={viewNamespaces}
             />
           ) : null
         }
@@ -1251,6 +1262,9 @@ export function WorkloadView({
         onDownload={desktopDownload}
         actionsBarProps={actionsBarProps}
         rendererOverrides={resourceRendererOverrides}
+        renderOverviewIntro={apiKind === 'nodes' && !effectiveGroup && resource?.metadata?.uid
+          ? () => <NodeDrainStatus name={name} nodeUID={resource.metadata.uid} />
+          : undefined}
         renderOverviewExtra={({ kind: k, namespace: ns, name: n, group: g, context }) => {
           // Network entry kinds (Service/Ingress/Route/Gateway) ARE the diagnosis
           // target: DiagnoseInlineSection renders in the drawer, no hint. Workload
@@ -1445,6 +1459,7 @@ function LogsTabContent({
   onConsumeInitialContainer,
   selectedRunKey,
   onSelectRun,
+  viewNamespaces,
 }: {
   kind: string
   apiKind: string
@@ -1459,6 +1474,7 @@ function LogsTabContent({
   onConsumeInitialContainer: () => void
   selectedRunKey: string
   onSelectRun: (runKey: string) => void
+  viewNamespaces: string[]
 }) {
   if (SCHEDULED_LOG_KINDS.has(kind) && supportsBatchExecution(kind, apiKind, group, resource?.apiVersion)) {
     return (
@@ -1469,6 +1485,7 @@ function LogsTabContent({
           name={name}
           selectedRunKey={selectedRunKey}
           onSelectRun={onSelectRun}
+          viewNamespaces={viewNamespaces}
         />
       </div>
     )

@@ -237,6 +237,12 @@ func TestUpgradeAndValuesUseTargetNamespace(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			source := &ChartSourceCandidate{Type: "repository", Reference: repoName, URL: srv.URL}
+			rel.Labels = chartSourceLabels(source)
+			rel.Labels[chartSourceBindingLabel] = chartSourceBinding(rel.Chart)
+			if err := cfg.Releases.Update(rel); err != nil {
+				t.Fatal(err)
+			}
 			values := map[string]any{"message": "new"}
 			noop := func(string, string, string) {}
 			var rendered *release.Release
@@ -256,7 +262,7 @@ func TestUpgradeAndValuesUseTargetNamespace(t *testing.T) {
 			case "preview values":
 				_, err = client.previewValuesChangeWith(cfg, "demo", values, "", "")
 			case "install recovery":
-				rendered, err = runInstallOrUpgrade(cfg, &InstallRequest{Namespace: "store", ReleaseName: "demo", Values: values}, &next, installUpgrade)
+				rendered, err = runInstallOrUpgrade(cfg, &InstallRequest{Namespace: "store", ReleaseName: "demo", Values: values, resolvedSource: source}, &next, installUpgrade)
 			}
 			if err != nil {
 				t.Fatal(err)
