@@ -206,7 +206,7 @@ type membersRead struct {
 // while Recorders runs, from an unreadable list to one naming the object or
 // from one reading of its entry to another, is then found in one of its
 // states: reads of one key at a time could find it in none.
-func (s *session) readMembers(kind ownership.Kind, keys []string) membersRead {
+func (s *session) readMembers(kind ownership.CatalogKind, keys []string) membersRead {
 	gk := kind.GroupKind
 	var m membersRead
 	q := &search{domain: ownership.Everywhere()}

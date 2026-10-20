@@ -73,7 +73,7 @@ type OwnerResolution struct {
 // reference names an owner by group, kind and name; the owner is in the
 // dependent's namespace when its kind is namespaced, cluster-wide otherwise,
 // and only its UID tells one incarnation from the next.
-func ResolveOwner(s Session, dependent Observation, ref metav1.OwnerReference) OwnerResolution {
+func ResolveOwner(s ReadSession, dependent Observation, ref metav1.OwnerReference) OwnerResolution {
 	gv, err := schema.ParseGroupVersion(ref.APIVersion)
 	if err != nil || ref.APIVersion == "" || ref.Kind == "" || ref.Name == "" {
 		return OwnerResolution{State: OwnerUnresolvable}
