@@ -57,8 +57,8 @@ func TestCronJobControllerEventIssues(t *testing.T) {
 			if issue.Category != issuesapi.CategoryCronJobFailed || issue.Kind != "CronJob" || issue.Group != "batch" || issue.Name != cj.Name || issue.Namespace != cj.Namespace {
 				t.Errorf("wrong classification/subject: %+v", issue)
 			}
-			if issue.Message != messages[issue.Reason] || issue.Cause != "" || issue.Action != "" || issue.RemediationKind != "" || issue.RemediationTarget != "" {
-				t.Errorf("controller evidence was lost or inferred guidance added: %+v", issue)
+			if issue.Message != messages[issue.Reason] || issue.Cause == "" || issue.Action == "" || issue.RemediationKind != "" || issue.RemediationTarget != "" {
+				t.Errorf("original report or scheduling guidance missing: %+v", issue)
 			}
 		}
 	}

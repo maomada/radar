@@ -849,7 +849,18 @@ export function useResourceIssues(
 // The Issues page narrowed to one subject: the same per-resource lookup with
 // ?coverage=1, which also says whether Radar reads the subject's kind and what
 // the caller's RBAC withheld. Polls like the page list.
+export interface CronJobSchedulingEvidence {
+  uid: string;
+  state: 'reported' | 'configuration_changed' | 'history_incomplete';
+  reason: string;
+  message: string;
+  last_reported_at: string;
+  configuration_changed_at?: string;
+  history_incomplete?: boolean;
+}
+
 export interface SubjectIssuesResponse {
+  scheduling_report?: CronJobSchedulingEvidence;
   issues: Issue[];
   coverage: "ok" | "syncing" | "notWatched" | "unknownKind";
   withheld?: { issues: number };
@@ -857,7 +868,7 @@ export interface SubjectIssuesResponse {
 }
 
 export function useSubjectIssues(
-  subject: { kind: string; group: string; namespace: string; name: string } | null,
+  subject: { kind: string; group: string; namespace: string; name: string; uid?: string } | null,
   enabled: boolean,
 ) {
   const capabilities = useCapabilities();
@@ -866,7 +877,7 @@ export function useSubjectIssues(
   const params = new URLSearchParams({ coverage: "1" });
   if (subject?.group) params.set("group", subject.group);
   return useQuery<SubjectIssuesResponse>({
-    queryKey: ["issues", "subject", subject?.kind ?? "", subject?.group ?? "", subject?.namespace ?? "", subject?.name ?? "", support, ...gatedKey],
+    queryKey: ["issues", "subject", subject?.kind ?? "", subject?.group ?? "", subject?.namespace ?? "", subject?.name ?? "", subject?.uid ?? "", support, ...gatedKey],
     queryFn: () => {
       if (!capabilities.data && capabilities.error) throw capabilities.error;
       return guard(() => fetchJSON<SubjectIssuesResponse>(`/issues/resource/${encodeURIComponent(subject!.kind)}/${pathNs}/${encodeURIComponent(subject!.name)}?${params}`));
@@ -7499,7 +7510,7 @@ export function useWorkloadRuns(
   namespace: string,
   name: string,
   enabled = true,
-  options?: { refetchActive?: boolean; clusterScoped?: boolean; namespaces?: string[]; role?: string; search?: string; state?: string; selected?: string },
+  options?: { refetchActive?: boolean; clusterScoped?: boolean; namespaces?: string[]; role?: string; search?: string; state?: string; selected?: string; ownerUID?: string },
 ) {
   const clusterScoped = options?.clusterScoped ?? false;
   const ns = clusterScoped ? "_" : namespace;
@@ -7513,11 +7524,11 @@ export function useWorkloadRuns(
   const queryString = params.toString();
 
   return useQuery<WorkloadRunsResponse>({
-    queryKey: ["workload-runs", kind, namespace, name, clusterScoped, viewNamespaces, options?.role ?? '', options?.search ?? '', options?.state ?? '', options?.selected ?? ''],
+    queryKey: ["workload-runs", kind, namespace, name, clusterScoped, viewNamespaces, options?.role ?? '', options?.search ?? '', options?.state ?? '', options?.selected ?? '', options?.ownerUID ?? ''],
     placeholderData: (previous, query) => {
       if (previous?.collection !== 'members') return undefined
       const identity = ["workload-runs", kind, namespace, name, clusterScoped, viewNamespaces, options?.role ?? '', options?.search ?? '', options?.state ?? '']
-      return identity.every((value, index) => query?.queryKey[index] === value) ? previous : undefined
+      return identity.every((value, index) => query?.queryKey[index] === value) && query?.queryKey[10] === (options?.ownerUID ?? '') ? previous : undefined
     },
     queryFn: () =>
       fetchJSON(

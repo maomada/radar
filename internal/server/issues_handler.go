@@ -339,6 +339,9 @@ func (s *Server) handleResourceIssues(w http.ResponseWriter, r *http.Request) {
 		Issues:   related,
 		Coverage: resourceIssuesCoverage(kind, group, namespace),
 	}
+	if kind == "CronJob" && (group == "batch" || group == "") && namespace != "" && s.canRead(r, "", "events", namespace, "list") {
+		resp.SchedulingReport = k8s.GetCronJobSchedulingEvidence(namespace, name)
+	}
 	if withheld.Issues > 0 {
 		resp.Withheld = &withheld
 	}
@@ -350,7 +353,8 @@ func (s *Server) handleResourceIssues(w http.ResponseWriter, r *http.Request) {
 
 // ResourceIssuesResponse is /api/issues/resource with ?coverage=1.
 type ResourceIssuesResponse struct {
-	Issues []issues.Issue `json:"issues"`
+	SchedulingReport *k8s.CronJobSchedulingEvidence `json:"scheduling_report,omitempty"`
+	Issues           []issues.Issue                 `json:"issues"`
 	// Whether the issues engine reads the subject's kind: ok, syncing,
 	// notWatched, or unknownKind (discovery doesn't serve the kind, as when a
 	// link made on one cluster opens on another). Anything but ok makes an

@@ -842,10 +842,15 @@ func DetectProblems(cache *ResourceCache, namespace string) []Detection {
 			cronjobs, _ = cjLister.List(labels.Everything())
 		}
 		scheduleEvents := detectCronJobScheduleEvents(cache, namespace, cronjobs, now)
-		problems = append(problems, scheduleEvents...)
-		withScheduleEvidence := make(map[types.NamespacedName]bool, len(scheduleEvents))
-		for _, event := range scheduleEvents {
+		problems = append(problems, scheduleEvents.detections...)
+		withScheduleEvidence := make(map[types.NamespacedName]bool, len(scheduleEvents.detections))
+		for _, event := range scheduleEvents.detections {
 			withScheduleEvidence[types.NamespacedName{Namespace: event.Namespace, Name: event.Name}] = true
+		}
+		for _, cj := range cronjobs {
+			if cronJobScheduleEditPending(cj, scheduleEvents.evidence[cj.UID], now) {
+				withScheduleEvidence[types.NamespacedName{Namespace: cj.Namespace, Name: cj.Name}] = true
+			}
 		}
 		for _, cp := range DetectCronJobProblems(cronjobs, jobs, cache.cronJobScheduleObservations, now) {
 			if (cp.Problem == "stale" || cp.Problem == "never-scheduled") &&

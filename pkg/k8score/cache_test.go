@@ -959,18 +959,16 @@ func TestResourceCacheOnTransformSeesManagedFieldsBeforeStripping(t *testing.T) 
 func TestDropManagedFields_EventSeries(t *testing.T) {
 	now := time.Now()
 	event := &corev1.Event{
-		EventTime:           metav1.NewMicroTime(now.Add(-time.Hour)),
-		Series:              &corev1.EventSeries{Count: 42, LastObservedTime: metav1.NewMicroTime(now)},
-		Source:              corev1.EventSource{Component: "cronjob-controller"},
-		ReportingController: "cronjob-controller",
+		EventTime: metav1.NewMicroTime(now.Add(-time.Hour)),
+		Series:    &corev1.EventSeries{Count: 42, LastObservedTime: metav1.NewMicroTime(now)},
 	}
 	result, err := DropManagedFields(event)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := result.(*corev1.Event)
-	if got.EventTime != event.EventTime || got.Series == nil || *got.Series != *event.Series || got.Source != event.Source || got.ReportingController != event.ReportingController {
-		t.Fatalf("event occurrence/provenance evidence stripped: %+v", got)
+	if got.EventTime != event.EventTime || got.Series == nil || *got.Series != *event.Series {
+		t.Fatalf("event occurrence evidence stripped: %+v", got)
 	}
 }
 

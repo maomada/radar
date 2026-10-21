@@ -81,18 +81,11 @@ func TestCronJobControllerEventsFallback(t *testing.T) {
 	}{
 		{name: "absent"},
 		{name: "RBAC disabled"},
-		{name: "expired", mutate: func(e *corev1.Event) { e.LastTimestamp = metav1.NewTime(time.Now().Add(-time.Hour)) }},
-		{name: "expired series", mutate: func(e *corev1.Event) {
-			e.Series = &corev1.EventSeries{Count: 90, LastObservedTime: metav1.NewMicroTime(time.Now().Add(-time.Hour))}
-		}},
 		{name: "predecessor UID", mutate: func(e *corev1.Event) { e.InvolvedObject.UID = "deleted-predecessor" }},
 		{name: "other namespace", mutate: func(e *corev1.Event) { e.InvolvedObject.Namespace = "other" }},
 		{name: "other name", mutate: func(e *corev1.Event) { e.InvolvedObject.Name = "other" }},
 		{name: "other kind", mutate: func(e *corev1.Event) { e.InvolvedObject.Kind = "Job" }},
 		{name: "other group", mutate: func(e *corev1.Event) { e.InvolvedObject.APIVersion = "other.example/v1" }},
-		{name: "other emitter", mutate: func(e *corev1.Event) { e.Source.Component = "other-controller" }},
-		{name: "other reporting controller", mutate: func(e *corev1.Event) { e.ReportingController = "other-controller" }},
-		{name: "unattributed", mutate: func(e *corev1.Event) { e.Source.Component = "" }},
 		{name: "normal", mutate: func(e *corev1.Event) { e.Type = corev1.EventTypeNormal }},
 		{name: "unsupported", mutate: func(e *corev1.Event) { e.Reason = "UnsupportedSchedule" }},
 		{name: "unrecognized", mutate: func(e *corev1.Event) { e.Reason = "FailedCreate" }},
@@ -221,12 +214,9 @@ func TestCronJobControllerEventsIdentityAndFreshness(t *testing.T) {
 		mutate func(*corev1.Event)
 		want   bool
 	}{
-		{name: "no UID uses namespace and name", want: true, mutate: func(e *corev1.Event) { e.InvolvedObject.UID = "" }},
+		{name: "no UID cannot prove current incarnation", mutate: func(e *corev1.Event) { e.InvolvedObject.UID = "" }},
 		{name: "no API version", want: true, mutate: func(e *corev1.Event) { e.InvolvedObject.APIVersion = "" }},
-		{name: "freshness boundary", want: true, mutate: func(e *corev1.Event) { e.LastTimestamp = metav1.NewTime(now.Add(-cronJobScheduleFailureWindow)) }},
-		{name: "outside boundary", mutate: func(e *corev1.Event) {
-			e.LastTimestamp = metav1.NewTime(now.Add(-cronJobScheduleFailureWindow - time.Nanosecond))
-		}},
+		{name: "retained report is not recovery", want: true, mutate: func(e *corev1.Event) { e.LastTimestamp = metav1.NewTime(now.Add(-time.Hour)) }},
 		{name: "before creation", mutate: func(e *corev1.Event) { e.LastTimestamp = metav1.NewTime(now.Add(-96 * time.Hour)) }},
 		{name: "legacy count", want: true, mutate: func(e *corev1.Event) { e.Count = 12 }},
 		{name: "empty series uses legacy", want: true, mutate: func(e *corev1.Event) { e.Series = &corev1.EventSeries{}; e.Count = 12 }},
@@ -267,8 +257,8 @@ func TestCronJobControllerEventsReasons(t *testing.T) {
 					if d.Kind != "CronJob" || d.Group != "batch" || d.Namespace != cj.Namespace || d.Name != cj.Name || d.Severity != "medium" {
 						t.Errorf("wrong subject/severity: %+v", d)
 					}
-					if !strings.Contains(d.Message, event.Message) || d.Cause != "" || d.Action != "" {
-						t.Errorf("must retain controller message without inferred cause/remediation: %+v", d)
+					if !strings.Contains(d.Message, event.Message) || d.Cause == "" || d.Action == "" {
+						t.Errorf("must retain the original report and provide diagnosis/navigation: %+v", d)
 					}
 					if d.Fingerprint != "cronjob-event:"+reason || !d.OnsetAt.Equal(event.FirstTimestamp.Time) || !d.ResourceCreatedAt.Equal(cj.CreationTimestamp.Time) {
 						t.Errorf("missing stable reason identity or evidence timing: %+v", d)
@@ -276,5 +266,84 @@ func TestCronJobControllerEventsReasons(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestCronJobControllerEventsLifecycle(t *testing.T) {
+	now := time.Now()
+	for _, scenario := range []struct {
+		name   string
+		mutate func(*batchv1.CronJob, *corev1.Event)
+		want   int
+	}{
+		{name: "later schedule clears failure", mutate: func(cj *batchv1.CronJob, _ *corev1.Event) {
+			cj.Status.LastScheduleTime = &metav1.Time{Time: now.Add(-30 * time.Second)}
+		}},
+		{name: "suspended", mutate: func(cj *batchv1.CronJob, _ *corev1.Event) {
+			suspended := true
+			cj.Spec.Suspend = &suspended
+		}},
+		{name: "old run completing does not prove recovery", want: 1, mutate: func(cj *batchv1.CronJob, _ *corev1.Event) {
+			cj.Status.LastScheduleTime = &metav1.Time{Time: now.Add(-time.Hour)}
+			cj.Status.LastSuccessfulTime = &metav1.Time{Time: now.Add(-30 * time.Second)}
+		}},
+		{name: "series failure after last run remains", want: 1, mutate: func(cj *batchv1.CronJob, e *corev1.Event) {
+			cj.Status.LastScheduleTime = &metav1.Time{Time: now.Add(-90 * time.Second)}
+			e.Series = &corev1.EventSeries{Count: 3, LastObservedTime: metav1.NewMicroTime(now.Add(-time.Minute))}
+		}},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			cj := cronJobEventSubject(now)
+			event := cronJobWarning(cj, "MissSchedule", now)
+			scenario.mutate(cj, event)
+			cache := newOwnershipCache(t, map[string]bool{k8score.CronJobs: true, k8score.Events: true}, cj, event)
+			got := DetectProblems(cache, cj.Namespace)
+			if len(got) != scenario.want || (scenario.want == 1 && got[0].Reason != event.Reason) {
+				t.Fatalf("got %+v, want %d schedule issues", got, scenario.want)
+			}
+		})
+	}
+}
+
+func TestCronJobControllerEventsCatchUpRecovery(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	for _, sameSecond := range []bool{false, true} {
+		t.Run(strconv.FormatBool(sameSecond), func(t *testing.T) {
+			cj := cronJobEventSubject(now)
+			cj.Status.LastScheduleTime = &metav1.Time{Time: now.Add(-5 * time.Minute)}
+			warning := cronJobWarning(cj, "TooManyMissedTimes", now)
+			created := cronJobWarning(cj, "SuccessfulCreate", now)
+			created.Name = "successful-create"
+			created.Type = corev1.EventTypeNormal
+			if !sameSecond {
+				created.LastTimestamp = metav1.NewTime(now.Add(-30 * time.Second))
+			}
+			for _, events := range [][]*corev1.Event{{warning, created}, {created, warning}} {
+				if got := cronJobScheduleEventDetections([]*batchv1.CronJob{cj}, events, now); len(got) != 0 {
+					t.Fatalf("successful catch-up run still flagged: %+v", got)
+				}
+			}
+			created.InvolvedObject.UID = "predecessor"
+			if got := cronJobScheduleEventDetections([]*batchv1.CronJob{cj}, []*corev1.Event{warning, created}, now); len(got) != 1 {
+				t.Fatalf("predecessor creation suppressed current failure: %+v", got)
+			}
+		})
+	}
+}
+
+func TestCronJobControllerEventsNewFailureAfterCreation(t *testing.T) {
+	now := time.Now()
+	cj := cronJobEventSubject(now)
+	warning := cronJobWarning(cj, "InvalidSchedule", now)
+	created := cronJobWarning(cj, "SuccessfulCreate", now)
+	created.Type = corev1.EventTypeNormal
+	created.LastTimestamp = metav1.NewTime(now.Add(-3 * time.Minute))
+	if got := cronJobScheduleEventDetections([]*batchv1.CronJob{cj}, []*corev1.Event{warning, created}, now); len(got) != 1 {
+		t.Fatalf("earlier creation suppressed later failure: %+v", got)
+	}
+	created.LastTimestamp = metav1.NewTime(now.Add(-30 * time.Second))
+	created.Source.Component = ""
+	if got := cronJobScheduleEventDetections([]*batchv1.CronJob{cj}, []*corev1.Event{warning, created}, now); len(got) != 0 {
+		t.Fatalf("recognized Job creation did not supersede the earlier report: %+v", got)
 	}
 }

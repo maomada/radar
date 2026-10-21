@@ -4,6 +4,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/skyhook-io/radar/pkg/k8score"
 	"github.com/skyhook-io/radar/pkg/resourceid"
 	"github.com/skyhook-io/radar/pkg/timeutil"
 
@@ -13,12 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const cronJobScheduleFailureWindow = 30 * time.Minute
-
-func detectCronJobScheduleEvents(cache *ResourceCache, namespace string, cronjobs []*batchv1.CronJob, now time.Time) []Detection {
+func detectCronJobScheduleEvents(cache *ResourceCache, namespace string, cronjobs []*batchv1.CronJob, now time.Time) cronJobSchedulingAssessment {
 	lister := cache.Events()
 	if lister == nil || len(cronjobs) == 0 {
-		return nil
+		return cronJobSchedulingAssessment{}
 	}
 	var events []*corev1.Event
 	var err error
@@ -28,14 +27,37 @@ func detectCronJobScheduleEvents(cache *ResourceCache, namespace string, cronjob
 		events, err = lister.Events(namespace).List(labels.Everything())
 	}
 	if err != nil {
-		return nil
+		return cronJobSchedulingAssessment{}
 	}
-	return cronJobScheduleEventDetections(cronjobs, events, now)
+	history := readCronJobSchedulingHistory(namespace)
+	return assessCronJobScheduling(cronjobs, events, history, now)
+}
+
+func cronJobEventMatches(event *corev1.Event, cj *batchv1.CronJob, now time.Time) bool {
+	obj := event.InvolvedObject
+	created := event.Type == corev1.EventTypeNormal && event.Reason == "SuccessfulCreate"
+	if (!created && (event.Type != corev1.EventTypeWarning || !IsCronJobScheduleFailureReason(event.Reason))) ||
+		obj.Kind != "CronJob" || obj.Namespace != cj.Namespace || obj.Name != cj.Name ||
+		(obj.APIVersion != "" && resourceid.GroupFromAPIVersion(obj.APIVersion) != "batch") ||
+		(obj.UID == "" || obj.UID != cj.UID) {
+		return false
+	}
+	last := eventLastTime(event)
+	return !last.IsZero() && !last.After(now) && !last.Before(cj.CreationTimestamp.Time)
+}
+
+func newerCronJobEvent(event, current *corev1.Event) bool {
+	last, previous := eventLastTime(event), eventLastTime(current)
+	return last.After(previous) || (last.Equal(previous) && (cronJobEventCount(event) > cronJobEventCount(current) ||
+		(cronJobEventCount(event) == cronJobEventCount(current) && event.Message < current.Message)))
 }
 
 func cronJobScheduleEventDetections(cronjobs []*batchv1.CronJob, events []*corev1.Event, now time.Time) []Detection {
 	subjects := make(map[types.NamespacedName]*batchv1.CronJob, len(cronjobs))
 	for _, cj := range cronjobs {
+		if cj.Spec.Suspend != nil && *cj.Spec.Suspend {
+			continue
+		}
 		subjects[types.NamespacedName{Namespace: cj.Namespace, Name: cj.Name}] = cj
 	}
 	type eventKey struct {
@@ -43,37 +65,29 @@ func cronJobScheduleEventDetections(cronjobs []*batchv1.CronJob, events []*corev
 		reason  string
 	}
 	latest := map[eventKey]*corev1.Event{}
+	lastCreated := map[types.NamespacedName]time.Time{}
 	for _, event := range events {
 		obj := event.InvolvedObject
-		if event.Type != corev1.EventTypeWarning || obj.Kind != "CronJob" ||
-			(obj.APIVersion != "" && resourceid.GroupFromAPIVersion(obj.APIVersion) != "batch") ||
-			!IsCronJobScheduleFailureReason(event.Reason) || !cronJobControllerEvent(event) {
-			continue
-		}
+		created := event.Type == corev1.EventTypeNormal && event.Reason == "SuccessfulCreate"
 		key := eventKey{subject: types.NamespacedName{Namespace: obj.Namespace, Name: obj.Name}, reason: event.Reason}
 		cj := subjects[key.subject]
-		if cj == nil || (obj.UID != "" && obj.UID != cj.UID) {
+		if cj == nil || !cronJobEventMatches(event, cj, now) {
 			continue
 		}
-		// Without a UID, an aggregate that began before this CronJob existed
-		// cannot safely be attributed to the current incarnation.
-		if obj.UID == "" {
-			first := eventFirstTime(event)
-			if first.IsZero() {
-				first = event.CreationTimestamp.Time
+		last := eventLastTime(event)
+		if created {
+			if last.After(lastCreated[key.subject]) {
+				lastCreated[key.subject] = last
 			}
-			if !first.IsZero() && first.Before(cj.CreationTimestamp.Time) {
-				continue
-			}
+			continue
 		}
-		last := cronJobEventLastTime(event)
-		if last.IsZero() || last.After(now) || now.Sub(last) > cronJobScheduleFailureWindow || last.Before(cj.CreationTimestamp.Time) {
+		// A later scheduled run supersedes scheduling-failure evidence. A
+		// previous run completing successfully does not prove scheduling recovered.
+		if cj.Status.LastScheduleTime != nil && cj.Status.LastScheduleTime.After(last) {
 			continue
 		}
 		current := latest[key]
-		if current == nil || last.After(cronJobEventLastTime(current)) ||
-			(last.Equal(cronJobEventLastTime(current)) && (cronJobEventCount(event) > cronJobEventCount(current) ||
-				(cronJobEventCount(event) == cronJobEventCount(current) && event.Message < current.Message))) {
+		if current == nil || newerCronJobEvent(event, current) {
 			latest[key] = event
 		}
 	}
@@ -94,6 +108,14 @@ func cronJobScheduleEventDetections(cronjobs []*batchv1.CronJob, events []*corev
 	var detections []Detection
 	for _, key := range keys {
 		event, cj := latest[key], subjects[key.subject]
+		last := eventLastTime(event)
+		created := lastCreated[key.subject]
+		// Catch-up runs have a nominal schedule time before the warning.
+		// Legacy Events only have second precision, so the advisory warning
+		// and successful creation from the same reconciliation can tie.
+		if created.After(last) || (key.reason == "TooManyMissedTimes" && created.Equal(last)) {
+			continue
+		}
 		age := now.Sub(cj.CreationTimestamp.Time)
 		detection := Detection{
 			Kind: "CronJob", Group: "batch", Namespace: cj.Namespace, Name: cj.Name,
@@ -107,31 +129,8 @@ func cronJobScheduleEventDetections(cronjobs []*batchv1.CronJob, events []*corev
 	return detections
 }
 
-func cronJobEventLastTime(event *corev1.Event) time.Time {
-	// EventTime is the first occurrence for series-style Events.
-	if event.Series != nil && !event.Series.LastObservedTime.IsZero() {
-		return event.Series.LastObservedTime.Time
-	}
-	return eventLastTime(event)
-}
-
 func cronJobEventCount(event *corev1.Event) int32 {
-	if event.Series != nil && event.Series.Count > 0 {
-		return event.Series.Count
-	}
-	return max(event.Count, 1)
-}
-
-func cronJobControllerEvent(event *corev1.Event) bool {
-	const controller = "cronjob-controller"
-	if event.Source.Component == "" && event.ReportingController == "" {
-		return false
-	}
-	if event.Source.Component != "" && event.Source.Component != controller {
-		return false
-	}
-	return event.ReportingController == "" || event.ReportingController == controller ||
-		event.ReportingController == "kubernetes.io/"+controller
+	return k8score.EventOccurrences(event)
 }
 
 // IsCronJobScheduleFailureReason identifies controller scheduling failures, not

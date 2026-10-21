@@ -32,6 +32,7 @@ import (
 	"github.com/skyhook-io/radar/internal/readscope"
 	"github.com/skyhook-io/radar/pkg/health"
 	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/skyhook-io/radar/pkg/resourceid"
 	"github.com/skyhook-io/radar/pkg/rollouts"
 )
 
@@ -925,7 +926,8 @@ func (s *Server) getWorkloadRuns(ctx context.Context, kind, namespace, name stri
 		if cache.CronJobs() == nil {
 			return nil, &workloadError{http.StatusForbidden, "insufficient permissions to list cronjobs"}
 		}
-		if _, err := cache.CronJobs().CronJobs(namespace).Get(name); err != nil {
+		cronJob, err := cache.CronJobs().CronJobs(namespace).Get(name)
+		if err != nil {
 			return nil, workloadParentGetError("cronjob", namespace, name, err)
 		}
 		if cache.Jobs() == nil {
@@ -936,7 +938,9 @@ func (s *Server) getWorkloadRuns(ctx context.Context, kind, namespace, name stri
 			return nil, &workloadError{http.StatusInternalServerError, err.Error()}
 		}
 		for _, job := range jobs {
-			if controllerOwnerName(job.OwnerReferences, "CronJob") == name {
+			owner := metav1.GetControllerOf(job)
+			if owner != nil && owner.Kind == "CronJob" && owner.Name == name &&
+				owner.UID != "" && owner.UID == cronJob.UID && resourceid.GroupFromAPIVersion(owner.APIVersion) == "batch" {
 				runs = append(runs, jobRunInfo(job))
 			}
 		}
