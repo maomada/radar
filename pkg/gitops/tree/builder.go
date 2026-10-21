@@ -187,7 +187,7 @@ func (b *Builder) Build(ctx context.Context, kind, namespace, name, group string
 	for _, res := range fluxRelated {
 		enrichRefs = append(enrichRefs, res.Ref)
 	}
-	objects, unknownKinds := b.prefetchObjects(ctx, enrichRefs)
+	objects, unknownKinds, missing := b.prefetchObjects(ctx, enrichRefs)
 	// A referenced chart's source is local to that observed chart. Follow only
 	// the already-prefetched chart, never every chart in the cluster.
 	var chartSources []relatedResource
@@ -211,7 +211,7 @@ func (b *Builder) Build(ctx context.Context, kind, namespace, name, group string
 		}
 	}
 	if len(chartRefs) > 0 {
-		chartObjects, unavailable := b.prefetchObjects(ctx, chartRefs)
+		chartObjects, unavailable, _ := b.prefetchObjects(ctx, chartRefs)
 		for key, object := range chartObjects {
 			objects[key] = object
 		}
@@ -244,6 +244,11 @@ func (b *Builder) Build(ctx context.Context, kind, namespace, name, group string
 			treeIDByTopoID[live.ID] = id
 		} else {
 			nodes[id] = mergeData(enrichNodeFromObject(syntheticNode(res.Ref, RoleDeclared, tool, res.Sync, res.Health, res.HealthSource), obj), res.Data)
+		}
+		if tool == ToolArgoCD && missing[refKey(res.Ref)] {
+			node := nodes[id]
+			node.Missing = true
+			nodes[id] = node
 		}
 	}
 
@@ -448,7 +453,8 @@ func ResetUnknownKindLogDedup() {
 // Enrichment stays best-effort: per-ref failures nil out that ref's entry
 // exactly like the serial loop did. Determinism of the final tree is owned
 // by materialize's sort, so fetch-completion order is irrelevant.
-func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[string]*unstructured.Unstructured, []string) {
+// The final map contains only confirmed NotFound results, not failed or skipped reads.
+func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[string]*unstructured.Unstructured, []string, map[string]bool) {
 	targets := make([]ResourceRef, 0, len(refs))
 	seen := make(map[string]struct{}, len(refs))
 	for _, ref := range refs {
@@ -463,13 +469,14 @@ func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[
 		targets = append(targets, ref)
 	}
 	if len(targets) == 0 {
-		return map[string]*unstructured.Unstructured{}, nil
+		return map[string]*unstructured.Unstructured{}, nil, nil
 	}
 
 	var (
 		mu           sync.Mutex
 		objects      = make(map[string]*unstructured.Unstructured, len(targets))
 		unknownKinds = map[string]struct{}{}
+		missing      = map[string]bool{}
 	)
 	kindKey := func(ref ResourceRef) string { return ref.Kind + "|" + ref.Group }
 
@@ -506,7 +513,11 @@ func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[
 						unknownKinds[kindKey(ref)] = struct{}{}
 						mu.Unlock()
 						logUnknownKindOnce(ref.Kind, ref.Group)
-					} else if !isEnrichNotFound(err) {
+					} else if isEnrichNotFound(err) {
+						mu.Lock()
+						missing[refKey(ref)] = true
+						mu.Unlock()
+					} else {
 						log.Printf("[gitops/tree] enrich %s/%s %s/%s failed: %v", ref.Group, ref.Kind, ref.Namespace, ref.Name, err)
 					}
 					continue
@@ -524,7 +535,7 @@ func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[
 	wg.Wait()
 
 	if len(unknownKinds) == 0 {
-		return objects, nil
+		return objects, nil, missing
 	}
 	labels := make([]string, 0, len(unknownKinds))
 	for k := range unknownKinds {
@@ -536,7 +547,7 @@ func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[
 		labels = append(labels, label)
 	}
 	sort.Strings(labels)
-	return objects, labels
+	return objects, labels, missing
 }
 
 // unknownKindsWarning renders the response warning for kinds that are absent

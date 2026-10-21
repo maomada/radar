@@ -81,7 +81,10 @@ function SourceProperties({ source }: { source: any }) {
       )}
       {source.chart && <Property label="Helm Chart" value={source.chart} />}
       {source.helm?.valueFiles && source.helm.valueFiles.length > 0 && (
-        <Property label="Value Files" value={source.helm.valueFiles.join(', ')} />
+        <>
+          <Property label="Value Files" value={source.helm.valueFiles.join(', ')} />
+          <Property label="Missing Value Files" value={source.helm.ignoreMissingValueFiles === true ? 'Ignored' : 'Cause a render error'} />
+        </>
       )}
       {source.helm?.parameters && source.helm.parameters.length > 0 && (
         <Property

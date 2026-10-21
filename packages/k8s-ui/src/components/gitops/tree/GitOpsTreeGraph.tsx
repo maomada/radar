@@ -789,6 +789,7 @@ export function getSubtitle(node: GitOpsTreeNode): string {
     // a state description, not an affordance.
     return 'Click to expand'
   }
+  if (node.missing) return `${node.sync ? `${node.sync} • ` : ''}Not found in cluster`
   if (isNodeTerminating(node)) {
     return 'Pending deletion'
   }

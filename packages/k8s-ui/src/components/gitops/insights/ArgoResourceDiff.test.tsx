@@ -86,6 +86,22 @@ describe('GitOpsChangesView expanded Argo row', () => {
     },
   })
 
+  test('does not offer a live drawer for confirmed absence with unknown health', () => {
+    const data = insight(false)
+    data.changes = [{ ...change, missing: true, hasLive: false, health: 'Unknown', drift: undefined }]
+    const html = renderToStaticMarkup(<GitOpsChangesView insight={data} onOpenResource={() => {}} />)
+    expect(html).not.toContain('Open Deployment')
+    expect(html).toContain('No live resource')
+    expect(html).toContain('Not present in the cluster')
+  })
+
+  test('keeps unknown-health live objects navigable', () => {
+    const data = insight(false)
+    data.changes = [{ ...change, health: 'Unknown', drift: undefined }]
+    const html = renderToStaticMarkup(<GitOpsChangesView insight={data} onOpenResource={() => {}} />)
+    expect(html).toContain('Open Deployment')
+  })
+
   test("hands the last-applied list to the Argo diff instead of rendering it alongside", () => {
     let passed: GitOpsDrift | undefined
     const html = renderToStaticMarkup(

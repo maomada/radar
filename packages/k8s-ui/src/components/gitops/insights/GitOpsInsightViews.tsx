@@ -1097,7 +1097,9 @@ export function GitOpsChangesView({ insight, error, onOpenResource, onSyncResour
                 const rowKey = refKey(change.ref)
                 const focused = focusKey === rowKey
                 const explanation = !change.syncError && !change.message
-                  ? explainChangeStatus(change.sync, change.health, insight.summary)
+                  ? change.missing
+                    ? 'Not present in the cluster. Sync the application to create it.'
+                    : explainChangeStatus(change.sync, change.health, insight.summary)
                   : ''
                 const hasInlineDetail = !!(
                   (change.drift && change.drift.entries.length > 0) ||
@@ -1365,7 +1367,7 @@ function ChangeRow({
   // differently: hide the Open pill, suppress the drawer-open click path,
   // and offer "View in Git →" instead so the operator can read the
   // declared source instead of a non-existent live object.
-  const isAbsent = change.health === 'Missing' && !change.hasLive
+  const isAbsent = change.missing || (change.health === 'Missing' && !change.hasLive)
   const radarNote = radarHealthNote({ health: change.health, healthSource: change.healthSource, healthMessage: change.message })
   const handleRowClick = () => {
     if (expandable) {
