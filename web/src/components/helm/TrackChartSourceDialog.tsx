@@ -144,13 +144,13 @@ export function TrackChartSourceDialog({ operationError, onSelectUpgradeSource, 
     await refetchStatus()
   }
 
-  return <DialogPortal ariaLabelledBy={titleId} open={open} onClose={onClose} className="max-w-2xl w-full">
-    <div className="flex items-start gap-3 p-4 border-b border-theme-border">
+  return <DialogPortal ariaLabelledBy={titleId} open={open} onClose={onClose} className="max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="shrink-0 flex items-start gap-3 p-4 border-b border-theme-border">
       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-theme-hover"><Link2 className="w-5 h-5" /></div>
       <div className="flex-1 min-w-0"><h3 id={titleId} className="text-lg font-semibold">Track chart source</h3><p className="text-sm text-theme-text-secondary mt-1">Choose a source for the next upgrade, or verify and record the original source.</p></div>
       <button onClick={onClose} aria-label="Close" className="p-1 rounded hover:bg-theme-elevated"><X className="w-5 h-5" /></button>
     </div>
-    <div className="p-4 space-y-4">
+    <div className="min-h-0 overflow-y-auto p-4 space-y-4">
 	  {configManaged && <OperatorManagedNotice helmValue="helm.ociSources" />}
       {!configManaged && ownerOnly && <p className="text-sm text-theme-text-secondary">Only organization owners can add or remove chart sources.</p>}
       {operationError && <p role="alert" className="text-sm text-theme-text-secondary">{operationError}</p>}
