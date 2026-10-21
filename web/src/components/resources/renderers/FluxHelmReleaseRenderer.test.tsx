@@ -6,7 +6,7 @@ import type { FluxValuesReference } from '@skyhook-io/k8s-ui/components/resource
 import { FluxHelmReleaseRenderer } from './FluxHelmReleaseRenderer'
 
 const query = vi.hoisted(() => ({
-  data: undefined as { metadata: { name: string } } | undefined,
+  data: undefined as 'present' | 'missing' | 'unchecked' | undefined,
   error: null as Error & { status?: number } | null,
   isLoading: false,
   isFetching: false,
@@ -14,8 +14,7 @@ const query = vi.hoisted(() => ({
 }))
 const lookup = vi.hoisted(() => vi.fn())
 vi.mock('../../../api/client', () => ({
-  useResource: (...args: unknown[]) => { lookup(...args); return query },
-  isNotFoundError: (error: unknown) => error instanceof Error && 'status' in error && error.status === 404,
+  useResourceAvailability: (...args: unknown[]) => { lookup(...args); return query },
   isForbiddenError: (error: unknown) => error instanceof Error && 'status' in error && error.status === 403,
 }))
 
@@ -48,7 +47,7 @@ function referenceButton() {
 
 describe('Flux Helm values references', () => {
   it.each(['ConfigMap', 'Secret'] as const)('labels an absent optional %s and does not link it', async kind => {
-    query.error = Object.assign(new Error('not found'), { status: 404 })
+    query.data = 'missing'
     await render({ name: 'overrides', kind, optional: true })
     expect(container.textContent).toContain('Optional')
     expect(container.textContent).toContain('Not found - skipped by Flux')
@@ -57,14 +56,14 @@ describe('Flux Helm values references', () => {
   })
 
   it('marks an absent required reference as required', async () => {
-    query.error = Object.assign(new Error('not found'), { status: 404 })
+    query.data = 'missing'
     await render({ name: 'overrides' })
     expect(container.textContent).toContain('Not found - required by Flux')
     expect(container.textContent).not.toContain('Optional')
     expect(referenceButton()).toBeUndefined()
   })
 
-  it.each([403, 500])('does not mistake HTTP %s for an absent optional reference', async status => {
+  it.each([403, 404, 500])('does not mistake HTTP %s for an absent optional reference', async status => {
     query.error = Object.assign(new Error('read failed'), { status })
     await render()
     expect(container.textContent).toContain(status === 403 ? 'Access denied' : 'Could not check availability')
@@ -80,14 +79,14 @@ describe('Flux Helm values references', () => {
   })
 
   it('rechecks a missing reference and links it once available', async () => {
-    query.error = Object.assign(new Error('not found'), { status: 404 })
+    query.data = 'missing'
     await render()
     const retry = container.querySelector<HTMLButtonElement>('[aria-label="Check overrides again"]')
     expect(retry).not.toBeNull()
     await act(async () => retry?.click())
     expect(query.refetch).toHaveBeenCalledOnce()
     query.error = null
-    query.data = { metadata: { name: 'overrides' } }
+    query.data = 'present'
     await render()
     expect(container.textContent).not.toContain('Not found')
     await act(async () => referenceButton()?.click())
@@ -95,10 +94,18 @@ describe('Flux Helm values references', () => {
   })
 
   it('does not trust stale successful data after a failed refresh', async () => {
-    query.data = { metadata: { name: 'overrides' } }
+    query.data = 'present'
     query.error = Object.assign(new Error('forbidden'), { status: 403 })
     await render()
     expect(container.textContent).toContain('Access denied')
     expect(referenceButton()).toBeUndefined()
+  })
+
+  it('keeps navigation when the connected Radar cannot check availability', async () => {
+    query.data = 'unchecked'
+    await render()
+    expect(container.textContent).toContain('Availability not checked')
+    expect(referenceButton()).toBeDefined()
+    expect(container.textContent).not.toContain('Not found')
   })
 })

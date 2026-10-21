@@ -632,6 +632,7 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 			r.Get("/resource-counts", s.handleResourceCounts)
 			r.Get("/resources/{kind}", s.handleListResources)
 			r.Get("/resources/{kind}/{namespace}/{name}", s.handleGetResource)
+			r.Head("/resources/{kind}/{namespace}/{name}", s.handleGetResource)
 			r.Post("/resources/preview", s.handlePreviewResources)
 			r.Post("/resources/schemas", s.handleResourceSchemas)
 			r.Post("/resources/apply", s.handleApplyResource)
@@ -2967,6 +2968,10 @@ func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if r.Method == http.MethodHead {
+		// Distinguish an authorized resource lookup from an upstream 404.
+		w.Header().Set("X-Radar-Resource-Read", "true")
+	}
 
 	var resource any
 	var err error
@@ -3091,7 +3096,7 @@ func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
 		}
 		var cached *corev1.Secret
 		cached, err = lister.Secrets(namespace).Get(name)
-		if err == nil && k8score.IsHelmReleaseSecret(cached) {
+		if err == nil && k8score.IsHelmReleaseSecret(cached) && r.Method != http.MethodHead {
 			// The cache holds digests in place of Helm release Secret values.
 			live, status, liveErr := s.getLiveSecret(r, namespace, name)
 			if liveErr != nil {
@@ -3247,6 +3252,10 @@ func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		s.writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if r.Method == http.MethodHead {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 

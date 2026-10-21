@@ -2842,6 +2842,32 @@ export function useResource<T>(
   };
 }
 
+// Availability checks return headers only, without downloading Secret values.
+export async function fetchResourceAvailability(
+  kind: string,
+  namespace: string,
+  name: string,
+): Promise<"present" | "missing" | "unchecked"> {
+  const response = await apiFetch(`${getApiBase()}/resources/${encodeURIComponent(kind)}/${encodeURIComponent(namespace || "_")}/${encodeURIComponent(name)}`, { method: "HEAD" });
+  const resourceLookup = response.headers.get("X-Radar-Resource-Read") === "true";
+  if (resourceLookup && response.ok) return "present";
+  if (resourceLookup && response.status === 404) return "missing";
+  // Older Radar versions do not serve HEAD lookups. Keep their existing
+  // navigation without claiming that availability was verified.
+  if (response.status === 405 || response.ok) return "unchecked";
+  throw new ApiError(httpStatusMessage(response.status, response.statusText), response.status);
+}
+
+export function useResourceAvailability(kind: string, namespace: string, name: string) {
+  return useQuery({
+    queryKey: ["resource", kind, namespace, name, undefined, "availability"],
+    queryFn: () => fetchResourceAvailability(kind, namespace, name),
+    enabled: Boolean(kind && name),
+    refetchInterval: GONE_RECHECK_MS,
+    retry: (failureCount, error) => !isForbiddenError(error) && failureCount < 1,
+  });
+}
+
 // Hook that returns full response with relationships explicitly
 export function useResourceWithRelationships<T>(
   kind: string,
