@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -135,11 +136,11 @@ func TestReadAPIMetricsEvidenceBoundsBytesScanned(t *testing.T) {
 		body    string
 		wantErr bool
 	}{
-		{name: "at limit", body: "abcd\nef\n"},
-		{name: "over limit", body: "abcd\nef\ng", wantErr: true},
+		{name: "at limit", body: "up 1\n"},
+		{name: "over limit", body: "up 1\nx", wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := readAPIMetricsEvidence(io.NopCloser(bytes.NewBufferString(tc.body)), 8)
+			_, err := readAPIMetricsEvidence(io.NopCloser(bytes.NewBufferString(tc.body)), 5)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -198,12 +199,15 @@ func TestCollectDeprecatedAPIRequestsReadsLargeMetricsBody(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			requests, window := collectDeprecatedAPIRequestsWithClient(t.Context(), client.Discovery().RESTClient())
+			requests, window, failure := collectDeprecatedAPIRequestsWithClient(t.Context(), client.Discovery().RESTClient())
 			if requestedPath != "/metrics" {
 				t.Fatalf("request path = %q, want /metrics", requestedPath)
 			}
 			if len(requests) != tc.wantRequests || (window != "") != tc.wantWindow {
 				t.Fatalf("result = requests=%+v window=%q, want %d requests, window=%v", requests, window, tc.wantRequests, tc.wantWindow)
+			}
+			if tc.status == http.StatusForbidden && failure != upgradereadiness.APIMetricsForbidden {
+				t.Fatalf("failure = %q, want forbidden", failure)
 			}
 			if tc.status != http.StatusOK && requests != nil {
 				t.Fatalf("requests = %#v, want nil so the scan reports the metrics as unavailable", requests)
@@ -413,5 +417,114 @@ func TestCollectUpgradeNodeRuntimeEvidenceClassifiesObservedForbidden(t *testing
 	}
 	if requestedPath != "/api/v1/nodes/node-a/proxy/metrics" {
 		t.Fatalf("request path = %q, want node metrics proxy path", requestedPath)
+	}
+}
+
+func TestAPIMetricsFailuresReachUpgradeCheck(t *testing.T) {
+	for _, scenario := range []struct {
+		name        string
+		wantFailure upgradereadiness.APIMetricsFailure
+		wantText    string
+	}{
+		{"response too large", upgradereadiness.APIMetricsTooLarge, "exceeded Radar's size limit"},
+		{"required line too large", upgradereadiness.APIMetricsTooLarge, "exceeded Radar's size limit"},
+		{"forbidden", upgradereadiness.APIMetricsForbidden, "Grant get"},
+		{"unauthorized", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"truncated", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"malformed", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"HTML", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"empty", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"canceled", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"canceled during read", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if scenario.name == "canceled during read" {
+					w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+					_, _ = io.WriteString(w, "process_start_time_seconds 1721234567\n")
+					if err := http.NewResponseController(w).Flush(); err != nil {
+						t.Error(err)
+					}
+					cancel()
+					<-r.Context().Done()
+					return
+				}
+				if scenario.name == "truncated" {
+					hijacker, ok := w.(http.Hijacker)
+					if !ok {
+						t.Error("server cannot hijack connection")
+						return
+					}
+					conn, buf, err := hijacker.Hijack()
+					if err != nil {
+						t.Error(err)
+						return
+					}
+					defer conn.Close()
+					_, _ = buf.WriteString("HTTP/1.1 200 OK\r\nContent-Length: 9999\r\nContent-Type: text/plain\r\n\r\nprocess_start_time_seconds 1721234567\n")
+					_ = buf.Flush()
+					return
+				}
+				if scenario.name == "forbidden" || scenario.name == "unauthorized" {
+					w.Header().Set("Content-Type", "application/json")
+					if scenario.name == "unauthorized" {
+						w.WriteHeader(http.StatusUnauthorized)
+						_, _ = io.WriteString(w, `{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"Unauthorized","code":401}`)
+					} else {
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = io.WriteString(w, `{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"Forbidden","code":403}`)
+					}
+					return
+				}
+				w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+				switch scenario.name {
+				case "response too large":
+					chunk := strings.Repeat("unrelated 1\n", 65536)
+					for written := 0; written <= upgradeAPIMetricsResponseLimit; written += len(chunk) {
+						if _, err := io.WriteString(w, chunk); err != nil {
+							return
+						}
+					}
+				case "required line too large":
+					_, _ = io.WriteString(w, "apiserver_requested_deprecated_apis{group=\""+strings.Repeat("x", 2*upgradeAPIMetricsLineBuffer)+"\"} 1\n")
+				case "malformed":
+					_, _ = io.WriteString(w, "process_start_time_seconds not-a-number\n")
+				case "HTML":
+					_, _ = io.WriteString(w, "<html><body>Sign in</body></html>\n")
+				}
+			}))
+			defer server.Close()
+			client, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if scenario.name == "canceled" {
+				cancel()
+			}
+			requests, window, failure := collectDeprecatedAPIRequestsWithClient(ctx, client.Discovery().RESTClient())
+			if requests != nil || window != "" || failure != scenario.wantFailure {
+				t.Fatalf("requests=%v window=%q failure=%q, want unavailable with %q", requests, window, failure, scenario.wantFailure)
+			}
+			result, err := RunFromCache(nil, nil, Options{CurrentVersion: "1.35", TargetVersion: "1.36", DeprecatedAPIRequests: requests, DeprecatedAPIMetricsWindow: window, DeprecatedAPIMetricsFailure: failure})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, check := range result.Checks {
+				if check.ID != "deprecated-api-requests" {
+					continue
+				}
+				if check.Status != upgradereadiness.CheckUnknown || !strings.Contains(check.Caveat, scenario.wantText) {
+					t.Fatalf("unexpected check: %+v", check)
+				}
+				if failure != upgradereadiness.APIMetricsForbidden && strings.Contains(check.Caveat, "Grant") {
+					t.Fatalf("non-permission failure suggests RBAC: %+v", check)
+				}
+				t.Logf("status=%s summary=%s caveat=%s", check.Status, check.Summary, check.Caveat)
+				return
+			}
+			t.Fatal("deprecated API check missing")
+		})
 	}
 }

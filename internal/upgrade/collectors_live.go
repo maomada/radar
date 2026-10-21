@@ -93,30 +93,41 @@ func collectUpgradeHelmManifests(ctx context.Context, namespaces []string) ([]up
 	return result, unavailableNamespaces, parseErrors
 }
 
-func collectDeprecatedAPIRequests(ctx context.Context) ([]upgradereadiness.DeprecatedAPIRequest, string) {
+func collectDeprecatedAPIRequests(ctx context.Context) ([]upgradereadiness.DeprecatedAPIRequest, string, upgradereadiness.APIMetricsFailure) {
 	client := k8s.ClientFromContext(ctx)
 	if client == nil || client.Discovery().RESTClient() == nil {
-		return nil, ""
+		return nil, "", upgradereadiness.APIMetricsUnreadable
 	}
 	return collectDeprecatedAPIRequestsWithClient(ctx, client.Discovery().RESTClient())
 }
 
-func collectDeprecatedAPIRequestsWithClient(ctx context.Context, client rest.Interface) ([]upgradereadiness.DeprecatedAPIRequest, string) {
+func collectDeprecatedAPIRequestsWithClient(ctx context.Context, client rest.Interface) ([]upgradereadiness.DeprecatedAPIRequest, string, upgradereadiness.APIMetricsFailure) {
 	metricsCtx, cancel := context.WithTimeout(ctx, upgradeAPIMetricsCollectionTimeout)
 	defer cancel()
 	stream, err := client.Get().AbsPath("/metrics").Stream(metricsCtx)
 	if err != nil {
-		return nil, ""
+		if apierrors.IsForbidden(err) {
+			return nil, "", upgradereadiness.APIMetricsForbidden
+		}
+		if !errors.Is(err, context.Canceled) {
+			log.Printf("[upgrade-impact] failed to request API server metrics: %v", err)
+		}
+		return nil, "", upgradereadiness.APIMetricsUnreadable
 	}
 	raw, err := readAPIMetricsEvidence(stream, upgradeAPIMetricsResponseLimit)
 	if err != nil {
-		log.Printf("[upgrade-impact] failed to read API server metrics: %v", err)
-		return nil, ""
+		if !errors.Is(err, context.Canceled) {
+			log.Printf("[upgrade-impact] failed to read API server metrics: %v", err)
+		}
+		if errors.Is(err, errAPIMetricsTooLarge) {
+			return nil, "", upgradereadiness.APIMetricsTooLarge
+		}
+		return nil, "", upgradereadiness.APIMetricsUnreadable
 	}
 	requests, processStartedAt, err := parseDeprecatedAPIRequests(raw)
 	if err != nil {
 		log.Printf("[upgrade-impact] failed to parse API server metrics: %v", err)
-		return nil, ""
+		return nil, "", upgradereadiness.APIMetricsUnreadable
 	}
 	window := ""
 	if !processStartedAt.IsZero() {
@@ -125,8 +136,10 @@ func collectDeprecatedAPIRequestsWithClient(ctx context.Context, client rest.Int
 			window = timeutil.FormatAgeShort(age)
 		}
 	}
-	return requests, window
+	return requests, window, ""
 }
+
+var errAPIMetricsTooLarge = errors.New("API server metrics exceed size limit")
 
 // readAPIMetricsEvidence keeps only the lines the deprecated-API check parses;
 // limit caps the bytes scanned, not the bytes kept. A line longer than the read
@@ -136,12 +149,13 @@ func readAPIMetricsEvidence(stream io.ReadCloser, limit int64) ([]byte, error) {
 	limited := &io.LimitedReader{R: stream, N: limit + 1}
 	reader := bufio.NewReaderSize(limited, upgradeAPIMetricsLineBuffer)
 	var kept bytes.Buffer
+	var sample []byte
 	for {
 		line, err := reader.ReadSlice('\n')
 		switch {
 		case errors.Is(err, bufio.ErrBufferFull):
 			if isAPIMetricsEvidenceLine(line) {
-				return nil, errors.New("API server metrics line exceeds buffer")
+				return nil, fmt.Errorf("%w: line exceeds %d bytes", errAPIMetricsTooLarge, upgradeAPIMetricsLineBuffer)
 			}
 			for errors.Is(err, bufio.ErrBufferFull) {
 				_, err = reader.ReadSlice('\n')
@@ -149,6 +163,11 @@ func readAPIMetricsEvidence(stream io.ReadCloser, limit int64) ([]byte, error) {
 		case isAPIMetricsEvidenceLine(line):
 			kept.Write(bytes.TrimRight(line, "\r\n"))
 			kept.WriteByte('\n')
+		case sample == nil:
+			trimmed := bytes.TrimSpace(line)
+			if len(trimmed) > 0 && trimmed[0] != '#' {
+				sample = append(bytes.Clone(trimmed), '\n')
+			}
 		}
 		if errors.Is(err, io.EOF) {
 			break
@@ -158,7 +177,19 @@ func readAPIMetricsEvidence(stream io.ReadCloser, limit int64) ([]byte, error) {
 		}
 	}
 	if limited.N <= 0 {
-		return nil, errors.New("API server metrics response exceeds limit")
+		return nil, fmt.Errorf("%w: response exceeds %d bytes", errAPIMetricsTooLarge, limit)
+	}
+	if kept.Len() == 0 {
+		// Without target metrics, validate a sample before treating an empty
+		// filtered result as evidence. A proxy's login page must not pass.
+		parser := expfmt.NewTextParser(model.LegacyValidation)
+		families, err := parser.TextToMetricFamilies(bytes.NewReader(sample))
+		if err != nil {
+			return nil, fmt.Errorf("invalid API server metrics response: %w", err)
+		}
+		if len(families) == 0 {
+			return nil, errors.New("API server response contains no readable metrics")
+		}
 	}
 	return kept.Bytes(), nil
 }
