@@ -650,7 +650,9 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			if change.Ref.Namespace != "" && suppressedNamespaces[change.Ref.Namespace] {
 				continue
 			}
-			if change.Health == "Degraded" || change.Health == "Missing" {
+			if change.Missing {
+				out = append(out, resourceHealthIssue(change, nil))
+			} else if change.Health == "Degraded" || change.Health == "Missing" {
 				// Argo calling the app Healthy is its verdict on every resource
 				// it assesses; Radar's own read of a resource must not contradict
 				// that with an Issue (the node chip still shows it).
@@ -810,6 +812,21 @@ func degradedResourceFromEvents(root *unstructured.Unstructured, resolver Resolv
 // warning-tier finding never gets promoted to a critical Issue by the Argo
 // path's framing.
 func resourceHealthIssue(change Change, resolver Resolver) Issue {
+	if change.Missing {
+		action := "Sync the application to create the resource."
+		if change.Sync == "Synced" {
+			action = "Refresh the application to check its status."
+		}
+		return Issue{
+			Severity: SeverityWarning,
+			Scope:    ScopeResource,
+			Reason:   "Missing",
+			Message:  fmt.Sprintf("%s %s is not present in the cluster", change.Ref.Kind, change.Ref.Name),
+			Refs:     []Ref{change.Ref},
+			Action:   action,
+			Source:   string(gitopstree.HealthSourceRadar),
+		}
+	}
 	if change.HealthSource == string(gitopstree.HealthSourceRadar) && change.HealthReason != "" {
 		severity := SeverityWarning
 		if change.HealthSeverity == "critical" {

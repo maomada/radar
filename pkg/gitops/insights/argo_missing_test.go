@@ -34,3 +34,32 @@ func TestArgoChangesCarryAbsenceIndependentlyOfHealth(t *testing.T) {
 		}
 	}
 }
+
+func TestConfirmedAbsenceCreatesIssueDespiteHealthyControllerVerdict(t *testing.T) {
+	ref := gitopstree.ResourceRef{Kind: "ConfigMap", Namespace: "prod", Name: "values"}
+	for _, sync := range []string{"Synced", "OutOfSync"} {
+		app := argoApp(map[string]any{"health": map[string]any{"status": "Healthy"}, "resources": []any{map[string]any{"kind": ref.Kind, "namespace": ref.Namespace, "name": ref.Name, "status": sync, "health": map[string]any{"status": "Healthy"}}}})
+		tree := &gitopstree.ResourceTree{Nodes: []gitopstree.Node{{Ref: ref, Missing: true}}}
+		issues := buildIssues(app, tree, "argocd", nil)
+		found := false
+		for _, issue := range issues {
+			if issue.Scope != ScopeResource || issue.Reason != "Missing" {
+				continue
+			}
+			found = true
+			if issue.Source != "radar" || issue.Severity != SeverityWarning || issue.Message != "ConfigMap values is not present in the cluster" {
+				t.Fatalf("wrong presence issue: %+v", issue)
+			}
+			if sync == "Synced" && issue.Action != "Refresh the application to check its status." {
+				t.Fatalf("stale Synced guidance: %+v", issue)
+			}
+		}
+		if !found {
+			t.Fatalf("no confirmed-absence issue: %+v", issues)
+		}
+		changes := argoResourceChanges(app, tree, nil)
+		if changes[0].Health != "Healthy" {
+			t.Fatal("controller health must remain available")
+		}
+	}
+}
