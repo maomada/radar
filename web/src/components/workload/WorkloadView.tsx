@@ -1297,7 +1297,7 @@ export function WorkloadView({
           )
         }}
         renderOverviewLead={() => (
-          <>
+          <div className="flex flex-col gap-4">
           <CronJobSchedulingContext evidence={schedulingEvidence} onViewTimeline={() => handleTabChange('timeline')} />
           <ResourceIssuesSection
             issues={liveIssues}
@@ -1316,7 +1316,7 @@ export function WorkloadView({
                 : undefined
             }
           />
-          </>
+          </div>
         )}
         hasOverviewLead={hasOperationalIssues || Boolean(schedulingEvidence && schedulingEvidence.state !== 'reported')}
         hasOperationalIssues={hasOperationalIssues}

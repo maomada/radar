@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -255,5 +256,19 @@ func TestCronJobRoutineRunsDoNotCrowdOutUnresolvedWarning(t *testing.T) {
 	}
 	if got := assessCronJobScheduling([]*batchv1.CronJob{cj}, nil, history, now); len(got.detections) != 1 {
 		t.Fatalf("busy neighbor hid error: %+v", got)
+	}
+}
+
+func TestCronJobMissedScheduleActionDoesNotPrescribeDeadline(t *testing.T) {
+	now := time.Now()
+	cj := cronJobEventSubject(now)
+	for _, reason := range []string{"MissSchedule", "TooManyMissedTimes"} {
+		got := assessCronJobScheduling([]*batchv1.CronJob{cj}, nil, cronJobSchedulingHistory{rows: []timeline.TimelineEvent{schedulingHistoryRow(cj, reason, now.Add(-time.Minute))}}, now)
+		if len(got.detections) != 1 {
+			t.Fatalf("missing %s report", reason)
+		}
+		if strings.Contains(got.detections[0].Action, "startingDeadlineSeconds") {
+			t.Fatalf("%s recommends a setting without a stated cause", reason)
+		}
 	}
 }

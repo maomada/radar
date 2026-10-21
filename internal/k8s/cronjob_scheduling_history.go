@@ -207,7 +207,7 @@ func assessCronJobScheduling(cronjobs []*batchv1.CronJob, live []*corev1.Event, 
 			} else {
 				if d.Reason == "MissSchedule" || d.Reason == "TooManyMissedTimes" {
 					d.Cause = "Kubernetes reported missed schedules. No later scheduled run is recorded."
-					d.Action = "Check controller availability and startingDeadlineSeconds."
+					d.Action = "Review the controller report and the CronJob timeline."
 				} else {
 					d.Cause = "Kubernetes reported a scheduling error. No later scheduled run is recorded."
 					d.Action = "Review the schedule and the original report."
