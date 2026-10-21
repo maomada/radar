@@ -491,7 +491,10 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
       return
     }
     if (node?.missing) {
-      showToast(`${ref.kind} ${ref.name} is not present in this cluster. Sync the application to create it.`, { type: 'info' })
+      const nextStep = node.sync === 'Synced'
+        ? 'Argo reports it as synced. Refresh the application to check its status.'
+        : 'Sync the application to create it.'
+      showToast(`${ref.kind} ${ref.name} is not present in this cluster. ${nextStep}`, { type: 'info' })
       return
     }
     if (isGitOpsDetailRef(ref) && isValidKubernetesName(ref.name)) {

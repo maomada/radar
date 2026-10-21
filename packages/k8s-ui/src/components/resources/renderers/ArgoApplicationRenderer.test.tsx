@@ -8,8 +8,8 @@ describe('Argo Helm value files', () => {
     for (const spec of [{ source }, { sources: [source] }]) {
       const html = renderToStaticMarkup(<ArgoApplicationRenderer data={{ metadata: { name: 'app' }, spec }} />)
       expect(html).toContain('values.yaml, overrides.yaml')
-      expect(html).toContain('Missing Value Files')
-      expect(html).toContain(optional ? 'Ignored' : 'Cause a render error')
+      expect(html).toContain('If a Value File Is Missing')
+      expect(html).toContain(optional ? 'Skipped' : 'Render fails')
     }
   })
 })

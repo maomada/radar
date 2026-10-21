@@ -83,7 +83,7 @@ function SourceProperties({ source }: { source: any }) {
       {source.helm?.valueFiles && source.helm.valueFiles.length > 0 && (
         <>
           <Property label="Value Files" value={source.helm.valueFiles.join(', ')} />
-          <Property label="Missing Value Files" value={source.helm.ignoreMissingValueFiles === true ? 'Ignored' : 'Cause a render error'} />
+          <Property label="If a Value File Is Missing" value={source.helm.ignoreMissingValueFiles === true ? 'Skipped' : 'Render fails'} />
         </>
       )}
       {source.helm?.parameters && source.helm.parameters.length > 0 && (

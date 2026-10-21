@@ -1296,6 +1296,7 @@ func argoResourceChanges(root *unstructured.Unstructured, resourceTree *gitopstr
 		// FailedScheduling that the GitOps CR never sees.
 		if resolver != nil {
 			if live := resolver.GetLive(ref.Group, ref.Kind, ref.Namespace, ref.Name); live != nil {
+				change.Missing, change.HasLive = false, true
 				if drift := computeDriftFromLastApplied(live, ignoreRules.pointersFor(ref)); drift != nil {
 					change.Drift = drift
 				}

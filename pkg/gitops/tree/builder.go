@@ -43,6 +43,14 @@ type DynamicGetter interface {
 	GetDynamicWithGroup(ctx context.Context, kind string, namespace string, name string, group string) (*unstructured.Unstructured, error)
 }
 
+// VerifiedDynamicGetter opts a host into confirmed-absence enrichment.
+// NotFound must come from an authoritative API read, never an incomplete cache.
+// Other errors and nil objects do not establish absence. Root reads still use
+// DynamicGetter, preserving the host's existing root lookup behavior.
+type VerifiedDynamicGetter interface {
+	GetDynamicWithGroupVerified(ctx context.Context, kind, namespace, name, group string) (*unstructured.Unstructured, error)
+}
+
 // Builder constructs GitOps ownership trees from GitOps inventory and live topology ownership edges.
 type Builder struct {
 	dynamic           DynamicGetter
@@ -500,7 +508,12 @@ func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[
 					continue
 				}
 
-				obj, err := b.dynamic.GetDynamicWithGroup(ctx, ref.Kind, ref.Namespace, ref.Name, ref.Group)
+				getter := b.dynamic.GetDynamicWithGroup
+				verified, confirmsAbsence := b.dynamic.(VerifiedDynamicGetter)
+				if confirmsAbsence {
+					getter = verified.GetDynamicWithGroupVerified
+				}
+				obj, err := getter(ctx, ref.Kind, ref.Namespace, ref.Name, ref.Group)
 				if err != nil {
 					if b.isUnknownKind != nil && b.isUnknownKind(err) {
 						// Best-effort collapse: in-flight workers on the same
@@ -514,6 +527,9 @@ func (b *Builder) prefetchObjects(ctx context.Context, refs []ResourceRef) (map[
 						mu.Unlock()
 						logUnknownKindOnce(ref.Kind, ref.Group)
 					} else if isEnrichNotFound(err) {
+						if !confirmsAbsence {
+							continue
+						}
 						mu.Lock()
 						missing[refKey(ref)] = true
 						mu.Unlock()

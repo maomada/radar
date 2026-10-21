@@ -102,6 +102,17 @@ describe('GitOpsChangesView expanded Argo row', () => {
     expect(html).toContain('Open Deployment')
   })
 
+  test('does not report confirmed absence as healthy or tell a Synced resource to sync', () => {
+    const data = insight(false)
+    data.changes = [{ ...change, missing: true, hasLive: false, health: 'Healthy', sync: 'Synced', category: 'Synced', message: 'Controller diagnostic detail', drift: undefined }]
+    const html = renderToStaticMarkup(<GitOpsChangesView insight={data} onOpenResource={() => {}} />)
+    expect(html).not.toContain('1/1 resources healthy')
+    expect(html).toContain('Missing')
+    expect(html).toContain('Refresh the application')
+    expect(html).toContain('Controller diagnostic detail')
+    expect(html).not.toContain('Sync the application to create it')
+  })
+
   test("hands the last-applied list to the Argo diff instead of rendering it alongside", () => {
     let passed: GitOpsDrift | undefined
     const html = renderToStaticMarkup(
