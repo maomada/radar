@@ -433,6 +433,11 @@ func TestAPIMetricsFailuresReachUpgradeCheck(t *testing.T) {
 		{"truncated", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
 		{"malformed", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
 		{"HTML", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"metric then HTML", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"process metric then HTML", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"metric then malformed sample", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"malformed after validation batches", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
+		{"malformed metadata after sample", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
 		{"empty", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
 		{"canceled", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
 		{"canceled during read", upgradereadiness.APIMetricsUnreadable, "could not read or parse"},
@@ -481,7 +486,8 @@ func TestAPIMetricsFailuresReachUpgradeCheck(t *testing.T) {
 				w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 				switch scenario.name {
 				case "response too large":
-					chunk := strings.Repeat("unrelated 1\n", 65536)
+					// Isolate the byte cap from parsing work and the collection deadline.
+					chunk := strings.Repeat("# unrelated metrics metadata\n", 65536)
 					for written := 0; written <= upgradeAPIMetricsResponseLimit; written += len(chunk) {
 						if _, err := io.WriteString(w, chunk); err != nil {
 							return
@@ -493,6 +499,16 @@ func TestAPIMetricsFailuresReachUpgradeCheck(t *testing.T) {
 					_, _ = io.WriteString(w, "process_start_time_seconds not-a-number\n")
 				case "HTML":
 					_, _ = io.WriteString(w, "<html><body>Sign in</body></html>\n")
+				case "metric then HTML":
+					_, _ = io.WriteString(w, "up 1\n<html><body>Sign in</body></html>\n")
+				case "process metric then HTML":
+					_, _ = io.WriteString(w, "process_start_time_seconds 1721234567\n<html><body>Sign in</body></html>\n")
+				case "metric then malformed sample":
+					_, _ = io.WriteString(w, "up 1\nunrelated_metric not-a-number\n")
+				case "malformed after validation batches":
+					_, _ = io.WriteString(w, strings.Repeat("unrelated_metric 1\n", 10000)+"<html>Sign in</html>\n")
+				case "malformed metadata after sample":
+					_, _ = io.WriteString(w, "up 1\n# TYPE unrelated_metric invalid_type\n")
 				}
 			}))
 			defer server.Close()

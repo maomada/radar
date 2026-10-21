@@ -74,7 +74,8 @@ func TestUpgradeReadinessEndpointLargeMetrics(t *testing.T) {
 		name         string
 		bytes        int
 		forbidden    bool
-		html         bool
+		invalidBody  string
+		fillerLine   string
 		noDeprecated bool
 		chunkDelay   time.Duration
 		timesOut     bool
@@ -83,9 +84,11 @@ func TestUpgradeReadinessEndpointLargeMetrics(t *testing.T) {
 	}{
 		{name: "normal", bytes: 1 << 20, wantStatus: upgradereadiness.CheckBlocked},
 		{name: "large", bytes: 17 << 20, wantStatus: upgradereadiness.CheckBlocked},
-		{name: "oversized", bytes: 257 << 20, wantStatus: upgradereadiness.CheckUnknown, wantText: "size limit"},
+		{name: "oversized", bytes: 257 << 20, fillerLine: "# unrelated metrics metadata\n", wantStatus: upgradereadiness.CheckUnknown, wantText: "size limit"},
 		{name: "forbidden", forbidden: true, wantStatus: upgradereadiness.CheckUnknown, wantText: "Grant get"},
-		{name: "html", html: true, wantStatus: upgradereadiness.CheckUnknown, wantText: "could not read or parse"},
+		{name: "html", invalidBody: "<html><body>Sign in</body></html>\n", wantStatus: upgradereadiness.CheckUnknown, wantText: "could not read or parse"},
+		{name: "metric_then_html", invalidBody: "up 1\n<html><body>Sign in</body></html>\n", wantStatus: upgradereadiness.CheckUnknown, wantText: "could not read or parse"},
+		{name: "process_then_html", invalidBody: "process_start_time_seconds 1721234567\n<html>Sign in</html>\n", wantStatus: upgradereadiness.CheckUnknown, wantText: "could not read or parse"},
 		{name: "observed_empty", bytes: 1 << 20, noDeprecated: true, wantStatus: upgradereadiness.CheckPassed},
 		{name: "large_observed_empty", bytes: 17 << 20, noDeprecated: true, wantStatus: upgradereadiness.CheckPassed},
 		{name: "large_slow_complete", bytes: 17 << 20, chunkDelay: 150 * time.Millisecond, wantStatus: upgradereadiness.CheckBlocked},
@@ -107,9 +110,9 @@ func TestUpgradeReadinessEndpointLargeMetrics(t *testing.T) {
 				case "/metrics":
 					metricsRequests.Add(1)
 					defer close(metricsFinished)
-					if tc.html {
+					if tc.invalidBody != "" {
 						w.Header().Set("Content-Type", "text/html")
-						_, _ = io.WriteString(w, "<html><body>Sign in</body></html>\n")
+						_, _ = io.WriteString(w, tc.invalidBody)
 						return
 					}
 					if tc.forbidden {
@@ -119,9 +122,13 @@ func TestUpgradeReadinessEndpointLargeMetrics(t *testing.T) {
 						return
 					}
 					w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-					chunk := strings.Repeat("unrelated_metric 1\n", 4096)
+					filler := tc.fillerLine
+					if filler == "" {
+						filler = "unrelated_metric 1\n"
+					}
+					chunk := strings.Repeat(filler, 4096)
 					if tc.chunkDelay > 0 {
-						chunk = strings.Repeat("unrelated_metric 1\n", (1<<20)/len("unrelated_metric 1\n"))
+						chunk = strings.Repeat(filler, (1<<20)/len(filler))
 					}
 					for written := 0; written < tc.bytes; written += len(chunk) {
 						n, err := io.WriteString(w, chunk)

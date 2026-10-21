@@ -224,7 +224,7 @@ func TestScanDeprecatedAPIRequests(t *testing.T) {
 	input.DeprecatedAPIRequests = nil
 	got, _ = Scan(input, "1.35", "1.36")
 	check = checkByID(t, got, "deprecated-api-requests")
-	if check.Status != CheckUnknown || !strings.Contains(check.Caveat, "/metrics") || strings.Contains(check.Caveat, "Grant") {
+	if check.Status != CheckUnknown || !strings.Contains(check.Caveat, "not collected") || strings.Contains(check.Caveat, "Grant") {
 		t.Fatalf("unavailable metrics should be actionable and unknown: %+v", check)
 	}
 	input.DeprecatedAPIMetricsFailure = APIMetricsForbidden

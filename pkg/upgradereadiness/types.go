@@ -14,9 +14,11 @@ import (
 type APIMetricsFailure string
 
 const (
-	APIMetricsForbidden  APIMetricsFailure = "forbidden"
-	APIMetricsTooLarge   APIMetricsFailure = "too_large"
-	APIMetricsUnreadable APIMetricsFailure = "unreadable"
+	APIMetricsForbidden     APIMetricsFailure = "forbidden"
+	APIMetricsTooLarge      APIMetricsFailure = "too_large"
+	APIMetricsUnreadable    APIMetricsFailure = "unreadable"
+	APIMetricsResponseLimit                   = 256 << 20
+	APIMetricsLineLimit                       = 64 << 10
 )
 
 type Verdict string

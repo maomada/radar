@@ -37,8 +37,8 @@ const (
 	upgradeNodeRuntimeCollectionTimeout  = 20 * time.Second
 	upgradeNodeEvidenceResponseLimit     = 8 << 20
 	upgradeAPIMetricsCollectionTimeout   = 10 * time.Second
-	upgradeAPIMetricsResponseLimit       = 256 << 20
-	upgradeAPIMetricsLineBuffer          = 64 << 10
+	upgradeAPIMetricsResponseLimit       = upgradereadiness.APIMetricsResponseLimit
+	upgradeAPIMetricsLineBuffer          = upgradereadiness.APIMetricsLineLimit
 )
 
 // A busy API server's /metrics exceeds 16 MiB, so the stream is filtered to the
@@ -149,7 +149,21 @@ func readAPIMetricsEvidence(stream io.ReadCloser, limit int64) ([]byte, error) {
 	limited := &io.LimitedReader{R: stream, N: limit + 1}
 	reader := bufio.NewReaderSize(limited, upgradeAPIMetricsLineBuffer)
 	var kept bytes.Buffer
-	var sample []byte
+	var validation bytes.Buffer
+	validatedSample := false
+	parser := expfmt.NewTextParser(model.LegacyValidation)
+	validate := func() error {
+		if validation.Len() == 0 {
+			return nil
+		}
+		families, err := parser.TextToMetricFamilies(bytes.NewReader(validation.Bytes()))
+		if err != nil {
+			return fmt.Errorf("invalid API server metrics response: %w", err)
+		}
+		validatedSample = validatedSample || len(families) > 0
+		validation.Reset()
+		return nil
+	}
 	for {
 		line, err := reader.ReadSlice('\n')
 		switch {
@@ -163,10 +177,16 @@ func readAPIMetricsEvidence(stream io.ReadCloser, limit int64) ([]byte, error) {
 		case isAPIMetricsEvidenceLine(line):
 			kept.Write(bytes.TrimRight(line, "\r\n"))
 			kept.WriteByte('\n')
-		case sample == nil:
+		default:
 			trimmed := bytes.TrimSpace(line)
-			if len(trimmed) > 0 && trimmed[0] != '#' {
-				sample = append(bytes.Clone(trimmed), '\n')
+			if len(trimmed) > 0 && (trimmed[0] != '#' || bytes.HasPrefix(trimmed, []byte("# TYPE")) || bytes.HasPrefix(trimmed, []byte("# HELP"))) {
+				if validation.Len()+len(trimmed)+1 > upgradeAPIMetricsLineBuffer {
+					if err := validate(); err != nil {
+						return nil, err
+					}
+				}
+				validation.Write(trimmed)
+				validation.WriteByte('\n')
 			}
 		}
 		if errors.Is(err, io.EOF) {
@@ -179,17 +199,11 @@ func readAPIMetricsEvidence(stream io.ReadCloser, limit int64) ([]byte, error) {
 	if limited.N <= 0 {
 		return nil, fmt.Errorf("%w: response exceeds %d bytes", errAPIMetricsTooLarge, limit)
 	}
-	if kept.Len() == 0 {
-		// Without target metrics, validate a sample before treating an empty
-		// filtered result as evidence. A proxy's login page must not pass.
-		parser := expfmt.NewTextParser(model.LegacyValidation)
-		families, err := parser.TextToMetricFamilies(bytes.NewReader(sample))
-		if err != nil {
-			return nil, fmt.Errorf("invalid API server metrics response: %w", err)
-		}
-		if len(families) == 0 {
-			return nil, errors.New("API server response contains no readable metrics")
-		}
+	if err := validate(); err != nil {
+		return nil, err
+	}
+	if kept.Len() == 0 && !validatedSample {
+		return nil, errors.New("API server response contains no readable metrics")
 	}
 	return kept.Bytes(), nil
 }
