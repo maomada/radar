@@ -83,6 +83,44 @@ function previousCheckbox(): HTMLInputElement {
   return box
 }
 
+function refreshButton(): HTMLButtonElement {
+  const found = element.querySelector<HTMLButtonElement>('button[aria-label="Refresh logs"]')
+  if (!found) throw new Error('Refresh button not rendered')
+  return found
+}
+
+it('keeps records after a failed Refresh of the same selection and replaces them on success', async () => {
+  const fetchLogs = vi.fn(async () => ({ app: '2026-10-20T10:00:00Z retained record' }))
+  await renderViewer(fetchLogs)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    fetchLogs.mockRejectedValueOnce(new Error('snapshot failed'))
+    await act(async () => refreshButton().click())
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('snapshot failed')
+    expect(element.textContent).toContain('OTHER 1')
+  }
+
+  fetchLogs.mockResolvedValueOnce({ app: '' })
+  await act(async () => refreshButton().click())
+  expect(element.querySelector('[role="alert"]')).toBeNull()
+  expect(element.textContent).not.toContain('OTHER 1')
+  expect(element.textContent).not.toContain('snapshot failed')
+})
+
+it('keeps streamed records when Refresh fails after the stream stops', async () => {
+  const fetchLogs = vi.fn(async () => ({ app: '' }))
+  await renderViewer(fetchLogs, true)
+  await act(async () => FakeEventSource.last?.emit('connected', {}))
+  await act(async () => FakeEventSource.last?.emit('log', { timestamp: '2026-10-20T10:00:00Z', content: 'retained record', container: 'app' }))
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 100)) })
+  await act(async () => button('Stop').click())
+  fetchLogs.mockRejectedValueOnce(new Error('snapshot failed'))
+
+  await act(async () => refreshButton().click())
+
+  expect(element.querySelector('[role="alert"]')?.textContent).toContain('snapshot failed')
+  expect(element.textContent).toContain('OTHER 1')
+})
+
 it.each(['container', 'previous', 'range'])('clears prior records when a new %s snapshot fails', async selection => {
   const fetchLogs = vi.fn(async () => ({ app: '2026-10-20T10:00:00Z old selection' }))
   await renderViewer(fetchLogs, false, ['app', 'sidecar'])
