@@ -16,17 +16,18 @@ import { Tooltip } from '../ui/Tooltip'
 // Radar Cloud, and the prompt says so up front. Two ways out: the X hides it on
 // this issue for the tab, "Don't show again" hides it on every issue for good.
 // Callers gate on useCloudHintsEnabled.
+//
+// It is an open row in the issue body's section stack, so it copies CardSection's
+// gutter (18px icon, gap-2.5): the bell and the sentence then sit on the icon and
+// text columns of the sections above it.
 export function CloudAlertPrompt({ issue, context }: { issue: Issue; context?: string }) {
   const key = issueHintKey(context, issue.id)
   const [hidden, setHidden] = useState(() => isCloudHintDismissed('alert-issue') || isIssueHintHidden(key))
   if (hidden) return null
   return (
-    <section
-      aria-label="Alerts"
-      className="flex items-center gap-2.5 rounded-lg border border-theme-border bg-theme-base px-3 py-2"
-    >
-      <Bell className="h-4 w-4 shrink-0 text-accent" aria-hidden />
-      <span className="min-w-0 flex-1 text-[13px] text-theme-text-secondary">
+    <section aria-label="Alerts" className="flex items-center gap-2.5">
+      <Bell className="h-[18px] w-[18px] shrink-0 text-theme-text-tertiary" aria-hidden />
+      <span className="min-w-0 flex-1 text-sm text-theme-text-secondary">
         Get alerted when this happens again with{' '}
         <span className="font-semibold text-theme-text-primary">Radar Cloud</span>.
       </span>
