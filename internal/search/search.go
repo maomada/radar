@@ -120,6 +120,10 @@ type Options struct {
 	// predicate; nil preserves auth-mode=none behavior where the service
 	// account's cache permissions are the only gate.
 	CanReadClusterScoped func(kind, group, resource string) bool
+	// KindAccess authorizes namespaced kinds in kindRBACGroups by the
+	// caller's own list permission on that kind, on top of Namespaces. nil
+	// disables the gate (auth off: the cache's own RBAC is the only filter).
+	KindAccess *KindAccess
 	// Filter is an optional compiled CEL predicate. When set, each
 	// candidate that passed the modifier+token match is also evaluated
 	// against the filter; non-truthy results (including eval errors)
@@ -133,6 +137,18 @@ type Options struct {
 	// per-row cost stays flat. Pass nil to opt out (context=none) —
 	// the field is omitempty and consumers must tolerate its absence.
 	SummaryBuilder SummaryBuilderFunc
+}
+
+// KindAccess answers per-kind list permission for the caller. Both checks
+// are handler-supplied SubjectAccessReviews; they are only asked about kinds
+// search gates (kindRBACGroups).
+type KindAccess struct {
+	// ClusterWide reports whether the caller may list the resource in every
+	// namespace.
+	ClusterWide func(group, resource string) bool
+	// InNamespaces returns the subset of namespaces where the caller may list
+	// the resource.
+	InNamespaces func(group, resource string, namespaces []string) []string
 }
 
 // Search runs the parsed query against the provider and returns ranked hits.
@@ -282,17 +298,30 @@ func Search(ctx context.Context, p Provider, q Query, opts Options) (Result, err
 		}
 		// Namespaced CRDs honor namespace constraints. Cluster-scoped CRDs
 		// always list at cluster scope after the SAR predicate above.
+		listNs := opts.Namespaces
+		gated := !clusterScoped && opts.KindAccess != nil && kindRBACGroups[gvr.Group]
+		if gated && listNs != nil {
+			listNs = opts.KindAccess.InNamespaces(gvr.Group, gvr.Resource, listNs)
+			if len(listNs) == 0 {
+				continue
+			}
+		}
 		var items []*unstructured.Unstructured
-		if clusterScoped || len(opts.Namespaces) == 0 {
+		if clusterScoped || len(listNs) == 0 {
 			its, err := p.ListDynamic(ctx, gvr, "")
 			if err != nil {
 				coverage.add(UnsearchedKind{Kind: kind, Group: gvr.Group, Reason: UnsearchedUnreadable})
 				continue
 			}
 			items = its
+			// A caller who may list Pods everywhere may still lack this kind
+			// cluster-wide; ask only about the namespaces that hold objects.
+			if gated && len(items) > 0 && !opts.KindAccess.ClusterWide(gvr.Group, gvr.Resource) {
+				items = itemsInNamespaces(items, opts.KindAccess.InNamespaces(gvr.Group, gvr.Resource, namespacesOf(items)))
+			}
 		} else {
 			var unreadable []string
-			for _, ns := range opts.Namespaces {
+			for _, ns := range listNs {
 				its, err := p.ListDynamic(ctx, gvr, ns)
 				if err != nil {
 					unreadable = append(unreadable, ns)
@@ -306,14 +335,20 @@ func Search(ctx context.Context, p Provider, q Query, opts Options) (Result, err
 		}
 		res.Searched += len(items)
 		for _, u := range items {
-			c := fromUnstructured(u, kind, gvr.Group)
+			c := identityFromUnstructured(u, kind, gvr.Group)
 			c.Resource = gvr.Resource
+			if !matchesModifiers(q, c) {
+				continue
+			}
+			if len(q.Tokens) > 0 {
+				addUnstructuredContent(&c, u)
+			}
 			score, matched, snippets, ok := match(q, c)
 			if !ok {
 				continue
 			}
 			if opts.Filter != nil {
-				act := unstructuredActivation(u, kind)
+				act := unstructuredActivation(u, kind, gvr.Group)
 				if act == nil {
 					// Defensive: u or u.Object was nil. Shouldn't
 					// happen for cache-listed objects but a log
@@ -540,4 +575,31 @@ func buildHit(score int, matched []MatchedField, snippets []MatchSnippet, c cand
 		}
 	}
 	return h
+}
+
+func namespacesOf(items []*unstructured.Unstructured) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, u := range items {
+		if ns := u.GetNamespace(); ns != "" && !seen[ns] {
+			seen[ns] = true
+			out = append(out, ns)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func itemsInNamespaces(items []*unstructured.Unstructured, namespaces []string) []*unstructured.Unstructured {
+	allowed := make(map[string]bool, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = true
+	}
+	out := items[:0:0]
+	for _, u := range items {
+		if allowed[u.GetNamespace()] {
+			out = append(out, u)
+		}
+	}
+	return out
 }

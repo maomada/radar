@@ -7,6 +7,7 @@ import { TRANSITION_BACKDROP, TRANSITION_MENU, TW_EASE_UI, overlayExitMs, overla
 import { SearchPillInput, type SearchModifier } from '@skyhook-io/k8s-ui'
 import { getResourceIcon } from '../../utils/resource-icons'
 import type { SearchHit, SearchMatchedField } from '../../api/client'
+import { contentMatchLabel } from './omnibar-match'
 import { recordUsageEvent } from '../../api/usage-data'
 import { bestScore, type CommandItem } from './command-items'
 import { SearchSyntaxHelp } from './SearchSyntaxHelp'
@@ -614,7 +615,7 @@ function ResourceRow({ hit, selected, stale, onSelect, onActivate }: { hit: Sear
   const Icon = getResourceIcon(hit.kind)
   const dot = healthDot(hit.summaryContext?.health)
   const issues = hit.summaryContext?.issueCount ?? 0
-  const contentOnly = !!hit.matched?.length && hit.matched.every((m) => m.site.startsWith('content:'))
+  const contentLabel = contentMatchLabel(hit.matched)
   return (
     <button
       data-selected={selected}
@@ -630,7 +631,7 @@ function ResourceRow({ hit, selected, stale, onSelect, onActivate }: { hit: Sear
         {hit.namespace ? <> · {highlight(hit.namespace, tokensForSite(hit.matched, 'namespace'))}</> : ''}
         {hit.clusterName ? <> · <span className="text-theme-text-secondary">{hit.clusterName}</span></> : ''}
       </span>
-      {contentOnly && <span className="shrink-0 text-[10px] text-theme-text-tertiary italic">in spec</span>}
+      {contentLabel && <span className="shrink-0 text-[10px] text-theme-text-tertiary italic">{contentLabel}</span>}
       {issues > 0 && <span className="ml-auto shrink-0 text-[10px] font-medium text-amber-600 dark:text-amber-400">{issues} issue{issues === 1 ? '' : 's'}</span>}
     </button>
   )

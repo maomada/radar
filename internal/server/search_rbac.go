@@ -7,6 +7,7 @@ import (
 
 	"github.com/skyhook-io/radar/internal/auth"
 	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/skyhook-io/radar/internal/search"
 	pkgauth "github.com/skyhook-io/radar/pkg/auth"
 )
 
@@ -141,6 +142,22 @@ func (s *Server) computeSearchSecretsRBAC(r *http.Request, scanNamespaces []stri
 		return "skip", nil
 	}
 	return "override", scoped
+}
+
+// searchKindAccess authorizes the kinds search gates per kind (Trivy reports)
+// by the caller's own list permission. nil when auth is off.
+func (s *Server) searchKindAccess(r *http.Request) *search.KindAccess {
+	if auth.UserFromContext(r.Context()) == nil {
+		return nil
+	}
+	return &search.KindAccess{
+		ClusterWide: func(group, resource string) bool {
+			return s.canRead(r, group, resource, "", "list")
+		},
+		InNamespaces: func(group, resource string, namespaces []string) []string {
+			return s.filterNamespacesByCanRead(r, group, resource, "list", namespaces)
+		},
+	}
 }
 
 // _ context.Context — kept to make ctx threading explicit if a future

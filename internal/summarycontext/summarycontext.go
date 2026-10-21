@@ -60,7 +60,10 @@ func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx Issue
 
 	return func(obj runtime.Object, u *unstructured.Unstructured, group, kind, namespace, name string) *resourcecontext.ResourceSummaryContext {
 		var managedBy *resourcecontext.ManagedByRef
-		if topo != nil {
+		var scanned *resourcecontext.ScannedRef
+		if u != nil && group == trivyGroup {
+			managedBy, scanned = trivyScanTarget(k8s.GetResourceCache(), u)
+		} else if topo != nil {
 			// Pass the fetched object when available so synthesis is
 			// group-aware (avoids kind/plural collisions like Knative
 			// Service vs corev1 Service). Falls back to (kind, ns, name)
@@ -91,6 +94,7 @@ func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx Issue
 		return resourcecontext.BuildSummary(source, resourcecontext.SummaryOptions{
 			ManagedBy:  managedBy,
 			IssueCount: idx.Count(group, kind, namespace, name),
+			Scanned:    scanned,
 		})
 	}
 }

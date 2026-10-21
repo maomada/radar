@@ -33,10 +33,13 @@ func fromObject(obj runtime.Object, kind string) (candidate, bool) {
 	return c, true
 }
 
-// fromUnstructured builds a candidate from a CRD object. The kind is
-// already known by the caller (we don't trust the unstructured's Kind
-// since informers strip TypeMeta).
-func fromUnstructured(u *unstructured.Unstructured, kind, group string) candidate {
+// identityFromUnstructured builds a CRD candidate without Content: enough to
+// evaluate modifiers, so a candidate they reject never pays for content
+// extraction (addUnstructuredContent). The kind is already known by the
+// caller (we don't trust the unstructured's Kind since informers strip
+// TypeMeta). A Trivy report's scanned image is part of identity, for image:
+// modifiers.
+func identityFromUnstructured(u *unstructured.Unstructured, kind, group string) candidate {
 	c := candidate{
 		Kind:        kind,
 		Group:       group,
@@ -46,8 +49,20 @@ func fromUnstructured(u *unstructured.Unstructured, kind, group string) candidat
 		Annotations: u.GetAnnotations(),
 	}
 	c.Images = imagesFromUnstructured(u)
-	c.Content = contentFromUnstructured(u, kind)
+	if group == TrivyGroup {
+		if img := trivyArtifactImage(asMap(u.Object["report"])); img != "" {
+			c.Images = append(c.Images, img)
+		}
+	}
 	return c
+}
+
+// addUnstructuredContent fills Content, which only free tokens read.
+func addUnstructuredContent(c *candidate, u *unstructured.Unstructured) {
+	c.Content = contentFromUnstructured(u, c.Kind)
+	if c.Group == TrivyGroup {
+		c.Content = append(c.Content, trivyReportContent(asMap(u.Object["report"]))...)
+	}
 }
 
 func contentForTyped(obj runtime.Object, kind string) []ContentField {

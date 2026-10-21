@@ -51,25 +51,8 @@ type ContentField struct {
 // the candidate or when at least one free token didn't land anywhere.
 func match(q Query, c candidate) (int, []MatchedField, []MatchSnippet, bool) {
 	// Hard filters first — cheaper to reject early.
-	if len(q.KindFilter) > 0 && !kindMatches(c.Kind, c.Group, c.Resource, q.KindFilter) {
+	if !matchesModifiers(q, c) {
 		return 0, nil, nil, false
-	}
-	if len(q.NSFilter) > 0 && !sliceContainsFold(q.NSFilter, c.Namespace) {
-		return 0, nil, nil, false
-	}
-	for _, lf := range q.LabelFilter {
-		v, ok := c.Labels[lf.Key]
-		if !ok {
-			return 0, nil, nil, false
-		}
-		if lf.Value != "" && v != lf.Value {
-			return 0, nil, nil, false
-		}
-	}
-	for _, img := range q.ImageFilter {
-		if !anyContainsFold(c.Images, img) {
-			return 0, nil, nil, false
-		}
 	}
 
 	if len(q.Tokens) == 0 {
@@ -93,6 +76,32 @@ func match(q Query, c candidate) (int, []MatchedField, []MatchSnippet, bool) {
 		}
 	}
 	return total, matched, snippets, true
+}
+
+// matchesModifiers reports whether a candidate passes the query's hard
+// filters (kind:, ns:, label:, image:). It reads identity only, never Content.
+func matchesModifiers(q Query, c candidate) bool {
+	if len(q.KindFilter) > 0 && !kindMatches(c.Kind, c.Group, c.Resource, q.KindFilter) {
+		return false
+	}
+	if len(q.NSFilter) > 0 && !sliceContainsFold(q.NSFilter, c.Namespace) {
+		return false
+	}
+	for _, lf := range q.LabelFilter {
+		v, ok := c.Labels[lf.Key]
+		if !ok {
+			return false
+		}
+		if lf.Value != "" && v != lf.Value {
+			return false
+		}
+	}
+	for _, img := range q.ImageFilter {
+		if !anyContainsFold(c.Images, img) {
+			return false
+		}
+	}
+	return true
 }
 
 // scoreToken returns the highest-scoring site a single free token matches,

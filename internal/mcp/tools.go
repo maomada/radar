@@ -454,7 +454,8 @@ func registerTools(server *mcp.Server, includeWrites bool, paramRegistry *toolPa
 			"term match; modifier-only queries are enumeration, so use list_resources when " +
 			"you already know the kind/namespace. Returns ranked hits with snippets and " +
 			"summaryContext. Use CEL filter for structural predicates. Searches typed kinds " +
-			"plus warmed CRDs; cold CRDs need list_resources first.",
+			"plus warmed CRDs; cold CRDs need list_resources first. Trivy reports match by CVE ID, " +
+			"package or SBOM component; the report binding matches one finding.",
 		Annotations: readOnly,
 	}, logToolCall("search", handleSearch))
 
@@ -721,7 +722,7 @@ type searchInput struct {
 	Namespace string `json:"namespace,omitempty" jsonschema:"optional namespace to scope the search; equivalent to an inline ns: modifier. When set, overrides all inline namespace modifiers"`
 	Limit     int    `json:"limit,omitempty" jsonschema:"max hits returned (default 50, max 500)"`
 	Include   string `json:"include,omitempty" jsonschema:"per-hit detail: summary (default), raw, or none"`
-	Filter    string `json:"filter,omitempty" jsonschema:"optional CEL boolean expression run against each candidate K8s object. Bindings: kind, apiVersion, metadata, spec, status, labels, annotations. Use has(x.y) before optional fields. Examples: 'kind == \"Pod\" && status.phase == \"Failed\"', 'labels[\"app\"] == \"cart\"', 'has(status.readyReplicas) && status.readyReplicas == 0'"`
+	Filter    string `json:"filter,omitempty" jsonschema:"optional CEL boolean expression run against each candidate K8s object. Bindings: kind, apiVersion, metadata, spec, status, labels, annotations, report (Trivy findings). Use has(x.y) before optional fields. Examples: 'kind == \"Pod\" && status.phase == \"Failed\"', 'labels[\"app\"] == \"cart\"', 'has(status.readyReplicas) && status.readyReplicas == 0'"`
 	Context   string `json:"context,omitempty" jsonschema:"per-hit context: default attaches summaryContext (managedBy + health + issueCount) for suspect ranking; 'none' returns bare hits"`
 }
 
@@ -3363,6 +3364,22 @@ func mcpSearchSecretsRBAC(ctx context.Context, scanNamespaces []string) (decisio
 	return "override", scoped
 }
 
+// mcpSearchKindAccess mirrors Server.searchKindAccess for MCP. nil when auth
+// is off.
+func mcpSearchKindAccess(ctx context.Context) *search.KindAccess {
+	if user, _ := resolveUserPerms(ctx); user == nil {
+		return nil
+	}
+	return &search.KindAccess{
+		ClusterWide: func(group, resource string) bool {
+			return canReadInNamespace(ctx, group, resource, "", "list")
+		},
+		InNamespaces: func(group, resource string, namespaces []string) []string {
+			return filterNamespacesByCanRead(ctx, group, resource, "list", namespaces)
+		},
+	}
+}
+
 func handleSearch(ctx context.Context, req *mcp.CallToolRequest, input searchInput) (*mcp.CallToolResult, any, error) {
 	provider := search.NewCacheProvider()
 	if provider == nil {
@@ -3426,6 +3443,7 @@ func handleSearch(ctx context.Context, req *mcp.CallToolRequest, input searchInp
 		CanReadClusterScoped: func(kind, group, resource string) bool {
 			return canReadClusterScopedKind(ctx, kind, group, "list")
 		},
+		KindAccess: mcpSearchKindAccess(ctx),
 	}
 	if input.Filter != "" {
 		f, err := filter.CachedObjectFilter(input.Filter)
