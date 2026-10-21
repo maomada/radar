@@ -210,32 +210,29 @@ func TestDynamicReadableDependentsReadsOnlyItsServingInformers(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(d.Stop)
-	if _, _, ok := d.ReadableDependents(gvr, "alpha", "uid-d"); ok {
+	if _, ok := d.ReadableDependents(gvr, "alpha", "uid-d"); ok {
 		t.Fatal("with no informer, nothing can answer")
 	}
 	if err := d.startWatching(gvr, "alpha"); err != nil {
 		t.Fatal(err)
 	}
 	waitUntil(t, 5*time.Second, "alpha's informer", func() bool { return d.IsNamespaceSynced(gvr, "alpha") })
-	got, server, ok := d.ReadableDependents(gvr, "alpha", "uid-d")
+	got, ok := d.ReadableDependents(gvr, "alpha", "uid-d")
 	if !ok || !slices.Equal(names(got), []string{"a"}) {
 		t.Fatalf("alpha = %v, %v", names(got), ok)
 	}
-	if serving, _ := d.ReadServer(gvr, "alpha"); !server.Same(serving) {
-		t.Fatal("the read must name the informers that answered")
-	}
-	if _, _, ok := d.ReadableDependents(gvr, "", "uid-d"); ok {
+	if _, ok := d.ReadableDependents(gvr, "", "uid-d"); ok {
 		t.Fatal("namespace informers can't answer for the cluster")
 	}
 	if err := d.startWatching(gvr, ""); err != nil {
 		t.Fatal(err)
 	}
 	waitUntil(t, 5*time.Second, "the cluster-wide informer", func() bool { return d.IsClusterWideSynced(gvr) })
-	all, _, ok := d.ReadableDependents(gvr, "", "uid-d")
+	all, ok := d.ReadableDependents(gvr, "", "uid-d")
 	if !ok || !slices.Equal(names(all), []string{"a", "b"}) {
 		t.Fatalf("cluster-wide = %v, %v", names(all), ok)
 	}
-	beta, _, ok := d.ReadableDependents(gvr, "beta", "uid-d")
+	beta, ok := d.ReadableDependents(gvr, "beta", "uid-d")
 	if !ok || !slices.Equal(names(beta), []string{"b"}) {
 		t.Fatalf("beta from the cluster-wide informer = %v, %v; want beta's only", names(beta), ok)
 	}

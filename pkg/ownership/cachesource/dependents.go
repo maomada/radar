@@ -181,8 +181,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 	readVersion := func(gvr schema.GroupVersionResource, namespace string) ([]*unstructured.Unstructured, bool) {
 		cw, seen := clusterWide[gvr]
 		if !seen {
-			if objs, server, ok := s.caches.Dynamic.ReadableDependents(gvr, "", q.uid); ok {
-				s.record(gvr, "", server)
+			if objs, ok := s.caches.Dynamic.ReadableDependents(gvr, "", q.uid); ok {
 				cw = &clusterWideRead{all: objs}
 			}
 			clusterWide[gvr] = cw
@@ -202,11 +201,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 		if namespace == "" {
 			return nil, false
 		}
-		objs, server, ok := s.caches.Dynamic.ReadableDependents(gvr, namespace, q.uid)
-		if ok {
-			s.record(gvr, namespace, server)
-		}
-		return objs, ok
+		return s.caches.Dynamic.ReadableDependents(gvr, namespace, q.uid)
 	}
 	// read searches the informers serving namespace at every watched version
 	// that can answer, and says which versions answered. Versions that

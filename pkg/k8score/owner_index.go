@@ -116,15 +116,15 @@ func (rc *ResourceCache) ReadableDependents(resource string, namespaces []string
 // ReadableObject's rules. namespace "" reads only a cluster-wide informer,
 // which holds every namespace of a namespaced resource. The objects are the
 // cached ones: callers must not modify or keep them.
-func (d *DynamicResourceCache) ReadableDependents(gvr schema.GroupVersionResource, namespace, uid string) (objs []*unstructured.Unstructured, server DynamicReadServer, ok bool) {
-	server, ok = d.ReadServer(gvr, namespace)
+func (d *DynamicResourceCache) ReadableDependents(gvr schema.GroupVersionResource, namespace, uid string) (objs []*unstructured.Unstructured, ok bool) {
+	entries, ok := d.servedEntries(gvr, namespace)
 	if !ok {
-		return nil, server, false
+		return nil, false
 	}
-	for _, e := range server.entries {
+	for _, e := range entries {
 		items, err := e.informer.GetIndexer().ByIndex(OwnerUIDIndex, uid)
 		if err != nil {
-			return nil, server, false
+			return nil, false
 		}
 		for _, item := range items {
 			if u, isUnstructured := item.(*unstructured.Unstructured); isUnstructured && (namespace == "" || u.GetNamespace() == namespace) {
@@ -132,5 +132,5 @@ func (d *DynamicResourceCache) ReadableDependents(gvr schema.GroupVersionResourc
 			}
 		}
 	}
-	return objs, server, true
+	return objs, true
 }
