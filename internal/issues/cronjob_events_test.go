@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"github.com/skyhook-io/radar/internal/timeline"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,12 @@ import (
 
 func TestCronJobControllerEventIssues(t *testing.T) {
 	now := time.Now()
+	timeline.ResetStore()
+	t.Cleanup(timeline.ResetStore)
+	if err := timeline.InitStore(timeline.StoreConfig{Type: timeline.StoreTypeMemory, MaxSize: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	timeline.SetObservationStartForTest(now.Add(-7 * 24 * time.Hour))
 	cj := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{Name: "nightly", Namespace: "batch", UID: "current", CreationTimestamp: metav1.NewTime(now.Add(-72 * time.Hour))},
 		Spec:       batchv1.CronJobSpec{Schedule: "0 * * * *"},

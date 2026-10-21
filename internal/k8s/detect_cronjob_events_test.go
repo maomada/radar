@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/skyhook-io/radar/internal/timeline"
 	"github.com/skyhook-io/radar/pkg/k8score"
 )
 
@@ -33,6 +34,7 @@ func cronJobWarning(cj *batchv1.CronJob, reason string, now time.Time) *corev1.E
 
 func TestCronJobControllerEventsSeries(t *testing.T) {
 	now := time.Now()
+	observeCronJobHistoryForTest(t, now)
 	cj := cronJobEventSubject(now)
 	series := cronJobWarning(cj, "MissSchedule", now)
 	series.Name = "series"
@@ -100,6 +102,7 @@ func TestCronJobControllerEventsFallback(t *testing.T) {
 		for _, fallback := range []string{"stale", "never-scheduled", "repeated-without-success"} {
 			t.Run(tt.name+"/"+fallback, func(t *testing.T) {
 				now := time.Now()
+				observeCronJobHistoryForTest(t, now)
 				cj := cronJobEventSubject(now)
 				tracker := newCronJobScheduleObservationTracker()
 				switch fallback {
@@ -156,6 +159,7 @@ func TestCronJobControllerEventsChildJobs(t *testing.T) {
 		for _, withEvent := range []bool{false, true} {
 			t.Run(childState+"/event="+strconv.FormatBool(withEvent), func(t *testing.T) {
 				now := time.Now()
+				observeCronJobHistoryForTest(t, now)
 				cj := cronJobEventSubject(now)
 				tracker := newCronJobScheduleObservationTracker()
 				observeCronJobEventTestSchedules(cj, tracker, now)
@@ -209,6 +213,7 @@ func TestCronJobControllerEventsChildJobs(t *testing.T) {
 
 func TestCronJobControllerEventsIdentityAndFreshness(t *testing.T) {
 	now := time.Now()
+	observeCronJobHistoryForTest(t, now)
 	for _, tt := range []struct {
 		name   string
 		mutate func(*corev1.Event)
@@ -241,6 +246,7 @@ func TestCronJobControllerEventsReasons(t *testing.T) {
 		for _, fallback := range []string{"stale", "never-scheduled"} {
 			t.Run(reason+"/"+fallback, func(t *testing.T) {
 				now := time.Now()
+				observeCronJobHistoryForTest(t, now)
 				cj := cronJobEventSubject(now)
 				if fallback == "stale" {
 					last := metav1.NewTime(now.Add(-48 * time.Hour))
@@ -271,6 +277,7 @@ func TestCronJobControllerEventsReasons(t *testing.T) {
 
 func TestCronJobControllerEventsLifecycle(t *testing.T) {
 	now := time.Now()
+	observeCronJobHistoryForTest(t, now)
 	for _, scenario := range []struct {
 		name   string
 		mutate func(*batchv1.CronJob, *corev1.Event)
@@ -307,6 +314,7 @@ func TestCronJobControllerEventsLifecycle(t *testing.T) {
 
 func TestCronJobControllerEventsCatchUpRecovery(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
+	observeCronJobHistoryForTest(t, now)
 	for _, sameSecond := range []bool{false, true} {
 		t.Run(strconv.FormatBool(sameSecond), func(t *testing.T) {
 			cj := cronJobEventSubject(now)
@@ -333,6 +341,7 @@ func TestCronJobControllerEventsCatchUpRecovery(t *testing.T) {
 
 func TestCronJobControllerEventsNewFailureAfterCreation(t *testing.T) {
 	now := time.Now()
+	observeCronJobHistoryForTest(t, now)
 	cj := cronJobEventSubject(now)
 	warning := cronJobWarning(cj, "InvalidSchedule", now)
 	created := cronJobWarning(cj, "SuccessfulCreate", now)
@@ -346,4 +355,14 @@ func TestCronJobControllerEventsNewFailureAfterCreation(t *testing.T) {
 	if got := cronJobScheduleEventDetections([]*batchv1.CronJob{cj}, []*corev1.Event{warning, created}, now); len(got) != 0 {
 		t.Fatalf("recognized Job creation did not supersede the earlier report: %+v", got)
 	}
+}
+
+func observeCronJobHistoryForTest(t *testing.T, now time.Time) {
+	t.Helper()
+	timeline.ResetStore()
+	t.Cleanup(timeline.ResetStore)
+	if err := timeline.InitStore(timeline.StoreConfig{Type: timeline.StoreTypeMemory, MaxSize: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	timeline.SetObservationStartForTest(now.Add(-7 * 24 * time.Hour))
 }

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef, useContext, useId } from 'react'
 import { TableVirtuoso, type TableVirtuosoHandle } from 'react-virtuoso'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { Badge } from '../ui/Badge'
 import { PaneLoader } from '../ui/PaneLoader'
 import { RestrictedState } from '../ui/RestrictedState'
 import { FetchResult } from '../ui/FetchResult'
@@ -164,7 +165,7 @@ import { FreshnessControl, type FreshnessConnection } from '../ui/FreshnessContr
 import { Tooltip } from '../ui/Tooltip'
 import { AuditBadgeTooltip, type AuditBadgeMessage } from '../audit/AuditBadgeTooltip'
 import type { Issue } from '../issues/types'
-import { issueTitle, ISSUE_SEVERITY_BADGE_CLASS } from '../issues/severity'
+import { issueTitle } from '../issues/severity'
 import { SEVERITY_TEXT_CLASS } from '../checks/severity'
 // CRD-specific cell components (extracted)
 import { GitRepositoryCell, OCIRepositoryCell, HelmRepositoryCell, KustomizationCell, FluxHelmReleaseCell, FluxAlertCell } from './renderers/flux-cells'
@@ -3350,6 +3351,7 @@ interface ResourcesViewData {
   // knows which backend it reads from.
   storeProviders?: Record<string, string>
   /** Current CronJob Issues keyed by "namespace/name", supplied by the host. */
+  operationalIssuesIncomplete?: boolean
   operationalIssues?: Record<string, Issue>
   /** Cluster Audit findings keyed by "namespace/name". Raw compatibility
    *  counts render danger as High and warning as Medium. */
@@ -3416,6 +3418,7 @@ interface ResourcesViewProps {
   // knows which backend it reads from.
   storeProviders?: Record<string, string>
   /** Current CronJob Issues keyed by "namespace/name", supplied by the host. */
+  operationalIssuesIncomplete?: boolean
   operationalIssues?: Record<string, Issue>
   /** Cluster Audit findings keyed by "namespace/name". Raw compatibility
    *  counts render danger as High and warning as Medium. */
@@ -3704,6 +3707,7 @@ export function ResourcesView({
   storeProviders,
   auditBadges,
   operationalIssues,
+  operationalIssuesIncomplete,
   pinned = [],
   togglePin = () => {},
   isPinned = () => false,
@@ -5312,9 +5316,10 @@ export function ResourcesView({
     if (column === 'status' && selectedKind.group === 'batch' && kind === 'cronjobs') {
       const issue = operationalIssues?.[`${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`]
       if (issue) return issueTitle(issue)
+      if (operationalIssuesIncomplete) return 'Unknown'
     }
     return getCellFilterValue(resource, column, kind)
-  }, [operationalIssues, selectedKind.group])
+  }, [operationalIssues, operationalIssuesIncomplete, selectedKind.group])
 
   // Get sortable value from a resource for a given column
   const getSortValue = useCallback((resource: any, column: string, kind?: string): string | number => {
@@ -6039,9 +6044,10 @@ export function ResourcesView({
     certExpiryError,
     auditBadges,
     operationalIssues,
+    operationalIssuesIncomplete,
     onOpenLogs,
     onOpenWorkloadLogs,
-  }), [onNavigate, certExpiry, certExpiryError, auditBadges, operationalIssues, onOpenLogs, onOpenWorkloadLogs])
+  }), [onNavigate, certExpiry, certExpiryError, auditBadges, operationalIssues, operationalIssuesIncomplete, onOpenLogs, onOpenWorkloadLogs])
 
   return (
     <ResourcesViewDataContext.Provider value={resourcesViewDataContextValue}>
@@ -8633,7 +8639,7 @@ function JobCell({ resource, column }: { resource: any; column: string }) {
 }
 
 function CronJobCell({ resource, column }: { resource: any; column: string }) {
-  const { operationalIssues } = useContext(ResourcesViewDataContext)
+  const { operationalIssues, operationalIssuesIncomplete } = useContext(ResourcesViewDataContext)
   switch (column) {
     case 'schedule': {
       const { cron, readable } = getCronJobSchedule(resource)
@@ -8647,7 +8653,10 @@ function CronJobCell({ resource, column }: { resource: any; column: string }) {
     case 'status': {
       const issue = operationalIssues?.[`${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`]
       if (issue) {
-        return <Tooltip content={issue.message}><span className={clsx('badge', ISSUE_SEVERITY_BADGE_CLASS[issue.severity])}>{issueTitle(issue)}</span></Tooltip>
+        return <Tooltip content={issue.message}><Badge severity={issue.severity === 'critical' ? 'error' : 'warning'}>{issueTitle(issue)}</Badge></Tooltip>
+      }
+      if (operationalIssuesIncomplete) {
+        return <Tooltip content="The issue list is incomplete. This CronJob's status could not be checked."><Badge severity="neutral">Unknown</Badge></Tooltip>
       }
       const status = getCronJobStatus(resource)
       return (

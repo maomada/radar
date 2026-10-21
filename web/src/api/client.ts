@@ -786,12 +786,14 @@ export interface UncheckedSource {
   namespaces?: string[];
 }
 
-export function useIssues(namespaces: string[] = [], enabled = true) {
-  const params =
-    namespaces.length > 0 ? `?namespaces=${namespaces.join(",")}` : "";
+export function useIssues(namespaces: string[] = [], enabled = true, kind?: string) {
+  const params = new URLSearchParams();
+  if (namespaces.length) params.set('namespaces', namespaces.join(','));
+  if (kind) { params.set('kind', kind); params.set('limit', '1000'); }
+  const query = params.toString();
   return useQuery<IssuesResponse>({
-    queryKey: ["issues", namespaces],
-    queryFn: () => fetchJSON(`/issues${params}`),
+    queryKey: kind ? ["issues", namespaces, kind] : ["issues", namespaces],
+    queryFn: () => fetchJSON(`/issues${query ? `?${query}` : ''}`),
     staleTime: 30000,
     refetchInterval: ISSUES_REFRESH_INTERVAL_MS,
     enabled,

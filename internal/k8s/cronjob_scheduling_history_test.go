@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -106,6 +107,7 @@ func TestCronJobTimelineReadsSharedStore(t *testing.T) {
 	if err := timeline.InitStore(timeline.StoreConfig{Type: timeline.StoreTypeMemory, MaxSize: 100}); err != nil {
 		t.Fatal(err)
 	}
+	timeline.SetObservationStartForTest(time.Now().Add(-24 * time.Hour))
 	cj := cronJobEventSubject(time.Now())
 	row := schedulingHistoryRow(cj, "InvalidSchedule", time.Now().Add(-time.Minute))
 	other := row
@@ -114,7 +116,7 @@ func TestCronJobTimelineReadsSharedStore(t *testing.T) {
 	if err := timeline.GetStore().AppendBatch(t.Context(), []timeline.TimelineEvent{row, other}); err != nil {
 		t.Fatal(err)
 	}
-	h := readCronJobSchedulingHistory(cj.Namespace)
+	h := readCronJobSchedulingHistory(cj.Namespace, []*batchv1.CronJob{cj}, nil, time.Now())
 	if len(h.rows) != 1 || h.rows[0].ID != row.ID || h.unavailable {
 		t.Fatalf("shared query was not namespace/cluster scoped: %+v", h)
 	}
@@ -162,6 +164,7 @@ func TestCronJobTimelineEditDoesNotReviveOldInactivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now()
+	timeline.SetObservationStartForTest(now.Add(-24 * time.Hour))
 	cj := cronJobEventSubject(now)
 	cj.CreationTimestamp = metav1.NewTime(now.Add(-365 * 24 * time.Hour))
 	cj.Spec.Schedule = "0 0 1 1 *"
@@ -179,5 +182,78 @@ func TestCronJobTimelineEditDoesNotReviveOldInactivity(t *testing.T) {
 	evidence := CronJobSchedulingEvidence{State: "configuration_changed", ConfigurationChangedAt: &changed}
 	if cronJobScheduleEditPending(cj, evidence, changed.Add(cronsched.StaleThreshold(cj.Spec.Schedule))) {
 		t.Fatal("edit grace must end at current cadence threshold")
+	}
+}
+
+func TestCronJobUnavailableHistoryIsUncertain(t *testing.T) {
+	now := time.Now()
+	cj := cronJobEventSubject(now)
+	warning := cronJobWarning(cj, "InvalidSchedule", now)
+	got := assessCronJobScheduling([]*batchv1.CronJob{cj}, []*corev1.Event{warning}, cronJobSchedulingHistory{unavailable: true}, now)
+	if len(got.detections) != 0 || got.evidence[cj.UID].State != "history_incomplete" {
+		t.Fatalf("unknown edits asserted a current failure: %+v", got)
+	}
+}
+
+func TestCronJobRestartGapDoesNotAssertEarlierError(t *testing.T) {
+	timeline.ResetStore()
+	t.Cleanup(timeline.ResetStore)
+	if err := timeline.InitStore(timeline.StoreConfig{Type: timeline.StoreTypeMemory, MaxSize: 100}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	timeline.SetObservationStartForTest(now.Add(-10 * time.Second))
+	cj := cronJobEventSubject(now)
+	old := schedulingHistoryRow(cj, "InvalidSchedule", now.Add(-time.Hour))
+	if err := timeline.GetStore().AppendBatch(t.Context(), []timeline.TimelineEvent{old}); err != nil {
+		t.Fatal(err)
+	}
+	history := readCronJobSchedulingHistory(cj.Namespace, []*batchv1.CronJob{cj}, nil, now)
+	got := assessCronJobScheduling([]*batchv1.CronJob{cj}, nil, history, now)
+	if len(got.detections) != 0 || got.evidence[cj.UID].State != "history_incomplete" {
+		t.Fatalf("unobserved offline edit treated as impossible: %+v", got)
+	}
+	fresh := old
+	fresh.ID = "fresh"
+	fresh.Timestamp = now.Add(-5 * time.Second)
+	if err := timeline.GetStore().AppendBatch(t.Context(), []timeline.TimelineEvent{fresh}); err != nil {
+		t.Fatal(err)
+	}
+	history = readCronJobSchedulingHistory(cj.Namespace, []*batchv1.CronJob{cj}, nil, now)
+	if got := assessCronJobScheduling([]*batchv1.CronJob{cj}, nil, history, now); len(got.detections) != 1 {
+		t.Fatalf("report observed after restart was lost: %+v", got)
+	}
+}
+
+func TestCronJobRoutineRunsDoNotCrowdOutUnresolvedWarning(t *testing.T) {
+	timeline.ResetStore()
+	t.Cleanup(timeline.ResetStore)
+	if err := timeline.InitStore(timeline.StoreConfig{Type: timeline.StoreTypeMemory, MaxSize: 20000}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	timeline.SetObservationStartForTest(now.Add(-24 * time.Hour))
+	cj := cronJobEventSubject(now)
+	rows := []timeline.TimelineEvent{schedulingHistoryRow(cj, "InvalidSchedule", now.Add(-time.Hour))}
+	for i := 0; i < 10001; i++ {
+		row := schedulingHistoryRow(cj, "SuccessfulCreate", now.Add(-time.Minute))
+		row.ID = fmt.Sprintf("normal-%d", i)
+		row.UID = "busy-other-cronjob"
+		row.EventType = timeline.EventTypeNormal
+		rows = append(rows, row)
+	}
+	if err := timeline.GetStore().AppendBatch(t.Context(), rows); err != nil {
+		t.Fatal(err)
+	}
+	busy := cj.DeepCopy()
+	busy.UID = "busy-other-cronjob"
+	busy.Name = "busy"
+	busy.Status.LastScheduleTime = &metav1.Time{Time: now.Add(-30 * time.Second)}
+	history := readCronJobSchedulingHistory(cj.Namespace, []*batchv1.CronJob{cj, busy}, nil, now)
+	if len(history.rows) != 1 {
+		t.Fatalf("decoded unrelated routine runs: %d rows", len(history.rows))
+	}
+	if got := assessCronJobScheduling([]*batchv1.CronJob{cj}, nil, history, now); len(got.detections) != 1 {
+		t.Fatalf("busy neighbor hid error: %+v", got)
 	}
 }

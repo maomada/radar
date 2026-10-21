@@ -31,7 +31,7 @@ type cronJobSchedulingHistory struct {
 	unavailable      bool
 }
 
-func readCronJobSchedulingHistory(namespace string) cronJobSchedulingHistory {
+func readCronJobSchedulingHistory(namespace string, cronjobs []*batchv1.CronJob, live []*corev1.Event, now time.Time) cronJobSchedulingHistory {
 	const limit = 10000
 	store := timeline.GetStore()
 	if store == nil {
@@ -39,30 +39,76 @@ func readCronJobSchedulingHistory(namespace string) cronJobSchedulingHistory {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	opts := timeline.QueryOptions{Kinds: []string{"CronJob"}, APIGroups: []string{"batch"}, RequireAPIVersion: true, ClusterContext: ActiveClusterContext(), IncludeManaged: true, IncludeK8sEvents: true, Limit: limit}
+	opts := timeline.QueryOptions{Kinds: []string{"CronJob"}, APIGroups: []string{"batch"}, RequireAPIVersion: true, ClusterContext: ActiveClusterContext(), IncludeManaged: true, IncludeK8sEvents: true, Limit: limit, Sources: []timeline.EventSource{timeline.SourceK8sEvent}, EventTypes: []timeline.EventType{timeline.EventTypeWarning}}
 	if namespace != "" {
 		opts.Namespaces = []string{namespace}
+	}
+	if len(cronjobs) == 1 && cronjobs[0].UID != "" {
+		opts.Scope = timeline.ResourceScope{UIDs: []string{string(cronjobs[0].UID)}}
 	}
 	rows, err := store.Query(ctx, opts)
 	if err != nil {
 		return cronJobSchedulingHistory{unavailable: true}
 	}
-	h := cronJobSchedulingHistory{rows: rows}
-	if boundary, ok := store.(timeline.EvictionBoundary); ok {
+	h := cronJobSchedulingHistory{rows: rows, incompleteBefore: timeline.ObservationStart()}
+	h.unavailable = h.incompleteBefore.IsZero()
+	if boundary, ok := store.(timeline.EvictionBoundary); ok && boundary.EvictedThrough().After(h.incompleteBefore) {
 		h.incompleteBefore = boundary.EvictedThrough()
 	}
-	if len(rows) >= limit {
-		oldest := rows[0].Timestamp
-		for _, row := range rows {
-			if row.Timestamp.Before(oldest) {
-				oldest = row.Timestamp
-			}
-		}
-		if oldest.After(h.incompleteBefore) {
-			h.incompleteBefore = oldest
+	h.noteTruncation(rows, limit)
+	// Normal run Events must not crowd warnings out of the first query. Read
+	// edits and recovery only for current resources with unresolved reports.
+	reports := append([]*corev1.Event(nil), live...)
+	for _, row := range rows {
+		reports = append(reports, cronJobHistoryEvent(row))
+	}
+	unresolved := cronJobScheduleEventDetections(cronjobs, reports, now)
+	subjects := make(map[types.NamespacedName]*batchv1.CronJob, len(cronjobs))
+	for _, cj := range cronjobs {
+		subjects[types.NamespacedName{Namespace: cj.Namespace, Name: cj.Name}] = cj
+	}
+	seen := make(map[types.UID]bool)
+	var uids []string
+	for _, d := range unresolved {
+		cj := subjects[types.NamespacedName{Namespace: d.Namespace, Name: d.Name}]
+		if cj != nil && !seen[cj.UID] {
+			seen[cj.UID] = true
+			uids = append(uids, string(cj.UID))
 		}
 	}
+	if len(uids) == 0 {
+		return h
+	}
+	opts.Scope = timeline.ResourceScope{UIDs: uids}
+	opts.Sources = []timeline.EventSource{timeline.SourceInformer, timeline.SourceK8sEvent}
+	opts.EventTypes = []timeline.EventType{timeline.EventTypeUpdate, timeline.EventTypeNormal}
+	related, err := store.Query(ctx, opts)
+	if err != nil {
+		h.unavailable = true
+		return h
+	}
+	h.noteTruncation(related, limit)
+	h.rows = append(h.rows, related...)
 	return h
+}
+
+func (h *cronJobSchedulingHistory) noteTruncation(rows []timeline.TimelineEvent, limit int) {
+	if len(rows) < limit {
+		return
+	}
+	oldest := rows[0].Timestamp
+	for _, row := range rows {
+		if row.Timestamp.Before(oldest) {
+			oldest = row.Timestamp
+		}
+	}
+	if oldest.After(h.incompleteBefore) {
+		h.incompleteBefore = oldest
+	}
+}
+
+func cronJobHistoryEvent(row timeline.TimelineEvent) *corev1.Event {
+	return &corev1.Event{ObjectMeta: metav1.ObjectMeta{UID: types.UID(row.ID)}, InvolvedObject: corev1.ObjectReference{APIVersion: row.APIVersion, Kind: row.Kind, Namespace: row.Namespace, Name: row.Name, UID: types.UID(row.UID)}, Type: string(row.EventType), Reason: row.Reason, Message: row.Message, LastTimestamp: metav1.NewTime(row.Timestamp), Count: row.Count}
 }
 
 type cronJobSchedulingAssessment struct {
@@ -108,7 +154,7 @@ func assessCronJobScheduling(cronjobs []*batchv1.CronJob, live []*corev1.Event, 
 				}
 			}
 		case timeline.SourceK8sEvent:
-			event := &corev1.Event{ObjectMeta: metav1.ObjectMeta{UID: types.UID(row.ID)}, InvolvedObject: corev1.ObjectReference{APIVersion: row.APIVersion, Kind: row.Kind, Namespace: row.Namespace, Name: row.Name, UID: types.UID(row.UID)}, Type: string(row.EventType), Reason: row.Reason, Message: row.Message, LastTimestamp: metav1.NewTime(row.Timestamp), Count: row.Count}
+			event := cronJobHistoryEvent(row)
 			if cronJobEventMatches(event, cj, now) {
 				events[cj.UID] = append(events[cj.UID], event)
 				reportSequences[event] = row.Seq
@@ -154,7 +200,7 @@ func assessCronJobScheduling(cronjobs []*batchv1.CronJob, live []*corev1.Event, 
 				}
 				evidence.State = "configuration_changed"
 				evidence.ConfigurationChangedAt = &changed
-			} else if !history.incompleteBefore.IsZero() && !reported.After(history.incompleteBefore) {
+			} else if history.unavailable || (!history.incompleteBefore.IsZero() && !reported.After(history.incompleteBefore)) {
 				// An evicted configuration edit may have superseded this old report.
 				evidence.State = "history_incomplete"
 				evidence.HistoryIncomplete = true
@@ -191,10 +237,9 @@ func GetCronJobSchedulingEvidence(namespace, name string) *CronJobSchedulingEvid
 	if err != nil {
 		return nil
 	}
-	// Match the namespace scan's history coverage so a capped query cannot
-	// produce a reported detail with no corresponding Issue. Assessment still
-	// matches the exact resource UID before consuming any row.
-	assessment := assessCronJobScheduling([]*batchv1.CronJob{cj}, live, readCronJobSchedulingHistory(namespace), time.Now())
+	now := time.Now()
+	cronjobs := []*batchv1.CronJob{cj}
+	assessment := assessCronJobScheduling(cronjobs, live, readCronJobSchedulingHistory(namespace, cronjobs, live, now), now)
 	evidence, ok := assessment.evidence[cj.UID]
 	if !ok {
 		return nil

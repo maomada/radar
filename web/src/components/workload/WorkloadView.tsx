@@ -101,7 +101,7 @@ import { WorkloadCostTab } from '../cost/WorkloadCostTab'
 import { isOpenCostWorkloadKind } from '../cost/kinds'
 import { isRadarFeatureUnsupported } from '../../api/radarFeatures'
 import { useTrafficAvailable } from '../../api/traffic'
-import { useResourceAudit, useResourceIssues, useSubjectIssues, useTrace, fetchTraceWithProbes, fetchInClusterCapability, runInClusterMerged } from '../../api/client'
+import { useResourceAudit, useResourceIssues, useSubjectIssues, useRadarFeature, useTrace, fetchTraceWithProbes, fetchInClusterCapability, runInClusterMerged } from '../../api/client'
 import { AuditAlerts, getRadarUpgradeRequirement, ResourceIssuesSection, ReachabilityView, TraceSummary, InClusterConsentDialog, traceFingerprint, staticPollUnreliable, summarizeInClusterTests, type Trace as NetworkTrace, type InClusterCapability, inClusterConsentGiven, consentRequestRows } from '@skyhook-io/k8s-ui'
 import { WorkloadLogsViewer } from '../logs/WorkloadLogsViewer'
 import { ScheduledWorkloadLogsViewer } from '../logs/ScheduledWorkloadLogsViewer'
@@ -809,10 +809,12 @@ export function WorkloadView({
   // the renderer banners. The backend canonicalizes a plural kind via discovery,
   // so using the normalized API kind resolves direct links and app navigation alike.
   const isCronJob = apiKind === 'cronjobs' && (!effectiveGroup || effectiveGroup === 'batch')
-  const ordinaryIssues = useResourceIssues(apiKind, rest.group, namespace, name, !isCronJob)
-  const cronJobIssues = useSubjectIssues(isCronJob ? { kind: 'CronJob', group: 'batch', namespace, name, uid: resource?.metadata?.uid } : null, isCronJob && Boolean(resource))
-  const liveIssues = isCronJob ? cronJobIssues.data?.issues : ordinaryIssues.data
-  const issuesPending = isCronJob ? cronJobIssues.isPending : ordinaryIssues.isPending
+  const { support: coverageSupport } = useRadarFeature('resourceIssueCoverage')
+  const useCronJobCoverage = isCronJob && coverageSupport === 'supported'
+  const ordinaryIssues = useResourceIssues(apiKind, rest.group, namespace, name, !useCronJobCoverage)
+  const cronJobIssues = useSubjectIssues(useCronJobCoverage ? { kind: 'CronJob', group: 'batch', namespace, name, uid: resource?.metadata?.uid } : null, useCronJobCoverage && Boolean(resource))
+  const liveIssues = useCronJobCoverage ? cronJobIssues.data?.issues : ordinaryIssues.data
+  const issuesPending = useCronJobCoverage ? cronJobIssues.isPending : ordinaryIssues.isPending
   const schedulingEvidence = cronJobIssues.data?.scheduling_report?.uid === resource?.metadata?.uid ? cronJobIssues.data?.scheduling_report : undefined
   const { data: auditFindings } = useResourceAudit(apiKind, namespace, name, effectiveGroup)
   const hasOperationalIssues = Boolean(liveIssues?.length)

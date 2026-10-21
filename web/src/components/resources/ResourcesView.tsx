@@ -112,7 +112,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
 
   // Track the selected kind from the k8s-ui component
   const [selectedKind, setSelectedKind] = useState<SelectedKindInfo>(null)
-  const { data: issuesData } = useIssues(namespaces, selectedKind?.group === 'batch' && selectedKind?.name === 'cronjobs')
+  const { data: issuesData } = useIssues(namespaces, selectedKind?.group === 'batch' && selectedKind?.name === 'cronjobs', 'CronJob')
   const operationalIssues = useMemo(() => {
     const result: Record<string, Issue> = {}
     for (const issue of issuesData?.issues ?? []) {
@@ -440,6 +440,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
       storeProviders={storeProviders}
       certExpiryError={certExpiryError}
       operationalIssues={operationalIssues}
+      operationalIssuesIncomplete={Boolean(issuesData && (issuesData.total_matched ?? issuesData.total ?? issuesData.issues.length) > issuesData.issues.length)}
       auditBadges={auditBadges}
       // Pinned kinds
       pinned={pinned}

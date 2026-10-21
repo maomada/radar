@@ -29,7 +29,7 @@ func detectCronJobScheduleEvents(cache *ResourceCache, namespace string, cronjob
 	if err != nil {
 		return cronJobSchedulingAssessment{}
 	}
-	history := readCronJobSchedulingHistory(namespace)
+	history := readCronJobSchedulingHistory(namespace, cronjobs, events, now)
 	return assessCronJobScheduling(cronjobs, events, history, now)
 }
 
