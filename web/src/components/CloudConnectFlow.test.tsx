@@ -36,7 +36,6 @@ async function renderPreparing(prepareStep?: CloudInstallStage) {
   })
 }
 
-// Each row reads as done (check), active (spinner) or todo (dot).
 function rows() {
   return Array.from(document.querySelectorAll('li')).map(li => {
     const icon = li.querySelector('svg')

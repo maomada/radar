@@ -220,6 +220,8 @@ describe('Cloud connect preparation progress', () => {
   it.each(['ready', 'failed'] as const)('stays on a flow the poll saw %s when the prepare request itself is lost', async state => {
     const reply = holdPrepare()
     await startConnect()
+    statusBody = { flowId: 'f1', state: 'preparing', prepareStep: 'preflight' }
+    await until(() => expect(document.body.textContent).toContain('Install flow [preparing preflight]'), 3000)
     statusBody = { flowId: 'f1', state }
     await until(() => expect(document.body.textContent).toContain(`Install flow [${state} -]`), 3000)
     await act(async () => { reply.reject(new TypeError('Failed to fetch')) })
@@ -251,9 +253,23 @@ describe('Cloud connect preparation progress', () => {
     expect(toast.showApiError).not.toHaveBeenCalled()
   })
 
+  it('reports a failed attempt even when an older flow arrived in the status cache after the click', async () => {
+    const reply = holdPrepare()
+    await startConnect()
+    // The status fetched as the dialog opened answers late, with a failed
+    // flow from an earlier session that this attempt never saw preparing.
+    statusBody = { flowId: 'f0', state: 'failed' }
+    await until(() => expect(document.body.textContent).toContain('Install flow [failed -]'), 3000)
+    await act(async () => { reply.reject(new TypeError('Failed to fetch')) })
+    await until(() => expect(toast.showApiError).toHaveBeenCalled())
+    expect(button('Try again')).toBeDefined()
+  })
+
   it('ignores a late answer from an earlier attempt once a new one has started', async () => {
     const first = holdPrepare()
     await startConnect()
+    statusBody = { flowId: 'f1', state: 'preparing', prepareStep: 'inspect' }
+    await until(() => expect(document.body.textContent).toContain('Install flow [preparing inspect]'), 3000)
     statusBody = { flowId: 'f1', state: 'ready' }
     await until(() => expect(document.body.textContent).toContain('Install flow [ready -]'), 3000)
     // The person leaves the first plan and connects again while the first
