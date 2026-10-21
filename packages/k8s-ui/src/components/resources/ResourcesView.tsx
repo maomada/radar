@@ -3985,7 +3985,8 @@ export function ResourcesView({
     return [...filteredExtras, ...kindColumns, ...builtCustomColumns]
   }, [selectedKind.name, selectedKind.group, extraLeadingColumns, builtCustomColumns, builtPrinterColumns])
   // The picker and table share one order, including pins that temporarily scroll.
-  const allColumns = useMemo(() => orderResourceColumns(definedColumns, columnOrder, pinnedColumns), [definedColumns, columnOrder, pinnedColumns])
+  const fixedLeadingCount = Math.max(0, definedColumns.findIndex(column => column.key === 'name'))
+  const allColumns = useMemo(() => orderResourceColumns(definedColumns, columnOrder, pinnedColumns, fixedLeadingCount), [definedColumns, columnOrder, pinnedColumns, fixedLeadingCount])
 
   // The offered key set, and a stable signature for it. allColumns is a new
   // identity on every printer-column refetch; depending on the array itself
@@ -4175,12 +4176,14 @@ export function ResourcesView({
       if (!anchor) return
       const width = Math.min(288, window.innerWidth - 24)
       const top = anchor.bottom + 4
-      setColumnPickerPosition({
+      const next = {
         top, left: Math.max(12, Math.min(anchor.right - width, window.innerWidth - width - 12)),
         width, maxHeight: Math.max(100, Math.min(520, window.innerHeight - top - 12)),
-      })
+      }
+      setColumnPickerPosition(previous => previous.top === next.top && previous.left === next.left && previous.width === next.width && previous.maxHeight === next.maxHeight ? previous : next)
     }
     position()
+    columnPickerPanelRef.current?.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled])')?.focus({ preventScroll: true })
     window.addEventListener('resize', position)
     window.addEventListener('scroll', position, true)
     return () => {
@@ -5848,22 +5851,33 @@ export function ResourcesView({
     width: columnWidths[column.key] || getColumnMinWidth(column, extraColumnsByKey),
   })), [visibleTableColumns, columnWidths, extraColumnsByKey, headerFontEpoch])
   const leadingPinWidth = (compareMode ? COMPARE_COLUMN_WIDTH : 0) + (isCheckboxMode ? 40 : 0)
-  const columnPins = useMemo(() => resolveColumnPins(pinWidths, pinnedColumns, tableViewportWidth, leadingPinWidth),
-    [pinWidths, pinnedColumns, tableViewportWidth, leadingPinWidth])
+  const effectivePinnedColumns = useMemo(() => {
+    if (!pinnedColumns.length) return []
+    const visible = new Set(visibleTableColumns.map(column => column.key))
+    const context = allColumns.slice(0, fixedLeadingCount).map(column => column.key)
+    return [...new Set([...context, ...pinnedColumns])].filter(key => visible.has(key))
+  }, [allColumns, fixedLeadingCount, pinnedColumns, visibleTableColumns])
+  const columnPins = useMemo(() => resolveColumnPins(pinWidths, effectivePinnedColumns, tableViewportWidth, leadingPinWidth),
+    [pinWidths, effectivePinnedColumns, tableViewportWidth, leadingPinWidth])
+  const activePinnedColumns = useMemo(() => effectivePinnedColumns.slice(0, columnPins.offsets.size), [effectivePinnedColumns, columnPins.offsets.size])
   const columns = visibleTableColumns
   // Keep requested pins at fixed widths even while their stickiness is paused.
   const namePinned = pinnedColumns.includes('name')
   const pinStyles = useMemo(() => {
     const styles = new Map<string, React.CSSProperties>()
-    const last = Array.from(columnPins.offsets.keys()).at(-1)
-    for (const [key, left] of columnPins.offsets) styles.set(key, {
-      position: 'sticky', left, zIndex: 1,
-      boxShadow: key === last ? '2px 0 0 var(--border-default)' : undefined,
-    })
+    const widths = new Map(pinWidths.map(column => [column.key, column.width]))
+    let left = leadingPinWidth
+    const last = activePinnedColumns.at(-1)
+    for (const key of activePinnedColumns) {
+      const width = widths.get(key)
+      if (width === undefined) continue
+      styles.set(key, { position: 'sticky', left, zIndex: 1, boxShadow: key === last ? '2px 0 0 var(--border-default)' : undefined })
+      left += width
+    }
     return styles
-  }, [columnPins.offsets])
+  }, [activePinnedColumns, pinWidths, leadingPinWidth])
   const toggleColumnPin = (key: string) => {
-    const next = toggleResourceColumnPin(allColumns, pinnedColumns, key)
+    const next = toggleResourceColumnPin(allColumns, pinnedColumns, key, fixedLeadingCount)
     setColumnOrder(next.order)
     setPinnedColumns(next.pinned)
   }
@@ -6412,7 +6426,7 @@ export function ResourcesView({
             </button>
             </Tooltip>
             {showColumnPicker && createPortal(
-              <div ref={columnPickerPanelRef} role="region" aria-label="Columns" style={columnPickerPosition} className="fixed z-50 bg-theme-surface border border-theme-border rounded-lg shadow-lg py-1 flex flex-col">
+              <div ref={columnPickerPanelRef} role="region" aria-label="Columns" style={columnPickerPosition} className="fixed z-50 bg-theme-surface border border-theme-border rounded-lg shadow-theme-lg py-1 flex flex-col">
                 <div className="shrink-0 px-3 py-2 border-b border-theme-border flex items-center justify-between">
                   <span className="text-xs font-medium text-theme-text-secondary uppercase">Columns</span>
                   <button
@@ -6437,7 +6451,8 @@ export function ResourcesView({
                   onToggle={toggleColumnVisibility}
                   onRemoveCustom={removeCustomColumn}
                   onReorder={reorderColumns}
-                  pinning={{ pinned: pinnedColumns, paused: columnPins.paused, onToggle: toggleColumnPin }}
+                  fixedLeadingCount={fixedLeadingCount}
+                  pinning={{ pinned: effectivePinnedColumns, paused: columnPins.paused, onToggle: toggleColumnPin }}
                 />
                 </div>
                 {/* Add a label/annotation column */}
@@ -6763,7 +6778,7 @@ export function ResourcesView({
                       <th
                         key={col.key}
                         data-column-key={col.key}
-                        style={pinStyles.has(col.key) ? { ...pinStyles.get(col.key), zIndex: isFilterOpen ? 50 : 6 } : undefined}
+                        style={{ ...pinStyles.get(col.key), zIndex: isFilterOpen ? 50 : pinStyles.has(col.key) ? 6 : 1 }}
                         className={clsx(
                           'text-left px-4 py-3 text-xs font-medium uppercase tracking-wide relative group/th',
                           'bg-theme-base border-b border-theme-border',
