@@ -20,13 +20,14 @@ afterEach(async () => {
   document.body.replaceChildren()
 })
 
-async function renderPreparing(prepareStep?: CloudInstallStage) {
+async function renderPreparing(prepareStep?: CloudInstallStage, context?: string) {
   await act(async () => {
     root.render(
       <QueryClientProvider client={new QueryClient()}>
         <CloudConnectFlow
           status={{ state: 'preparing', prepareStep }}
           blocked={null}
+          where={{ context }}
           exit={{ href: 'https://cloud.example', label: 'Continue in Radar Cloud', install: false }}
           onStatus={() => {}}
           onExit={() => {}}
@@ -59,5 +60,12 @@ describe('Cloud connect preparation steps', () => {
     ])
     expect(document.body.textContent).toContain('Checking this cluster')
     expect(document.body.textContent).toContain('Nothing is installed in this step.')
+  })
+
+  it('names the cluster from its kubeconfig context, keeping the full name on hover', async () => {
+    await renderPreparing('inspect', 'gke_my-project_us-east1_prod-eu')
+    const title = document.querySelector('h4')!
+    expect(title.textContent).toBe('Checking prod-eu')
+    expect(title.getAttribute('title')).toBe('gke_my-project_us-east1_prod-eu')
   })
 })

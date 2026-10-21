@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { AlertTriangle, ArrowUpRight, Check, Copy, ExternalLink, GitBranch, Info, Loader2, ShieldAlert, X } from 'lucide-react'
 import { type AdminNoteContext, type BlockedExit, composeAdminNote, composeFailureNote, needsAdminHandoff, trimRefusal } from './cloudConnectHandoff'
 import { copyText } from '@skyhook-io/k8s-ui/utils/clipboard'
+import { parseContextName } from '@skyhook-io/k8s-ui/utils/context-name'
 import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
 import { Tooltip } from './ui/Tooltip'
 import {
@@ -44,7 +45,7 @@ export function CloudConnectFlow({
 
   switch (status.state) {
     case 'preparing':
-      return <PreparingCard step={status.prepareStep} />
+      return <PreparingCard step={status.prepareStep} context={where?.context} />
     case 'ready':
       return <PlanCard status={status} onStatus={onStatus} onExit={onExit} />
     case 'starting':
@@ -721,11 +722,13 @@ const PREPARE_STEPS: Array<{ stage: CloudInstallStage; label: string }> = [
 
 // Before the first status poll answers (or from a server that does not
 // report steps) the first check is the one shown as running.
-export function PreparingCard({ step }: { step?: CloudInstallStage }) {
+export function PreparingCard({ step, context }: { step?: CloudInstallStage; context?: string }) {
   const current = Math.max(0, PREPARE_STEPS.findIndex((s) => s.stage === step))
   return (
     <div className="px-8 pt-6 pb-5">
-      <h4 className="text-[15px] font-semibold text-theme-text-primary mb-3.5">Checking this cluster</h4>
+      <h4 className="text-[15px] font-semibold text-theme-text-primary mb-3.5 break-words" title={context}>
+        Checking {context ? parseContextName(context).clusterName : 'this cluster'}
+      </h4>
       <StepList
         steps={PREPARE_STEPS.map((s, i) => ({
           label: s.label,
