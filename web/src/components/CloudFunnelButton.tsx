@@ -180,9 +180,10 @@ export function CloudFunnelButton() {
     flowStatus.invalidate()
   }
 
-  const prepare = useMutation({
+  // The variable is the attempt id, read back in the callbacks.
+  const prepare = useMutation<CloudInstallStatus, Error, number>({
     mutationKey: PREPARE_MUTATION_KEY,
-    mutationFn: (_attempt: number) => prepareCloudInstall(),
+    mutationFn: () => prepareCloudInstall(),
     onSuccess: (st, attempt) => {
       if (attempt !== attemptRef.current.id) return
       if (st.state === 'blocked' && st.blocked) setBlocked(st.blocked)
@@ -276,9 +277,7 @@ export function CloudFunnelButton() {
   }
 
   const observedStep = prepare.isPending && flow?.state === 'preparing' ? flow.prepareStep : undefined
-  useEffect(() => {
-    if (observedStep) setLastPrepareStep(observedStep)
-  }, [observedStep])
+  if (observedStep && observedStep !== lastPrepareStep) setLastPrepareStep(observedStep)
 
   useEffect(() => {
     window.addEventListener(OPEN_EVENT, openModal)
