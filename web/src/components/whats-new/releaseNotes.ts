@@ -53,10 +53,10 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
       {
         id: 'trivy-cve-search',
         icon: Search,
-        title: 'Search your cluster by CVE',
-        description: 'Search Trivy Operator reports by CVE, package, check ID or image. Results name the scanned object and its workload, including older rollouts.',
-        leadDescription: 'With Trivy Operator installed, search Radar by CVE, package, failed check ID or image to find matching scan reports. Results name the scanned object and its workload, with installed and fixed package versions for vulnerabilities. Older rollout scans are identified so you can distinguish them from what is running now.',
-        importance: 5,
+        title: 'Investigate CVEs across your cluster',
+        description: 'Search Trivy findings by CVE, package or image. MCP agents can also inventory declared runtime versions that package scans may miss.',
+        leadDescription: 'With Trivy Operator installed, search by CVE, package, failed check ID or image to find affected workloads, installed and fixed package versions, and scans from older rollouts. MCP agents can also inventory runtime versions declared by running images and compare supported versions with a fixed release, covering runtimes that package scans may miss. Missing or unreadable declarations stay unknown; image metadata does not verify a fix.',
+        importance: 8,
       },
       {
         id: 'mcp-guidance-waits-controls',
