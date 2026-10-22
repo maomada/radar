@@ -51,21 +51,21 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
     version: 'v1.18.0',
     highlights: [
       {
-        id: 'workload-rejection-evidence',
-        icon: Network,
-        title: 'Clearer explanations for workload failures',
-        description: 'Issues flag deny-all NetworkPolicies affecting Services and link the quota, LimitRange or webhook that rejected a workload’s Pods.',
-        leadDescription: 'Issues flag deny-all NetworkPolicies affecting Services and link the quota, LimitRange or webhook that rejected a workload’s Pods. Investigations also show where Pods differ from their templates during admission and which Pods likely still hold an earlier Secret or ConfigMap env value.',
-        importance: 5,
-        path: '/issues',
-        cta: 'Open Issues',
-      },
-      {
         id: 'trivy-cve-search',
         icon: Search,
         title: 'Search your cluster by CVE',
         description: 'Search Trivy Operator reports by CVE, package, check ID or image. Results name the scanned object and its workload, including older rollouts.',
+        leadDescription: 'With Trivy Operator installed, search Radar by CVE, package, failed check ID or image to find matching scan reports. Results name the scanned object and its workload, with installed and fixed package versions for vulnerabilities. Older rollout scans are identified so you can distinguish them from what is running now.',
         importance: 5,
+      },
+      {
+        id: 'workload-rejection-evidence',
+        icon: Network,
+        title: 'Clearer explanations for workload failures',
+        description: 'Issues flag deny-all NetworkPolicies affecting Services and link the quota, LimitRange or webhook that rejected a workload’s Pods.',
+        importance: 5,
+        path: '/issues',
+        cta: 'Open Issues',
       },
       {
         id: 'resource-column-order',
