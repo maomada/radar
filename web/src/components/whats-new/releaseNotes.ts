@@ -59,6 +59,13 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
         importance: 5,
       },
       {
+        id: 'mcp-guidance-waits-controls',
+        icon: Bot,
+        title: 'More capable agents through MCP',
+        description: 'MCP agents get built-in tool guidance and can wait for rollouts, readiness or deletion. An optional read-only mode exposes only read tools.',
+        importance: 5,
+      },
+      {
         id: 'workload-rejection-evidence',
         icon: Network,
         title: 'Clearer explanations for workload failures',
@@ -80,8 +87,8 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
     improvements: [
       'Logs keep your reading position and pause for text selection',
       'Open terminals and browse files in native sidecars',
-      'MCP agents can wait for rollouts, readiness and deletion',
-      'Expose only read tools with --mcp-read-only',
+      'Change diffs cover rollout strategies and more spec edits',
+      'Issues surface CronJob controller warnings',
       'Issues name incomplete checks and let you retry them',
       'Node drains keep results visible and name remaining Pods',
       'Helm upgrades require an explicit chart source',
