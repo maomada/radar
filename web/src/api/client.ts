@@ -853,6 +853,7 @@ export function useResourceIssues(
 // the caller's RBAC withheld. Polls like the page list.
 export interface CronJobSchedulingEvidence {
   uid: string;
+  event_id?: string;
   state: 'reported' | 'configuration_changed' | 'history_incomplete';
   reason: string;
   message: string;
