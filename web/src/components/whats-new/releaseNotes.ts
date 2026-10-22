@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Bot, Database, GitCompareArrows, HardDrive, Hourglass, KeyRound, Layers, Network, RefreshCcw, Scale, ScrollText, Search, SlidersHorizontal, Undo2 } from 'lucide-react'
+import { Bot, Database, GitCompareArrows, HardDrive, Hourglass, Layers, Network, RefreshCcw, Scale, ScrollText, Search, SlidersHorizontal, Undo2 } from 'lucide-react'
 import { compareVersions } from '../../utils/version'
 
 export interface ReleaseHighlight {
@@ -51,46 +51,30 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
     version: 'v1.18.0',
     highlights: [
       {
-        id: 'stale-env-evidence',
-        icon: KeyRound,
-        title: 'Find Pods still using an old Secret',
-        description: 'After a Secret or ConfigMap changes, investigations show which Pods likely still hold the earlier env value, with links to their workloads.',
-        leadDescription: 'Rotating a Secret does not update env vars in running containers. Radar now names the Pods likely still using the earlier value and the workloads behind them. Investigation evidence shows changed key names, references and repeated rotations together. Secret values stay out of the change feed.',
-        importance: 7,
+        id: 'workload-rejection-evidence',
+        icon: Network,
+        title: 'Clearer explanations for workload failures',
+        description: 'Issues flag deny-all NetworkPolicies affecting Services and link the quota, LimitRange or webhook that rejected a workload’s Pods.',
+        leadDescription: 'Issues flag deny-all NetworkPolicies affecting Services and link the quota, LimitRange or webhook that rejected a workload’s Pods. Investigations also show where Pods differ from their templates during admission and which Pods likely still hold an earlier Secret or ConfigMap env value.',
+        importance: 5,
+        path: '/issues',
+        cta: 'Open Issues',
       },
       {
         id: 'trivy-cve-search',
         icon: Search,
         title: 'Search your cluster by CVE',
         description: 'Search Trivy Operator reports by CVE, package, check ID or image. Results name the scanned object and its workload, including older rollouts.',
-        importance: 7,
-      },
-      {
-        id: 'workload-rejection-evidence',
-        icon: Network,
-        title: 'See what is blocking your workloads',
-        description: 'Issues flag deny-all NetworkPolicies affecting Services and link the quota, LimitRange or webhook that rejected a workload’s Pods.',
-        importance: 6,
-        path: '/issues',
-        cta: 'Open Issues',
+        importance: 5,
       },
       {
         id: 'resource-column-order',
         icon: SlidersHorizontal,
         title: 'Put resource columns in your order',
         description: 'Drag columns in the Columns picker or move them with the keyboard. Each resource type remembers its own order, including hidden columns.',
-        importance: 5,
+        importance: 4,
         path: '/resources/pods',
         cta: 'Open Pods',
-      },
-      {
-        id: 'node-drain-outcomes',
-        icon: Hourglass,
-        title: 'Follow a drain through to its outcome',
-        description: 'Node drains show elapsed progress and keep their results visible. See which Pods remain, which were skipped and when removal could not be confirmed.',
-        importance: 5,
-        path: '/resources/nodes',
-        cta: 'Open Nodes',
       },
     ],
     improvements: [
@@ -99,9 +83,9 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
       'MCP agents can wait for rollouts, readiness and deletion',
       'Expose only read tools with --mcp-read-only',
       'Issues name incomplete checks and let you retry them',
-      'Investigations show Pod changes made during admission',
+      'Node drains keep results visible and name remaining Pods',
       'Helm upgrades require an explicit chart source',
-      'Prometheus reconnects automatically when it appears',
+      'Investigations name Pods likely using old Secret env values',
     ],
   },
   {
