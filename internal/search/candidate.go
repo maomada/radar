@@ -60,10 +60,11 @@ func identityFromUnstructured(u *unstructured.Unstructured, kind, group string) 
 }
 
 // addUnstructuredContent fills Content, which only free tokens read.
-func addUnstructuredContent(c *candidate, u *unstructured.Unstructured) {
+func addUnstructuredContent(c *candidate, u *unstructured.Unstructured, findings *findingsScan) {
 	c.Content = contentFromUnstructured(u, c.Kind)
-	if c.Group == trivyGroup {
-		c.Content = append(c.Content, trivyReportContent(asMap(u.Object["report"]))...)
+	if c.Group == trivyGroup && findings.allow() {
+		c.report = asMap(u.Object["report"])
+		c.findings = findings
 	}
 }
 

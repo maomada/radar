@@ -37,6 +37,10 @@ type candidate struct {
 	Annotations map[string]string
 	Images      []string
 	Content     []ContentField
+	// report is a Trivy Operator report's findings, matched in place by
+	// scoreToken rather than copied into Content, within findings' limits.
+	report   map[string]any
+	findings *findingsScan
 }
 
 // ContentField is a searchable string extracted from object content, such as
@@ -184,6 +188,19 @@ func scoreToken(tok string, c candidate) (int, string, *MatchSnippet, bool) {
 				Snippet: snippetForToken(cf.Value, tok),
 			})
 		}
+	}
+	if c.report != nil {
+		eachTrivyFinding(c.report, c.findings, func(f *trivyFinding) bool {
+			if score := f.match(low); score > best {
+				value := f.value()
+				considerSnippet(score, "content:"+f.path(), MatchSnippet{
+					Token:   tok,
+					Path:    f.path(),
+					Snippet: snippetForToken(value, tok),
+				})
+			}
+			return best < scoreContentExact
+		})
 	}
 	if c.Kind != "" {
 		kindLow := strings.ToLower(c.Kind)

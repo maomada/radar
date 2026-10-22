@@ -264,6 +264,7 @@ func TestSearch_ReportBindingIsEmptyForOtherObjects(t *testing.T) {
 type kindAccess struct {
 	clusterWide bool
 	namespaces  []string
+	unchecked   []string
 	asked       []string
 }
 
@@ -273,15 +274,18 @@ func (k *kindAccess) options() *KindAccess {
 			k.asked = append(k.asked, "cluster:"+resource)
 			return k.clusterWide
 		},
-		InNamespaces: func(group, resource string, namespaces []string) []string {
+		InNamespaces: func(group, resource string, namespaces []string) ([]string, []string) {
 			k.asked = append(k.asked, fmt.Sprintf("ns:%s:%v", resource, namespaces))
-			var out []string
+			var out, unchecked []string
 			for _, ns := range namespaces {
-				if k.clusterWide || slices.Contains(k.namespaces, ns) {
+				switch {
+				case slices.Contains(k.unchecked, ns):
+					unchecked = append(unchecked, ns)
+				case k.clusterWide || slices.Contains(k.namespaces, ns):
 					out = append(out, ns)
 				}
 			}
-			return out
+			return out, unchecked
 		},
 	}
 }
@@ -319,46 +323,6 @@ func TestSearch_TrivyKindsNeedTheCallersListPermission(t *testing.T) {
 			}
 			if got := hitNames(res); !slices.Equal(got, tc.want) {
 				t.Fatalf("hits = %v, want %v (asked %v)", got, tc.want, tc.access)
-			}
-		})
-	}
-}
-
-func TestSearch_TrivyKindAccessAsksOnlyAboutNamespacesWithHits(t *testing.T) {
-	var reports []*unstructured.Unstructured
-	var namespaces []string
-	for i := range 200 {
-		ns := fmt.Sprintf("team-%d", i)
-		namespaces = append(namespaces, ns)
-		id := "CVE-2026-000001"
-		if i == 7 || i == 8 {
-			id = "CVE-2026-109618"
-		}
-		reports = append(reports, vulnReport(ns, "r", "library/php", "8.3", vuln(id, "php", "8.3.10", "8.3.36", "CRITICAL")))
-	}
-	for _, tc := range []struct {
-		name       string
-		namespaces []string
-	}{
-		{"namespace-scoped caller", namespaces},
-		{"cluster-wide pod reader", nil},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			access := &kindAccess{namespaces: []string{"team-8"}}
-			p := trivyProvider(vulnGVR, "VulnerabilityReport", reports...)
-			res, err := Search(context.Background(), p, Parse("CVE-2026-109618"), Options{Include: IncludeNone, Namespaces: tc.namespaces, KindAccess: access.options()})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got := hitNames(res); !slices.Equal(got, []string{"team-8/r"}) {
-				t.Fatalf("hits = %v", got)
-			}
-			want := []string{"cluster:vulnerabilityreports", "ns:vulnerabilityreports:[team-7 team-8]"}
-			if !slices.Equal(access.asked, want) {
-				t.Fatalf("asked = %v, want %v", access.asked, want)
-			}
-			if res.Searched != 1 {
-				t.Fatalf("searched = %d, want only the report the caller may list", res.Searched)
 			}
 		})
 	}

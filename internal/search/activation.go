@@ -46,14 +46,20 @@ func objectActivation(obj runtime.Object, kind string) (map[string]any, error) {
 // A Trivy report binds `report` to trivyReportProjection, and its raw report
 // is left out of the deep copy: it can hold thousands of entries the
 // projection drops anyway, and the projection is already a fresh copy.
-func unstructuredActivation(u *unstructured.Unstructured, kind, group string) map[string]any {
+// complete is false when the findings limit kept the report from being
+// projected: the object can't be evaluated, and an empty report must not
+// stand in for it.
+func unstructuredActivation(u *unstructured.Unstructured, kind, group string, findings *findingsScan) (act map[string]any, complete bool) {
 	if u == nil || u.Object == nil {
-		return nil
+		return nil, true
 	}
 	if group != trivyGroup {
 		m := u.DeepCopy().Object
 		normalizeNumbers(m)
-		return assembleActivation(m, kind)
+		return assembleActivation(m, kind), true
+	}
+	if !findings.allow() {
+		return nil, false
 	}
 	rest := make(map[string]any, len(u.Object))
 	for k, v := range u.Object {
@@ -64,8 +70,12 @@ func unstructuredActivation(u *unstructured.Unstructured, kind, group string) ma
 	m := runtime.DeepCopyJSON(rest)
 	normalizeNumbers(m)
 	out := assembleActivation(m, kind)
-	out["report"] = normalizeNumbers(trivyReportProjection(asMap(u.Object["report"])))
-	return out
+	projection, ok := trivyReportProjection(asMap(u.Object["report"]), findings)
+	if !ok {
+		return nil, false
+	}
+	out["report"] = normalizeNumbers(projection)
+	return out, true
 }
 
 // normalizeNumbers walks v and converts every whole-number float64 to

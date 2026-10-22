@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contentMatchLabel } from './omnibar-match'
+import { contentMatchLabel, partialSearchNotice } from './omnibar-match'
 
 const site = (s: string) => ({ token: 't', site: s, score: 12 })
 
@@ -15,5 +15,16 @@ describe('contentMatchLabel', () => {
     expect(contentMatchLabel([site('content:report.vulnerabilities[0]'), site('name')])).toBe('')
     expect(contentMatchLabel([])).toBe('')
     expect(contentMatchLabel(undefined)).toBe('')
+  })
+})
+
+describe('partialSearchNotice', () => {
+  it('flags partly searched findings and unchecked namespaces', () => {
+    expect(partialSearchNotice({ incomplete_findings: 'time_limit' })).toMatch(/not fully searched/)
+    expect(partialSearchNotice({ access_incomplete: true })).toMatch(/not fully searched/)
+  })
+  it('is null for a whole result or an older Radar', () => {
+    expect(partialSearchNotice({})).toBeNull()
+    expect(partialSearchNotice(undefined)).toBeNull()
   })
 })
