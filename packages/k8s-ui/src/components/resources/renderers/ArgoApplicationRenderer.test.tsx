@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderToString } from 'react-dom/server'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { ArgoApplicationRenderer } from './ArgoApplicationRenderer'
 
 // SSR splits interpolated text with <!-- --> markers; strip so assertions read as prose.
@@ -52,5 +52,17 @@ describe('ArgoApplicationRenderer managed resources', () => {
     const html = render(<ArgoApplicationRenderer data={{ ...data, status: { ...data.status, resources: [{ kind: 'Service', name: 'guestbook-ui', namespace: 'guestbook', status: 'Synced' }] } }} />)
     expect(html).toContain('Managed Resources (1)')
     expect(html).not.toContain('(1) (1)')
+  })
+})
+
+describe('Argo Helm value files', () => {
+  it.each([true, false, undefined])('shows missing-file behavior for single and multiple sources: %s', optional => {
+    const source = { chart: 'cluster', repoURL: 'https://cloudnative-pg.github.io/charts', helm: { valueFiles: ['values.yaml', 'overrides.yaml'], ignoreMissingValueFiles: optional } }
+    for (const spec of [{ source }, { sources: [source] }]) {
+      const html = renderToStaticMarkup(<ArgoApplicationRenderer data={{ metadata: { name: 'app' }, spec }} />)
+      expect(html).toContain('values.yaml, overrides.yaml')
+      expect(html).toContain('If a Value File Is Missing')
+      expect(html).toContain(optional ? 'Skipped' : 'Render fails')
+    }
   })
 })
