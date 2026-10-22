@@ -263,7 +263,7 @@ export function releaseNotesFor(
 ): ReleaseNotes | undefined {
   if (!version) return undefined
   const normalized = version.startsWith('v') ? version : `v${version}`
-  return catalog.find(notes => notes.version === normalized)
+  return catalog.find(notes => notes.version === normalized || releaseLine(notes.version) === normalized)
 }
 
 /** The release line a catalog entry covers, e.g. v1.15 for v1.15.0: its patches show the same notes. */
