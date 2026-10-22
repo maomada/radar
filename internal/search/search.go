@@ -300,12 +300,6 @@ func Search(ctx context.Context, p Provider, q Query, opts Options) (Result, err
 		// always list at cluster scope after the SAR predicate above.
 		listNs := opts.Namespaces
 		gated := !clusterScoped && opts.KindAccess != nil && kindRBACGroups[gvr.Group]
-		if gated && listNs != nil {
-			listNs = opts.KindAccess.InNamespaces(gvr.Group, gvr.Resource, listNs)
-			if len(listNs) == 0 {
-				continue
-			}
-		}
 		var items []*unstructured.Unstructured
 		if clusterScoped || len(listNs) == 0 {
 			its, err := p.ListDynamic(ctx, gvr, "")
@@ -314,11 +308,6 @@ func Search(ctx context.Context, p Provider, q Query, opts Options) (Result, err
 				continue
 			}
 			items = its
-			// A caller who may list Pods everywhere may still lack this kind
-			// cluster-wide; ask only about the namespaces that hold objects.
-			if gated && len(items) > 0 && !opts.KindAccess.ClusterWide(gvr.Group, gvr.Resource) {
-				items = itemsInNamespaces(items, opts.KindAccess.InNamespaces(gvr.Group, gvr.Resource, namespacesOf(items)))
-			}
 		} else {
 			var unreadable []string
 			for _, ns := range listNs {
@@ -332,6 +321,15 @@ func Search(ctx context.Context, p Provider, q Query, opts Options) (Result, err
 			if len(unreadable) > 0 {
 				coverage.add(UnsearchedKind{Kind: kind, Group: gvr.Group, Reason: UnsearchedUnreadable, Namespaces: unreadable})
 			}
+		}
+		// A gated kind is authorized per namespace, but only in the
+		// namespaces where the query matched: each namespace costs a
+		// SubjectAccessReview, and a namespace-scoped caller can see hundreds.
+		// Objects the caller may not list are dropped before they are
+		// counted, filtered or returned.
+		if gated && len(items) > 0 && !opts.KindAccess.ClusterWide(gvr.Group, gvr.Resource) {
+			hits := matchingItems(q, items, kind, gvr.Group, gvr.Resource)
+			items = itemsInNamespaces(items, opts.KindAccess.InNamespaces(gvr.Group, gvr.Resource, namespacesOf(hits)))
 		}
 		res.Searched += len(items)
 		for _, u := range items {
@@ -575,6 +573,26 @@ func buildHit(score int, matched []MatchedField, snippets []MatchSnippet, c cand
 		}
 	}
 	return h
+}
+
+// matchingItems returns the objects the query's modifiers and tokens match,
+// before any CEL filter.
+func matchingItems(q Query, items []*unstructured.Unstructured, kind, group, resource string) []*unstructured.Unstructured {
+	var out []*unstructured.Unstructured
+	for _, u := range items {
+		c := identityFromUnstructured(u, kind, group)
+		c.Resource = resource
+		if !matchesModifiers(q, c) {
+			continue
+		}
+		if len(q.Tokens) > 0 {
+			addUnstructuredContent(&c, u)
+		}
+		if _, _, _, ok := match(q, c); ok {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 func namespacesOf(items []*unstructured.Unstructured) []string {
