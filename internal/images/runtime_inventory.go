@@ -656,8 +656,8 @@ func collectWork(src PodSource) []*work {
 }
 
 // runningContainers are the containers that can run alongside the workload:
-// regular containers, restartable (sidecar) init containers and ephemeral
-// debug containers. One-shot init containers have finished.
+// regular containers, restartable (sidecar) init containers and running
+// ephemeral debug containers. One-shot init containers have finished.
 func runningContainers(pod *corev1.Pod) []corev1.Container {
 	out := slices.Clone(pod.Spec.Containers)
 	for _, c := range pod.Spec.InitContainers {
@@ -665,8 +665,16 @@ func runningContainers(pod *corev1.Pod) []corev1.Container {
 			out = append(out, c)
 		}
 	}
+	// Ephemeral containers can't restart, so one that exited stays exited:
+	// only a running one counts.
+	running := map[string]bool{}
+	for _, s := range pod.Status.EphemeralContainerStatuses {
+		running[s.Name] = s.State.Running != nil
+	}
 	for _, c := range pod.Spec.EphemeralContainers {
-		out = append(out, corev1.Container{Name: c.Name, Image: c.Image})
+		if running[c.Name] {
+			out = append(out, corev1.Container{Name: c.Name, Image: c.Image})
+		}
 	}
 	return out
 }

@@ -806,9 +806,64 @@ func TestInventory_ManySecretsStillTryAnonymously(t *testing.T) {
 func TestInventory_IncludesEphemeralContainers(t *testing.T) {
 	f := &fakeLookup{configs: map[string]*v1.ConfigFile{}}
 	pod := runningPod("shop", "web-1", "x86-node", "web", map[string][2]string{"php": {"php:8.3", ""}})
-	pod.Spec.EphemeralContainers = []corev1.EphemeralContainer{{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Name: "debug", Image: "busybox:1.36"}}}
-	got := fakeInventory(f).Inventory(context.Background(), podSourceWithoutSecrets(pod), InventoryOptions{})
-	if got.Totals.Images != 2 {
-		t.Fatalf("images = %+v", got.Images)
+	pod.Spec.EphemeralContainers = []corev1.EphemeralContainer{
+		{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Name: "debug", Image: "busybox:1.36"}},
+		{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Name: "old-debug", Image: "php:8.1"}},
 	}
+	pod.Status.EphemeralContainerStatuses = []corev1.ContainerStatus{
+		{Name: "debug", State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+		{Name: "old-debug", State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{}}},
+	}
+	got := fakeInventory(f).Inventory(context.Background(), podSourceWithoutSecrets(pod), InventoryOptions{})
+	var images []string
+	for _, img := range got.Images {
+		images = append(images, img.Image)
+	}
+	if got.Totals.Images != 2 || strings.Contains(strings.Join(images, ","), "php:8.1") {
+		t.Fatalf("a running debug container counts, an exited one doesn't: %v", images)
+	}
+}
+
+func TestConnectVia_GivesUpOnASilentProxy(t *testing.T) {
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer ln.Close()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close() // accept, never answer
+		}
+	}()
+	proxyURL, _ := url.Parse("http://" + ln.Addr().String())
+	g := newGuardedTransport(false)
+	g.connectTimeout = 100 * time.Millisecond
+	start := time.Now()
+	if _, err := g.connectVia(context.WithoutCancel(context.Background()), proxyURL, "203.0.113.7:443"); err == nil || time.Since(start) > 5*time.Second {
+		t.Fatalf("err %v after %v", err, time.Since(start))
+	}
+}
+
+func TestConnectVia_IgnoresFramingOnASuccessfulTunnel(t *testing.T) {
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		_, _ = http.ReadRequest(bufio.NewReader(c))
+		_, _ = io.WriteString(c, "HTTP/1.1 200 Connection established\r\nTransfer-Encoding: chunked\r\n\r\n")
+		time.Sleep(2 * time.Second) // waiting for the client's TLS hello
+	}()
+	proxyURL, _ := url.Parse("http://" + ln.Addr().String())
+	g := newGuardedTransport(false)
+	start := time.Now()
+	conn, err := g.connectVia(context.Background(), proxyURL, "203.0.113.7:443")
+	if err != nil || time.Since(start) > time.Second {
+		t.Fatalf("a 200 tunnel must be usable at once: err %v after %v", err, time.Since(start))
+	}
+	conn.Close()
 }

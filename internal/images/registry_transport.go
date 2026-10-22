@@ -68,10 +68,11 @@ func isNamed(ctx context.Context, host, port string) bool {
 // proxy) is refused in-cluster and left to the proxy locally, where the proxy
 // is the user's own.
 type guardedTransport struct {
-	inCluster bool
-	proxy     func(*http.Request) (*url.URL, error)
-	resolver  *net.Resolver
-	dialer    *net.Dialer
+	inCluster      bool
+	proxy          func(*http.Request) (*url.URL, error)
+	resolver       *net.Resolver
+	dialer         *net.Dialer
+	connectTimeout time.Duration
 	// pinned never uses a proxy on its own; its dialer tunnels through one
 	// when the request carries a pinned proxy route.
 	pinned *http.Transport
@@ -102,6 +103,8 @@ func newGuardedTransportWith(inCluster bool, proxy func(*http.Request) (*url.URL
 		proxy:     proxy,
 		resolver:  resolver,
 		dialer:    &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second},
+		// The CONNECT handshake: request and response headers only.
+		connectTimeout: 10 * time.Second,
 	}
 	newTransport := func() *http.Transport {
 		return &http.Transport{
@@ -220,9 +223,10 @@ func (g *guardedTransport) connectVia(ctx context.Context, proxyURL *url.URL, ta
 	if err != nil {
 		return nil, err
 	}
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = conn.SetDeadline(deadline)
-	}
+	// http.Transport dials without the request's deadline, so the handshake
+	// gets its own: a proxy that accepts and never answers must not hold the
+	// connection (and this goroutine) forever.
+	_ = conn.SetDeadline(time.Now().Add(g.connectTimeout))
 	req := "CONNECT " + target + " HTTP/1.1\r\nHost: " + target + "\r\n"
 	if u := proxyURL.User; u != nil {
 		pass, _ := u.Password()
@@ -233,12 +237,13 @@ func (g *guardedTransport) connectVia(ctx context.Context, proxyURL *url.URL, ta
 		return nil, err
 	}
 	br := bufio.NewReader(conn)
+	// The body of a CONNECT response is never read: after a 200 the bytes
+	// belong to the tunnel, whatever framing headers the proxy sent.
 	resp, err := http.ReadResponse(br, &http.Request{Method: http.MethodConnect})
 	if err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
-	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		_ = conn.Close()
 		return nil, fmt.Errorf("proxy refused the tunnel: %s", resp.Status)
