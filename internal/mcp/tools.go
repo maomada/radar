@@ -341,6 +341,20 @@ func registerTools(server *mcp.Server, includeWrites bool, paramRegistry *toolPa
 		Annotations: readOnly,
 	}, logToolCall("get_cluster_upgrade_readiness", handleGetUpgradeReadiness))
 
+	// --- Runtime versions of running images (read-only) ---
+
+	addToolWithRegistry(paramRegistry, server, &mcp.Tool{
+		Name: "get_runtime_versions",
+		Description: "Which running workloads use which runtime version, for runtime CVEs " +
+			"(PHP, Node, Python, Go, Java, …). Reads the version each running image declares in its " +
+			"config (PHP_VERSION etc., set by Docker official images and inherited by images built " +
+			"FROM them) for the digest the Pod runs: manifest and config only. Declared, not proof; " +
+			"misses runtimes installed from distro packages, so also search Trivy reports for the " +
+			"CVE. Pass runtime and fixed_in to rank images below their branch's fix. A status " +
+			"other than ok means unknown, not absent.",
+		Annotations: readOnly,
+	}, logToolCall("get_runtime_versions", handleGetRuntimeVersions))
+
 	// --- Helm tools (read-only) ---
 
 	addToolWithRegistry(paramRegistry, server, &mcp.Tool{

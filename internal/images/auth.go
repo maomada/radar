@@ -365,3 +365,17 @@ func entryToAuthenticator(entry DockerConfigEntry) authn.Authenticator {
 
 	return authn.Anonymous
 }
+
+// pullSecretIdentity names a pull secret's exact contents: its UID and
+// resourceVersion change when it is recreated or rotated.
+func pullSecretIdentity(namespace, name string) (string, bool) {
+	cache := k8s.GetResourceCache()
+	if cache == nil || cache.Secrets() == nil {
+		return "", false
+	}
+	secret, err := cache.Secrets().Secrets(namespace).Get(name)
+	if err != nil {
+		return "", false
+	}
+	return string(secret.UID) + "/" + secret.ResourceVersion, true
+}
