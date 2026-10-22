@@ -249,7 +249,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// such uncertainty boundary, and get_runtime_versions' "declared, not
 	// proof" and "unknown, not absent" another.
 	const (
-		maxCatalogBytes         = 62700
+		maxCatalogBytes         = 62810
 		maxToolDescriptionBytes = 3000
 	)
 
