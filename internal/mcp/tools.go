@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/skyhook-io/radar/pkg/resourceid"
@@ -3367,15 +3368,27 @@ func mcpSearchSecretsRBAC(ctx context.Context, scanNamespaces []string) (decisio
 // mcpSearchKindAccess mirrors Server.searchKindAccess for MCP. nil when auth
 // is off.
 func mcpSearchKindAccess(ctx context.Context) *search.KindAccess {
-	if user, _ := resolveUserPerms(ctx); user == nil {
+	user, perms := resolveUserPerms(ctx)
+	if user == nil {
 		return nil
 	}
+	budget := new(atomic.Int32)
+	budget.Store(search.MaxAccessChecks)
 	return &search.KindAccess{
 		ClusterWide: func(group, resource string) bool {
 			return canReadInNamespace(ctx, group, resource, "", "list")
 		},
-		InNamespaces: func(group, resource string, namespaces []string) []string {
-			return filterNamespacesByCanRead(ctx, group, resource, "list", namespaces)
+		InNamespaces: func(group, resource string, namespaces []string) ([]string, []string) {
+			return search.CheckNamespaces(namespaces, budget,
+				func(ns string) (bool, bool) {
+					if perms == nil {
+						return false, false
+					}
+					return perms.CanI("list", group, resource, ns)
+				},
+				func(ns string) (bool, bool) {
+					return canReadInNamespaceDecision(ctx, group, resource, ns, "list")
+				})
 		},
 	}
 }
@@ -3467,7 +3480,7 @@ func handleSearch(ctx context.Context, req *mcp.CallToolRequest, input searchInp
 	if err != nil {
 		return nil, nil, err
 	}
-	resp := searchResponseMCP{Result: result, KindHint: searchKindHint(result.UnsearchedKinds)}
+	resp := searchResponseMCP{Result: result, KindHint: searchKindHint(result.UnsearchedKinds), FindingsHint: searchFindingsHint(result)}
 	// Steering hint when the result was capped.
 	if result.TotalMatched > result.Total {
 		resp.NarrowHint = fmt.Sprintf(
@@ -3482,8 +3495,21 @@ func handleSearch(ctx context.Context, req *mcp.CallToolRequest, input searchInp
 // except for the added hint fields.
 type searchResponseMCP struct {
 	search.Result
-	NarrowHint string `json:"narrowHint,omitempty"`
-	KindHint   string `json:"kindHint,omitempty"`
+	NarrowHint   string `json:"narrowHint,omitempty"`
+	KindHint     string `json:"kindHint,omitempty"`
+	FindingsHint string `json:"findingsHint,omitempty"`
+}
+
+// searchFindingsHint says when Trivy reports were only partly searched, so a
+// missing CVE isn't read as "not affected".
+func searchFindingsHint(result search.Result) string {
+	switch {
+	case result.IncompleteFindings == search.FindingsTimeLimit:
+		return "Trivy report findings were only partly searched (time limit), so a missing CVE or package doesn't mean none exists. Narrow with ns: or kind:VulnerabilityReport and retry."
+	case result.AccessIncomplete:
+		return "Trivy reports in some namespaces were left out because your access to them isn't confirmed yet. Search again to include them."
+	}
+	return ""
 }
 
 // searchKindHint tells the agent what to do about each kind the search could

@@ -2003,6 +2003,10 @@ export interface SearchResult {
   total: number;
   searched: number;
   total_matched: number;
+  /** "time_limit" when scan report findings were only partly searched. */
+  incomplete_findings?: string;
+  /** Some namespaces' scan reports were left out, access not confirmed yet. */
+  access_incomplete?: boolean;
 }
 
 const SEARCH_MIN_QUERY = 2;
