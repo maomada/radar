@@ -677,7 +677,11 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 				continue
 			}
 			if change.Missing {
-				out = append(out, resourceHealthIssue(change, nil))
+				issue := resourceHealthIssue(change, nil)
+				if revision, _ := gitops.ArgoSuccessfulRollback(root); revision != "" && change.Sync != "Synced" {
+					issue.Action = "Auto-sync is off after a rollback to " + revision + ". Syncing deploys the current revision, which can recreate it and undo the rollback."
+				}
+				out = append(out, issue)
 			} else if change.Health == "Degraded" || change.Health == "Missing" {
 				// Argo calling the app Healthy is its verdict on every resource
 				// it assesses; Radar's own read of a resource must not contradict
