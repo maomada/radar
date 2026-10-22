@@ -318,6 +318,10 @@ func Search(ctx context.Context, p Provider, q Query, opts Options) (Result, err
 				}
 				items = append(items, its...)
 			}
+			// A gap only counts where the caller could have read the kind.
+			if gated && len(unreadable) > 0 {
+				unreadable = opts.KindAccess.InNamespaces(gvr.Group, gvr.Resource, unreadable)
+			}
 			if len(unreadable) > 0 {
 				coverage.add(UnsearchedKind{Kind: kind, Group: gvr.Group, Reason: UnsearchedUnreadable, Namespaces: unreadable})
 			}

@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -360,6 +361,21 @@ func TestSearch_TrivyKindAccessAsksOnlyAboutNamespacesWithHits(t *testing.T) {
 				t.Fatalf("searched = %d, want only the report the caller may list", res.Searched)
 			}
 		})
+	}
+}
+
+func TestSearch_TrivyCoverageGapsOnlyWhereTheCallerMayList(t *testing.T) {
+	p := trivyProvider(vulnGVR, "VulnerabilityReport")
+	p.filterDynamicByNamespace = true
+	p.dynamicErrNamespaces = map[string]bool{"team-a": true, "team-b": true}
+	access := &kindAccess{namespaces: []string{"team-b"}}
+	res, err := Search(context.Background(), p, Parse("kind:VulnerabilityReport"), Options{Include: IncludeNone, Namespaces: []string{"team-a", "team-b"}, KindAccess: access.options()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []UnsearchedKind{{Kind: "VulnerabilityReport", Group: trivyGroup, Reason: UnsearchedUnreadable, Namespaces: []string{"team-b"}}}
+	if !reflect.DeepEqual(res.UnsearchedKinds, want) {
+		t.Fatalf("unsearched = %+v, want %+v", res.UnsearchedKinds, want)
 	}
 }
 
