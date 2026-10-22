@@ -323,6 +323,46 @@ func TestSearch_TrivyKindsNeedTheCallersListPermission(t *testing.T) {
 	}
 }
 
+func TestSearch_TrivyKindAccessAsksOnlyAboutNamespacesWithHits(t *testing.T) {
+	var reports []*unstructured.Unstructured
+	var namespaces []string
+	for i := range 200 {
+		ns := fmt.Sprintf("team-%d", i)
+		namespaces = append(namespaces, ns)
+		id := "CVE-2026-000001"
+		if i == 7 || i == 8 {
+			id = "CVE-2026-109618"
+		}
+		reports = append(reports, vulnReport(ns, "r", "library/php", "8.3", vuln(id, "php", "8.3.10", "8.3.36", "CRITICAL")))
+	}
+	for _, tc := range []struct {
+		name       string
+		namespaces []string
+	}{
+		{"namespace-scoped caller", namespaces},
+		{"cluster-wide pod reader", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			access := &kindAccess{namespaces: []string{"team-8"}}
+			p := trivyProvider(vulnGVR, "VulnerabilityReport", reports...)
+			res, err := Search(context.Background(), p, Parse("CVE-2026-109618"), Options{Include: IncludeNone, Namespaces: tc.namespaces, KindAccess: access.options()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := hitNames(res); !slices.Equal(got, []string{"team-8/r"}) {
+				t.Fatalf("hits = %v", got)
+			}
+			want := []string{"cluster:vulnerabilityreports", "ns:vulnerabilityreports:[team-7 team-8]"}
+			if !slices.Equal(access.asked, want) {
+				t.Fatalf("asked = %v, want %v", access.asked, want)
+			}
+			if res.Searched != 1 {
+				t.Fatalf("searched = %d, want only the report the caller may list", res.Searched)
+			}
+		})
+	}
+}
+
 func TestSearch_KindAccessLeavesOtherCRDsAlone(t *testing.T) {
 	gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
 	app := &unstructured.Unstructured{Object: map[string]any{
