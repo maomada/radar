@@ -72,10 +72,23 @@ func TestGetRuntimeVersions_RejectsInvalidFilters(t *testing.T) {
 	for _, input := range []runtimeVersionsInput{
 		{Runtime: "golang"}, {Runtime: "nodejs"}, {Runtime: "openjdk"},
 		{Runtime: "php", FixedIn: "8.3.x"}, {Runtime: "php", FixedIn: "8.3.36-1"},
+		{Runtime: "image", FixedIn: "8.3.36"},
 	} {
 		_, _, err := handleGetRuntimeVersions(context.Background(), nil, input)
 		if err == nil {
 			t.Fatalf("invalid filters accepted: %+v", input)
 		}
+	}
+}
+
+func TestGetRuntimeVersions_OutsidePinIsNotRBACDenial(t *testing.T) {
+	setupFakeCacheForFilterTests(t)
+	previous, previousTarget := k8s.ForceNamespaceScope, k8s.GetNamespaceScopeTarget()
+	k8s.ForceNamespaceScope = true
+	k8s.SetNamespaceScopeOverride("alpha")
+	t.Cleanup(func() { k8s.ForceNamespaceScope = previous; k8s.SetNamespaceScopeOverride(previousTarget) })
+	_, _, err := handleGetRuntimeVersions(context.Background(), nil, runtimeVersionsInput{Namespace: "beta"})
+	if err == nil || !strings.Contains(err.Error(), ReasonOutsideNamespaceScope) {
+		t.Fatalf("outside pin must report configuration scope: %v", err)
 	}
 }

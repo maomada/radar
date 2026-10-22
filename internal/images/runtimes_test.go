@@ -97,6 +97,8 @@ func TestClassifyFix(t *testing.T) {
 		{"8.2.20-1+deb12u1", []string{"8.2.20-1+deb12u2"}, FixUnparsed, ""},
 		{"8.2.20", []string{"8.2.20-1+deb12u2"}, FixUnparsed, ""},
 		{"8.3.36.0RC1", php, FixUnparsed, ""},
+		{"8.3", php, FixUnparsed, "8.3.36"},
+		{"1.20", []string{"1.20.0"}, FixUnparsed, "1.20.0"},
 		{"8.3.40zz", php, FixUnparsed, ""},
 		{"9.1.0", []string{"8"}, FixBranchUnknown, ""},
 		{"8.3.38", []string{"8.3.40", "8.3.36"}, FixAtOrAbove, "8.3.36"},

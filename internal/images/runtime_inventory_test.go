@@ -939,3 +939,16 @@ func TestClassifyFetchError_AuthDoesNotBlamePodCredentials(t *testing.T) {
 		t.Fatalf("misleading authorization failure: %+v", got)
 	}
 }
+
+func TestInventory_PartialCredentialBudgetIsNotChecked(t *testing.T) {
+	f := &fakeLookup{errs: map[string]error{refKey(t, phpDigest) + "|shop/regcred-shop@rv1": unauthorized()}}
+	inv := fakeInventory(f)
+	src := podSource(runningPod("shop", "web", "x86-node", "web", map[string][2]string{"app": {"php:8.3", phpDigest}}))
+	w := collectWork(src)[0]
+	budget := new(atomic.Int32)
+	budget.Store(1)
+	got := inv.fetch(context.Background(), w, inv.credentials(w, false), budget)
+	if got.status != StatusNotChecked || f.calls.Load() != 1 {
+		t.Fatalf("unfinished credential attempts must be not_checked: %+v calls=%d", got, f.calls.Load())
+	}
+}

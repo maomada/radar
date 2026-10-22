@@ -113,6 +113,9 @@ var (
 )
 
 func ValidateRuntimeQuery(runtime string, fixedIn []string) error {
+	if runtime == "image" && len(fixedIn) > 0 {
+		return fmt.Errorf("fixed_in requires a runtime such as php or node; image labels are not runtime fix evidence")
+	}
 	valid := runtime == "" || runtime == "image"
 	names := map[string]bool{"image": true}
 	for _, name := range runtimeEnv {
@@ -168,6 +171,9 @@ func ClassifyFix(version string, fixedIn []string) (string, string) {
 	}
 	if best == nil {
 		return FixBranchUnknown, ""
+	}
+	if len(got) < len(best) {
+		return FixUnparsed, bestRaw
 	}
 	switch c := compareVersions(got, best); {
 	case c < 0, c == 0 && prerelease.MatchString(rest):

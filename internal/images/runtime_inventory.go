@@ -454,7 +454,7 @@ func (r *RuntimeInventory) fetch(ctx context.Context, w *work, creds []credentia
 	res := configResult{status: StatusNotChecked, err: "per-call lookup limit reached; narrow by namespace or runtime"}
 	for _, c := range creds {
 		if budget.Add(-1) < 0 {
-			return res
+			return configResult{status: StatusNotChecked, err: "per-call lookup limit reached before all available credentials were tried"}
 		}
 		keychain, identity, ok := r.keychain(c, w.ref)
 		if !ok {
