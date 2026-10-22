@@ -68,6 +68,7 @@ func isNamed(ctx context.Context, host, port string) bool {
 // proxy) is refused in-cluster and left to the proxy locally, where the proxy
 // is the user's own.
 type guardedTransport struct {
+	requireTLS     bool
 	inCluster      bool
 	proxy          func(*http.Request) (*url.URL, error)
 	resolver       *net.Resolver
@@ -127,6 +128,9 @@ func newGuardedTransportWith(inCluster bool, proxy func(*http.Request) (*url.URL
 type proxyRouteKey struct{}
 
 func (g *guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if g.requireTLS && req.URL.Scheme != "https" {
+		return nil, fmt.Errorf("%w: registry credentials require HTTPS", errBlockedAddress)
+	}
 	ctx := req.Context()
 	host, port := req.URL.Hostname(), req.URL.Port()
 	if port == "" {

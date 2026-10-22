@@ -31,7 +31,7 @@ type runtimeVersionsResponse struct {
 	NamespacesWithoutPodAccess []string `json:"namespacesWithoutPodAccess,omitempty"`
 }
 
-const runtimeVersionsBasis = "Versions an image declares in its config (Docker official images and images built FROM them), read for the digest each Pod runs. Declared, not proof of the binary; runtimes installed from distro packages declare nothing here. resolvedFrom spec or tag means the kubelet reported no registry digest, so the image is shown without a fix verdict. A status other than ok means unknown, not absent."
+const runtimeVersionsBasis = "Versions an image declares in its config (Docker official images and images built FROM them), read for the digest each Pod runs. Declared, not proof of the binary; runtimes installed from distro packages declare nothing here. resolvedFrom spec or tag means the kubelet reported no registry digest. These images and assumed platforms get no fix verdict. Missing declarations remain unknown, not absent. Unsupported or distro version formats are unparsed."
 
 func handleGetRuntimeVersions(ctx context.Context, _ *mcp.CallToolRequest, input runtimeVersionsInput) (*mcp.CallToolResult, any, error) {
 	cache := k8s.GetResourceCache()
@@ -72,7 +72,13 @@ func handleGetRuntimeVersions(ctx context.Context, _ *mcp.CallToolRequest, input
 			return v1.Platform{OS: n.Status.NodeInfo.OperatingSystem, Architecture: n.Status.NodeInfo.Architecture}, true
 		},
 		PullSecrets: func(pod *corev1.Pod) []string {
-			return images.GetPullSecretsFromPod(pod.Namespace, pod.Name)
+			secrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
+			for _, ref := range pod.Spec.ImagePullSecrets {
+				if ref.Name != "" {
+					secrets = append(secrets, ref.Name)
+				}
+			}
+			return secrets
 		},
 	}, images.InventoryOptions{
 		Runtime: input.Runtime,

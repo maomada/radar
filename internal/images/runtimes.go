@@ -102,36 +102,34 @@ const (
 )
 
 var (
-	leadingVersion = regexp.MustCompile(`^\D{0,8}?(\d+(?:\.\d+)*)(.*)$`)
+	leadingVersion = regexp.MustCompile(`(?i)^(?:v|jdk-)?(\d+(?:\.\d+)*)(.*)$`)
 	// prerelease marks a version that comes before its numeric release
 	// (8.3.36RC1, 8.3.36-dev, 8.3.36~rc1, 21.0.5-ea+7), so it lacks that
 	// release's fix.
-	prerelease = regexp.MustCompile(`(?i)^[-~._]?(rc|alpha|beta|dev|pre|ea|nightly|snapshot|canary|internal|a|b)\d*\b`)
-	// finalSuffix is what may follow a final release: nothing, build
-	// metadata (+7), or a distro revision (-1, -1~deb12u1, -1.pgdg12+2).
-	finalSuffix = regexp.MustCompile(`^($|\+|-\d)`)
+	prerelease = regexp.MustCompile(`(?i)^[-~._]?(rc|alpha|beta|dev|pre|ea|nightly|snapshot|canary|internal|a|b)\d*(\+[0-9A-Za-z.-]+)?$`)
+	// Distro revisions require package-specific comparison and backport data.
+	finalSuffix = regexp.MustCompile(`^(\+[0-9A-Za-z.-]+)?$`)
 )
 
 // ClassifyFix compares a declared version against fixed releases. A fixed
 // version's branch is everything but its last component (8.3.36 → 8.3,
 // 17.6 → 17; a one-part fix is its own branch); a declared version is
-// compared with the earliest fix on the longest branch it falls in. Versions are read up to the first non-numeric part,
-// so a distro suffix (17.11-1.pgdg12+2) or a short prefix (jdk-21.0.4+7)
-// is ignored, except at the fixed version itself: a prerelease of it is below
-// it, and a suffix this can't read is unparsed.
+// compared with the earliest fix on the longest branch it falls in. Only
+// upstream versions with up to three numeric components, known prereleases
+// and build metadata are supported; distro revisions stay unparsed.
 // It returns the classification and the fixed version used.
 func ClassifyFix(version string, fixedIn []string) (string, string) {
 	got, rest := parseVersionRest(version)
-	if got == nil {
+	if got == nil || len(got) > 3 || (!finalSuffix.MatchString(rest) && !prerelease.MatchString(rest)) {
 		return FixUnparsed, ""
 	}
 	var best []int
 	bestRaw := ""
 	bestBranch := -1
 	for _, raw := range fixedIn {
-		fixed := parseVersion(raw)
-		if fixed == nil {
-			continue
+		fixed, suffix := parseVersionRest(raw)
+		if fixed == nil || len(fixed) > 3 || !finalSuffix.MatchString(suffix) {
+			return FixUnparsed, ""
 		}
 		// A one-part fix ("17") covers its own major.
 		branch := fixed[:max(len(fixed)-1, 1)]
@@ -155,11 +153,6 @@ func ClassifyFix(version string, fixedIn []string) (string, string) {
 		return FixUnparsed, bestRaw
 	}
 	return FixAtOrAbove, bestRaw
-}
-
-func parseVersion(v string) []int {
-	out, _ := parseVersionRest(v)
-	return out
 }
 
 // parseVersionRest returns the numeric version and what follows it.

@@ -26,13 +26,14 @@ import (
 // Image statuses. Anything but StatusOK means the image's runtimes are
 // unknown, never that it has none.
 const (
-	StatusOK           = "ok"
-	StatusAuthRequired = "auth_required"
-	StatusNotFound     = "not_found"
-	StatusRateLimited  = "rate_limited"
-	StatusBlocked      = "blocked"
-	StatusError        = "error"
-	StatusNotChecked   = "not_checked"
+	StatusOK            = "ok"
+	StatusAuthRequired  = "auth_required"
+	StatusNotFound      = "not_found"
+	StatusRateLimited   = "rate_limited"
+	StatusBlocked       = "blocked"
+	StatusError         = "error"
+	StatusNotChecked    = "not_checked"
+	StatusNoDeclaration = "no_declaration"
 )
 
 const (
@@ -42,7 +43,7 @@ const (
 	maxLookupsPerCall     = 200
 	maxAttemptsPerImage   = 4
 	maxConfigBytes        = 1 << 20
-	inventoryCallBudget   = 60 * time.Second
+	inventoryCallBudget   = 40 * time.Second
 	configFetchTimeout    = 15 * time.Second
 	registryFetchSlots    = 4
 	configCacheEntries    = 4096
@@ -81,7 +82,7 @@ type PodSource struct {
 	// the image says so.
 	Platform func(nodeName string) (v1.Platform, bool)
 	// PullSecrets lists the image pull secrets the Pod itself would use:
-	// its own and its ServiceAccount's, in the kubelet's order.
+	// those recorded in the admitted Pod's spec.
 	PullSecrets func(pod *corev1.Pod) []string
 }
 
@@ -256,10 +257,15 @@ func registryConfigLookup(guard *guardedTransport) configLookup {
 	return func(ctx context.Context, ref name.Reference, platform v1.Platform, keychain authn.Keychain) (*v1.ConfigFile, string, error) {
 		rt := guard.forLookup()
 		defer rt.closeIdle()
+		auth, err := keychain.Resolve(ref.Context())
+		if err != nil {
+			return nil, "", err
+		}
+		rt.requireTLS = auth != authn.Anonymous
 		img, err := remote.Image(ref,
 			remote.WithContext(withRegistryHost(ctx, ref.Context().RegistryStr())),
 			remote.WithTransport(rt),
-			remote.WithAuthFromKeychain(keychain),
+			remote.WithAuth(auth),
 			remote.WithPlatform(platform),
 			remote.WithRetryBackoff(remote.Backoff{Steps: 1}),
 			remote.WithRetryStatusCodes(),
@@ -449,7 +455,11 @@ func (r *RuntimeInventory) fetch(ctx context.Context, w *work, creds []credentia
 		if budget.Add(-1) < 0 {
 			return res
 		}
-		keychain, _, _ := r.keychain(c, w.ref)
+		keychain, identity, ok := r.keychain(c, w.ref)
+		if !ok {
+			continue
+		}
+		c.identity = identity
 		cfg, digest, err := r.attempt(ctx, registry, w, keychain)
 		if errors.Is(err, errRateLimitedRecently) {
 			return configResult{status: StatusRateLimited, err: "registry rate limit hit recently; retry later"}
@@ -735,7 +745,7 @@ func shapeInventory(items []*work, results []configResult, opts InventoryOptions
 		// 2 unknown or unclassifiable.
 		rank := 2
 		if res.status == StatusOK {
-			matched := runtime == ""
+			matched := runtime == "" && len(res.declared) > 0
 			rank = 1
 			for _, d := range res.declared {
 				if runtime != "" && d.Runtime != runtime {
@@ -744,7 +754,7 @@ func shapeInventory(items []*work, results []configResult, opts InventoryOptions
 				matched = true
 				// A tag resolved now may not be what runs: report what it
 				// declares, but don't call the workload fixed or not.
-				if runtime != "" && len(opts.FixedIn) > 0 && d.Runtime != "image" && w.resolvedFrom == "digest" {
+				if runtime != "" && len(opts.FixedIn) > 0 && d.Runtime != "image" && w.resolvedFrom == "digest" && !w.platformAssumed {
 					d.Fix, d.FixedIn = ClassifyFix(d.Version, opts.FixedIn)
 					if d.Fix == FixBelow {
 						rank = 0
@@ -753,12 +763,16 @@ func shapeInventory(items []*work, results []configResult, opts InventoryOptions
 				img.Declared = append(img.Declared, d)
 			}
 			if !matched {
-				continue
+				img.Status = StatusNoDeclaration
+				img.Error = "image config does not declare this runtime; its presence and version are unknown"
+				inv.Totals.Unknown++
+				rank = 2
+			} else {
+				inv.Totals.Matched++
 			}
-			if w.resolvedFrom != "digest" && len(opts.FixedIn) > 0 {
+			if (w.resolvedFrom != "digest" || w.platformAssumed) && len(opts.FixedIn) > 0 {
 				rank = 2
 			}
-			inv.Totals.Matched++
 			if rank == 0 {
 				inv.Totals.BelowFix++
 			}

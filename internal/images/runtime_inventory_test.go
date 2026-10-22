@@ -154,7 +154,7 @@ func TestInventory_GroupsByRunningDigestAndClassifies(t *testing.T) {
 	)
 	got := inv.Inventory(context.Background(), src, InventoryOptions{Runtime: "php", FixedIn: []string{"8.2.35", "8.3.36"}})
 
-	if got.Totals.Images != 2 || got.Totals.Matched != 1 || got.Totals.BelowFix != 1 || len(got.Images) != 1 {
+	if got.Totals.Images != 2 || got.Totals.Matched != 1 || got.Totals.BelowFix != 1 || got.Totals.Unknown != 1 || len(got.Images) != 2 {
 		t.Fatalf("totals = %+v, images = %+v", got.Totals, got.Images)
 	}
 	img := got.Images[0]
@@ -866,4 +866,51 @@ func TestConnectVia_IgnoresFramingOnASuccessfulTunnel(t *testing.T) {
 		t.Fatalf("a 200 tunnel must be usable at once: err %v after %v", err, time.Since(start))
 	}
 	conn.Close()
+}
+
+func TestInventory_MissingRuntimeDeclarationStaysUnknown(t *testing.T) {
+	for _, runtime := range []string{"php", ""} {
+		t.Run(runtime, func(t *testing.T) {
+			f := &fakeLookup{configs: map[string]*v1.ConfigFile{refKey(t, phpDigest): {}}}
+			src := podSourceWithoutSecrets(runningPod("shop", "web", "x86-node", "web", map[string][2]string{"app": {"php:8.3", phpDigest}}))
+			got := fakeInventory(f).Inventory(context.Background(), src, InventoryOptions{Runtime: runtime})
+			if len(got.Images) != 1 || got.Totals.Unknown != 1 || got.Totals.Matched != 0 || got.Images[0].Status != StatusNoDeclaration {
+				t.Fatalf("missing declaration must remain visible and unknown: %+v", got)
+			}
+		})
+	}
+}
+
+func TestInventory_AssumedPlatformGetsNoFixVerdict(t *testing.T) {
+	f := &fakeLookup{configs: map[string]*v1.ConfigFile{refKey(t, phpDigest): phpConfig("8.3.36")}}
+	src := podSourceWithoutSecrets(runningPod("shop", "web", "unknown-node", "web", map[string][2]string{"app": {"php:8.3", phpDigest}}))
+	got := fakeInventory(f).Inventory(context.Background(), src, InventoryOptions{Runtime: "php", FixedIn: []string{"8.3.36"}})
+	img := got.Images[0]
+	if !img.PlatformAssumed || img.Declared[0].Fix != "" || got.Totals.BelowFix != 0 {
+		t.Fatalf("assumed platform must not receive a verdict: %+v", img)
+	}
+}
+
+type runtimeCredentialKeychain struct{}
+
+func (runtimeCredentialKeychain) Resolve(authn.Resource) (authn.Authenticator, error) {
+	return authn.FromConfig(authn.AuthConfig{Username: "test", Password: "dummy"}), nil
+}
+
+func TestRegistryLookup_CredentialsNeverUseHTTP(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	ref, err := name.ParseReference(strings.TrimPrefix(server.URL, "http://") + "/app:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = registryConfigLookup(newGuardedTransport(false))(context.Background(), ref, v1.Platform{OS: "linux", Architecture: "amd64"}, runtimeCredentialKeychain{})
+	if err == nil || !isBlocked(err) || requests.Load() != 0 {
+		t.Fatalf("credentialed lookup must refuse HTTP before sending requests: err=%v requests=%d", err, requests.Load())
+	}
 }
