@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -55,5 +56,13 @@ func TestRuntimePods_RequirePodListPermission(t *testing.T) {
 	getPermCache().Set("bob", nil, bob)
 	if got, _ := runtimePods(ctx, cache, ""); !slices.Equal(podNames(got), []string{"gamma-pod"}) {
 		t.Fatalf("cluster-wide namespace access without cluster-wide pod list: %v", podNames(got))
+	}
+}
+
+func TestGetRuntimeVersions_FixedInNeedsRuntime(t *testing.T) {
+	setupFakeCacheForFilterTests(t)
+	_, _, err := handleGetRuntimeVersions(context.Background(), nil, runtimeVersionsInput{FixedIn: "8.3.36"})
+	if err == nil || !strings.Contains(err.Error(), "runtime") {
+		t.Fatalf("err = %v", err)
 	}
 }

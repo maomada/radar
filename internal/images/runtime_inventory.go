@@ -59,6 +59,7 @@ type InventoryOptions struct {
 	// runtimes couldn't be read.
 	Runtime string
 	// FixedIn classifies each declared version of Runtime; see ClassifyFix.
+	// Fixes are per runtime, so it needs Runtime.
 	FixedIn []string
 	Limit   int
 	// RadarCredentials lets lookups fall back to Radar's own registry
@@ -254,7 +255,7 @@ func clusterKeychain(c credential, ref name.Reference) (authn.Keychain, string, 
 func registryConfigLookup(guard *guardedTransport) configLookup {
 	return func(ctx context.Context, ref name.Reference, platform v1.Platform, keychain authn.Keychain) (*v1.ConfigFile, string, error) {
 		rt := guard.forLookup()
-		defer rt.base.CloseIdleConnections()
+		defer rt.closeIdle()
 		img, err := remote.Image(ref,
 			remote.WithContext(withRegistryHost(ctx, ref.Context().RegistryStr())),
 			remote.WithTransport(rt),
@@ -331,8 +332,15 @@ func (r *RuntimeInventory) Inventory(ctx context.Context, src PodSource, opts In
 // secret that has an entry for the image's registry, then no credentials,
 // then (local mode only) Radar's own.
 func (r *RuntimeInventory) credentials(w *work, radar bool) []credential {
+	secretSlots := maxAttemptsPerImage - 1
+	if radar {
+		secretSlots--
+	}
 	var out []credential
 	for _, c := range w.secrets {
+		if len(out) == secretSlots {
+			break
+		}
 		if _, identity, ok := r.keychain(c, w.ref); ok {
 			c.identity = identity
 			out = append(out, c)
@@ -341,9 +349,6 @@ func (r *RuntimeInventory) credentials(w *work, radar bool) []credential {
 	out = append(out, credential{})
 	if radar {
 		out = append(out, credential{radar: true})
-	}
-	if len(out) > maxAttemptsPerImage {
-		out = append(out[:maxAttemptsPerImage-1], out[len(out)-1])
 	}
 	return out
 }
@@ -581,8 +586,10 @@ func collectWork(src PodSource) []*work {
 			}
 		}
 		running := map[string]string{}
-		for _, s := range append(slices.Clone(pod.Status.ContainerStatuses), pod.Status.InitContainerStatuses...) {
-			running[s.Name] = s.ImageID
+		for _, statuses := range [][]corev1.ContainerStatus{pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses, pod.Status.EphemeralContainerStatuses} {
+			for _, s := range statuses {
+				running[s.Name] = s.ImageID
+			}
 		}
 		kind, wname := "Pod", pod.Name
 		if src.Workload != nil {
@@ -598,12 +605,19 @@ func collectWork(src PodSource) []*work {
 			if !ok {
 				continue
 			}
-			key := ref.String() + "|" + platform.OS + "/" + platform.Architecture
+			// Name() is fully qualified, so php@sha256:x and
+			// docker.io/library/php@sha256:x are one image.
+			key := ref.Name() + "|" + platform.OS + "/" + platform.Architecture
 			w := byKey[key]
 			if w == nil {
 				w = &work{key: key, display: c.Image, ref: ref, resolvedFrom: resolvedFrom, platform: platform, platformAssumed: assumed, workloads: map[string]*WorkloadUse{}, pods: map[string]map[string]bool{}}
 				byKey[key] = w
 				order = append(order, key)
+			}
+			// One kubelet-reported digest proves the image runs for the
+			// whole group.
+			if resolvedFrom == "digest" {
+				w.resolvedFrom = "digest"
 			}
 			// Pods on readable and unreadable nodes can share a group; one
 			// unknown platform makes the group's platform an assumption.
@@ -641,14 +655,18 @@ func collectWork(src PodSource) []*work {
 	return out
 }
 
-// runningContainers are the containers that serve traffic for the Pod's
-// lifetime: regular containers and restartable (sidecar) init containers.
+// runningContainers are the containers that can run alongside the workload:
+// regular containers, restartable (sidecar) init containers and ephemeral
+// debug containers. One-shot init containers have finished.
 func runningContainers(pod *corev1.Pod) []corev1.Container {
 	out := slices.Clone(pod.Spec.Containers)
 	for _, c := range pod.Spec.InitContainers {
 		if c.RestartPolicy != nil && *c.RestartPolicy == corev1.ContainerRestartPolicyAlways {
 			out = append(out, c)
 		}
+	}
+	for _, c := range pod.Spec.EphemeralContainers {
+		out = append(out, corev1.Container{Name: c.Name, Image: c.Image})
 	}
 	return out
 }
@@ -718,7 +736,7 @@ func shapeInventory(items []*work, results []configResult, opts InventoryOptions
 				matched = true
 				// A tag resolved now may not be what runs: report what it
 				// declares, but don't call the workload fixed or not.
-				if len(opts.FixedIn) > 0 && d.Runtime != "image" && w.resolvedFrom == "digest" {
+				if runtime != "" && len(opts.FixedIn) > 0 && d.Runtime != "image" && w.resolvedFrom == "digest" {
 					d.Fix, d.FixedIn = ClassifyFix(d.Version, opts.FixedIn)
 					if d.Fix == FixBelow {
 						rank = 0

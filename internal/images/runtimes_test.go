@@ -94,6 +94,9 @@ func TestClassifyFix(t *testing.T) {
 		{"1.80.0-nightly", []string{"1.80.0"}, FixBelow, "1.80.0"},
 		{"8.3.36zz", php, FixUnparsed, "8.3.36"},
 		{"17.6-1.pgdg12+2", []string{"17.6"}, FixAtOrAbove, "17.6"},
+		{"9.1.0", []string{"8"}, FixBranchUnknown, ""},
+		{"8.3.38", []string{"8.3.40", "8.3.36"}, FixAtOrAbove, "8.3.36"},
+		{"8.3.38", []string{"8.3.36", "8.3.40"}, FixAtOrAbove, "8.3.36"},
 	}
 	for _, tc := range cases {
 		got, against := ClassifyFix(tc.version, tc.fixedIn)

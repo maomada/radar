@@ -1,7 +1,9 @@
 package images
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -51,32 +53,43 @@ func isNamed(ctx context.Context, host, port string) bool {
 // guardedTransport is the transport runtime-version lookups use. Image
 // references come from Pod specs, which anyone who can create a Pod
 // controls, and Radar's network position differs from a node's. Every
-// connection, including redirects and token endpoints, is checked against
-// the resolved address it actually dials:
+// request, including redirects and token endpoints, is resolved here and
+// sent only to an address that passed the policy:
 //   - link-local (cloud metadata), unspecified and multicast: never;
 //   - loopback: never in-cluster (it is Radar's own Pod), and locally only
 //     for the registry endpoint the Pod named (a local dev registry);
 //   - private ranges: only for the registry endpoint (host and port) the Pod
 //     named.
 //
-// Behind an HTTP proxy the proxy dials the destination, so the destination is
-// resolved here first and refused if it resolves somewhere forbidden. A name
-// that doesn't resolve here is refused in-cluster and left to the proxy
-// locally.
+// Direct connections dial the checked address. Through an HTTP proxy, HTTPS
+// requests are tunneled with a CONNECT to the checked address, so the proxy
+// can't resolve the name somewhere else. A proxied request that can't be
+// pinned that way (plain HTTP, a name that doesn't resolve here, a non-HTTP
+// proxy) is refused in-cluster and left to the proxy locally, where the proxy
+// is the user's own.
 type guardedTransport struct {
 	inCluster bool
 	proxy     func(*http.Request) (*url.URL, error)
 	resolver  *net.Resolver
-	base      *http.Transport
 	dialer    *net.Dialer
+	// pinned never uses a proxy on its own; its dialer tunnels through one
+	// when the request carries a pinned proxy route.
+	pinned *http.Transport
+	// unpinned lets the proxy resolve and dial: local mode only.
+	unpinned *http.Transport
 }
 
-// forLookup returns a transport with its own connection pool, for one
+// forLookup returns a transport with its own connection pools, for one
 // lookup. Pools aren't shared across lookups: a connection one lookup opened
 // to the registry it named (maybe on a private address) must never carry
 // another lookup's request, even after that name resolves elsewhere.
 func (g *guardedTransport) forLookup() *guardedTransport {
 	return newGuardedTransportWith(g.inCluster, g.proxy, g.resolver)
+}
+
+func (g *guardedTransport) closeIdle() {
+	g.pinned.CloseIdleConnections()
+	g.unpinned.CloseIdleConnections()
 }
 
 func newGuardedTransport(inCluster bool) *guardedTransport {
@@ -90,20 +103,25 @@ func newGuardedTransportWith(inCluster bool, proxy func(*http.Request) (*url.URL
 		resolver:  resolver,
 		dialer:    &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second},
 	}
-	g.base = &http.Transport{
-		Proxy:                 func(r *http.Request) (*url.URL, error) { return g.proxy(r) },
-		DialContext:           g.dialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          50,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ResponseHeaderTimeout: 15 * time.Second,
-		ExpectContinueTimeout: time.Second,
+	newTransport := func() *http.Transport {
+		return &http.Transport{
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       30 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 15 * time.Second,
+			ExpectContinueTimeout: time.Second,
+		}
 	}
+	g.pinned = newTransport()
+	g.pinned.DialContext = g.dialContext
+	g.unpinned = newTransport()
+	g.unpinned.Proxy = func(r *http.Request) (*url.URL, error) { return g.proxy(r) }
+	g.unpinned.DialContext = g.dialer.DialContext
 	return g
 }
 
-type proxyHostKey struct{}
+type proxyRouteKey struct{}
 
 func (g *guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
@@ -111,33 +129,43 @@ func (g *guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if port == "" {
 		port = map[string]string{"https": "443", "http": "80"}[req.URL.Scheme]
 	}
-	named := isNamed(ctx, host, port)
 	proxyURL, err := g.proxy(req)
-	proxied := err == nil && proxyURL != nil
-
-	// Checked per request, not only when dialing: a pooled connection to an
-	// endpoint one lookup named must not serve another lookup's redirect.
-	ips, err := g.lookup(ctx, host)
-	switch {
-	case err != nil && proxied && !g.inCluster:
-		// Locally the proxy is the user's own; a name only it can resolve
-		// is left to it.
-	case err != nil && proxied:
-		return nil, fmt.Errorf("%w: %s can't be checked before the proxy resolves it", errBlockedAddress, host)
-	case err != nil:
-		return nil, err
+	if err != nil {
+		proxyURL = nil
 	}
+
+	// Checked per request, not only when dialing: redirects and token
+	// endpoints are requests too.
+	ips, lookupErr := g.lookup(ctx, host)
+	if lookupErr != nil {
+		if proxyURL != nil && !g.inCluster {
+			return g.send(g.unpinned, req)
+		}
+		if proxyURL != nil {
+			return nil, fmt.Errorf("%w: %s can't be checked before the proxy resolves it", errBlockedAddress, host)
+		}
+		return nil, lookupErr
+	}
+	named := isNamed(ctx, host, port)
 	for _, ip := range ips {
 		if !registryIPAllowed(ip, g.inCluster, named) {
 			return nil, fmt.Errorf("%w: %s", errBlockedAddress, host)
 		}
 	}
-	if proxied {
-		// The proxy resolves the name again; that second answer can't be
-		// pinned, which is the residual risk of running behind a proxy.
-		req = req.WithContext(context.WithValue(ctx, proxyHostKey{}, hostOnly(proxyURL.Host)))
+	if proxyURL == nil {
+		return g.send(g.pinned, req)
 	}
-	resp, err := g.base.RoundTrip(req)
+	if req.URL.Scheme == "https" && proxyURL.Scheme == "http" {
+		return g.send(g.pinned, req.WithContext(context.WithValue(ctx, proxyRouteKey{}, proxyURL)))
+	}
+	if !g.inCluster {
+		return g.send(g.unpinned, req)
+	}
+	return nil, fmt.Errorf("%w: %s can't be pinned through the proxy", errBlockedAddress, host)
+}
+
+func (g *guardedTransport) send(rt *http.Transport, req *http.Request) (*http.Response, error) {
+	resp, err := rt.RoundTrip(req)
 	if err != nil || resp.Body == nil {
 		return resp, err
 	}
@@ -145,28 +173,33 @@ func (g *guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
+// dialContext connects to the first allowed address of addr, directly or
+// through a CONNECT tunnel when the request carries a proxy route. It dials
+// the address that was checked, not the name, so a second DNS answer can't
+// swap in a forbidden address.
 func (g *guardedTransport) dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
-	}
-	// The proxy itself is configuration, not tenant input.
-	if proxyHost, _ := ctx.Value(proxyHostKey{}).(string); proxyHost != "" && strings.EqualFold(proxyHost, host) {
-		return g.dialer.DialContext(ctx, network, addr)
 	}
 	ips, err := g.lookup(ctx, host)
 	if err != nil {
 		return nil, err
 	}
 	named := isNamed(ctx, host, port)
-	// Dial the address that was checked, not the name, so a second DNS
-	// answer can't swap in a forbidden address.
+	proxyURL, _ := ctx.Value(proxyRouteKey{}).(*url.URL)
 	lastErr := fmt.Errorf("%w: %s", errBlockedAddress, host)
 	for _, ip := range ips {
 		if !registryIPAllowed(ip, g.inCluster, named) {
 			continue
 		}
-		conn, err := g.dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		target := net.JoinHostPort(ip.String(), port)
+		var conn net.Conn
+		if proxyURL != nil {
+			conn, err = g.connectVia(ctx, proxyURL, target)
+		} else {
+			conn, err = g.dialer.DialContext(ctx, network, target)
+		}
 		if err == nil {
 			return conn, nil
 		}
@@ -174,6 +207,55 @@ func (g *guardedTransport) dialContext(ctx context.Context, network, addr string
 	}
 	return nil, lastErr
 }
+
+// connectVia opens a CONNECT tunnel to target (an IP:port) through an HTTP
+// proxy. The proxy itself is configuration, not tenant input, so it isn't
+// checked against the address policy.
+func (g *guardedTransport) connectVia(ctx context.Context, proxyURL *url.URL, target string) (net.Conn, error) {
+	proxyAddr := proxyURL.Host
+	if proxyURL.Port() == "" {
+		proxyAddr = net.JoinHostPort(proxyURL.Hostname(), "80")
+	}
+	conn, err := g.dialer.DialContext(ctx, "tcp", proxyAddr)
+	if err != nil {
+		return nil, err
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	req := "CONNECT " + target + " HTTP/1.1\r\nHost: " + target + "\r\n"
+	if u := proxyURL.User; u != nil {
+		pass, _ := u.Password()
+		req += "Proxy-Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(u.Username()+":"+pass)) + "\r\n"
+	}
+	if _, err := io.WriteString(conn, req+"\r\n"); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	br := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(br, &http.Request{Method: http.MethodConnect})
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_ = conn.Close()
+		return nil, fmt.Errorf("proxy refused the tunnel: %s", resp.Status)
+	}
+	_ = conn.SetDeadline(time.Time{})
+	if br.Buffered() > 0 {
+		return &bufferedConn{Conn: conn, r: br}, nil
+	}
+	return conn, nil
+}
+
+type bufferedConn struct {
+	net.Conn
+	r *bufio.Reader
+}
+
+func (c *bufferedConn) Read(p []byte) (int, error) { return c.r.Read(p) }
 
 func (g *guardedTransport) lookup(ctx context.Context, host string) ([]net.IP, error) {
 	if ip := net.ParseIP(host); ip != nil {
@@ -208,11 +290,6 @@ func registryIPAllowed(ip net.IP, inCluster, namedRegistry bool) bool {
 func isSharedAddressSpace(ip net.IP) bool {
 	v4 := ip.To4()
 	return v4 != nil && v4[0] == 100 && v4[1]&0xc0 == 64
-}
-
-func hostOnly(hostport string) string {
-	host, _ := splitHostPort(hostport)
-	return host
 }
 
 // splitHostPort splits "host", "host:port", "[v6]" or "[v6]:port".

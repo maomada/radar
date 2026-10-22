@@ -1,6 +1,7 @@
 package images
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -681,6 +682,133 @@ func TestInventory_OneUnknownNodeMakesThePlatformAssumed(t *testing.T) {
 		runningPod("shop", "web-2", "unknown-node", "web", map[string][2]string{"php": {"php:8.3", phpDigest}}),
 	), InventoryOptions{})
 	if len(got.Images) != 1 || !got.Images[0].PlatformAssumed {
+		t.Fatalf("images = %+v", got.Images)
+	}
+}
+
+// fakeConnectProxy accepts CONNECT tunnels, records each target and pipes
+// to it.
+func fakeConnectProxy(t *testing.T) (*url.URL, func() []string) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	var mu sync.Mutex
+	var targets []string
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				req, err := http.ReadRequest(bufio.NewReader(c))
+				if err != nil || req.Method != http.MethodConnect {
+					return
+				}
+				mu.Lock()
+				targets = append(targets, req.Host)
+				mu.Unlock()
+				up, err := net.Dial("tcp", req.Host)
+				if err != nil {
+					_, _ = io.WriteString(c, "HTTP/1.1 502 Bad Gateway\r\n\r\n")
+					return
+				}
+				defer up.Close()
+				_, _ = io.WriteString(c, "HTTP/1.1 200 Connection established\r\n\r\n")
+				go func() { _, _ = io.Copy(up, c) }()
+				_, _ = io.Copy(c, up)
+			}(c)
+		}
+	}()
+	u, _ := url.Parse("http://" + ln.Addr().String())
+	return u, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), targets...)
+	}
+}
+
+// Through a proxy, the tunnel goes to the address that was checked, so the
+// proxy never resolves the name itself.
+func TestGuardedTransport_TunnelsToTheCheckedAddress(t *testing.T) {
+	target, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer target.Close()
+	go func() {
+		for {
+			c, err := target.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	_, port, _ := net.SplitHostPort(target.Addr().String())
+	proxyURL, targets := fakeConnectProxy(t)
+
+	g := newGuardedTransport(false)
+	ctx := context.WithValue(withRegistryHost(context.Background(), "localhost:"+port), proxyRouteKey{}, proxyURL)
+	conn, err := g.dialContext(ctx, "tcp", "localhost:"+port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	got := targets()
+	if len(got) == 0 {
+		t.Fatal("no CONNECT reached the proxy")
+	}
+	for _, target := range got {
+		if host, _, _ := net.SplitHostPort(target); net.ParseIP(host) == nil {
+			t.Fatalf("CONNECT targets = %v, want resolved addresses, never the name", got)
+		}
+	}
+}
+
+func TestGuardedTransport_InClusterRefusesUnpinnableProxyRequests(t *testing.T) {
+	proxyURL, targets := fakeConnectProxy(t)
+	g := newGuardedTransport(true)
+	g.proxy = func(*http.Request) (*url.URL, error) { return proxyURL, nil }
+	req, _ := http.NewRequest(http.MethodGet, "http://203.0.113.7/v2/", nil)
+	if _, err := g.RoundTrip(req); !isBlocked(err) || len(targets()) != 0 {
+		t.Fatalf("plain HTTP through a proxy can't be pinned in-cluster: err %v, proxy saw %v", err, targets())
+	}
+}
+
+func TestInventory_GroupsSpellingsOfOneDigestAndTrustsTheKubelet(t *testing.T) {
+	short := "php@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	f := &fakeLookup{configs: map[string]*v1.ConfigFile{refKey(t, short): phpConfig("8.3.10"), refKey(t, phpDigest): phpConfig("8.3.10")}}
+	got := fakeInventory(f).Inventory(context.Background(), podSourceWithoutSecrets(
+		runningPod("shop", "web-1", "x86-node", "web", map[string][2]string{"php": {short, "sha256:localimageid"}}),
+		runningPod("shop", "web-2", "x86-node", "web", map[string][2]string{"php": {short, phpDigest}}),
+	), InventoryOptions{Runtime: "php", FixedIn: []string{"8.3.36"}})
+	if len(got.Images) != 1 || got.Images[0].ResolvedFrom != "digest" || got.Images[0].Declared[0].Fix != FixBelow {
+		t.Fatalf("one digest, verified by the kubelet for one Pod: %+v", got.Images)
+	}
+}
+
+func TestInventory_ManySecretsStillTryAnonymously(t *testing.T) {
+	ref := refKey(t, phpDigest)
+	f := &fakeLookup{configs: map[string]*v1.ConfigFile{ref: phpConfig("8.3.10")}, errs: map[string]error{}}
+	src := podSourceWithoutSecrets(runningPod("shop", "web-1", "x86-node", "web", map[string][2]string{"php": {"php:8.3", phpDigest}}))
+	src.PullSecrets = func(*corev1.Pod) []string { return []string{"s1", "s2", "s3", "s4", "s5"} }
+	for _, s := range []string{"s1", "s2", "s3", "s4", "s5"} {
+		f.errs[ref+"|shop/"+s+"@rv1"] = unauthorized()
+	}
+	got := fakeInventory(f).Inventory(context.Background(), src, InventoryOptions{RadarCredentials: true})
+	if got.Images[0].Status != StatusOK || !strings.Contains(strings.Join(f.seenCopy(), ";"), " anonymous") {
+		t.Fatalf("a public image must still be tried anonymously: %+v after %v", got.Images[0], f.seenCopy())
+	}
+}
+
+func TestInventory_IncludesEphemeralContainers(t *testing.T) {
+	f := &fakeLookup{configs: map[string]*v1.ConfigFile{}}
+	pod := runningPod("shop", "web-1", "x86-node", "web", map[string][2]string{"php": {"php:8.3", ""}})
+	pod.Spec.EphemeralContainers = []corev1.EphemeralContainer{{EphemeralContainerCommon: corev1.EphemeralContainerCommon{Name: "debug", Image: "busybox:1.36"}}}
+	got := fakeInventory(f).Inventory(context.Background(), podSourceWithoutSecrets(pod), InventoryOptions{})
+	if got.Totals.Images != 2 {
 		t.Fatalf("images = %+v", got.Images)
 	}
 }

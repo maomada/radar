@@ -41,15 +41,18 @@ func handleGetRuntimeVersions(ctx context.Context, _ *mcp.CallToolRequest, input
 	if cache.Pods() == nil {
 		return nil, nil, fmt.Errorf("pods are not readable in this cluster, so running images are unknown")
 	}
-	pods, denied := runtimePods(ctx, cache, input.Namespace)
-	user, _ := resolveUserPerms(ctx)
-
 	var fixedIn []string
 	for _, v := range strings.Split(input.FixedIn, ",") {
 		if v = strings.TrimSpace(v); v != "" {
 			fixedIn = append(fixedIn, v)
 		}
 	}
+	if len(fixedIn) > 0 && strings.TrimSpace(input.Runtime) == "" {
+		return nil, nil, fmt.Errorf("fixed_in needs runtime: fixed releases belong to one runtime (e.g. runtime=php)")
+	}
+	pods, denied := runtimePods(ctx, cache, input.Namespace)
+	user, _ := resolveUserPerms(ctx)
+
 	inv := images.DefaultRuntimeInventory(k8s.IsInCluster()).Inventory(ctx, images.PodSource{
 		Pods: pods,
 		Workload: func(pod *corev1.Pod) (string, string) {

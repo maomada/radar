@@ -114,8 +114,8 @@ var (
 
 // ClassifyFix compares a declared version against fixed releases. A fixed
 // version's branch is everything but its last component (8.3.36 → 8.3,
-// 17.6 → 17); a declared version is compared with the fix on the longest
-// branch it falls in. Versions are read up to the first non-numeric part,
+// 17.6 → 17; a one-part fix is its own branch); a declared version is
+// compared with the earliest fix on the longest branch it falls in. Versions are read up to the first non-numeric part,
 // so a distro suffix (17.11-1.pgdg12+2) or a short prefix (jdk-21.0.4+7)
 // is ignored, except at the fixed version itself: a prerelease of it is below
 // it, and a suffix this can't read is unparsed.
@@ -127,17 +127,20 @@ func ClassifyFix(version string, fixedIn []string) (string, string) {
 	}
 	var best []int
 	bestRaw := ""
+	bestBranch := -1
 	for _, raw := range fixedIn {
 		fixed := parseVersion(raw)
 		if fixed == nil {
 			continue
 		}
-		branch := fixed[:len(fixed)-1]
+		// A one-part fix ("17") covers its own major.
+		branch := fixed[:max(len(fixed)-1, 1)]
 		if len(got) < len(branch) || !hasPrefix(got, branch) {
 			continue
 		}
-		if best == nil || len(branch) > len(best)-1 {
-			best, bestRaw = fixed, raw
+		// The longest branch wins; on one branch, the earliest fix does.
+		if len(branch) > bestBranch || (len(branch) == bestBranch && compareVersions(fixed, best) < 0) {
+			best, bestRaw, bestBranch = fixed, raw, len(branch)
 		}
 	}
 	if best == nil {
