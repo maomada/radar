@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	vulnGVR   = schema.GroupVersionResource{Group: TrivyGroup, Version: "v1alpha1", Resource: "vulnerabilityreports"}
-	sbomGVR   = schema.GroupVersionResource{Group: TrivyGroup, Version: "v1alpha1", Resource: "sbomreports"}
-	auditGVR  = schema.GroupVersionResource{Group: TrivyGroup, Version: "v1alpha1", Resource: "configauditreports"}
-	secretGVR = schema.GroupVersionResource{Group: TrivyGroup, Version: "v1alpha1", Resource: "exposedsecretreports"}
+	vulnGVR   = schema.GroupVersionResource{Group: trivyGroup, Version: "v1alpha1", Resource: "vulnerabilityreports"}
+	sbomGVR   = schema.GroupVersionResource{Group: trivyGroup, Version: "v1alpha1", Resource: "sbomreports"}
+	auditGVR  = schema.GroupVersionResource{Group: trivyGroup, Version: "v1alpha1", Resource: "configauditreports"}
+	secretGVR = schema.GroupVersionResource{Group: trivyGroup, Version: "v1alpha1", Resource: "exposedsecretreports"}
 )
 
 func trivyReport(kind, ns, name string, report map[string]any) *unstructured.Unstructured {
@@ -162,7 +162,7 @@ func TestSearch_SeverityWordsDoNotMatchReports(t *testing.T) {
 	}
 }
 
-func TestSearch_ReportFieldOutsideTrivyGroupIsNotIndexed(t *testing.T) {
+func TestSearch_ReportFieldOutsidetrivyGroupIsNotIndexed(t *testing.T) {
 	gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "scans"}
 	u := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "example.com/v1",

@@ -10,8 +10,6 @@ import (
 	"github.com/skyhook-io/radar/pkg/resourcecontext"
 )
 
-const trivyGroup = "aquasecurity.github.io"
-
 // trivyScanTarget resolves the object a Trivy Operator report scanned and,
 // when that object is or belongs to a workload, the workload a human would
 // name for it. Trivy reports are kept out of topology, so the relationship
@@ -45,7 +43,8 @@ func trivyScanTarget(cache *k8s.ResourceCache, u *unstructured.Unstructured) (*r
 
 	switch kind {
 	case "ReplicaSet":
-		if cache.ReplicaSets() == nil {
+		// Until the informer has synced, a miss isn't a deletion.
+		if cache.ReplicaSets() == nil || !cache.IsKindReady("replicasets") {
 			return self, scanned
 		}
 		rs, err := cache.ReplicaSets().ReplicaSets(ns).Get(name)
@@ -63,7 +62,7 @@ func trivyScanTarget(cache *k8s.ResourceCache, u *unstructured.Unstructured) (*r
 		}
 		return self, scanned
 	case "Pod":
-		if cache.Pods() == nil {
+		if cache.Pods() == nil || !cache.IsKindReady("pods") {
 			return self, scanned
 		}
 		pod, err := cache.Pods().Pods(ns).Get(name)
@@ -97,9 +96,16 @@ func sameObject(ref, cached types.UID) bool {
 // ReplicaSet and Pod are resolved to theirs.
 var workloadKinds = map[string]bool{"ReplicaSet": true, "Deployment": true, "StatefulSet": true, "DaemonSet": true, "Job": true, "CronJob": true, "ReplicationController": true}
 
+// workloadResources maps the workload kinds workloadUID reads to their
+// cache resource names.
+var workloadResources = map[string]string{"Deployment": "deployments", "StatefulSet": "statefulsets", "DaemonSet": "daemonsets", "Job": "jobs", "CronJob": "cronjobs"}
+
 // workloadUID returns a cached workload's UID; known is false for kinds this
-// lookup doesn't cover or whose informer isn't running.
+// lookup doesn't cover or whose informer isn't running or hasn't synced.
 func workloadUID(cache *k8s.ResourceCache, kind, ns, name string) (uid types.UID, exists, known bool) {
+	if resource := workloadResources[kind]; resource == "" || !cache.IsKindReady(resource) {
+		return "", false, false
+	}
 	var obj metav1.Object
 	var err error
 	switch kind {

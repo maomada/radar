@@ -50,7 +50,7 @@ func unstructuredActivation(u *unstructured.Unstructured, kind, group string) ma
 	if u == nil || u.Object == nil {
 		return nil
 	}
-	if group != TrivyGroup {
+	if group != trivyGroup {
 		m := u.DeepCopy().Object
 		normalizeNumbers(m)
 		return assembleActivation(m, kind)

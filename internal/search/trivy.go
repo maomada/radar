@@ -4,18 +4,18 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
 )
 
-// TrivyGroup is the API group Trivy Operator writes its reports in. Its
-// reports have no spec or status: every finding lives under a top-level
-// `report` field.
-const TrivyGroup = "aquasecurity.github.io"
+// trivyGroup is the API group Trivy Operator writes its reports in.
+const trivyGroup = aicontext.TrivyGroup
 
 // kindRBACGroups are API groups whose namespaced kinds search reads only where
 // the caller may list that kind (Options.KindAccess). Seeing a namespace's
 // Pods doesn't mean being allowed to read its scan findings, and Trivy
 // reports carry CVE and exposed-secret findings.
-var kindRBACGroups = map[string]bool{TrivyGroup: true}
+var kindRBACGroups = map[string]bool{trivyGroup: true}
 
 // maxTrivyFieldBytes bounds one indexed report entry. IDs and versions are
 // short; the cap only guards against a malformed report.
@@ -109,27 +109,6 @@ func joinField(parts ...string) string {
 		v = v[:cut]
 	}
 	return v
-}
-
-// trivyArtifactImage renders the scanned image as a pullable reference, so
-// `image:` modifiers and free tokens match reports the way they match Pods.
-func trivyArtifactImage(report map[string]any) string {
-	artifact := asMap(report["artifact"])
-	repo := asString(artifact["repository"])
-	if repo == "" {
-		return ""
-	}
-	ref := repo
-	if server := asString(asMap(report["registry"])["server"]); server != "" {
-		ref = server + "/" + repo
-	}
-	if tag := asString(artifact["tag"]); tag != "" {
-		ref += ":" + tag
-	}
-	if digest := asString(artifact["digest"]); digest != "" {
-		ref += "@" + digest
-	}
-	return ref
 }
 
 // trivyReportProjection is what the `report` CEL binding exposes: the fields

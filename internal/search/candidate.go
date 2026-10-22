@@ -11,6 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
 )
 
 // fromObject builds a candidate from a typed K8s object. Returns ok=false
@@ -49,8 +51,8 @@ func identityFromUnstructured(u *unstructured.Unstructured, kind, group string) 
 		Annotations: u.GetAnnotations(),
 	}
 	c.Images = imagesFromUnstructured(u)
-	if group == TrivyGroup {
-		if img := trivyArtifactImage(asMap(u.Object["report"])); img != "" {
+	if group == trivyGroup {
+		if img := aicontext.TrivyArtifactImage(asMap(u.Object["report"])); img != "" {
 			c.Images = append(c.Images, img)
 		}
 	}
@@ -60,7 +62,7 @@ func identityFromUnstructured(u *unstructured.Unstructured, kind, group string) 
 // addUnstructuredContent fills Content, which only free tokens read.
 func addUnstructuredContent(c *candidate, u *unstructured.Unstructured) {
 	c.Content = contentFromUnstructured(u, c.Kind)
-	if c.Group == TrivyGroup {
+	if c.Group == trivyGroup {
 		c.Content = append(c.Content, trivyReportContent(asMap(u.Object["report"]))...)
 	}
 }

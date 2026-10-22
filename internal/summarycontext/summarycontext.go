@@ -20,6 +20,7 @@ import (
 
 	"github.com/skyhook-io/radar/internal/issues"
 	"github.com/skyhook-io/radar/internal/k8s"
+	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
 	"github.com/skyhook-io/radar/pkg/resourcecontext"
 	"github.com/skyhook-io/radar/pkg/topology"
 )
@@ -61,7 +62,7 @@ func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx Issue
 	return func(obj runtime.Object, u *unstructured.Unstructured, group, kind, namespace, name string) *resourcecontext.ResourceSummaryContext {
 		var managedBy *resourcecontext.ManagedByRef
 		var scanned *resourcecontext.ScannedRef
-		if u != nil && group == trivyGroup {
+		if u != nil && group == aicontext.TrivyGroup {
 			managedBy, scanned = trivyScanTarget(k8s.GetResourceCache(), u)
 		} else if topo != nil {
 			// Pass the fetched object when available so synthesis is

@@ -18,7 +18,7 @@ func summarizeUnstructured(obj *unstructured.Unstructured) *ResourceSummary {
 
 	// Known CRD extractors
 	switch {
-	case group == "aquasecurity.github.io" && obj.Object["report"] != nil:
+	case group == TrivyGroup && obj.Object["report"] != nil:
 		return summarizeTrivyReport(obj)
 	case group == "argoproj.io" && kind == "Application":
 		return summarizeArgoApp(obj)

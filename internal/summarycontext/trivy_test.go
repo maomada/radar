@@ -8,8 +8,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/pkg/k8score"
@@ -121,5 +123,32 @@ func TestTrivyScanTarget(t *testing.T) {
 
 	if m, s := trivyScanTarget(cache, &unstructured.Unstructured{Object: map[string]any{"metadata": map[string]any{"name": "r", "namespace": "shop"}}}); m != nil || s != nil {
 		t.Fatalf("a report with no owner names nothing: %+v %+v", m, s)
+	}
+}
+
+func TestTrivyScanTarget_UnsyncedInformerIsNotADeletion(t *testing.T) {
+	client := fake.NewClientset()
+	release := make(chan struct{})
+	client.PrependReactor("list", "replicasets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		<-release
+		return false, nil, nil
+	})
+	core, err := k8score.NewResourceCache(k8score.CacheConfig{
+		Client:        client,
+		ResourceTypes: map[string]bool{k8score.ReplicaSets: true},
+		DeferredTypes: map[string]bool{k8score.ReplicaSets: true},
+	})
+	if err != nil {
+		t.Fatalf("NewResourceCache: %v", err)
+	}
+	t.Cleanup(func() { close(release); core.Stop() })
+	cache := &k8s.ResourceCache{ResourceCache: core}
+
+	managedBy, scanned := trivyScanTarget(cache, scanReport("ReplicaSet", "web-new", true))
+	if scanned == nil || scanned.Missing || scanned.Replicas != nil {
+		t.Fatalf("a ReplicaSet the cache hasn't loaded yet must not read as missing: %+v", scanned)
+	}
+	if managedBy == nil || managedBy.Kind != "ReplicaSet" {
+		t.Fatalf("managedBy = %+v", managedBy)
 	}
 }

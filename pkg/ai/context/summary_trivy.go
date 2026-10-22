@@ -8,6 +8,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// TrivyGroup is the API group Trivy Operator writes its reports in. Its
+// reports have no spec or status: every finding lives under a top-level
+// `report` field.
+const TrivyGroup = "aquasecurity.github.io"
+
 // summarizeTrivyReport summarizes a Trivy Operator report (VulnerabilityReport,
 // SbomReport, ConfigAuditReport, ExposedSecretReport, …): the scanned image,
 // the object the scan was about, finding counts and when it ran. A report
@@ -22,7 +27,7 @@ func summarizeTrivyReport(obj *unstructured.Unstructured) *ResourceSummary {
 		Name:      obj.GetName(),
 		Namespace: obj.GetNamespace(),
 		Age:       age(obj.GetCreationTimestamp().Time),
-		Image:     trivyImage(report),
+		Image:     TrivyArtifactImage(report),
 	}
 	if kind, name := labels["trivy-operator.resource.kind"], labels["trivy-operator.resource.name"]; kind != "" && name != "" {
 		s.Owner = kind + "/" + name
@@ -44,19 +49,23 @@ func summarizeTrivyReport(obj *unstructured.Unstructured) *ResourceSummary {
 	return s
 }
 
-func trivyImage(report map[string]any) string {
-	repo, _, _ := unstructured.NestedString(report, "artifact", "repository")
+// TrivyArtifactImage renders a report's scanned image as a pullable
+// reference (registry/repository:tag@digest).
+func TrivyArtifactImage(report map[string]any) string {
+	artifact, _ := report["artifact"].(map[string]any)
+	repo, _ := artifact["repository"].(string)
 	if repo == "" {
 		return ""
 	}
 	ref := repo
-	if server, _, _ := unstructured.NestedString(report, "registry", "server"); server != "" {
+	registry, _ := report["registry"].(map[string]any)
+	if server, _ := registry["server"].(string); server != "" {
 		ref = server + "/" + repo
 	}
-	if tag, _, _ := unstructured.NestedString(report, "artifact", "tag"); tag != "" {
+	if tag, _ := artifact["tag"].(string); tag != "" {
 		ref += ":" + tag
 	}
-	if digest, _, _ := unstructured.NestedString(report, "artifact", "digest"); digest != "" {
+	if digest, _ := artifact["digest"].(string); digest != "" {
 		ref += "@" + digest
 	}
 	return ref
