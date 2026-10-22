@@ -667,7 +667,11 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 				continue
 			}
 			if change.Missing {
-				out = append(out, resourceHealthIssue(change, nil))
+				issue := resourceHealthIssue(change, nil)
+				if hazard := argoSyncHazardAction(root); hazard != "" && change.Sync != "Synced" {
+					issue.Action = hazard
+				}
+				out = append(out, issue)
 			} else if change.Health == "Degraded" || change.Health == "Missing" {
 				// Argo calling the app Healthy is its verdict on every resource
 				// it assesses; Radar's own read of a resource must not contradict
