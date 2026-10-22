@@ -914,3 +914,28 @@ func TestRegistryLookup_CredentialsNeverUseHTTP(t *testing.T) {
 		t.Fatalf("credentialed lookup must refuse HTTP before sending requests: err=%v requests=%d", err, requests.Load())
 	}
 }
+
+func TestInventory_TransientFailuresExpireQuickly(t *testing.T) {
+	f := &fakeLookup{errs: map[string]error{refKey(t, phpDigest) + "|anonymous": &transport.Error{StatusCode: http.StatusServiceUnavailable}}}
+	inv := fakeInventory(f)
+	now := time.Now()
+	inv.now = func() time.Time { return now }
+	src := podSourceWithoutSecrets(runningPod("shop", "web", "x86-node", "web", map[string][2]string{"app": {"php:8.3", phpDigest}}))
+	inv.Inventory(context.Background(), src, InventoryOptions{})
+	inv.Inventory(context.Background(), src, InventoryOptions{})
+	if f.calls.Load() != 1 {
+		t.Fatalf("failure was not cached: %d", f.calls.Load())
+	}
+	now = now.Add(transientFailureTTL + time.Second)
+	inv.Inventory(context.Background(), src, InventoryOptions{})
+	if f.calls.Load() != 2 {
+		t.Fatalf("transient failure did not expire: %d", f.calls.Load())
+	}
+}
+
+func TestClassifyFetchError_AuthDoesNotBlamePodCredentials(t *testing.T) {
+	got := classifyFetchError(unauthorized())
+	if got.status != StatusAuthRequired || strings.Contains(got.err, "Pod would pull") || !strings.Contains(got.err, "node credentials were not used") {
+		t.Fatalf("misleading authorization failure: %+v", got)
+	}
+}

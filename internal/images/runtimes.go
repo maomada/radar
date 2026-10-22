@@ -1,6 +1,7 @@
 package images
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -110,6 +111,30 @@ var (
 	// Distro revisions require package-specific comparison and backport data.
 	finalSuffix = regexp.MustCompile(`^(\+[0-9A-Za-z.-]+)?$`)
 )
+
+func ValidateRuntimeQuery(runtime string, fixedIn []string) error {
+	valid := runtime == "" || runtime == "image"
+	names := map[string]bool{"image": true}
+	for _, name := range runtimeEnv {
+		names[name] = true
+		valid = valid || runtime == name
+	}
+	if !valid {
+		allowed := make([]string, 0, len(names))
+		for name := range names {
+			allowed = append(allowed, name)
+		}
+		sort.Strings(allowed)
+		return fmt.Errorf("unknown runtime %q; use one of: %s", runtime, strings.Join(allowed, ", "))
+	}
+	for _, raw := range fixedIn {
+		version, suffix := parseVersionRest(raw)
+		if version == nil || len(version) > 3 || !finalSuffix.MatchString(suffix) {
+			return fmt.Errorf("fixed_in %q is not a supported upstream release; use numeric versions such as 8.3.36 or 17.6, without distro revisions", raw)
+		}
+	}
+	return nil
+}
 
 // ClassifyFix compares a declared version against fixed releases. A fixed
 // version's branch is everything but its last component (8.3.36 → 8.3,

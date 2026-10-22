@@ -66,3 +66,16 @@ func TestGetRuntimeVersions_FixedInNeedsRuntime(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestGetRuntimeVersions_RejectsInvalidFilters(t *testing.T) {
+	setupFakeCacheForFilterTests(t)
+	for _, input := range []runtimeVersionsInput{
+		{Runtime: "golang"}, {Runtime: "nodejs"}, {Runtime: "openjdk"},
+		{Runtime: "php", FixedIn: "8.3.x"}, {Runtime: "php", FixedIn: "8.3.36-1"},
+	} {
+		_, _, err := handleGetRuntimeVersions(context.Background(), nil, input)
+		if err == nil {
+			t.Fatalf("invalid filters accepted: %+v", input)
+		}
+	}
+}

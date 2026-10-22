@@ -31,7 +31,7 @@ type runtimeVersionsResponse struct {
 	NamespacesWithoutPodAccess []string `json:"namespacesWithoutPodAccess,omitempty"`
 }
 
-const runtimeVersionsBasis = "Versions an image declares in its config (Docker official images and images built FROM them), read for the digest each Pod runs. Declared, not proof of the binary; runtimes installed from distro packages declare nothing here. resolvedFrom spec or tag means the kubelet reported no registry digest. These images and assumed platforms get no fix verdict. Missing declarations remain unknown, not absent. Unsupported or distro version formats are unparsed."
+const runtimeVersionsBasis = "Versions an image declares in its config (Docker official images and images built FROM them), read for the digest each Pod runs. Declared, not proof of the binary; runtimes installed from distro packages declare nothing here. resolvedFrom spec or tag means the kubelet reported no registry digest. These images and assumed platforms get no fix verdict. Missing declarations remain unknown, not absent. Unsupported or distro version formats are unparsed. Node registry credentials are not used; private images pulled only with node identity may remain unreadable."
 
 func handleGetRuntimeVersions(ctx context.Context, _ *mcp.CallToolRequest, input runtimeVersionsInput) (*mcp.CallToolResult, any, error) {
 	cache := k8s.GetResourceCache()
@@ -49,6 +49,10 @@ func handleGetRuntimeVersions(ctx context.Context, _ *mcp.CallToolRequest, input
 	}
 	if len(fixedIn) > 0 && strings.TrimSpace(input.Runtime) == "" {
 		return nil, nil, fmt.Errorf("fixed_in needs runtime: fixed releases belong to one runtime (e.g. runtime=php)")
+	}
+	input.Runtime = strings.ToLower(strings.TrimSpace(input.Runtime))
+	if err := images.ValidateRuntimeQuery(input.Runtime, fixedIn); err != nil {
+		return nil, nil, err
 	}
 	pods, denied := runtimePods(ctx, cache, input.Namespace)
 	user, _ := resolveUserPerms(ctx)

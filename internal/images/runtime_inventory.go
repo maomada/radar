@@ -51,6 +51,7 @@ const (
 	credentialResultTTL   = time.Hour
 	maxOutstandingLookups = 16
 	failureTTL            = 10 * time.Minute
+	transientFailureTTL   = 30 * time.Second
 	rateLimitBackoff      = 5 * time.Minute
 )
 
@@ -486,7 +487,11 @@ func (r *RuntimeInventory) fetch(ctx context.Context, w *work, creds []credentia
 		if res.status == StatusRateLimited || res.status == StatusNotChecked {
 			return res
 		}
-		r.store(resultKey(w, c), res, failureTTL)
+		ttl := failureTTL
+		if res.status == StatusError {
+			ttl = transientFailureTTL
+		}
+		r.store(resultKey(w, c), res, ttl)
 		// Registries that hide repositories from unauthorized callers answer
 		// 404, so a not-found is worth trying with the next credential.
 		if res.status != StatusAuthRequired && res.status != StatusNotFound {
@@ -547,7 +552,7 @@ func classifyFetchError(err error) configResult {
 	if errors.As(err, &terr) {
 		switch terr.StatusCode {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return configResult{status: StatusAuthRequired, err: "registry refused the credentials this Pod would pull with"}
+			return configResult{status: StatusAuthRequired, err: "registry requires credentials or rejected those available to Radar; node credentials were not used"}
 		case http.StatusNotFound:
 			return configResult{status: StatusNotFound, err: "image not found, or hidden from these credentials"}
 		case http.StatusTooManyRequests:
