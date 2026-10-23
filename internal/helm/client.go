@@ -3376,7 +3376,7 @@ func (c *Client) GetChartDetail(repoName, chartName, version string) (*ChartDeta
 	chart, err := loadChartWithDigest(cp, chartVersion.Digest)
 	if err != nil {
 		if errors.Is(err, errChartDigest) {
-			return nil, fmt.Errorf("chart %s version %s: %w", chartName, chartVersion.Version, err)
+			return nil, fmt.Errorf("chart %s version %s: %w", chartName, chartVersion.Version, withChartDigestGuidance(err, false))
 		}
 		return &ChartDetail{
 			ChartInfo: chartVersionToInfo(chartVersion, repoName),
@@ -3605,7 +3605,7 @@ func (c *Client) installWith(actionConfig *action.Configuration, req *InstallReq
 	}
 	chart, err := loadChartWithDigest(cp, indexDigest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chart %s version %s: %w", req.ChartName, resolvedVersion, err)
+		return nil, fmt.Errorf("failed to load chart %s version %s: %w", req.ChartName, resolvedVersion, withChartDigestGuidance(err, isRepoURL))
 	}
 
 	if mode != installFresh {
@@ -3810,7 +3810,7 @@ func (c *Client) installWithProgressUsing(actionConfig *action.Configuration, re
 		sendProgress("loading", "Loading chart...", chartPath)
 		loadedChart, err = loadChartWithDigest(chartPath, indexDigest)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load chart %s version %s: %w", req.ChartName, resolvedVersion, err)
+			return nil, fmt.Errorf("failed to load chart %s version %s: %w", req.ChartName, resolvedVersion, withChartDigestGuidance(err, isRepoURL))
 		}
 	} else {
 		// Preserve the existing direct HTTP path. Helm's ChartDownloader loads all
@@ -3840,7 +3840,7 @@ func (c *Client) installWithProgressUsing(actionConfig *action.Configuration, re
 		sendProgress("loading", "Loading chart...", tmpChart.Name())
 		loadedChart, err = loadChartWithDigest(tmpChart.Name(), indexDigest)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load chart %s version %s: %w", req.ChartName, resolvedVersion, err)
+			return nil, fmt.Errorf("failed to load chart %s version %s: %w", req.ChartName, resolvedVersion, withChartDigestGuidance(err, isRepoURL))
 		}
 	}
 
