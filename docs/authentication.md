@@ -58,7 +58,10 @@ registries often serve tokens or layers from a second internal host. Credentials
 are sent only over HTTPS, as the node's container runtime does by default; a
 registry that needs credentials over plain HTTP can't be inspected. Behind an HTTP
 proxy, a request Radar can't pin to an address it has checked is refused rather
-than left to the proxy. A refused request returns 403.
+than left to the proxy. A refused request returns 403. Downloaded layers are cached
+for a few minutes and shared by all users, keyed by the image's repository and
+digest, so a cached image is only served after the caller has read its manifest
+from that same repository.
 Without an authenticated user, local image inspection keeps its existing
 credential discovery and network behavior.
 

@@ -716,3 +716,82 @@ func TestLayerTransportLocalProxyFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+// A copy of a private image's manifest, served from another registry, has the
+// same digest. It must not unlock the layers another caller cached.
+func TestImageCacheNeedsTheImagesOwnRepository(t *testing.T) {
+	img, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serve := func(withholdBlobs bool) (string, *atomic.Int32) {
+		var blobHits atomic.Int32
+		var armed atomic.Bool
+		reg := registry.New(registry.Logger(log.New(io.Discard, "", 0)))
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if armed.Load() && strings.Contains(r.URL.Path, "/blobs/") {
+				blobHits.Add(1)
+				if withholdBlobs {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+			}
+			reg.ServeHTTP(w, r)
+		}))
+		t.Cleanup(srv.Close)
+		image := strings.TrimPrefix(srv.URL, "http://") + "/private/app:v1"
+		ref, err := name.ParseReference(image, name.Insecure)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := remote.Write(ref, img); err != nil {
+			t.Fatal(err)
+		}
+		armed.Store(true)
+		return image, &blobHits
+	}
+	victim, victimBlobs := serve(false)
+	replay, _ := serve(true)
+	inspector := &Inspector{cacheDir: t.TempDir(), newGuard: func() *guardedTransport { return newLayerTransport(false) }}
+	ctx := context.Background()
+
+	victimFS, err := inspector.Inspect(ctx, InspectRequest{Image: victim, guarded: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := firstImageFile(victimFS.Root)
+	if file == "" {
+		t.Fatal("test image has no files")
+	}
+	if _, _, err := inspector.GetFileContent(ctx, InspectRequest{Image: victim, guarded: true}, file); err != nil {
+		t.Fatalf("the victim reads its own file: %v", err)
+	}
+	downloaded := victimBlobs.Load()
+	if _, err := inspector.Inspect(ctx, InspectRequest{Image: victim, guarded: true}); err != nil || victimBlobs.Load() != downloaded {
+		t.Fatalf("the same repository reuses its cache: err %v, blob requests %d then %d", err, downloaded, victimBlobs.Load())
+	}
+	if fs, err := inspector.Inspect(ctx, InspectRequest{Image: replay, guarded: true}); err == nil {
+		t.Fatalf("a replayed manifest read the cached layers: %d files", fs.TotalFiles)
+	}
+	if _, _, err := inspector.GetFileContent(ctx, InspectRequest{Image: replay, guarded: true}, file); err == nil {
+		t.Fatal("a replayed manifest read a cached file")
+	}
+	if meta, err := inspector.GetMetadata(ctx, InspectRequest{Image: replay, guarded: true}); err != nil || meta.Cached || meta.Filesystem != nil {
+		t.Fatalf("a replayed manifest's metadata came from the cache: err %v, %+v", err, meta)
+	}
+}
+
+func firstImageFile(node *FileNode) string {
+	if node == nil {
+		return ""
+	}
+	if node.Type == "file" {
+		return node.Path
+	}
+	for _, child := range node.Children {
+		if path := firstImageFile(child); path != "" {
+			return path
+		}
+	}
+	return ""
+}

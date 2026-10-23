@@ -3,6 +3,8 @@ package images
 import (
 	"archive/tar"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -127,19 +129,27 @@ func (i *Inspector) cleanupExpired() {
 	}
 }
 
-// getCacheKey returns a filesystem-safe cache key from an image digest
-func getCacheKey(digest string) string {
-	// Digest format: sha256:abc123...
-	// Replace : with - for filesystem safety
-	return strings.ReplaceAll(digest, ":", "-")
+// getCacheKey returns a filesystem-safe cache key for an image digest in its
+// repository. The cache is shared by every caller, and a digest alone is not
+// proof of access: anyone holding a copy of a private image's manifest can
+// serve it, under the same digest, from a registry of their own. Keyed by
+// repository too, a cache hit needs the caller to have just read that
+// manifest from the image's own repository.
+func getCacheKey(imageRef, digest string) string {
+	repository := imageRef
+	if ref, err := name.ParseReference(imageRef); err == nil {
+		repository = ref.Context().Name()
+	}
+	sum := sha256.Sum256([]byte(repository + "@" + digest))
+	return hex.EncodeToString(sum[:])
 }
 
 // getCachedLayers returns paths to cached layer files if available and not expired
-func (i *Inspector) getCachedLayers(digest string) ([]string, *layerCacheMetadata, bool) {
+func (i *Inspector) getCachedLayers(imageRef, digest string) ([]string, *layerCacheMetadata, bool) {
 	i.cacheMu.RLock()
 	defer i.cacheMu.RUnlock()
 
-	cacheKey := getCacheKey(digest)
+	cacheKey := getCacheKey(imageRef, digest)
 	imageDir := filepath.Join(i.cacheDir, cacheKey)
 	metadataPath := filepath.Join(imageDir, "metadata.json")
 
@@ -183,7 +193,7 @@ func (i *Inspector) cacheLayers(ctx context.Context, img v1.Image, imageRef stri
 		return nil, nil, fmt.Errorf("failed to get image digest: %w", err)
 	}
 
-	cacheKey := getCacheKey(digest.String())
+	cacheKey := getCacheKey(imageRef, digest.String())
 	imageDir := filepath.Join(i.cacheDir, cacheKey)
 	layersDir := filepath.Join(imageDir, "layers")
 
@@ -333,7 +343,7 @@ func (i *Inspector) GetMetadata(ctx context.Context, req InspectRequest) (*Image
 	}
 
 	// Check if layers are cached
-	layerPaths, meta, cached := i.getCachedLayers(digest.String())
+	layerPaths, meta, cached := i.getCachedLayers(req.Image, digest.String())
 	if cached {
 		// Build filesystem from cached layers
 		fs, err := i.buildFilesystemFromCache(ctx, layerPaths, meta, req.Image)
@@ -504,7 +514,7 @@ func (i *Inspector) Inspect(ctx context.Context, req InspectRequest) (*ImageFile
 	}
 
 	// Check if layers are cached
-	layerPaths, meta, cached := i.getCachedLayers(digest.String())
+	layerPaths, meta, cached := i.getCachedLayers(req.Image, digest.String())
 	if cached {
 		fs, err := i.buildFilesystemFromCache(ctx, layerPaths, meta, req.Image)
 		if err == nil {
@@ -739,7 +749,7 @@ func (i *Inspector) GetFileContent(ctx context.Context, req InspectRequest, file
 	}
 
 	// Check if layers are cached
-	layerPaths, _, cached := i.getCachedLayers(digest.String())
+	layerPaths, _, cached := i.getCachedLayers(req.Image, digest.String())
 	if !cached {
 		// Cache layers first
 		layerPaths, _, err = i.cacheLayers(ctx, img, req.Image)
