@@ -795,3 +795,57 @@ func firstImageFile(node *FileNode) string {
 	}
 	return ""
 }
+
+// The cache never answers before the registry has: a caller whose own
+// credentials can't read the manifest fails even after another caller cached
+// the image.
+func TestImageCacheDoesNotOutliveRegistryAccess(t *testing.T) {
+	img, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := registry.New(registry.Logger(log.New(io.Discard, "", 0)))
+	var locked atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if user, _, ok := r.BasicAuth(); locked.Load() && (!ok || user != "alice") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		reg.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	image := strings.TrimPrefix(srv.URL, "http://") + "/private/app:v1"
+	ref, err := name.ParseReference(image, name.Insecure)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := remote.Write(ref, img); err != nil {
+		t.Fatal(err)
+	}
+	locked.Store(true)
+	alice := &pullSecretKeychain{auths: map[string]DockerConfigEntry{ref.Context().RegistryStr(): {Username: "alice", Password: "secret"}}}
+	inspector := &Inspector{cacheDir: t.TempDir()}
+	ctx := context.Background()
+
+	fs, err := inspector.Inspect(ctx, InspectRequest{Image: image, keychain: alice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := firstImageFile(fs.Root)
+	for name, keychain := range map[string]authn.Keychain{"no credentials": authn.NewMultiKeychain(), "wrong credentials": &pullSecretKeychain{auths: map[string]DockerConfigEntry{ref.Context().RegistryStr(): {Username: "bob", Password: "guess"}}}} {
+		bob := InspectRequest{Image: image, keychain: keychain}
+		if _, err := inspector.Inspect(ctx, bob); err == nil {
+			t.Fatalf("%s: inspect served from the cache", name)
+		}
+		if _, _, err := inspector.GetFileContent(ctx, bob, file); err == nil {
+			t.Fatalf("%s: a file served from the cache", name)
+		}
+		if _, err := inspector.GetMetadata(ctx, bob); err == nil {
+			t.Fatalf("%s: metadata served from the cache", name)
+		}
+	}
+	if _, _, err := inspector.GetFileContent(ctx, InspectRequest{Image: image, keychain: alice}, file); err != nil {
+		t.Fatalf("alice still reads her file: %v", err)
+	}
+}
