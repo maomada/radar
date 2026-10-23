@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -433,6 +434,7 @@ func newLayerTransport(inCluster bool) *guardedTransport {
 	g.uncapped = true
 	g.anyPrivate = true
 	g.tlsForCredentials = true
+	g.pinnedOnly = true
 	return g
 }
 
@@ -480,7 +482,7 @@ func (i *Inspector) fetchGuarded(ctx context.Context, ref name.Reference, req In
 // guardFor returns a fresh guarded transport and the func that closes its
 // connections.
 func (i *Inspector) guardFor() (http.RoundTripper, func()) {
-	if testRegistryTransport != nil {
+	if testRegistryTransport != nil && testing.Testing() {
 		return testRegistryTransport, func() {}
 	}
 	g := i.newGuard()

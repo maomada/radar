@@ -696,3 +696,23 @@ func TestLayerTransportRefusesOnlyCredentialsOverHTTP(t *testing.T) {
 		t.Fatalf("a token exchange: err %v, hits %d", err, hits.Load())
 	}
 }
+
+// With auth on, the caller is not the proxy's owner: outside a cluster too,
+// image inspection never lets a proxy pick the address.
+func TestLayerTransportLocalProxyFailsClosed(t *testing.T) {
+	var proxied atomic.Int32
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		proxied.Add(1)
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	t.Cleanup(proxy.Close)
+	proxyURL, _ := url.Parse(proxy.URL)
+	for _, target := range []string{"http://registry.does-not-resolve.invalid/v2/", "http://203.0.113.7/v2/"} {
+		g := newLayerTransport(false)
+		g.proxy = func(*http.Request) (*url.URL, error) { return proxyURL, nil }
+		req, _ := http.NewRequest(http.MethodGet, target, nil)
+		if _, err := g.RoundTrip(req); !isBlocked(err) || proxied.Load() != 0 {
+			t.Fatalf("%s: err %v, proxied %d", target, err, proxied.Load())
+		}
+	}
+}

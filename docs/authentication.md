@@ -56,8 +56,9 @@ are refused, and loopback is refused in-cluster (locally it is allowed only for 
 registry the Pod's image names). Private addresses are allowed, because self-hosted
 registries often serve tokens or layers from a second internal host. Credentials
 are sent only over HTTPS, as the node's container runtime does by default; a
-registry that needs credentials over plain HTTP can't be inspected. A refused
-request returns 403.
+registry that needs credentials over plain HTTP can't be inspected. Behind an HTTP
+proxy, a request Radar can't pin to an address it has checked is refused rather
+than left to the proxy. A refused request returns 403.
 Without an authenticated user, local image inspection keeps its existing
 credential discovery and network behavior.
 

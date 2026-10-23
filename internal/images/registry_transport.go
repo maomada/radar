@@ -83,7 +83,11 @@ type guardedTransport struct {
 	// anyPrivate allows private addresses on every request, not only the
 	// named registry: self-hosted registries often serve tokens or blobs
 	// from a second internal host.
-	anyPrivate     bool
+	anyPrivate bool
+	// pinnedOnly refuses proxied requests Radar can't pin to a checked
+	// address, outside a cluster too: with auth on, the caller is not the
+	// proxy's owner.
+	pinnedOnly     bool
 	inCluster      bool
 	proxy          func(*http.Request) (*url.URL, error)
 	resolver       *net.Resolver
@@ -160,7 +164,7 @@ func (g *guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	// endpoints are requests too.
 	ips, lookupErr := g.lookup(ctx, host)
 	if lookupErr != nil {
-		if proxyURL != nil && !g.inCluster {
+		if proxyURL != nil && !g.inCluster && !g.pinnedOnly {
 			return g.send(g.unpinned, req)
 		}
 		if proxyURL != nil {
@@ -180,7 +184,7 @@ func (g *guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if req.URL.Scheme == "https" && proxyURL.Scheme == "http" {
 		return g.send(g.pinned, req.WithContext(context.WithValue(ctx, proxyRouteKey{}, proxyURL)))
 	}
-	if !g.inCluster {
+	if !g.inCluster && !g.pinnedOnly {
 		return g.send(g.unpinned, req)
 	}
 	return nil, fmt.Errorf("%w: %s can't be pinned through the proxy", errBlockedAddress, host)
