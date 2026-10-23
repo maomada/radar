@@ -50,8 +50,16 @@ the digest the kubelet recorded as pulled for one of the Pod's containers. This
 covers images pulled with the node's cloud identity and no pull secret, such as
 Artifact Registry on GKE. Denied or non-authoritative checks drop the credential,
 with anonymous fallback. The `pullSecrets` query parameter and ServiceAccount pull
-secrets are ignored. Without an authenticated user, local image inspection keeps
-its existing credential discovery behavior.
+secrets are ignored. Every registry request, including redirects and token
+endpoints, is checked before Radar connects: link-local addresses (cloud metadata)
+are refused, and loopback is refused in-cluster (locally it is allowed only for the
+registry the Pod's image names). Private addresses are allowed, because self-hosted
+registries often serve tokens or layers from a second internal host. Credentials
+are sent only over HTTPS, as the node's container runtime does by default; a
+registry that needs credentials over plain HTTP can't be inspected. A refused
+request returns 403.
+Without an authenticated user, local image inspection keeps its existing
+credential discovery and network behavior.
 
 ### Prometheus metrics
 
