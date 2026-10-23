@@ -47,11 +47,13 @@ func (s *Server) newTrivyCountAccess(r *http.Request) *trivyCountAccess {
 }
 
 func (a *trivyCountAccess) scope(gvr schema.GroupVersionResource, namespaces []string) (allowed []string, all, complete bool) {
-	if a.s.canRead(a.r, gvr.Group, gvr.Resource, "", "list") {
+	everywhere, answered := a.s.canReadDecision(a.r, gvr.Group, gvr.Resource, "", "list")
+	if everywhere {
 		return namespaces, true, true
 	}
 	if namespaces == nil {
-		return []string{}, false, true
+		// A failed check is unknown, not a denial.
+		return []string{}, false, answered
 	}
 	// A denied canRead means auth is on, so there is a user and a cache.
 	user := auth.UserFromContext(a.r.Context())

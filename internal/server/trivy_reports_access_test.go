@@ -246,3 +246,22 @@ func TestProxyAuth_TrivyReportCountsBoundChecks(t *testing.T) {
 		t.Fatalf("namespace checks across both loads = %d, want %d (each once)", n, len(namespaces))
 	}
 }
+
+// A permission check the apiserver didn't answer is unknown, so the count is
+// unavailable rather than reported as an RBAC denial.
+func TestProxyAuth_TrivyReportCountsUnansweredCheckIsUnavailable(t *testing.T) {
+	setupExposedSecretReports(t)
+	env := newAuthTestServer(t)
+	// No client and nothing remembered: the cluster-wide check goes unanswered.
+	env.srv.permCache.Set("reader", nil, &auth.UserPermissions{AllowedNamespaces: nil})
+
+	resp := env.authGet(t, "/api/resource-counts", "reader", "")
+	var counts ResourceCountsResponse
+	if err := json.Unmarshal([]byte(readBody(t, resp)), &counts); err != nil {
+		t.Fatal(err)
+	}
+	const key = "aquasecurity.github.io/ExposedSecretReport"
+	if !slices.Contains(counts.Unavailable, key) || slices.Contains(counts.Forbidden, key) {
+		t.Fatalf("unavailable=%v forbidden=%v, want %s unavailable only", counts.Unavailable, counts.Forbidden, key)
+	}
+}
