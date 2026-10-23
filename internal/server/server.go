@@ -2240,7 +2240,8 @@ func (s *Server) preflightResourceList(r *http.Request, kind, group string, name
 	// rbac.helm, auth.mode != "none", or cloud.enabled — see deploy/helm/
 	// radar/templates/clusterrole.yaml). When any of those triggers fires
 	// the cache holds every secret in the cluster, so per-user RBAC must
-	// gate the read. Other namespaced kinds are deferred.
+	// gate the read. Trivy reports are gated below; other namespaced kinds
+	// are deferred.
 	if kind == "secrets" || kind == "secret" {
 		if auth.UserFromContext(r.Context()) != nil {
 			if namespaces == nil {
@@ -2256,6 +2257,15 @@ func (s *Server) preflightResourceList(r *http.Request, kind, group string, name
 					return namespaces, http.StatusForbidden, "insufficient permissions to list secrets", false
 				}
 			}
+		}
+	}
+
+	if gvr, ok := k8s.TrivyReportGVR(kind, group); ok {
+		if readable, all := s.readableTrivyNamespaces(r, gvr, namespaces); !all {
+			if len(readable) == 0 {
+				return readable, http.StatusForbidden, fmt.Sprintf("insufficient permissions to list %s", kind), false
+			}
+			namespaces = readable
 		}
 	}
 
@@ -2922,7 +2932,7 @@ func hpaDiagnosisFor(resource any) *hpadiag.Diagnosis {
 //  1. kind == "namespaces"        → full Namespace object requires get-namespaces SAR
 //  2. cluster-scoped (Node/CRD/…) → per-kind get SAR (ClassifyKindScope)
 //  3. namespaced                   → namespace access via getUserNamespaces,
-//     plus per-namespace get SAR for Secrets
+//     plus per-namespace get SAR for Secrets, LimitRanges and Trivy reports
 func (s *Server) preflightResourceGet(r *http.Request, kind, namespace, name, group string) (int, string, bool) {
 	isNamespacesKind := kind == "namespaces" || kind == "namespace"
 	isClusterScoped, gvrGroup, gvrResource := k8s.ClassifyKindScope(kind, group)
@@ -2954,6 +2964,9 @@ func (s *Server) preflightResourceGet(r *http.Request, kind, namespace, name, gr
 		}
 		if (kind == "limitranges" || kind == "limitrange") && group == "" && !s.canRead(r, "", "limitranges", namespace, "get") {
 			return http.StatusForbidden, fmt.Sprintf("no access to limitranges in namespace %q", namespace), false
+		}
+		if gvr, ok := k8s.TrivyReportGVR(kind, group); ok && !s.canRead(r, gvr.Group, gvr.Resource, namespace, "get") {
+			return http.StatusForbidden, fmt.Sprintf("no access to %s in namespace %q", kind, namespace), false
 		}
 	default:
 		// Empty namespace and not a recognized cluster-scoped kind: an empty

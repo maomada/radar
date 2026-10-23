@@ -920,7 +920,7 @@ func handleListResources(ctx context.Context, req *mcp.CallToolRequest, input li
 	// visibility), so per-user RBAC must gate the read. canReadInNamespace
 	// and filterNamespacesByCanRead pass through when no user is on context
 	// (auth-mode=none — SA RBAC at the cache layer is the only gate). Other
-	// namespaced kinds are deferred.
+	// namespaced kinds are deferred, except Trivy reports, gated below.
 	if kind == "secrets" || kind == "secret" {
 		if allowed == nil {
 			if !canReadInNamespace(ctx, "", "secrets", "", "list") {
@@ -931,6 +931,14 @@ func handleListResources(ctx context.Context, req *mcp.CallToolRequest, input li
 			if len(allowed) == 0 {
 				return toJSONResult([]any{})
 			}
+		}
+	}
+	if gvr, ok := k8s.TrivyReportGVR(kind, group); ok && !clusterScoped {
+		if readable, all := readableTrivyNamespaces(ctx, gvr, allowed); !all {
+			if len(readable) == 0 {
+				return toJSONResult([]any{})
+			}
+			allowed = readable
 		}
 	}
 
@@ -1088,6 +1096,8 @@ func handleGetResource(ctx context.Context, req *mcp.CallToolRequest, input getR
 		if !canReadInNamespace(ctx, "", "secrets", namespace, "get") {
 			return nil, nil, fmt.Errorf("forbidden: no access to secrets in namespace %q", namespace)
 		}
+	} else if gvr, ok := k8s.TrivyReportGVR(kind, group); ok && !canReadInNamespace(ctx, gvr.Group, gvr.Resource, namespace, "get") {
+		return nil, nil, fmt.Errorf("forbidden: no access to %s in namespace %q", kind, namespace)
 	}
 
 	// Fetch the resource. When group is set, skip the typed cache and route

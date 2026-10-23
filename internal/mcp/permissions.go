@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/internal/meaningfulchanges"
@@ -417,6 +418,24 @@ func filterNamespacesByCanRead(ctx context.Context, group, resource, verb string
 	wg.Wait()
 	slices.Sort(out)
 	return out
+}
+
+// readableTrivyNamespaces is the MCP-side mirror of
+// Server.readableTrivyNamespaces: it narrows namespaces (nil = every
+// namespace) to those where the caller may list the Trivy report resource
+// gvr. all reports that no narrowing is needed; otherwise the result is the
+// readable subset, empty when there is none. A caller reading every
+// namespace needs the cluster-wide grant, as with Secrets.
+func readableTrivyNamespaces(ctx context.Context, gvr schema.GroupVersionResource, namespaces []string) (allowed []string, all bool) {
+	if canReadInNamespace(ctx, gvr.Group, gvr.Resource, "", "list") {
+		return namespaces, true
+	}
+	readable := filterNamespacesByCanRead(ctx, gvr.Group, gvr.Resource, "list", namespaces)
+	if readable == nil {
+		// nil means every namespace to the callers; nothing readable is empty.
+		readable = []string{}
+	}
+	return readable, false
 }
 
 // retainAllowedObjects post-filters cache results for namespace-restricted users.
