@@ -361,8 +361,10 @@ func (s scanSession) nameable(ref resourceid.Ref) readreason.Code {
 func (s scanSession) RecordingManagers(ref resourceid.Ref) ownership.RecordingManagersRead {
 	var r ownership.RecordingManagersRead
 	if reason := s.nameable(ref); reason != "" {
-		r.TargetUnresolvable = true
-		r.Gaps = []ownership.Gap{{Kind: ref.GroupKind(), Namespace: ref.Namespace, Reason: reason}}
+		for _, gk := range managers {
+			r.Gaps = append(r.Gaps, ownership.Gap{Kind: gk, Reason: reason})
+		}
+		slices.SortFunc(r.Gaps, compareGaps)
 		return r
 	}
 	gap := func(gk resourceid.GroupKind, namespace string, reason readreason.Code) {

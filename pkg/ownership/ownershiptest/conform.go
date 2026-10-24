@@ -249,7 +249,7 @@ func differingRecordingManagers(a, b ownership.RecordingManagersRead) []resource
 }
 
 func sameRecordingManagers(a, b ownership.RecordingManagersRead) bool {
-	if a.TargetUnresolvable != b.TargetUnresolvable || !slices.Equal(a.Gaps, b.Gaps) || !slices.Equal(a.Remote, b.Remote) || !slices.Equal(a.Unreadable, b.Unreadable) || len(a.Managers) != len(b.Managers) {
+	if !slices.Equal(a.Gaps, b.Gaps) || !slices.Equal(a.Remote, b.Remote) || !slices.Equal(a.Unreadable, b.Unreadable) || len(a.Managers) != len(b.Managers) {
 		return false
 	}
 	for i := range a.Managers {
@@ -269,7 +269,7 @@ func describeRecordingManagers(r ownership.RecordingManagersRead) string {
 	for _, m := range r.Managers {
 		refs = append(refs, describeObservation(m))
 	}
-	return fmt.Sprintf("managers [%s] remote %v unreadable %v targetUnresolvable %v gaps %+v", strings.Join(refs, ", "), r.Remote, r.Unreadable, r.TargetUnresolvable, r.Gaps)
+	return fmt.Sprintf("managers [%s] remote %v unreadable %v gaps %+v", strings.Join(refs, ", "), r.Remote, r.Unreadable, r.Gaps)
 }
 
 func describeMembers(r ownership.MembersRead) string {

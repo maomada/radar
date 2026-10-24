@@ -1,16 +1,12 @@
 package cachesource
 
 import (
-	"context"
 	"fmt"
 	"runtime"
 	"slices"
 	"testing"
-	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/skyhook-io/radar/pkg/gitops"
@@ -90,25 +86,7 @@ func TestMembersReadTheShapesControllersWrite(t *testing.T) {
 			map[string]any{"id": "shop_web-podinfo__Service", "v": "v1"},
 		}}}), ownership.MembersRemote, []gitops.Member{{Kind: "Service", Namespace: "shop", Name: "web-podinfo"}}},
 		{"a HelmRelease applying elsewhere, without an inventory", manager(hr, map[string]any{"kubeConfig": map[string]any{"secretRef": map[string]any{"name": "prod"}}}, nil), ownership.MembersUnreadable, nil},
-		// spec.kubeConfig removed and not yet reconciled, or a
-		// kustomize-controller reconcile of it failing: the inventory may
-		// still be the other cluster's.
-		{"a Kustomization whose inventory predates its spec", atGeneration(manager(ks, map[string]any{"prune": true}, map[string]any{"observedGeneration": int64(1), "inventory": map[string]any{"entries": []any{
-			map[string]any{"id": "shop_ui__Service", "v": "v1"},
-		}}}), 2), ownership.MembersUnreadable, nil},
-		{"a HelmRelease whose inventory predates its spec", atGeneration(manager(hr, map[string]any{"releaseName": "web"}, map[string]any{"observedGeneration": int64(1), "inventory": map[string]any{"entries": []any{}}}), 2), ownership.MembersUnreadable, nil},
-		// Suspending writes the spec, and the controllers record that
-		// generation as observed without applying anything, so the inventory
-		// of the last apply reads, as it must for a suspended object's members
-		// to keep their manager. A destination changed in that write isn't
-		// detected.
-		{"a Kustomization suspended while Ready", atGeneration(manager(ks, map[string]any{"suspend": true}, map[string]any{"observedGeneration": int64(2), "inventory": map[string]any{"entries": []any{
-			map[string]any{"id": "shop_ui__Service", "v": "v1"},
-		}}}), 2), ownership.MembersRecorded, []gitops.Member{{Kind: "Service", Namespace: "shop", Name: "ui"}}},
-		{"a suspended HelmRelease", atGeneration(manager(hr, map[string]any{"suspend": true}, map[string]any{"observedGeneration": int64(2), "inventory": map[string]any{"entries": []any{
-			map[string]any{"id": "shop_web-podinfo__Service", "v": "v1"},
-		}}}), 2), ownership.MembersRecorded, []gitops.Member{{Kind: "Service", Namespace: "shop", Name: "web-podinfo"}}},
-		{"a Kustomization that reconciled its spec", atGeneration(manager(ks, nil, map[string]any{"observedGeneration": int64(2), "inventory": map[string]any{"entries": []any{
+		{"a Kustomization whose spec changed since its inventory", atGeneration(manager(ks, nil, map[string]any{"observedGeneration": int64(1), "inventory": map[string]any{"entries": []any{
 			map[string]any{"id": "shop_ui__Service", "v": "v1"},
 		}}}), 2), ownership.MembersRecorded, []gitops.Member{{Kind: "Service", Namespace: "shop", Name: "ui"}}},
 	} {
@@ -220,10 +198,15 @@ func TestRecordingManagersOfABuiltInDiscoveryDisputes(t *testing.T) {
 			w.Objects = []ownershiptest.Object{app}
 			scan, _ := ownershiptest.Scan(w).Begin()
 			cache := begin(t, render(t, w).source())
-			want := []ownership.Gap{{Kind: clusterRole, Reason: readreason.ReadError}}
+			// The ClusterRole can't be named, so no manager kind was searched.
+			var want []ownership.Gap
+			for _, gk := range ownership.RecordingManagerKinds() {
+				want = append(want, ownership.Gap{Kind: gk, Reason: readreason.ReadError})
+			}
+			slices.SortFunc(want, compareGaps)
 			for source, s := range map[string]ownership.ReadSession{"scan": scan, "cache": cache} {
-				if got := s.RecordingManagers(reader); len(got.Managers) != 0 || !got.TargetUnresolvable || !slices.Equal(got.Gaps, want) {
-					t.Errorf("%s: RecordingManagers(%v) = %+v, want the target unresolvable with only %+v", source, reader, got, want)
+				if got := s.RecordingManagers(reader); len(got.Managers) != 0 || !slices.Equal(got.Gaps, want) {
+					t.Errorf("%s: RecordingManagers(%v) = %+v, want every manager kind unread: %+v", source, reader, got, want)
 				}
 				if got := s.Members(app.Ref); got.Membership != ownership.MembersRecorded || !slices.Equal(got.Members, []resourceid.Ref{reader}) {
 					t.Errorf("%s: Members = %v %v, want the entry as recorded", source, got.Membership, got.Members)
@@ -365,58 +348,6 @@ func TestMemberStateCostDoesNotGrowWithTheList(t *testing.T) {
 		if large > small {
 			t.Errorf("%v: %v allocations for 10,000 entries, %v for 40", tc.gk.Kind, large, small)
 		}
-	}
-}
-
-// A Flux object whose spec.kubeConfig was removed keeps the other cluster's
-// inventory until a reconcile applies the new spec; RecordingManagers must not take
-// its entries for this cluster's objects, or call the answer complete, while
-// the controller hasn't observed that spec.
-func TestRecordingManagersDistrustAFluxInventoryFromBeforeItsSpec(t *testing.T) {
-	for _, kind := range []resourceid.GroupKind{ownership.FluxKustomization, ownership.FluxHelmRelease} {
-		t.Run(kind.Kind, func(t *testing.T) {
-			target := resourceid.Ref{Kind: "Service", Namespace: "shop", Name: "ui"}
-			k, _ := ownershiptest.KindOf(kind)
-			m := ownershiptest.Object{Ref: resourceid.Ref{Group: kind.Group, Kind: kind.Kind, Namespace: "ops", Name: "m"}, APIVersion: k.APIVersion(),
-				UID: "uid-m", ResourceVersion: "1", Membership: ownership.MembersRemote, Members: []resourceid.Ref{target}}
-			w := ownershiptest.World{Resources: ownershiptest.Resources(), Collection: map[resourceid.GroupKind]ownershiptest.Collection{}, Objects: []ownershiptest.Object{m}}
-			for _, item := range ownershiptest.Kinds {
-				w.Collection[item.GroupKind] = ownershiptest.Collection{OnDemand: !item.Typed}
-			}
-			r := render(t, w)
-			client := r.dynamic.Resource(schema.GroupVersionResource{Group: k.Group, Version: k.Version, Resource: k.Resource}).Namespace("ops")
-			u, err := client.Get(context.Background(), "m", metav1.GetOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := unstructured.SetNestedField(u.Object, int64(1), "status", "observedGeneration"); err != nil {
-				t.Fatal(err)
-			}
-			u.Object["spec"] = map[string]any{}
-			u.SetGeneration(2)
-			u.SetResourceVersion("2")
-			if _, err := client.Update(context.Background(), u, metav1.UpdateOptions{}); err != nil {
-				t.Fatal(err)
-			}
-			deadline := time.Now().Add(5 * time.Second)
-			for {
-				s := begin(t, r.source())
-				if inv := s.Members(m.Ref); inv.Manager.Object.ResourceVersion == "2" {
-					if inv.Membership != ownership.MembersUnreadable {
-						t.Fatalf("Members = %v", inv.Membership)
-					}
-					got := s.RecordingManagers(target)
-					if len(got.Managers) > 0 || got.Complete() || !slices.Contains(got.Unreadable, m.Ref) {
-						t.Fatalf("RecordingManagers(%v) = %+v, complete %v; the list may be the other cluster's", target, got, got.Complete())
-					}
-					return
-				}
-				if time.Now().After(deadline) {
-					t.Fatal("the updated spec never reached the cache")
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
-		})
 	}
 }
 

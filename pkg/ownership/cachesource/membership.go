@@ -154,7 +154,12 @@ func (s *session) placements(ref resourceid.Ref) ([]string, readreason.Code) {
 func (s *session) RecordingManagers(ref resourceid.Ref) ownership.RecordingManagersRead {
 	keys, reason := s.placements(ref)
 	if reason != "" {
-		return ownership.RecordingManagersRead{TargetUnresolvable: true, Gaps: []ownership.Gap{{Kind: ref.GroupKind(), Namespace: ref.Namespace, Reason: reason}}}
+		var r ownership.RecordingManagersRead
+		for _, gk := range ownership.RecordingManagerKinds() {
+			r.Gaps = append(r.Gaps, ownership.Gap{Kind: gk, Reason: reason})
+		}
+		slices.SortFunc(r.Gaps, compareGaps)
+		return r
 	}
 	q := &search{domain: ownership.Everywhere()}
 	var managers []candidate
