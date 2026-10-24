@@ -18,7 +18,6 @@ type Queries struct {
 	Refs    []resourceid.Ref
 	UIDs    []types.UID
 	Domains []ownership.SearchScope
-	Limits  []int
 }
 
 // QueriesFor derives questions from w: every object, refs that miss in each
@@ -97,7 +96,6 @@ func QueriesFor(w World) Queries {
 	if len(namespaces) >= 2 {
 		q.Domains = append(q.Domains, ownership.SearchScope{Namespaces: []string{namespaces[1], namespaces[0], namespaces[1]}, IncludeClusterScoped: true})
 	}
-	q.Limits = []int{0, 1}
 	return q
 }
 
@@ -107,16 +105,15 @@ type Difference struct {
 	Want, Got string
 	// Objects are the objects the answers disagree about.
 	Objects []resourceid.Ref
-	// Coverage: the answers disagree about what was read (gaps or
-	// truncation), not only about objects.
+	// Coverage: the answers disagree about what was read (gaps), not only
+	// about objects.
 	Coverage bool
 	// The question itself: Object(Ref), or, when Candidates is set,
-	// DependentCandidates(UID, SearchScope, Limit).
+	// DependentCandidates(UID, SearchScope).
 	Ref        resourceid.Ref
 	Candidates bool
 	UID        types.UID
 	Domain     ownership.SearchScope
-	Limit      int
 	// WantGaps are the gaps the first session reported for a search.
 	WantGaps []ownership.Gap
 }
@@ -140,17 +137,15 @@ func Differences(want, got ownership.ReadSession, q Queries) []Difference {
 	}
 	for _, uid := range q.UIDs {
 		for _, d := range q.Domains {
-			for _, limit := range q.Limits {
-				w, g := want.DependentCandidates(uid, d, limit), got.DependentCandidates(uid, d, limit)
-				if !sameCandidates(w, g) {
-					diffs = append(diffs, Difference{
-						Question: fmt.Sprintf("DependentCandidates(%q, %+v, %d)", uid, d, limit),
-						Want:     describeCandidates(w), Got: describeCandidates(g),
-						Objects:    differingCandidates(w, g),
-						Coverage:   w.Truncated != g.Truncated || !slices.Equal(w.Gaps, g.Gaps),
-						Candidates: true, UID: uid, Domain: d, Limit: limit, WantGaps: w.Gaps,
-					})
-				}
+			w, g := want.DependentCandidates(uid, d), got.DependentCandidates(uid, d)
+			if !sameCandidates(w, g) {
+				diffs = append(diffs, Difference{
+					Question: fmt.Sprintf("DependentCandidates(%q, %+v)", uid, d),
+					Want:     describeCandidates(w), Got: describeCandidates(g),
+					Objects:    differingCandidates(w, g),
+					Coverage:   !slices.Equal(w.Gaps, g.Gaps),
+					Candidates: true, UID: uid, Domain: d, WantGaps: w.Gaps,
+				})
 			}
 		}
 	}
@@ -199,7 +194,7 @@ func sameRead(a, b ownership.ObjectRead) bool {
 }
 
 func sameCandidates(a, b ownership.DependentCandidatesRead) bool {
-	if a.Truncated != b.Truncated || !slices.Equal(a.Gaps, b.Gaps) || len(a.Candidates) != len(b.Candidates) {
+	if !slices.Equal(a.Gaps, b.Gaps) || len(a.Candidates) != len(b.Candidates) {
 		return false
 	}
 	for i := range a.Candidates {
@@ -240,7 +235,7 @@ func describeCandidates(r ownership.DependentCandidatesRead) string {
 	for _, c := range r.Candidates {
 		refs = append(refs, describeObservation(c))
 	}
-	return fmt.Sprintf("candidates [%s] gaps %+v truncated %v", strings.Join(refs, ", "), r.Gaps, r.Truncated)
+	return fmt.Sprintf("candidates [%s] gaps %+v", strings.Join(refs, ", "), r.Gaps)
 }
 
 func describeObservation(o ownership.Observation) string {
@@ -255,5 +250,5 @@ func describeObservation(o ownership.Observation) string {
 		}
 		owners = append(owners, fmt.Sprintf("%s %s/%s %s%s", ref.APIVersion, ref.Kind, ref.Name, ref.UID, flags))
 	}
-	return fmt.Sprintf("%v@%s uid=%s rv=%s owners=[%s]", o.Ref, o.APIVersion, o.UID, o.ResourceVersion, strings.Join(owners, "; "))
+	return fmt.Sprintf("%v uid=%s rv=%s owners=[%s]", o.Ref, o.UID, o.ResourceVersion, strings.Join(owners, "; "))
 }

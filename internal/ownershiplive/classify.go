@@ -104,8 +104,8 @@ func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]o
 		}
 	}
 	if d.Candidates {
-		fresh := cache.DependentCandidates(d.UID, d.Domain, d.Limit)
-		if fresh.Truncated || !slices.Equal(fresh.Gaps, d.WantGaps) {
+		fresh := cache.DependentCandidates(d.UID, d.Domain)
+		if !slices.Equal(fresh.Gaps, d.WantGaps) {
 			return unresolved
 		}
 		seen := map[resourceid.Ref]bool{}
