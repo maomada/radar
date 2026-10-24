@@ -51,9 +51,7 @@ type ObjectRead struct {
 // cache so it stays fixed while rules run.
 type Observation struct {
 	Ref resourceid.Ref
-	// APIVersion is the version the store holds the object at.
-	APIVersion string
-	UID        types.UID
+	UID types.UID
 	// ResourceVersion is opaque: compare it only for equality, between
 	// observations of the same object.
 	ResourceVersion string

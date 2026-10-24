@@ -33,7 +33,7 @@ type ReadSession interface {
 	// Object reads one object. It does no I/O and waits for nothing.
 	Object(ref resourceid.Ref) ObjectRead
 	// ValidateCaches returns ErrCachesReplaced if the caches the session read
-	// were stopped or replaced since it began, as when Radar switches clusters
+	// were replaced since it began, as when Radar switches clusters
 	// or rebuilds its cache, and nil otherwise. An answer built in a session
 	// must pass ValidateCaches before it is used: one read across a switch may
 	// mix two clusters. A store replaced within the caches, such as namespace
@@ -45,9 +45,7 @@ type ReadSession interface {
 var (
 	// ErrNotConnected: there are no caches to read.
 	ErrNotConnected = errors.New("ownership: no cluster connection to read")
-	// ErrCachesReplaced: the caches were stopped or replaced after the session
-	// began, as when Radar switches clusters or rebuilds its cache. A cache
-	// that was missing when the session began and is there now, as while
-	// Radar starts, replaced nothing the session read.
+	// ErrCachesReplaced: the caches were replaced after the session began, as
+	// when Radar switches clusters or rebuilds its cache.
 	ErrCachesReplaced = errors.New("ownership: the caches were replaced during the read")
 )
