@@ -45,6 +45,9 @@ func IsContainerNotStarted(err error) bool {
 // the kubelet's detail (the image it could not pull, the ConfigMap it could not
 // find), and otherwise from the apiserver's answer.
 func NotStartedMessage(pod *corev1.Pod, container string, err error) string {
+	if PodStopped(pod) {
+		return "This container never started, so it has no logs. The pod has finished (" + string(pod.Status.Phase) + "), so it won't start now."
+	}
 	const lead = "This container has not started yet, so it has no logs."
 	reason := ""
 	if status, ok := containerStatus(pod, container); ok && status.State.Waiting != nil && status.State.Waiting.Reason != "" {
@@ -69,6 +72,13 @@ func NotStartedMessage(pod *corev1.Pod, container string, err error) string {
 func ContainerNotStartedYet(pod *corev1.Pod, container string) bool {
 	status, ok := containerStatus(pod, container)
 	return ok && status.State.Waiting != nil && status.RestartCount == 0 && status.LastTerminationState.Terminated == nil
+}
+
+// PodStopped reports whether the pod has finished (Failed or Succeeded). A
+// container in it that never started, such as one held at PodInitializing by a
+// failed init container in a pod that doesn't restart, never will.
+func PodStopped(pod *corev1.Pod) bool {
+	return pod != nil && (pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded)
 }
 
 func containerStatus(pod *corev1.Pod, name string) (corev1.ContainerStatus, bool) {

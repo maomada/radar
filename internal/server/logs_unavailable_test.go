@@ -322,6 +322,33 @@ func TestPodLogsStream_WaitsForContainerToStart(t *testing.T) {
 	}
 }
 
+// An init container failed in a pod that doesn't restart: the app container
+// stays at PodInitializing for good. Waiting would promise logs forever.
+func TestPodLogsStream_EndsWhenThePodFinishedWithoutTheContainer(t *testing.T) {
+	pod := waitingPod("init-failed")
+	pod.Status.Phase = corev1.PodFailed
+	pod.Status.ContainerStatuses[0].State.Waiting = &corev1.ContainerStateWaiting{Reason: "PodInitializing"}
+	seedCNPGPods(t, pod)
+	prevInterval := containerStartPollInterval
+	containerStartPollInterval = 20 * time.Millisecond
+	t.Cleanup(func() { containerStartPollInterval = prevInterval })
+	client := logAPIServer(t, http.StatusBadRequest, "application/json", waitingAnswer)
+	prev := k8s.SetTestClient(client)
+	t.Cleanup(func() { k8s.SetTestClient(prev) })
+
+	start := time.Now()
+	stream := readSSEFor(t, "/api/pods/notstarted/init-failed/logs/stream?container=postgres", 3*time.Second)
+	if time.Since(start) > 2*time.Second {
+		t.Fatalf("the stream kept waiting for a container that can't start:\n%s", stream)
+	}
+	if !strings.Contains(stream, `"error_code":"container_not_started"`) || !strings.Contains(stream, "The pod has finished (Failed)") {
+		t.Fatalf("want the not-started answer saying the pod finished:\n%s", stream)
+	}
+	if strings.Contains(stream, "Logs will show here once it starts.") {
+		t.Fatalf("must not promise logs from a finished pod:\n%s", stream)
+	}
+}
+
 // A container can wait minutes for an image. The notice is sent once, so the
 // stream must still write something periodically or an idle-timeout proxy
 // closes it before the first line arrives.

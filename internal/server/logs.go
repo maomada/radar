@@ -232,6 +232,12 @@ func (s *Server) handlePodLogsStream(w http.ResponseWriter, r *http.Request) {
 	lastWrite := time.Now()
 	for {
 		pod := cachedPod(namespace, podName)
+		if podlogs.PodStopped(pod) && podlogs.ContainerNotStartedYet(pod, container) {
+			// The pod finished without starting this container, so waiting would
+			// promise logs that never come. Answer and end, like the snapshot.
+			sendSSEEvent(w, flusher, "error", map[string]string{"error": podlogs.NotStartedMessage(pod, container, nil), "error_code": "container_not_started"})
+			return
+		}
 		if waitingNotice != "" && podlogs.ContainerNotStartedYet(pod, container) {
 			// Still waiting: the cache says why, without asking the apiserver.
 			if notice := podlogs.NotStartedMessage(pod, container, nil) + " Logs will show here once it starts."; notice != waitingNotice {

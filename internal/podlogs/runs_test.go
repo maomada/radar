@@ -114,6 +114,11 @@ func TestNotStartedMessage(t *testing.T) {
 			"This container has not started yet, so it has no logs. Kubernetes reports trying and failing to pull image."},
 		{"nothing to add", nil, errors.New(`container "app" in pod "api-0" is waiting to start - no logs yet`),
 			"This container has not started yet, so it has no logs."},
+		{"pod finished without starting it", func() *corev1.Pod {
+			pod := waiting("PodInitializing", "")
+			pod.Status.Phase = corev1.PodFailed
+			return pod
+		}(), answer, "This container never started, so it has no logs. The pod has finished (Failed), so it won't start now."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := NotStartedMessage(tc.pod, "app", tc.err); got != tc.want {
