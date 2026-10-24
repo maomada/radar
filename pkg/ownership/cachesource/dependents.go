@@ -166,18 +166,27 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 		return
 	}
 	add := func(u *unstructured.Unstructured) { q.add(gk, u, u.GetNamespace(), u.GetName()) }
-	// A resource watched at several versions answers from the most stable
-	// version that can: every version receives the same objects, so another
-	// can only be a moment behind or ahead of it. A cluster-wide informer
-	// serves every namespace, so it is read once and its matches kept by
-	// namespace: reading it per namespace would gather all of them for each.
+	// A resource watched at several versions answers from one: the most
+	// stable version whose cluster-wide store has loaded, or else, namespace
+	// by namespace, the most stable version that answers there. Every version
+	// receives the same objects, so another can only be a moment behind or
+	// ahead of it. A cluster-wide store serves every namespace, so it is read
+	// once and its matches kept by namespace: reading it per namespace would
+	// gather all of them for each.
+	var inDomain map[string]bool
+	if kind.Namespaced && !q.domain.AllNamespaces {
+		inDomain = make(map[string]bool, len(q.namespaces))
+		for _, ns := range q.namespaces {
+			inDomain[ns] = true
+		}
+	}
 	for _, gvr := range versions {
 		objs, ok := s.caches.Dynamic.ReadableDependents(gvr, "", q.uid)
 		if !ok {
 			continue
 		}
 		for _, u := range objs {
-			if !kind.Namespaced || q.domain.AllNamespaces || slices.Contains(q.namespaces, u.GetNamespace()) {
+			if inDomain == nil || inDomain[u.GetNamespace()] {
 				add(u)
 			}
 		}
