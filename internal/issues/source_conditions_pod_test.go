@@ -197,18 +197,24 @@ func TestReadinessGateFailureDoesNotRequireADynamicWatch(t *testing.T) {
 func TestPodReadinessNoiseKeepsRealFailures(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	for _, tc := range []struct {
-		name, reason, phase, group, root                             string
-		age, containersAge                                           time.Duration
-		noTime, gates, unknownGate, otherFailure, withheld, workload bool
-		want                                                         []string
+		name, reason, phase, group, root                                                                 string
+		age, containersAge                                                                               time.Duration
+		noTime, gates, unknownGate, otherFailure, withheld, workload, noContainersReady, containersFalse bool
+		want                                                                                             []string
 	}{
 		{name: "fresh startup", age: 30 * time.Second},
+		{name: "fresh Pending", phase: "Pending", age: 30 * time.Second},
+		{name: "fresh startup preserves fatal failure", age: 30 * time.Second, root: "ImagePullBackOff", want: []string{"ImagePullBackOff"}},
 		{name: "old readiness without native", want: []string{"Ready: ContainersNotReady"}},
 		{name: "unknown transition grants no grace", noTime: true, want: []string{"Ready: ContainersNotReady"}},
 		{name: "future transition grants no grace", age: -time.Minute, want: []string{"Ready: ContainersNotReady"}},
 		{name: "fresh Ready does not hide other error", age: 30 * time.Second, otherFailure: true, want: []string{"Healthy: ControllerError"}},
 		{name: "fresh gate Ready", reason: "ReadinessGatesNotReady", gates: true, age: 30 * time.Second},
 		{name: "long startup newly container ready", reason: "ReadinessGatesNotReady", gates: true, age: time.Hour, containersAge: 30 * time.Second},
+
+		{name: "future ContainersReady grants no grace", reason: "ReadinessGatesNotReady", gates: true, containersAge: -time.Minute, want: []string{"Ready: ReadinessGatesNotReady"}},
+		{name: "gate without ContainersReady", reason: "ReadinessGatesNotReady", gates: true, noContainersReady: true, age: 30 * time.Second, want: []string{"Ready: ReadinessGatesNotReady"}},
+		{name: "gate with ContainersReady False", reason: "ReadinessGatesNotReady", gates: true, containersFalse: true, age: 30 * time.Second, want: []string{"Ready: ReadinessGatesNotReady"}},
 		{name: "old gate without native", reason: "ReadinessGatesNotReady", gates: true, want: []string{"Ready: ReadinessGatesNotReady"}},
 		{name: "unknown gate without native", reason: "ReadinessGatesNotReady", gates: true, unknownGate: true, want: []string{"Ready: ReadinessGatesNotReady"}},
 		{name: "unknown gate with unrelated native error", reason: "ReadinessGatesNotReady", gates: true, unknownGate: true, root: "CrashLoopBackOff", want: []string{"Ready: ReadinessGatesNotReady", "CrashLoopBackOff"}},
@@ -244,8 +250,12 @@ func TestPodReadinessNoiseKeepsRealFailures(t *testing.T) {
 				ready["lastTransitionTime"] = now.Add(-age).Format(time.RFC3339)
 			}
 			conds := []map[string]any{ready}
-			if tc.gates {
-				conds = append(conds, map[string]any{"type": "ContainersReady", "status": "True", "lastTransitionTime": now.Add(-containerAge).Format(time.RFC3339)})
+			if tc.gates && !tc.noContainersReady {
+				status := "True"
+				if tc.containersFalse {
+					status = "False"
+				}
+				conds = append(conds, map[string]any{"type": "ContainersReady", "status": status, "lastTransitionTime": now.Add(-containerAge).Format(time.RFC3339)})
 			}
 			if tc.unknownGate {
 				conds = append(conds, map[string]any{"type": "example.com/ready", "status": "Unknown"})
