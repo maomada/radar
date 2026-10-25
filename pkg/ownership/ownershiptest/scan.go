@@ -64,16 +64,18 @@ type ambiguity struct {
 	namespaced, clusterScoped bool
 }
 
-// findAmbiguous returns the kinds two resources of their group serve.
+// findAmbiguous returns the kinds two resources of their group serve, or that
+// versions serve at different scopes.
 func (s scanSession) findAmbiguous() map[resourceid.GroupKind]ambiguity {
-	resources := map[resourceid.GroupKind]string{}
+	first := map[resourceid.GroupKind]ownership.ServedResource{}
 	ambiguous := map[resourceid.GroupKind]bool{}
 	for _, r := range s.w.Resources {
 		gk := resourceid.GroupKind{Group: r.Group, Kind: r.Kind}
-		if seen, ok := resources[gk]; ok && seen != r.Resource {
+		if seen, ok := first[gk]; !ok {
+			first[gk] = r
+		} else if seen.Resource != r.Resource || seen.Namespaced != r.Namespaced {
 			ambiguous[gk] = true
 		}
-		resources[gk] = r.Resource
 	}
 	out := map[resourceid.GroupKind]ambiguity{}
 	for gk := range ambiguous {
