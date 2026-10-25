@@ -199,11 +199,13 @@ func collectorMapper(resources []ownership.ServedResource) meta.RESTMapper {
 }
 
 // Every spelling of an owner reference the API server admits must resolve as
-// the collector maps it: where its RESTMapper maps nothing, or maps a
-// namespaced owner for a cluster-scoped object, the reference is
-// unresolvable; where it maps a resource no API serves, the owner is gone;
-// otherwise the owner is the object of the mapped kind at the reference's
-// name, judged by UID, unless Radar can't read that kind.
+// the collector maps it, or be unknown where Radar can't tell: where its
+// RESTMapper maps nothing, the collector retries, so the owner is unknown;
+// where it maps a namespaced owner for a cluster-scoped object, the reference
+// is unresolvable; where it maps a resource no API serves, as for the List
+// kinds it makes up, Radar leaves the owner unknown; otherwise the owner is
+// the object of the mapped kind at the reference's name, judged by UID,
+// unless Radar can't read that kind.
 func TestResolveOwnerMapsReferencesAsTheCollectorsRESTMapperDoes(t *testing.T) {
 	w := ownershiptest.Fixture()
 	s, _ := ownershiptest.Scan(w).Begin()

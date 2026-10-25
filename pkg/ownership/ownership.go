@@ -36,9 +36,11 @@ type ReadSession interface {
 	Object(ref resourceid.Ref) ObjectRead
 	// DependentCandidates finds the objects of the catalog's dependent kinds in
 	// scope whose owner references name uid. It does no I/O and waits for
-	// nothing. Which versions of a kind are watched, and in which namespaces,
-	// is fixed at the session's first look, so its searches agree on what
-	// they could read; the objects themselves are read as they are now.
+	// nothing. Which versions of a kind are watched, and, for an
+	// all-namespaces search, the namespaces each is watched in one by one,
+	// are fixed at the session's first look, so those searches agree on what
+	// they could read. A search of named namespaces reads each one's watch as
+	// it is now, and the objects are always read as they are now.
 	DependentCandidates(uid types.UID, scope SearchScope) DependentCandidatesRead
 	// ValidateCaches returns ErrCachesReplaced if the caches the session read
 	// were replaced since it began, as when Radar switches clusters

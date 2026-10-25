@@ -40,8 +40,9 @@ type scanSession struct {
 	byRef      map[resourceid.Ref]Object
 	byKind     map[resourceid.GroupKind][]Object
 	dependents []dependentKind
-	// ambiguousKinds are the kinds two resources of one group serve, with the
-	// scopes in which one of them serves the kind with delete, list and watch.
+	// ambiguousKinds are the kinds two resources of one group serve, or that
+	// versions serve at different scopes, with the scopes in which one of
+	// them serves the kind with delete, list and watch.
 	ambiguousKinds map[resourceid.GroupKind]ambiguity
 }
 

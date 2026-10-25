@@ -140,7 +140,8 @@ func (c *Catalog) Kind(gk resourceid.GroupKind) (CatalogKind, bool) {
 	return k, ok
 }
 
-// Ambiguous reports whether two resources of gk's group serve gk.
+// Ambiguous reports whether two resources of gk's group serve gk, or its
+// versions serve it at different scopes.
 func (c *Catalog) Ambiguous(gk resourceid.GroupKind) bool {
 	_, found := slices.BinarySearchFunc(c.ambiguous, gk, func(a AmbiguousKind, gk resourceid.GroupKind) int {
 		return compareGroupKinds(a.GroupKind, gk)
