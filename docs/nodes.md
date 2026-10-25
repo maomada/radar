@@ -15,6 +15,12 @@ Dashboard/vitals/MCP share exclusive Ready / NotReady / Cordoned / Removing buck
 
 NotReady retains its identity. Pressure/network issues have separate identities and condition-specific pod attribution. Removal delayed uses `termination_stuck`, timed from removal onset.
 
+Generic Ready conditions follow this removal policy only when the typed Node
+source is ready to report independent pressure/network failures. With missing or
+loading native data, the generic warning remains a fallback. A visible native
+Removal delayed finding replaces its Ready echo; unknown or earlier readiness
+loss and unrelated conditions remain visible.
+
 ## Drain evidence
 
 UI/REST/MCP share a read-only current pod/PDB estimate. MCP `get_resource include=drain-plan` returns at most 100 pods with total/truncation, complete summary counts and explicit options. Read errors and incomplete budget checks are visible.

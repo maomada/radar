@@ -203,6 +203,7 @@ func ComposeWithStats(p Provider, f Filters) ([]Issue, ComposeStats) {
 	out = applyOwnerAccess(out, f)
 	out = applyEvidenceAccess(out, f.CanReadEvidence, f.AllowUnfilteredEvidence, f.OnEvidenceWithheld)
 	out = redactUnreadableRelatedRefs(out, f.CanReadRelated)
+	out = dedupeNodeReadyEchoOverRemoval(out)
 	out = dedupePodReadyEchoOverNative(out)
 	out = dedupePodSchedulingOverProblem(out)
 	// Same-resource structural-root → symptom: fold a pod's runtime symptom into

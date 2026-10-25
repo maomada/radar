@@ -11,8 +11,11 @@ import (
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/internal/logsafe"
 	"github.com/skyhook-io/radar/pkg/conditions"
+	"github.com/skyhook-io/radar/pkg/health"
 	"github.com/skyhook-io/radar/pkg/issuesapi"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -167,6 +170,15 @@ func detectGenericCRDIssues(p Provider, f Filters, ownedSubjects map[string]bool
 			condTypes := conditions.DefaultFalseConditionTypes
 			if gvr.Group == "" && kind == "Pod" && podReadinessInGrace(u, time.Now()) {
 				condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(t string) bool { return t == "Ready" })
+			}
+			if readiness, ok := p.(typedKindReadinessProvider); ok && gvr.Group == "" && kind == "Node" && readiness.typedKindReadiness("nodes") == k8s.KindReady {
+				var node corev1.Node
+				if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &node); err == nil {
+					lifecycle := health.NodeLifecycle(&node, time.Now())
+					if lifecycle.Removing && !lifecycle.ReadinessFailed && !lifecycle.Delayed {
+						condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(t string) bool { return t == "Ready" })
+					}
+				}
 			}
 			condition, ok := findActionableCondition(u, condTypes...)
 			if !ok {
