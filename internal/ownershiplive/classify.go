@@ -78,9 +78,9 @@ func changedSince(listed map[resourceid.Ref]ownershiptest.Object, ref resourceid
 
 // recheck asks a difference's question of the cache again once the objects
 // it disputes have caught up, and checks the whole fresh answer against the
-// API server: for a search, every candidate must be in the domain, once,
+// API server: for a search, every candidate must be in the scope, once,
 // name the UID in its current copy and match that copy exactly; every
-// disputed or listed object in the domain it leaves out must not name it now;
+// disputed or listed object in the scope it leaves out must not name it now;
 // and the gaps must be the expected ones. Objects created after the list and
 // never disputed aren't checked.
 func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]ownershiptest.Object, cache ownership.ReadSession, api apiRead) outcome {
@@ -103,36 +103,36 @@ func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]o
 			return unresolved
 		}
 	}
-	if d.Candidates {
-		fresh := cache.DependentCandidates(d.UID, d.Domain)
+	if d.DependentSearch {
+		fresh := cache.DependentCandidates(d.UID, d.Scope)
 		if !slices.Equal(fresh.Gaps, d.WantGaps) {
 			return unresolved
 		}
 		seen := map[resourceid.Ref]bool{}
 		for _, c := range fresh.Candidates {
-			if seen[c.Ref] || !inDomain(c.Ref, d.Domain) {
+			if seen[c.Ref] || !inScope(c.Ref, d.Scope) {
 				return unresolved
 			}
 			seen[c.Ref] = true
 			if _, seen := current[c.Ref]; !seen && !settleRef(c.Ref) {
 				return unresolved
 			}
-			if !exists[c.Ref] || !names(current[c.Ref].Owners, d.UID) || !ownershiptest.SameObservation(c, ownershiptest.Observe(current[c.Ref])) {
+			if !exists[c.Ref] || !names(current[c.Ref].OwnerReferences, d.UID) || !ownershiptest.SameObservation(c, ownershiptest.Observe(current[c.Ref])) {
 				return unresolved
 			}
 		}
 		for _, ref := range d.Objects {
-			if !seen[ref] && inDomain(ref, d.Domain) && exists[ref] && names(current[ref].Owners, d.UID) {
+			if !seen[ref] && inScope(ref, d.Scope) && exists[ref] && names(current[ref].OwnerReferences, d.UID) {
 				return unresolved
 			}
 		}
 		// A listed object that named the UID and still does must be in the
 		// fresh answer too, unless the answer says its kind went unread.
 		for ref, o := range listed {
-			if seen[ref] || !inDomain(ref, d.Domain) || !names(o.Owners, d.UID) || unread(fresh.Gaps, ref) {
+			if seen[ref] || !inScope(ref, d.Scope) || !names(o.OwnerReferences, d.UID) || unread(fresh.Gaps, ref) {
 				continue
 			}
-			if !settleRef(ref) || exists[ref] && names(current[ref].Owners, d.UID) {
+			if !settleRef(ref) || exists[ref] && names(current[ref].OwnerReferences, d.UID) {
 				return unresolved
 			}
 		}
@@ -179,9 +179,9 @@ func unread(gaps []ownership.Gap, ref resourceid.Ref) bool {
 	})
 }
 
-// inDomain reports whether a search of d covers ref, an object of a
+// inScope reports whether a search of d covers ref, an object of a
 // cluster-scoped kind when it has no namespace.
-func inDomain(ref resourceid.Ref, d ownership.SearchScope) bool {
+func inScope(ref resourceid.Ref, d ownership.SearchScope) bool {
 	if ref.Namespace == "" {
 		return d.IncludeClusterScoped
 	}

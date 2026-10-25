@@ -35,9 +35,11 @@ type ReadSession interface {
 	// Object reads one object. It does no I/O and waits for nothing.
 	Object(ref resourceid.Ref) ObjectRead
 	// DependentCandidates finds the objects of the catalog's dependent kinds in
-	// domain whose owner references name uid. It does no I/O and waits for
-	// nothing.
-	DependentCandidates(uid types.UID, domain SearchScope) DependentCandidatesRead
+	// scope whose owner references name uid. It does no I/O and waits for
+	// nothing. Which versions of a kind are watched, and in which namespaces,
+	// is fixed at the session's first look, so its searches agree on what
+	// they could read; the objects themselves are read as they are now.
+	DependentCandidates(uid types.UID, scope SearchScope) DependentCandidatesRead
 	// ValidateCaches returns ErrCachesReplaced if the caches the session read
 	// were replaced since it began, as when Radar switches clusters
 	// or rebuilds its cache, and nil otherwise. An answer built in a session

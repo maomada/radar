@@ -144,7 +144,7 @@ func TestLiveParity(t *testing.T) {
 		return ownershiptest.Object{
 			Ref:        resourceid.Ref{Group: gk.Group, Kind: gk.Kind, Namespace: u.GetNamespace(), Name: u.GetName()},
 			APIVersion: gvr.GroupVersion().String(), UID: u.GetUID(), ResourceVersion: u.GetResourceVersion(),
-			Owners: u.GetOwnerReferences(), DeletionTimestamp: u.GetDeletionTimestamp(), Finalizers: u.GetFinalizers(),
+			OwnerReferences: u.GetOwnerReferences(), DeletionTimestamp: u.GetDeletionTimestamp(), Finalizers: u.GetFinalizers(),
 		}
 	}
 	api := func(ref resourceid.Ref) (ownershiptest.Object, bool, error) {
@@ -193,16 +193,16 @@ func TestLiveParity(t *testing.T) {
 
 	// questions asks about every object and one certainly missing per
 	// collected kind, every UID an object has or names plus one nothing has,
-	// and domains around a sample of namespaces. Each question is asked once.
+	// and scopes around a sample of namespaces. Each question is asked once.
 	questions := func(w ownershiptest.World) ownershiptest.Queries {
-		q := ownershiptest.Queries{Domains: []ownership.SearchScope{ownership.Everywhere(), {Namespaces: []string{""}, IncludeClusterScoped: true}}}
+		q := ownershiptest.Queries{Scopes: []ownership.SearchScope{ownership.Everywhere(), {Namespaces: []string{""}, IncludeClusterScoped: true}}}
 		refs := map[resourceid.Ref]bool{}
 		uids := map[types.UID]bool{"uid-nothing-has": true}
 		var namespaces []string
 		for _, o := range w.Objects {
 			refs[o.Ref] = true
 			uids[o.UID] = true
-			for _, ref := range o.Owners {
+			for _, ref := range o.OwnerReferences {
 				uids[ref.UID] = true
 			}
 			if o.Ref.Namespace != "" && !slices.Contains(namespaces, o.Ref.Namespace) {
@@ -227,7 +227,7 @@ func TestLiveParity(t *testing.T) {
 		slices.Sort(namespaces)
 		for i, ns := range namespaces {
 			if i%5 == 0 {
-				q.Domains = append(q.Domains, ownership.InNamespace(ns))
+				q.Scopes = append(q.Scopes, ownership.InNamespace(ns))
 			}
 		}
 		return q
@@ -287,8 +287,8 @@ func TestLiveParity(t *testing.T) {
 		if err := got.ValidateCaches(); err != nil {
 			t.Errorf("pass %d: ValidateCaches: %v", pass, err)
 		}
-		t.Logf("pass %d: %d objects; %d questions (%d objects, %d UIDs × %d domains) and %d owner references resolved; %d differ: %d confirmed by a change the API server shows, %d caught up with no change shown, %d wrong or not settled",
-			pass, len(w.Objects), len(q.Refs)+len(q.UIDs)*len(q.Domains), len(q.Refs), len(q.UIDs), len(q.Domains), resolutions,
+		t.Logf("pass %d: %d objects; %d questions (%d objects, %d UIDs × %d scopes) and %d owner references resolved; %d differ: %d confirmed by a change the API server shows, %d caught up with no change shown, %d wrong or not settled",
+			pass, len(w.Objects), len(q.Refs)+len(q.UIDs)*len(q.Scopes), len(q.Refs), len(q.UIDs), len(q.Scopes), resolutions,
 			len(diffs)+resolutionDiffs, counts[confirmed], counts[caughtUp], counts[unresolved])
 		for i, question := range caughtUpQuestions {
 			if i == 10 {

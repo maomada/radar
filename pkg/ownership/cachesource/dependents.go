@@ -25,16 +25,16 @@ type candidate struct {
 // search collects one DependentCandidates call's candidates and gaps.
 type search struct {
 	uid        string
-	domain     ownership.SearchScope
+	scope      ownership.SearchScope
 	namespaces []string
 	found      []candidate
 	gaps       []ownership.Gap
 }
 
-func (s *session) DependentCandidates(uid types.UID, domain ownership.SearchScope) ownership.DependentCandidatesRead {
-	q := &search{uid: string(uid), domain: domain}
-	if !domain.AllNamespaces {
-		for _, ns := range slices.Compact(slices.Sorted(slices.Values(domain.Namespaces))) {
+func (s *session) DependentCandidates(uid types.UID, scope ownership.SearchScope) ownership.DependentCandidatesRead {
+	q := &search{uid: string(uid), scope: scope}
+	if !scope.AllNamespaces {
+		for _, ns := range slices.Compact(slices.Sorted(slices.Values(scope.Namespaces))) {
 			if ns == "" {
 				// A store read for "" would answer for every namespace.
 				q.gaps = append(q.gaps, ownership.Gap{Reason: readreason.NamespaceRequired})
@@ -43,12 +43,12 @@ func (s *session) DependentCandidates(uid types.UID, domain ownership.SearchScop
 			q.namespaces = append(q.namespaces, ns)
 		}
 	}
-	searches := domain.Searches(true) || domain.Searches(false)
+	searches := scope.Searches(true) || scope.Searches(false)
 	if !s.catalog.Complete() && searches {
 		q.gaps = append(q.gaps, ownership.Gap{Reason: readreason.ReadError})
 	}
 	for _, kind := range s.catalog.DependentKinds() {
-		if !domain.Searches(kind.Namespaced) {
+		if !scope.Searches(kind.Namespaced) {
 			continue
 		}
 		if b, typed := typedKinds[kind.GroupKind]; typed {
@@ -58,7 +58,7 @@ func (s *session) DependentCandidates(uid types.UID, domain ownership.SearchScop
 		}
 	}
 	for _, a := range s.catalog.AmbiguousDependentKinds() {
-		if a.Namespaced && domain.Searches(true) || a.ClusterScoped && domain.Searches(false) {
+		if a.Namespaced && scope.Searches(true) || a.ClusterScoped && scope.Searches(false) {
 			q.gap(a.GroupKind, "", readreason.ReadError)
 		}
 	}
@@ -86,8 +86,8 @@ func (q *search) gap(gk resourceid.GroupKind, namespace string, reason readreaso
 // for a reason of the whole kind, such as Radar not collecting it: one gap,
 // however many namespaces the search covers.
 func (q *search) gapEverywhere(gk resourceid.GroupKind, namespaced bool, reason readreason.Code) {
-	if namespaced && !q.domain.AllNamespaces && len(q.namespaces) == 0 {
-		// The domain named no namespace to look in.
+	if namespaced && !q.scope.AllNamespaces && len(q.namespaces) == 0 {
+		// The scope named no namespace to look in.
 		return
 	}
 	q.gap(gk, "", reason)
@@ -103,7 +103,7 @@ func (q *search) add(gk resourceid.GroupKind, obj apiruntime.Object, namespace, 
 func (s *session) typedCandidates(q *search, b resourceid.Builtin) {
 	gk := b.GroupKind()
 	var target []string
-	if b.Namespaced && !q.domain.AllNamespaces {
+	if b.Namespaced && !q.scope.AllNamespaces {
 		target = append([]string{}, q.namespaces...)
 	}
 	a := s.caches.Typed.AssessKindRead(b.Resource, target)
@@ -173,11 +173,11 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 	// ahead of it. A cluster-wide store serves every namespace, so it is read
 	// once and its matches kept by namespace: reading it per namespace would
 	// gather all of them for each.
-	var inDomain map[string]bool
-	if kind.Namespaced && !q.domain.AllNamespaces {
-		inDomain = make(map[string]bool, len(q.namespaces))
+	var inScope map[string]bool
+	if kind.Namespaced && !q.scope.AllNamespaces {
+		inScope = make(map[string]bool, len(q.namespaces))
 		for _, ns := range q.namespaces {
-			inDomain[ns] = true
+			inScope[ns] = true
 		}
 	}
 	for _, gvr := range versions {
@@ -186,7 +186,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 			continue
 		}
 		for _, u := range objs {
-			if inDomain == nil || inDomain[u.GetNamespace()] {
+			if inScope == nil || inScope[u.GetNamespace()] {
 				add(u)
 			}
 		}
@@ -209,14 +209,14 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 		return
 	}
 	namespaces := q.namespaces
-	if q.domain.AllNamespaces {
+	if q.scope.AllNamespaces {
 		slices.Sort(watchedByNamespace)
 		namespaces = slices.Compact(watchedByNamespace)
 	}
 	for _, ns := range namespaces {
 		s.readNamespace(q, gk, versions, ns, add)
 	}
-	if q.domain.AllNamespaces {
+	if q.scope.AllNamespaces {
 		// The namespaces not watched one by one are unread: still loading if
 		// a version is watched cluster-wide, otherwise uncollected.
 		rest := readreason.RadarNamespaceNotCollected

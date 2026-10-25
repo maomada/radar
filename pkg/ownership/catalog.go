@@ -23,8 +23,8 @@ type ServedResource struct {
 	Verbs      []string
 }
 
-// Kind is what a catalog knows about one group and kind across the versions
-// serving it.
+// CatalogKind is what a catalog knows about one group and kind across the
+// versions serving it.
 type CatalogKind struct {
 	resourceid.GroupKind
 	Resource   string
