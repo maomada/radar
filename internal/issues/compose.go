@@ -211,8 +211,8 @@ func ComposeWithStats(p Provider, f Filters) ([]Issue, ComposeStats) {
 	out = dedupeContainerWaitingOverMissingRef(out)
 	out = dedupeHPAOverMissingTarget(out)
 	out = dedupeRepeatedCronJobFailureOverChild(out)
-	out = dedupeWorkloadDegradedOverChild(out)
 	out = dedupeConditionOverNativeFailure(out)
+	out = dedupeWorkloadDegradedOverChild(out)
 	out = dedupeConditionOverMissingRef(out)
 	out = dedupePVCPendingOverMissingRef(out)
 

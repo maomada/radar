@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -68,4 +69,19 @@ func TestNativeFailuresDoNotDuplicateAfterDynamicWatch(t *testing.T) {
 		}
 	}
 	assertFailures()
+}
+
+func TestNativeConditionFoldRunsBeforeWorkloadChildFold(t *testing.T) {
+	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
+	u := &unstructured.Unstructured{Object: map[string]any{"metadata": map[string]any{"name": "broken", "namespace": "test"}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Available", "status": "False", "reason": "MinimumReplicasUnavailable"}}}}}
+	p := &fakeProvider{problems: []k8s.Detection{
+		{Kind: "Deployment", Group: "apps", Namespace: "test", Name: "broken", Severity: "critical", Reason: "0/1 available"},
+		{Kind: "Pod", Namespace: "test", Name: "crashing", OwnerKind: "Deployment", OwnerGroup: "apps", OwnerName: "broken", Severity: "critical", Reason: "CrashLoopBackOff"},
+	}, dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Deployment"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+	for _, grouped := range []bool{false, true} {
+		out := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+		if len(out) != 1 || out[0].Category != issuesapi.CategoryCrashLoop || out[0].Severity != SeverityCritical {
+			t.Fatalf("grouped=%v: want one crashloop root, got %+v", grouped, out)
+		}
+	}
 }
