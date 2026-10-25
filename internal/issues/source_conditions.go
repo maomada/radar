@@ -292,6 +292,14 @@ func podReadinessInGrace(u *unstructured.Unstructured, now time.Time) bool {
 	if len(gates) == 0 || containers.Status != "True" {
 		return false
 	}
+	creation := u.GetCreationTimestamp().Time
+	creationRecent := !creation.IsZero() && !creation.After(now) && now.Sub(creation) < 5*time.Minute
+	if !ready.HasLastTransitionTime {
+		if creation.After(now) {
+			return false
+		}
+		recent = creationRecent
+	}
 	raw, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
 	for _, item := range raw {
 		c, ok := item.(map[string]any)
@@ -305,6 +313,11 @@ func podReadinessInGrace(u *unstructured.Unstructured, now time.Time) bool {
 				return false
 			}
 			recent = recent || now.Sub(transition) < 5*time.Minute
+		} else {
+			if creation.After(now) {
+				return false
+			}
+			recent = recent || creationRecent
 		}
 		break
 	}

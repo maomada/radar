@@ -310,3 +310,40 @@ func TestPodReadinessNoiseKeepsRealFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestFreshGateWithoutTransitionTimesThroughCache(t *testing.T) {
+	defer k8s.ResetTestState()
+	defer k8s.ResetTestDynamicState()
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "young-gate", Namespace: "test", CreationTimestamp: metav1.NewTime(time.Now().Add(-30 * time.Second))}, Spec: corev1.PodSpec{ReadinessGates: []corev1.PodReadinessGate{{ConditionType: "example.com/ready"}}}, Status: corev1.PodStatus{Phase: corev1.PodRunning, Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse, Reason: "ReadinessGatesNotReady"}, {Type: corev1.ContainersReady, Status: corev1.ConditionTrue}}, ContainerStatuses: []corev1.ContainerStatus{{Name: "app", Ready: true, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}}}}}
+	control := pod.DeepCopy()
+	control.Name = "independent-error"
+	control.Status.Conditions = append(control.Status.Conditions, corev1.PodCondition{Type: "Healthy", Status: corev1.ConditionFalse, Reason: "ControllerError"})
+	if err := k8s.InitTestResourceCache(fake.NewClientset(pod, control)); err != nil {
+		t.Fatal(err)
+	}
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := k8s.InitTestDynamicResourceCache(dynamicfake.NewSimpleDynamicClient(scheme, pod, control), []k8s.APIResource{{Version: "v1", Kind: "Pod", Name: "pods", Namespaced: true, Verbs: []string{"get", "list", "watch"}}}); err != nil {
+		t.Fatal(err)
+	}
+	p := NewCacheProvider()
+	for _, warm := range []bool{false, true} {
+		if warm {
+			if _, err := k8s.GetDynamicResourceCache().ListBlocking(schema.GroupVersionResource{Version: "v1", Resource: "pods"}, "test", 2*time.Second); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, grouped := range []bool{false, true} {
+			got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+			want := 0
+			if warm {
+				want = 1
+			}
+			if len(got) != want || (warm && (got[0].Name != control.Name || got[0].Reason != "Healthy: ControllerError")) {
+				t.Fatalf("warm=%v grouped=%v got %+v", warm, grouped, got)
+			}
+		}
+	}
+}
