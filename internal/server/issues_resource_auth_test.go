@@ -81,8 +81,15 @@ func TestIssuesAPICompletedPodsRemainQuiet(t *testing.T) {
 				if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 					t.Fatal(err)
 				}
-				if len(response.Issues) != 1 || response.Issues[0].Name != failed.Name || response.Issues[0].Severity != issues.SeverityCritical {
-					t.Fatalf("expected only the failed Pod, got %s", w.Body.String())
+				failedReported := false
+				for _, issue := range response.Issues {
+					if issue.Name != failed.Name {
+						t.Errorf("completed Pod must not appear in Issues: %s", w.Body.String())
+					}
+					failedReported = failedReported || (issue.Name == failed.Name && issue.Severity == issues.SeverityCritical)
+				}
+				if !failedReported {
+					t.Fatalf("failed Pod must remain critical: %s", w.Body.String())
 				}
 			}
 		})

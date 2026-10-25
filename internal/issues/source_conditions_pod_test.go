@@ -53,7 +53,14 @@ func TestCompletedPodConditionsThroughCacheProvider(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "failed", Namespace: "batch", UID: "failed-job-uid", CreationTimestamp: pod.CreationTimestamp},
 		Status:     batchv1.JobStatus{Failed: 1, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "BackoffLimitExceeded"}}},
 	}
-	if err := k8s.InitTestResourceCache(fake.NewClientset(pod, job, cronjob, failedPod, failedJob)); err != nil {
+	gateBlocked := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "readiness-gate-blocked", Namespace: "batch", CreationTimestamp: pod.CreationTimestamp},
+		Spec:       corev1.PodSpec{ReadinessGates: []corev1.PodReadinessGate{{ConditionType: "example.com/ready"}}},
+		Status: corev1.PodStatus{Phase: corev1.PodRunning, Conditions: []corev1.PodCondition{{
+			Type: corev1.PodReady, Status: corev1.ConditionFalse, Reason: "ReadinessGatesNotReady",
+		}}},
+	}
+	if err := k8s.InitTestResourceCache(fake.NewClientset(pod, job, cronjob, failedPod, failedJob, gateBlocked)); err != nil {
 		t.Fatal(err)
 	}
 	gvr := schema.GroupVersionResource{Version: "v1", Resource: "pods"}
@@ -61,7 +68,7 @@ func TestCompletedPodConditionsThroughCacheProvider(t *testing.T) {
 	if err := corev1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
-	dyn := dynamicfake.NewSimpleDynamicClient(scheme, pod, failedPod)
+	dyn := dynamicfake.NewSimpleDynamicClient(scheme, pod, failedPod, gateBlocked)
 	if err := k8s.InitTestDynamicResourceCache(dyn, []k8s.APIResource{{Version: "v1", Kind: "Pod", Name: "pods", Namespaced: true, Verbs: []string{"get", "list", "watch"}}}); err != nil {
 		t.Fatal(err)
 	}
@@ -83,11 +90,23 @@ func TestCompletedPodConditionsThroughCacheProvider(t *testing.T) {
 			t.Errorf("failed batch work must stay visible: Pod=%v, Job=%v", failedPodReported, failedJobReported)
 		}
 	}
+	if k8s.GetDynamicResourceCache().HasCoveringInformer(gvr, "batch") {
+		t.Fatal("Pod dynamic watch unexpectedly exists before the on-demand read")
+	}
 	assertNoCompletedIssue()
 	if _, err := k8s.GetDynamicResourceCache().ListBlocking(gvr, "batch", 2*time.Second); err != nil {
 		t.Fatal(err)
 	}
 	assertNoCompletedIssue()
+	gateReported := false
+	for _, issue := range Compose(provider, Filters{Namespaces: []string{"batch"}, Limit: NoLimit}) {
+		if issue.Name == gateBlocked.Name && issue.Source == SourceCondition {
+			gateReported = true
+		}
+	}
+	if !gateReported {
+		t.Fatal("a Pod blocked by its readiness gate must retain its condition issue")
+	}
 }
 
 func TestGenericConditionsRespectCorePodCompletion(t *testing.T) {
