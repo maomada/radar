@@ -443,3 +443,30 @@ func severityForRank(r int) Severity {
 func subjectKeyOf(r Ref) string {
 	return resourceKey(r.Group, r.Kind, r.Namespace, r.Name)
 }
+
+func dedupeConditionOverNativeFailure(in []Issue) []Issue {
+	owned := map[string]string{}
+	for _, issue := range in {
+		if issue.Source != SourceProblem {
+			continue
+		}
+		switch {
+		case issue.Group == "" && issue.Kind == "Node" && issue.Reason == "NotReady":
+			owned[issueResourceKey(issue)] = "Ready"
+		case issue.Group == "apps" && issue.Kind == "Deployment" && (issue.Category == issuesapi.CategoryWorkloadDegraded || issue.Category == issuesapi.CategoryRolloutStalled):
+			owned[issueResourceKey(issue)] = "Available"
+		}
+	}
+	if len(owned) == 0 {
+		return in
+	}
+	out := in[:0]
+	for _, issue := range in {
+		condType := owned[issueResourceKey(issue)]
+		if issue.Source == SourceCondition && condType != "" && (strings.HasPrefix(issue.Reason, condType+": ") || issue.Reason == condType+"=False") {
+			continue
+		}
+		out = append(out, issue)
+	}
+	return out
+}

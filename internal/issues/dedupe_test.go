@@ -366,3 +366,47 @@ func TestDedupeConditionOverMissingRef(t *testing.T) {
 		t.Fatalf("non-ResolvedRefs route condition was incorrectly dropped: %+v", out)
 	}
 }
+
+func TestDedupeConditionOverNativeFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name, kind, group, condition, nativeReason string
+		keep                                       bool
+	}{
+		{"node readiness", "Node", "", "Ready: KubeletNotReady", "NotReady", false},
+		{"node no reason", "Node", "", "Ready=False", "NotReady", false},
+		{"deployment availability", "Deployment", "apps", "Available: MinimumReplicasUnavailable", "0/2 available", false},
+		{"deployment rollout", "Deployment", "apps", "Available: MinimumReplicasUnavailable", "Rollout stuck", false},
+		{"deployment admission", "Deployment", "apps", "Available: MinimumReplicasUnavailable", "ReplicaFailure", false},
+		{"node independent condition", "Node", "", "Healthy: ControllerError", "NotReady", true},
+		{"deployment independent condition", "Deployment", "apps", "Ready: ControllerError", "0/2 available", true},
+		{"node pressure alone", "Node", "", "Ready: KubeletNotReady", "MemoryPressure", true},
+		{"deployment volume issue alone", "Deployment", "apps", "Available: MinimumReplicasUnavailable", "ReadWriteOnce volume shared across replicas", true},
+		{"colliding node", "Node", "example.com", "Ready: ControllerError", "NotReady", true},
+		{"colliding deployment", "Deployment", "example.com", "Available: ControllerError", "0/2 available", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			condition := Issue{Source: SourceCondition, Kind: tc.kind, Group: tc.group, Namespace: "test", Name: "broken", Reason: tc.condition, Severity: SeverityWarning}
+			root := Issue{Source: SourceProblem, Kind: tc.kind, Group: tc.group, Namespace: "test", Name: "broken", Reason: tc.nativeReason, Severity: SeverityCritical}
+			classifyIssue(&root)
+			for _, sameSubject := range []bool{true, false} {
+				if !sameSubject {
+					root.Name = "other"
+				}
+				out := dedupeConditionOverNativeFailure([]Issue{root, condition})
+				want := 1
+				if tc.keep || !sameSubject {
+					want = 2
+				}
+				if len(out) != want {
+					t.Fatalf("sameSubject=%v want%d got%+v", sameSubject, want, out)
+				}
+				if out[0].Source != SourceProblem || out[0].Severity != SeverityCritical {
+					t.Fatalf("native failure lost: %+v", out)
+				}
+			}
+			if out := dedupeConditionOverNativeFailure([]Issue{condition}); len(out) != 1 {
+				t.Fatalf("fallback lost: %+v", out)
+			}
+		})
+	}
+}
