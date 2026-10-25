@@ -33,7 +33,7 @@ type Object struct {
 	APIVersion        string
 	UID               types.UID
 	ResourceVersion   string
-	Owners            []metav1.OwnerReference
+	OwnerReferences   []metav1.OwnerReference
 	DeletionTimestamp *metav1.Time
 	Finalizers        []string
 	// Membership and Members are what a recording manager's status says of
@@ -48,7 +48,8 @@ type Object struct {
 	Form uint8
 }
 
-// OwnerRef returns a reference to o, as a controller when controller is set.
+// OwnerRef returns a reference to o. With controller set, it is the
+// controller reference and blocks o's deletion, as controllers set it.
 func (o Object) OwnerRef(controller bool) metav1.OwnerReference {
 	ref := metav1.OwnerReference{APIVersion: o.APIVersion, Kind: o.Ref.Kind, Name: o.Ref.Name, UID: o.UID}
 	if controller {

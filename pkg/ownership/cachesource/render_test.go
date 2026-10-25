@@ -77,7 +77,7 @@ func setMeta(t testing.TB, obj runtime.Object, o ownershiptest.Object) {
 	m.SetUID(o.UID)
 	m.SetResourceVersion(o.ResourceVersion)
 	var owners []metav1.OwnerReference
-	for _, ref := range o.Owners {
+	for _, ref := range o.OwnerReferences {
 		owners = append(owners, *ref.DeepCopy())
 	}
 	m.SetOwnerReferences(owners)
@@ -298,12 +298,12 @@ func render(t testing.TB, w ownershiptest.World) *rendered {
 	// Reactors go in before any watch starts: the fake client's reactor
 	// chain isn't safe to change while informers list through it.
 	for _, k := range ownershiptest.Kinds {
-		if !k.Typed && k.Watchable {
+		if !k.Typed && k.HasGCVerbs {
 			r.reactDynamic(k, w.Collection[k.GroupKind])
 		}
 	}
 	for _, k := range ownershiptest.Kinds {
-		if !k.Typed && k.Watchable {
+		if !k.Typed && k.HasGCVerbs {
 			r.watchDynamic(t, k, w.Collection[k.GroupKind])
 		}
 	}
