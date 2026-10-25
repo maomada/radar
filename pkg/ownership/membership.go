@@ -2,13 +2,15 @@ package ownership
 
 import "github.com/skyhook-io/radar/pkg/resourceid"
 
-// The GitOps managers whose status lists the objects they apply. A
+// The GitOps managers whose status records the objects they cover. A
 // HelmRelease from a helm-controller that predates status.inventory lists
 // nothing. A native Helm release keeps its manifest in a release Secret, which
 // Radar holds only as a digest; only the claims on its objects name it. Other
-// kinds whose status lists what they apply, such as the Flux Operator's
+// kinds whose status records what they cover, such as the Flux Operator's
 // ResourceSet and FluxInstance, or an Argo CD ApplicationSet's Applications,
-// aren't read.
+// aren't read. Controllers decide membership by more than these lists (Argo
+// CD by its tracking label or annotation, Flux's pruning by its labels), so a
+// recorded member is evidence for manager resolution to weigh, not a verdict.
 var (
 	ArgoApplication   = resourceid.GroupKind{Group: "argoproj.io", Kind: "Application"}
 	FluxKustomization = resourceid.GroupKind{Group: "kustomize.toolkit.fluxcd.io", Kind: "Kustomization"}

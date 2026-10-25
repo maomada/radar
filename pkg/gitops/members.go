@@ -7,8 +7,12 @@ type Member struct {
 	Group, Kind, Namespace, Name string
 }
 
-// MemberList is what a GitOps manager's status lists as the objects it
-// applies.
+// MemberList is what a GitOps manager's status records: for an Argo CD
+// Application, the objects its last comparison covered, including desired
+// objects not yet created, live ones awaiting pruning and ones another
+// Application also tracks; for Flux, the inventory of its last apply. An
+// entry says the manager recorded the object, not that it applied it or
+// alone manages it.
 type MemberList struct {
 	Entries []Member
 	// DestinationNamespace is an Argo CD Application's destination namespace.
@@ -156,8 +160,10 @@ func optionalString(v any) (string, bool) {
 }
 
 // argoComparisonFailed reports whether Argo CD's last comparison failed. A
-// failed comparison records an empty resource list and still sets
-// reconciledAt, so an empty list then says nothing about what it manages.
+// failed comparison still sets reconciledAt and can leave an empty, partial
+// or previous resource list. An empty one then says nothing about what the
+// Application covers; a nonempty one is still what it recorded, though it
+// may leave objects out.
 func argoComparisonFailed(app *unstructured.Unstructured) bool {
 	if status, _, _ := unstructured.NestedString(app.Object, "status", "sync", "status"); status == "Unknown" {
 		return true
