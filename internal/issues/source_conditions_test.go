@@ -20,6 +20,90 @@ func rolloutWithConditions(conds []map[string]any) *unstructured.Unstructured {
 	}}
 }
 
+func TestGenericConditionSelectionKeepsActionableFailures(t *testing.T) {
+	failedAt := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
+	creating := map[string]any{"type": "Ready", "status": "False", "reason": "Creating", "lastTransitionTime": failedAt.Add(-time.Minute).Format(time.RFC3339)}
+	failure := map[string]any{"type": "Synced", "status": "False", "reason": "ReconcileError", "message": "credentials rejected", "lastTransitionTime": failedAt.Format(time.RFC3339)}
+	readyFailure := map[string]any{"type": "Ready", "status": "False", "reason": "Unavailable", "lastTransitionTime": failedAt.Format(time.RFC3339)}
+	for _, tc := range []struct {
+		name       string
+		legacy     []map[string]any
+		current    []map[string]any
+		suspended  bool
+		lagging    bool
+		wantReason string
+	}{
+		{name: "expected first", legacy: []map[string]any{creating, failure}, wantReason: "Synced: ReconcileError"},
+		{name: "failure first", legacy: []map[string]any{failure, creating}, wantReason: "Synced: ReconcileError"},
+		{name: "only expected", legacy: []map[string]any{creating}},
+		{name: "actionable order unchanged", legacy: []map[string]any{readyFailure, failure}, wantReason: "Ready: Unavailable"},
+		{name: "current expected hides stale same type", current: []map[string]any{creating}, legacy: []map[string]any{readyFailure, failure}, wantReason: "Synced: ReconcileError"},
+		{name: "current healthy hides stale same type", current: []map[string]any{{"type": "Ready", "status": "True"}}, legacy: []map[string]any{readyFailure}},
+		{name: "current unknown hides stale same type", current: []map[string]any{{"type": "Ready", "status": "Unknown"}}, legacy: []map[string]any{readyFailure}},
+		{name: "current healthy does not hide independent failure", current: []map[string]any{{"type": "Ready", "status": "True"}}, legacy: []map[string]any{readyFailure, failure}, wantReason: "Synced: ReconcileError"},
+		{name: "suspend preserved", legacy: []map[string]any{creating, failure}, suspended: true},
+		{name: "generation lag preserved", legacy: []map[string]any{creating, failure}, lagging: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := rolloutWithConditions(tc.legacy)
+			u.SetName("example")
+			u.SetNamespace("test")
+			if tc.current != nil {
+				u.Object["status"].(map[string]any)["v1beta2"] = rolloutWithConditions(tc.current).Object["status"]
+			}
+			if tc.suspended {
+				u.Object["spec"] = map[string]any{"suspend": true}
+			}
+			if tc.lagging {
+				u.SetGeneration(2)
+				u.Object["status"].(map[string]any)["observedGeneration"] = int64(1)
+			}
+			gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+			p := &fakeProvider{
+				dynamic:    map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}},
+				kinds:      map[schema.GroupVersionResource]string{gvr: "Widget"},
+				namespaced: map[schema.GroupVersionResource]bool{gvr: true},
+			}
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if tc.wantReason == "" {
+					if len(got) != 0 {
+						t.Fatalf("grouped=%v: expected no issue, got %+v", grouped, got)
+					}
+					continue
+				}
+				if len(got) != 1 || got[0].Reason != tc.wantReason || got[0].Severity != SeverityWarning {
+					t.Fatalf("grouped=%v: got %+v, want one warning %q", grouped, got, tc.wantReason)
+				}
+				if !got[0].FirstSeen.Equal(failedAt) {
+					t.Fatalf("failure onset = %v, want %v", got[0].FirstSeen, failedAt)
+				}
+			}
+		})
+	}
+}
+
+func TestCuratedConditionsContinueAfterAnExpectedCondition(t *testing.T) {
+	gvr := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+	u := rolloutWithConditions([]map[string]any{
+		{"type": "Established", "status": "False", "reason": "Creating"},
+		{"type": "NamesAccepted", "status": "False", "reason": "NameConflict", "message": "name is already in use"},
+	})
+	u.SetName("widgets.example.com")
+	p := &fakeProvider{
+		dynamic:    map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}},
+		kinds:      map[schema.GroupVersionResource]string{gvr: "CustomResourceDefinition"},
+		namespaced: map[schema.GroupVersionResource]bool{gvr: false},
+	}
+	got := Compose(p, Filters{})
+	if len(got) != 1 || got[0].Reason != "NamesAccepted: NameConflict" || got[0].Severity != SeverityCritical {
+		t.Fatalf("expected critical name conflict, got %+v", got)
+	}
+	if !got[0].OnsetUnknown || !got[0].FirstSeen.IsZero() || got[0].IssueTiming != "" {
+		t.Fatalf("missing transition time must remain unknown: %+v", got[0])
+	}
+}
+
 // TestArgoRolloutFailure pins that the Rollout reader prefers the definitive
 // root cause (InvalidSpec, then ProgressDeadlineExceeded) over the generic
 // Healthy=False/RolloutHealthy that FindFalseCondition surfaces first.
