@@ -172,11 +172,13 @@ func detectGenericCRDIssues(p Provider, f Filters, ownedSubjects map[string]bool
 				condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(t string) bool { return t == "Ready" })
 			}
 			if readiness, ok := p.(typedKindReadinessProvider); ok && gvr.Group == "" && kind == "Node" && readiness.typedKindReadiness("nodes") == k8s.KindReady {
-				var node corev1.Node
-				if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &node); err == nil {
-					lifecycle := health.NodeLifecycle(&node, time.Now())
-					if lifecycle.Removing && !lifecycle.ReadinessFailed && !lifecycle.Delayed {
-						condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(t string) bool { return t == "Ready" })
+				if ready, _ := conditions.Find(u, "Ready"); ready.Status == "False" {
+					var node corev1.Node
+					if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &node); err == nil {
+						lifecycle := health.NodeLifecycle(&node, time.Now())
+						if lifecycle.Removing && !lifecycle.ReadinessFailed && !lifecycle.Delayed {
+							condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(t string) bool { return t == "Ready" })
+						}
 					}
 				}
 			}
