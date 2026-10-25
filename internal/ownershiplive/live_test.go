@@ -152,7 +152,7 @@ func TestLiveParity(t *testing.T) {
 			OwnerReferences: u.GetOwnerReferences(), DeletionTimestamp: u.GetDeletionTimestamp(), Finalizers: u.GetFinalizers(),
 		}
 		if ownership.IsRecordingManager(gk) {
-			o.Membership, o.Members, o.Destination = liveMembership(gk, u, scope)
+			o.Membership, o.Members, o.DestinationNamespace = liveMembership(gk, u, scope)
 		}
 		return o
 	}

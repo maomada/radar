@@ -33,8 +33,9 @@ type MembershipState uint8
 
 const (
 	// MembersUnreadable: the status lists no members Radar can read — none
-	// recorded yet, an entry that names no object, or no destination — so any
-	// object may be one of them. It is the zero value.
+	// recorded yet, an empty list from a failed Argo CD comparison, an entry
+	// that names no object, or no destination — so any object may be one of
+	// them. It is the zero value.
 	MembersUnreadable MembershipState = iota
 	// MembersRecorded: the status lists the members; the list may be empty.
 	MembersRecorded
@@ -44,6 +45,7 @@ const (
 	MembersRemote
 )
 
+// String is the state's wire name; an undeclared value reads as unreadable.
 func (m MembershipState) String() string {
 	switch m {
 	case MembersRecorded:
@@ -66,7 +68,8 @@ type MembersRead struct {
 	// a cluster-scoped kind has no namespace, whatever the entry records, and
 	// an Argo CD entry for a namespaced kind that records none is in the
 	// Application's destination namespace. An entry of a kind whose scope
-	// Radar can't tell stays as recorded.
+	// Radar can't tell stays as recorded. Members is nil unless Manager is
+	// Present and the list is Recorded or Remote; an empty list is non-nil.
 	Members []resourceid.Ref
 }
 
@@ -83,9 +86,12 @@ type RecordingManagersRead struct {
 	// which may name the object, sorted.
 	Unreadable []resourceid.Ref
 	// Gaps are the manager kinds and namespaces the search couldn't read. An
-	// object that can't be named, by a reference that contradicts its kind's
-	// scope or of a kind whose scope Radar can't tell, leaves every manager
-	// kind unread.
+	// object that can't be named leaves every manager kind unread: a
+	// reference that contradicts its kind's scope, or of a kind whose scope
+	// Radar can't tell because discovery is partial, ambiguous about it, or
+	// contradicts a built-in kind's scope. A custom kind complete discovery
+	// doesn't serve has no objects, and entries naming it are matched as
+	// recorded.
 	Gaps []Gap
 }
 

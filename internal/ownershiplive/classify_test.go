@@ -362,7 +362,7 @@ func TestRecheckJudgesTheFreshAnswerAgainstTheAPIServer(t *testing.T) {
 			seen := map[string]bool{}
 			for _, d := range ownershiptest.Differences(begin(t, from), cache, q) {
 				question := "Object"
-				if d.Asked == ownershiptest.AskedCandidates {
+				if d.Asked == ownershiptest.AskedDependentCandidates {
 					question = "DependentCandidates"
 				}
 				seen[question] = true
@@ -596,7 +596,7 @@ func (l laggingMembership) Members(m resourceid.Ref) ownership.MembersRead {
 func TestRecheckJudgesMembershipAgainstTheAPIServer(t *testing.T) {
 	cm := ownershiptest.Object{Ref: resourceid.Ref{Kind: "ConfigMap", Namespace: "shop", Name: "cfg"}, APIVersion: "v1", UID: "uid-cfg", ResourceVersion: "5"}
 	app := ownershiptest.Object{Ref: resourceid.Ref{Group: "argoproj.io", Kind: "Application", Namespace: "argocd", Name: "shop"}, APIVersion: "argoproj.io/v1alpha1", UID: "uid-app", ResourceVersion: "10",
-		Membership: ownership.MembersRecorded, Members: []resourceid.Ref{cm.Ref}, Destination: "shop"}
+		Membership: ownership.MembersRecorded, Members: []resourceid.Ref{cm.Ref}, DestinationNamespace: "shop"}
 	dropped := app
 	dropped.ResourceVersion, dropped.Members = "11", []resourceid.Ref{}
 	resynced := app
@@ -605,7 +605,7 @@ func TestRecheckJudgesMembershipAgainstTheAPIServer(t *testing.T) {
 	unreadable.ResourceVersion, unreadable.Membership, unreadable.Members = "13", ownership.MembersUnreadable, nil
 
 	other := ownershiptest.Object{Ref: resourceid.Ref{Group: "argoproj.io", Kind: "Application", Namespace: "argocd", Name: "other"}, APIVersion: "argoproj.io/v1alpha1", UID: "uid-other", ResourceVersion: "20",
-		Membership: ownership.MembersRecorded, Members: []resourceid.Ref{}, Destination: "shop"}
+		Membership: ownership.MembersRecorded, Members: []resourceid.Ref{}, DestinationNamespace: "shop"}
 
 	sibling := app
 	sibling.Ref.Name, sibling.UID = "shop-too", "uid-shop-too"

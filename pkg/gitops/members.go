@@ -15,14 +15,19 @@ type Member struct {
 // alone manages it.
 type MemberList struct {
 	Entries []Member
-	// DestinationNamespace is an Argo CD Application's destination namespace.
+	// DestinationNamespace is the namespace of the destination an Argo CD
+	// Application's list was compared against, where an entry recording no
+	// namespace is; empty for Flux.
 	DestinationNamespace string
 }
 
 // ArgoMembers reads an Application's status.resources, as of the destination
 // Argo CD compared it against. ok is false when the list can't be trusted, so
-// that any object may be a member: the Application has no destination, Argo CD
-// hasn't reconciled it, or an entry names no object.
+// that any object may be a member: the Application has no destination, the
+// list is left out before Argo CD has reconciled it (reconciledAt unset), the
+// list is empty or left out after a failed comparison, or an entry names no
+// object. A nonempty list from a failed comparison is still what Argo CD
+// recorded, though it may leave objects out.
 func ArgoMembers(app *unstructured.Unstructured) (MemberList, bool) {
 	return argoMembers(app, true)
 }

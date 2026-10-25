@@ -115,13 +115,17 @@ func QueriesFor(w World) Queries {
 	return q
 }
 
-// Asked names a Session question.
+// Asked names the ReadSession question a Difference is about.
 type Asked uint8
 
 const (
+	// AskedObject: Object(Ref). It is the zero value.
 	AskedObject Asked = iota
-	AskedCandidates
+	// AskedDependentCandidates: DependentCandidates(UID, Scope).
+	AskedDependentCandidates
+	// AskedRecordingManagers: RecordingManagers(Ref).
 	AskedRecordingManagers
+	// AskedMembers: Members(Ref).
 	AskedMembers
 )
 
@@ -183,7 +187,7 @@ func Differences(want, got ownership.ReadSession, q Queries) []Difference {
 					Want:     describeCandidates(w), Got: describeCandidates(g),
 					Objects:  differingCandidates(w, g),
 					Coverage: !slices.Equal(w.Gaps, g.Gaps),
-					Asked:    AskedCandidates, UID: uid, Scope: d, WantGaps: w.Gaps,
+					Asked:    AskedDependentCandidates, UID: uid, Scope: d, WantGaps: w.Gaps,
 				})
 			}
 		}

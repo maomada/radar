@@ -321,7 +321,7 @@ func (b *builder) add(group, kind, namespace, name string, owners ...metav1.Owne
 func (b *builder) manager(gk resourceid.GroupKind, namespace, name string, state ownership.MembershipState, form uint8, destination string, members ...resourceid.Ref) Object {
 	b.add(gk.Group, gk.Kind, namespace, name)
 	o := &b.objects[len(b.objects)-1]
-	o.Membership, o.Form, o.Destination, o.Members = state, form, destination, members
+	o.Membership, o.Form, o.DestinationNamespace, o.Members = state, form, destination, members
 	return *o
 }
 

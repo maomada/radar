@@ -114,7 +114,7 @@ func argoMembership(spec, status map[string]any, scope scopeOf) (ownership.Membe
 				failed = true
 			}
 		}
-		if reconciled, _ := status["reconciledAt"].(string); reconciled == "" || failed {
+		if reconciled, _ := status["reconciledAt"].(string); failed || raw == nil && reconciled == "" {
 			return ownership.MembersUnreadable, nil, namespace
 		}
 		if raw == nil {

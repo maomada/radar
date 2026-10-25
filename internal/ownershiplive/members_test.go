@@ -105,6 +105,7 @@ func TestLiveMembershipReadsControllerShapes(t *testing.T) {
 		}},
 		{"Argo CD, reconciled empty", ownership.ArgoApplication, local, map[string]any{"reconciledAt": "t"}, ownership.MembersRecorded, []resourceid.Ref{}},
 		{"Argo CD, not reconciled", ownership.ArgoApplication, local, nil, ownership.MembersUnreadable, nil},
+		{"Argo CD, an empty list written, no reconciledAt", ownership.ArgoApplication, local, map[string]any{"resources": []any{}}, ownership.MembersRecorded, []resourceid.Ref{}},
 		{"Argo CD, comparison failed", ownership.ArgoApplication, local, map[string]any{"reconciledAt": "t", "resources": []any{}, "conditions": []any{map[string]any{"type": "ComparisonError"}}}, ownership.MembersUnreadable, nil},
 		{"Argo CD, comparison unknown", ownership.ArgoApplication, local, map[string]any{"reconciledAt": "t", "sync": map[string]any{"status": "Unknown"}}, ownership.MembersUnreadable, nil},
 		{"Argo CD, elsewhere", ownership.ArgoApplication, map[string]any{"destination": map[string]any{"name": "prod"}}, map[string]any{"resources": []any{

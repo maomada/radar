@@ -37,11 +37,11 @@ type Object struct {
 	DeletionTimestamp *metav1.Time
 	Finalizers        []string
 	// Membership and Members are what a recording manager's status says of
-	// its members, as the objects it means. Destination is an Argo CD
-	// Application's destination namespace.
-	Membership  ownership.MembershipState
-	Members     []resourceid.Ref
-	Destination string
+	// its members, as the objects it means. DestinationNamespace is an Argo
+	// CD Application's destination namespace.
+	Membership           ownership.MembershipState
+	Members              []resourceid.Ref
+	DestinationNamespace string
 	// Form picks one of the ways a status can say the same thing, such as
 	// an empty list written or left out; a renderer must vary only that,
 	// and Scan ignores it.

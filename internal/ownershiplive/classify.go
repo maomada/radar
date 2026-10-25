@@ -92,7 +92,7 @@ func (st settle) recheck(d ownershiptest.Difference, listed map[resourceid.Ref]o
 	}
 	holds := true
 	switch d.Asked {
-	case ownershiptest.AskedCandidates:
+	case ownershiptest.AskedDependentCandidates:
 		holds = r.candidatesHold(d)
 	case ownershiptest.AskedRecordingManagers:
 		holds = r.managersHold(d)

@@ -334,7 +334,8 @@ func (s scanSession) Members(manager resourceid.Ref) ownership.MembersRead {
 }
 
 // nameable says why no manager can list ref, or "" when one can: a reference
-// must name an object of a kind whose scope Radar can tell, in that scope. A
+// must name an object of a kind whose scope Radar can tell, in that scope, or
+// of a custom kind complete discovery doesn't serve, matched as recorded. A
 // built-in kind's scope is its own, unless discovery serves the kind with the
 // other scope.
 func (s scanSession) nameable(ref resourceid.Ref) readreason.Code {

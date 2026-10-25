@@ -135,7 +135,7 @@ func renderApplication(u *unstructured.Unstructured, o ownershiptest.Object) {
 			e["group"] = m.Group
 		}
 		namespaced, known := namespacedKind(m.GroupKind())
-		inDestination := known && namespaced && o.Destination != "" && m.Namespace == o.Destination && i%2 == 1
+		inDestination := known && namespaced && o.DestinationNamespace != "" && m.Namespace == o.DestinationNamespace && i%2 == 1
 		if m.Namespace != "" && !inDestination {
 			e["namespace"] = m.Namespace
 		}
@@ -167,8 +167,8 @@ func renderApplication(u *unstructured.Unstructured, o ownershiptest.Object) {
 			destination = map[string]any{}
 		}
 	}
-	if o.Destination != "" && len(destination) > 0 {
-		destination["namespace"] = o.Destination
+	if o.DestinationNamespace != "" && len(destination) > 0 {
+		destination["namespace"] = o.DestinationNamespace
 	}
 	u.Object["spec"] = map[string]any{"project": "default", "destination": destination}
 	if status != nil {

@@ -196,7 +196,7 @@ func (d *driver) step(r *rand.Rand, n int) string {
 		o := ownershiptest.Object{
 			Ref:        resourceid.Ref{Group: kind.Group, Kind: kind.Kind, Namespace: "alpha", Name: fmt.Sprintf("manager-%d", n)},
 			APIVersion: k.APIVersion(), UID: types.UID(fmt.Sprintf("uid-manager-%d", n)),
-			Membership: ownership.MembersRecorded, Members: []resourceid.Ref{member}, Destination: "alpha",
+			Membership: ownership.MembersRecorded, Members: []resourceid.Ref{member}, DestinationNamespace: "alpha",
 		}
 		d.create(o)
 		return fmt.Sprintf("%v created listing %v", o.Ref, member)
