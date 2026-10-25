@@ -148,15 +148,21 @@ func (s *session) dynamicObject(ref resourceid.Ref) ownership.ObjectRead {
 		}
 		return observe(ref, obj)
 	}
-	return unavailable(ref, s.unansweredReason(versions, ref.Namespace))
+	return unavailable(ref, unansweredReason(s.caches.Dynamic, versions, ref.Namespace))
+}
+
+// observer reports how Radar collects a resource version in a namespace: the
+// dynamic cache, or a view of it that builds each version's scope once.
+type observer interface {
+	NamespaceObservation(gvr schema.GroupVersionResource, namespace string) k8score.DynamicResourceObservation
 }
 
 // unansweredReason says why none of versions answered in namespace: the first
 // version watched there, which answers once it loads, or else the first.
-func (s *session) unansweredReason(versions []schema.GroupVersionResource, namespace string) readreason.Code {
+func unansweredReason(obs observer, versions []schema.GroupVersionResource, namespace string) readreason.Code {
 	var first readreason.Code
 	for i, gvr := range versions {
-		o := s.caches.Dynamic.NamespaceObservation(gvr, namespace)
+		o := obs.NamespaceObservation(gvr, namespace)
 		if o.State != k8score.DynamicObservationUnwatched {
 			return dynamicReason(o)
 		}

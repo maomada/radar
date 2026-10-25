@@ -193,7 +193,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 		return
 	}
 	if !kind.Namespaced {
-		q.gap(gk, "", s.unansweredReason(versions, ""))
+		q.gap(gk, "", unansweredReason(s.caches.Dynamic, versions, ""))
 		return
 	}
 	var watchedByNamespace []string
@@ -205,7 +205,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 	if len(watchedByNamespace) == 0 {
 		// Each version's one informer serves every namespace and none can
 		// answer, so the kind's state is the same in each: one gap.
-		q.gapEverywhere(gk, true, s.unansweredReason(versions, ""))
+		q.gapEverywhere(gk, true, unansweredReason(s.caches.Dynamic, versions, ""))
 		return
 	}
 	namespaces := q.namespaces
@@ -213,8 +213,12 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 		slices.Sort(watchedByNamespace)
 		namespaces = slices.Compact(watchedByNamespace)
 	}
+	// Explaining an unread namespace needs the version's collection scope,
+	// which the cache would otherwise rebuild from every informer for each
+	// namespace.
+	obs := s.caches.Dynamic.NewObservationView(versions)
 	for _, ns := range namespaces {
-		s.readNamespace(q, gk, versions, ns, add)
+		s.readNamespace(q, gk, versions, ns, obs, add)
 	}
 	if q.scope.AllNamespaces {
 		// The namespaces not watched one by one are unread: still loading if
@@ -231,7 +235,7 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 
 // readNamespace reads namespace from the most stable version that answers
 // there, or records why none did.
-func (s *session) readNamespace(q *search, gk resourceid.GroupKind, versions []schema.GroupVersionResource, namespace string, add func(*unstructured.Unstructured)) {
+func (s *session) readNamespace(q *search, gk resourceid.GroupKind, versions []schema.GroupVersionResource, namespace string, obs observer, add func(*unstructured.Unstructured)) {
 	for _, gvr := range versions {
 		if objs, ok := s.caches.Dynamic.ReadableDependents(gvr, namespace, q.uid); ok {
 			for _, u := range objs {
@@ -240,7 +244,7 @@ func (s *session) readNamespace(q *search, gk resourceid.GroupKind, versions []s
 			return
 		}
 	}
-	q.gap(gk, namespace, s.unansweredReason(versions, namespace))
+	q.gap(gk, namespace, unansweredReason(obs, versions, namespace))
 }
 
 // unwatchedReason reports a kind none of whose served versions is watched,
