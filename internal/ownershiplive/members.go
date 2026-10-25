@@ -15,14 +15,14 @@ type scopeOf func(resourceid.GroupKind) (namespaced, known bool)
 
 // discoveredScope is the scope of each kind as served: a built-in kind's
 // own, unless discovery serves it with the other scope; a kind two resources
-// serve has none.
+// serve, or that versions serve at different scopes, has none.
 func discoveredScope(served []ownership.ServedResource) scopeOf {
 	scopes := map[resourceid.GroupKind]bool{}
 	resource := map[resourceid.GroupKind]string{}
 	ambiguous := map[resourceid.GroupKind]bool{}
 	for _, r := range served {
 		gk := resourceid.GroupKind{Group: r.Group, Kind: r.Kind}
-		if seen, ok := resource[gk]; ok && seen != r.Resource {
+		if seen, ok := resource[gk]; ok && (seen != r.Resource || scopes[gk] != r.Namespaced) {
 			ambiguous[gk] = true
 		}
 		resource[gk], scopes[gk] = r.Resource, r.Namespaced

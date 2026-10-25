@@ -14,26 +14,34 @@ import (
 // two resources serve has none; any other kind has discovery's.
 func TestDiscoveredScope(t *testing.T) {
 	gc := []string{"get", "list", "watch"}
-	scope := discoveredScope([]ownership.ServedResource{
+	served := []ownership.ServedResource{
 		{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRole", Resource: "clusterroles", Namespaced: true, Verbs: gc},
 		{Group: "example.io", Version: "v1", Kind: "Widget", Resource: "widgets", Namespaced: true, Verbs: gc},
 		{Group: "example.io", Version: "v1", Kind: "Gadget", Resource: "gadgets", Namespaced: true, Verbs: gc},
 		{Group: "example.io", Version: "v1beta1", Kind: "Gadget", Resource: "gizmos", Verbs: gc},
+		{Group: "example.io", Version: "v1", Kind: "Dial", Resource: "dials", Namespaced: true, Verbs: gc},
+		{Group: "example.io", Version: "v1beta1", Kind: "Dial", Resource: "dials", Verbs: gc},
 		{Version: "v1", Kind: "ConfigMap", Resource: "configmaps", Namespaced: true, Verbs: gc},
-	})
-	for _, tc := range []struct {
-		gk                resourceid.GroupKind
-		namespaced, known bool
-	}{
-		{resourceid.GroupKind{Kind: "ConfigMap"}, true, true},
-		{resourceid.GroupKind{Kind: "Node"}, false, true},
-		{resourceid.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, false, false},
-		{resourceid.GroupKind{Group: "example.io", Kind: "Widget"}, true, true},
-		{resourceid.GroupKind{Group: "example.io", Kind: "Gadget"}, false, false},
-		{resourceid.GroupKind{Group: "example.io", Kind: "Sprocket"}, false, false},
-	} {
-		if namespaced, known := scope(tc.gk); namespaced != tc.namespaced || known != tc.known {
-			t.Errorf("%v: namespaced %v known %v, want %v %v", tc.gk, namespaced, known, tc.namespaced, tc.known)
+	}
+	reversed := slices.Clone(served)
+	slices.Reverse(reversed)
+	for _, order := range [][]ownership.ServedResource{served, reversed} {
+		scope := discoveredScope(order)
+		for _, tc := range []struct {
+			gk                resourceid.GroupKind
+			namespaced, known bool
+		}{
+			{resourceid.GroupKind{Kind: "ConfigMap"}, true, true},
+			{resourceid.GroupKind{Kind: "Node"}, false, true},
+			{resourceid.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, false, false},
+			{resourceid.GroupKind{Group: "example.io", Kind: "Widget"}, true, true},
+			{resourceid.GroupKind{Group: "example.io", Kind: "Gadget"}, false, false},
+			{resourceid.GroupKind{Group: "example.io", Kind: "Dial"}, false, false},
+			{resourceid.GroupKind{Group: "example.io", Kind: "Sprocket"}, false, false},
+		} {
+			if namespaced, known := scope(tc.gk); namespaced != tc.namespaced || known != tc.known {
+				t.Errorf("%v: namespaced %v known %v, want %v %v", tc.gk, namespaced, known, tc.namespaced, tc.known)
+			}
 		}
 	}
 }
