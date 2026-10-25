@@ -537,3 +537,48 @@ func TestDependentCandidatesSayTheRestLoadsWhileAClusterWideVersionLoads(t *test
 		t.Fatalf("alpha's Widget, through its loaded namespace watch, is missing: %+v", got)
 	}
 }
+
+// A typed kind watched namespace by namespace answers from the namespaces that
+// have loaded while another is still loading: their dependents are found, and
+// only the loading namespace is a gap.
+func TestDependentCandidatesOfATypedKindLoadingInSomeNamespaces(t *testing.T) {
+	f := newFixture(t, k8score.CacheConfig{
+		ResourceScopes:          map[string]k8score.ResourceScope{k8score.ReplicaSets: {Enabled: true, Namespace: "alpha"}},
+		ResourceScopeNamespaces: map[string][]string{k8score.ReplicaSets: {"alpha", "beta"}},
+		// A critical kind would hold the cache's start until beta loads.
+		DeferredTypes: map[string]bool{k8score.ReplicaSets: true},
+	}, func(f *fixture) {
+		f.typed.PrependReactor("list", "replicasets", func(a k8stesting.Action) (bool, runtime.Object, error) {
+			if a.GetNamespace() == "beta" {
+				return true, nil, errors.New("initial list held")
+			}
+			return false, nil, nil
+		})
+	})
+	waitUntil(t, "alpha's ReplicaSets", func() bool {
+		_, ok := f.caches.Typed.ReadableObjects(k8score.ReplicaSets, []string{"alpha"})
+		return ok
+	})
+	rs := resourceid.GroupKind{Group: "apps", Kind: "ReplicaSet"}
+	for _, tc := range []struct {
+		scope ownership.SearchScope
+		want  []ownership.Gap
+	}{
+		{ownership.SearchScope{Namespaces: []string{"alpha", "beta"}}, []ownership.Gap{{Kind: rs, Namespace: "beta", Reason: readreason.KindSyncPending}}},
+		{ownership.Everywhere(), []ownership.Gap{{Kind: rs, Reason: readreason.RadarNamespaceNotCollected}, {Kind: rs, Namespace: "beta", Reason: readreason.KindSyncPending}}},
+	} {
+		got := begin(t, f.source()).DependentCandidates("uid-deploy", tc.scope)
+		if !slices.ContainsFunc(got.Candidates, func(c ownership.Observation) bool { return c.Ref.GroupKind() == rs && c.Ref.Namespace == "alpha" }) {
+			t.Errorf("%+v: candidates %+v; want alpha's ReplicaSet", tc.scope, got.Candidates)
+		}
+		var rsGaps []ownership.Gap
+		for _, g := range got.Gaps {
+			if g.Kind == rs {
+				rsGaps = append(rsGaps, g)
+			}
+		}
+		if !slices.Equal(rsGaps, tc.want) {
+			t.Errorf("%+v: ReplicaSet gaps %+v; want %+v", tc.scope, rsGaps, tc.want)
+		}
+	}
+}

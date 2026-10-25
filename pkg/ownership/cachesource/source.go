@@ -135,8 +135,9 @@ func (s *session) dynamicObject(ref resourceid.Ref) ownership.ObjectRead {
 		return unavailable(ref, readreason.RadarKindNotCollected)
 	}
 	// A resource watched at two versions answers from the most stable one
-	// that has loaded: every version receives the same objects, so another
-	// can only be a moment behind or ahead of it.
+	// that has loaded: every version receives the same objects with the same
+	// owner references, so the one read can be behind another, for as long as
+	// its watch lags or fails, but never contradicts it.
 	versions := s.servingVersions(kind)
 	for _, gvr := range versions {
 		obj, found, ok := s.caches.Dynamic.ReadableObject(gvr, ref.Namespace, ref.Name)

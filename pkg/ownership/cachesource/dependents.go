@@ -169,10 +169,11 @@ func (s *session) dynamicCandidates(q *search, kind ownership.CatalogKind) {
 	// A resource watched at several versions answers from one: the most
 	// stable version whose cluster-wide store has loaded, or else, namespace
 	// by namespace, the most stable version that answers there. Every version
-	// receives the same objects, so another can only be a moment behind or
-	// ahead of it. A cluster-wide store serves every namespace, so it is read
-	// once and its matches kept by namespace: reading it per namespace would
-	// gather all of them for each.
+	// receives the same objects with the same owner references, so the one
+	// read can be behind another, for as long as its watch lags or fails, but
+	// never contradicts it. A cluster-wide store serves every namespace, so
+	// it is read once and its matches kept by namespace: reading it per
+	// namespace would gather all of them for each.
 	var inScope map[string]bool
 	if kind.Namespaced && !q.scope.AllNamespaces {
 		inScope = make(map[string]bool, len(q.namespaces))
