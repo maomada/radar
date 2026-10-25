@@ -193,3 +193,110 @@ func TestReadinessGateFailureDoesNotRequireADynamicWatch(t *testing.T) {
 	}
 	check()
 }
+
+func TestPodReadinessNoiseKeepsRealFailures(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for _, tc := range []struct {
+		name, reason, phase, group, root                             string
+		age, containersAge                                           time.Duration
+		noTime, gates, unknownGate, otherFailure, withheld, workload bool
+		want                                                         []string
+	}{
+		{name: "fresh startup", age: 30 * time.Second},
+		{name: "old readiness without native", want: []string{"Ready: ContainersNotReady"}},
+		{name: "unknown transition grants no grace", noTime: true, want: []string{"Ready: ContainersNotReady"}},
+		{name: "future transition grants no grace", age: -time.Minute, want: []string{"Ready: ContainersNotReady"}},
+		{name: "fresh Ready does not hide other error", age: 30 * time.Second, otherFailure: true, want: []string{"Healthy: ControllerError"}},
+		{name: "fresh gate Ready", reason: "ReadinessGatesNotReady", gates: true, age: 30 * time.Second},
+		{name: "long startup newly container ready", reason: "ReadinessGatesNotReady", gates: true, age: time.Hour, containersAge: 30 * time.Second},
+		{name: "old gate without native", reason: "ReadinessGatesNotReady", gates: true, want: []string{"Ready: ReadinessGatesNotReady"}},
+		{name: "unknown gate without native", reason: "ReadinessGatesNotReady", gates: true, unknownGate: true, want: []string{"Ready: ReadinessGatesNotReady"}},
+		{name: "unknown gate with unrelated native error", reason: "ReadinessGatesNotReady", gates: true, unknownGate: true, root: "CrashLoopBackOff", want: []string{"Ready: ReadinessGatesNotReady", "CrashLoopBackOff"}},
+		{name: "gate native echo", reason: "ReadinessGatesNotReady", gates: true, root: "ReadinessGatesNotReady", want: []string{"ReadinessGatesNotReady"}},
+		{name: "runtime native echo", root: "CrashLoopBackOff", want: []string{"CrashLoopBackOff"}},
+		{name: "withheld native retains fallback", root: "CrashLoopBackOff", withheld: true, want: []string{"Ready: ContainersNotReady"}},
+		{name: "root later folds into workload", root: "CrashLoopBackOff", workload: true, want: []string{"CrashLoopBackOff"}},
+		{name: "failed Pod echo", phase: "Failed", reason: "PodFailed", root: "Error", want: []string{"Error"}},
+		{name: "failed phase is not startup grace", phase: "Failed", age: 30 * time.Second, want: []string{"Ready: ContainersNotReady"}},
+		{name: "node unreachable stays", reason: "NodeNotReady", age: 30 * time.Second, want: []string{"Ready: NodeNotReady"}},
+		{name: "custom reason stays", reason: "CustomFailure", root: "CrashLoopBackOff", want: []string{"Ready: CustomFailure", "CrashLoopBackOff"}},
+		{name: "colliding kind stays", group: "example.com", age: 30 * time.Second, want: []string{"Ready: ContainersNotReady"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reason := tc.reason
+			if reason == "" {
+				reason = "ContainersNotReady"
+			}
+			phase := tc.phase
+			if phase == "" {
+				phase = "Running"
+			}
+			age := tc.age
+			if age == 0 {
+				age = 6 * time.Minute
+			}
+			containerAge := tc.containersAge
+			if containerAge == 0 {
+				containerAge = 6 * time.Minute
+			}
+			ready := map[string]any{"type": "Ready", "status": "False", "reason": reason}
+			if !tc.noTime {
+				ready["lastTransitionTime"] = now.Add(-age).Format(time.RFC3339)
+			}
+			conds := []map[string]any{ready}
+			if tc.gates {
+				conds = append(conds, map[string]any{"type": "ContainersReady", "status": "True", "lastTransitionTime": now.Add(-containerAge).Format(time.RFC3339)})
+			}
+			if tc.unknownGate {
+				conds = append(conds, map[string]any{"type": "example.com/ready", "status": "Unknown"})
+			}
+			if tc.otherFailure {
+				conds = append(conds, map[string]any{"type": "Healthy", "status": "False", "reason": "ControllerError"})
+			}
+			u := rolloutWithConditions(conds)
+			u.SetName("pod")
+			u.SetNamespace("test")
+			u.SetCreationTimestamp(metav1.NewTime(now.Add(-time.Hour)))
+			u.Object["status"].(map[string]any)["phase"] = phase
+			if tc.gates {
+				u.Object["spec"] = map[string]any{"readinessGates": []any{map[string]any{"conditionType": "example.com/ready"}}}
+			}
+			gvr := schema.GroupVersionResource{Group: tc.group, Version: "v1", Resource: "pods"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Pod"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			if tc.root != "" {
+				root := k8s.Detection{Kind: "Pod", Namespace: "test", Name: "pod", Reason: tc.root, Severity: "critical"}
+				if tc.withheld {
+					root.RequiredReads = []issuesapi.EvidenceRead{{Resource: "secrets", Namespace: "test", Verb: "get"}}
+				}
+				if tc.workload {
+					root.OwnerKind = "Deployment"
+					root.OwnerGroup = "apps"
+					root.OwnerName = "app"
+					p.problems = append(p.problems, k8s.Detection{Kind: "Deployment", Group: "apps", Namespace: "test", Name: "app", Reason: "0/1 available", Severity: "critical"})
+				}
+				p.problems = append(p.problems, root)
+			}
+			for _, grouped := range []bool{false, true} {
+				f := Filters{Namespaces: []string{"test"}, Grouped: grouped}
+				if tc.withheld {
+					f.CanReadEvidence = func(r EvidenceRead) bool { return r.Resource != "secrets" }
+				}
+				out := Compose(p, f)
+				if len(out) != len(tc.want) {
+					t.Fatalf("grouped=%v want%v got%+v", grouped, tc.want, out)
+				}
+				for _, want := range tc.want {
+					found := false
+					for _, i := range out {
+						if i.Reason == want {
+							found = true
+						}
+					}
+					if !found {
+						t.Fatalf("missing %q in %+v", want, out)
+					}
+				}
+			}
+		})
+	}
+}

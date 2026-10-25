@@ -164,7 +164,11 @@ func detectGenericCRDIssues(p Provider, f Filters, ownedSubjects map[string]bool
 			if cnpgSuppressesGenericConditions(gvr.Group, kind, u) {
 				continue
 			}
-			condition, ok := findActionableCondition(u)
+			condTypes := conditions.DefaultFalseConditionTypes
+			if gvr.Group == "" && kind == "Pod" && podReadinessInGrace(u, time.Now()) {
+				condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(t string) bool { return t == "Ready" })
+			}
+			condition, ok := findActionableCondition(u, condTypes...)
 			if !ok {
 				continue
 			}
@@ -265,6 +269,46 @@ func detectObjectConditionIssues(gvr schema.GroupVersionResource, kind string, u
 		return nil
 	}
 	return []Issue{newConditionIssue(gvr, kind, u.GetNamespace(), u.GetName(), severity, condTypeReason(condition.Type, condition.Reason), condition.Message, condition.LastTransitionTime, condition.HasLastTransitionTime, "", u.GetCreationTimestamp().Time)}
+}
+
+func podReadinessInGrace(u *unstructured.Unstructured, now time.Time) bool {
+	phase, _, _ := unstructured.NestedString(u.Object, "status", "phase")
+	if phase != "Pending" && phase != "Running" {
+		return false
+	}
+	ready, found := conditions.FindFalseConditionWithTime(u, "Ready")
+	if !found || (ready.HasLastTransitionTime && ready.LastTransitionTime.After(now)) {
+		return false
+	}
+	recent := ready.HasLastTransitionTime && now.Sub(ready.LastTransitionTime) < 5*time.Minute
+	if ready.Reason == "ContainersNotReady" {
+		return recent
+	}
+	if ready.Reason != "ReadinessGatesNotReady" {
+		return false
+	}
+	gates, _, _ := unstructured.NestedSlice(u.Object, "spec", "readinessGates")
+	containers, _ := conditions.Find(u, "ContainersReady")
+	if len(gates) == 0 || containers.Status != "True" {
+		return false
+	}
+	raw, _, _ := unstructured.NestedSlice(u.Object, "status", "conditions")
+	for _, item := range raw {
+		c, ok := item.(map[string]any)
+		if !ok || c["type"] != "ContainersReady" {
+			continue
+		}
+		stamp, _ := c["lastTransitionTime"].(string)
+		transition, err := time.Parse(time.RFC3339, stamp)
+		if err == nil {
+			if transition.After(now) {
+				return false
+			}
+			recent = recent || now.Sub(transition) < 5*time.Minute
+		}
+		break
+	}
+	return recent
 }
 
 func findActionableCondition(u *unstructured.Unstructured, condTypes ...string) (conditions.FalseCondition, bool) {

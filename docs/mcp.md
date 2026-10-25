@@ -804,6 +804,12 @@ are known. A missing transition uses creation time only for grace; with neither
 time available, no grace is assumed. The same state appears in Pod health and
 summary rows.
 
+Generic core-Pod Ready warnings do not repeat a visible native failure for the
+same readiness signal. Known fresh `ContainersNotReady` or declared-gate
+readiness transitions get the five-minute grace without hiding other failing
+condition types. Unknown or future timing grants no grace; custom reasons and
+node-unreachable conditions retain their fallback.
+
 Watched, synchronized custom resources that remain deleting appear in `issues`
 as `termination_stuck`, timed from the deletion request. Radar starts no new
 watches for this scan; an empty result does not establish that unwatched kinds
