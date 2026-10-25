@@ -105,8 +105,9 @@ func argoMembership(spec, status map[string]any, scope scopeOf) (ownership.Membe
 		return ownership.MembersUnreadable, nil, namespace
 	}
 	if len(list) == 0 {
-		// After a failed comparison Argo CD records no resources and still
-		// sets reconciledAt.
+		// A failed comparison can leave an empty list and still sets
+		// reconciledAt; Argo CD leaves out a successful empty list only once
+		// it has reconciled.
 		failed := sync["status"] == "Unknown"
 		conditions, _ := status["conditions"].([]any)
 		for _, c := range conditions {
