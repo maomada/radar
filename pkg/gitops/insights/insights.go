@@ -685,7 +685,7 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			}
 			if change.Missing {
 				issue := resourceHealthIssue(change, nil)
-				if revision, _ := gitops.ArgoSuccessfulRollback(root); revision != "" && change.Sync != "Synced" {
+				if revision, _ := gitops.ArgoSuccessfulRollback(root); revision != "" && change.Sync != "Synced" && !gitops.ArgoAutoSyncEnabled(root) {
 					issue.Action = "Auto-sync is off after a rollback to " + revision + ". Syncing deploys the current revision, which can recreate it and undo the rollback."
 				}
 				out = append(out, issue)
