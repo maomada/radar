@@ -588,7 +588,7 @@ const ReleaseRow = forwardRef<HTMLTableRowElement, ReleaseRowProps>(
         {isHelmReleaseActionable(release.status) ? (
           <Tooltip content="Click row to view rollback / history / logs and recover">
             <span
-              className={clsx('badge inline-flex items-center gap-1', getStatusColor(release.status))}
+              className={clsx('badge inline-flex items-center gap-1 max-[639px]:whitespace-normal max-[639px]:break-all', getStatusColor(release.status))}
             >
               {release.status}
               <ChevronRight className="w-3 h-3 opacity-70" />
@@ -597,7 +597,7 @@ const ReleaseRow = forwardRef<HTMLTableRowElement, ReleaseRowProps>(
         ) : (
           <span
             className={clsx(
-              'badge',
+              'badge max-[639px]:whitespace-normal max-[639px]:break-all',
               getStatusColor(release.status)
             )}
           >

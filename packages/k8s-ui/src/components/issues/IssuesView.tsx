@@ -222,10 +222,7 @@ export function IssueRow({
   const partialOnset = Boolean(issue.first_seen && partialUnknown > 0);
   const timing = issueTimingForDisplay(issue);
 
-  // Severity pill + age + timing chip. Rendered in two positions the container
-  // query toggles: inline at the row's right edge on a wide container, and on a
-  // line of its own below the resource line once the row is too narrow to hold
-  // it beside the title — so the title never has to truncate to make room.
+  // Severity pill + age + timing chip, in the right cluster (see below).
   const nodeCorroboration = issue.diagnostic_context?.facts?.find(fact => fact.type === 'node_startup_corroboration');
   const metaChips = (wrapperClass: string) => (
     <div className={`items-center gap-3 ${wrapperClass}`}>
@@ -288,11 +285,14 @@ export function IssueRow({
             onToggle();
           }
         }}
-        className={`group @container/issue flex cursor-pointer items-center gap-3 border-l-[3px] py-3 pl-3 pr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent,var(--accent))]/40 ${open ? ISSUE_SEVERITY_HEADER_BAND_CLASS[severity] : ISSUE_SEVERITY_RAIL_CLASS[severity]}`}
+        className={`group @container/issue flex flex-wrap cursor-pointer items-center gap-x-3 gap-y-2 border-l-[3px] py-3 pl-3 pr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent,var(--accent))]/40 ${open ? ISSUE_SEVERITY_HEADER_BAND_CLASS[severity] : ISSUE_SEVERITY_RAIL_CLASS[severity]}`}
       >
         <SeverityIcon className={`h-[18px] w-[18px] shrink-0 ${ISSUE_SEVERITY_TEXT_CLASS[severity]}`} aria-hidden />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {/* flex-wrap above is inert while this column's basis is 0; in a
+            narrow container it takes the first line beside the icon, and the
+            right cluster wraps onto a line of its own below. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-1 @max-2xl/issue:basis-[calc(100%-30px)]">
           {/* Narrow container: the row wraps so the title keeps the full
               width and the badge + reason drop below it, instead of the
               title truncating to nothing beside them. */}
@@ -351,22 +351,18 @@ export function IssueRow({
             ) : null}
             {renderMeta?.(slotCtx)}
           </div>
-          {/* Narrow container: the meta chips (and the per-row action) drop to
-              their own line here rather than stealing width from the title on
-              the row above. Hidden once the row is wide enough to hold them
-              inline in the right cluster. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 @2xl/issue:hidden">
-            {metaChips('flex flex-wrap')}
-            {renderActions && <div className="ml-auto flex items-center">{renderActions(slotCtx)}</div>}
-          </div>
         </div>
 
-        {/* Right cluster — the always-visible affordances (per-row action +
-            chevron) plus, on a wide container, the inline meta chips. */}
-        <div className="flex shrink-0 items-center gap-3">
-          {metaChips('hidden @2xl/issue:flex')}
-          {renderActions && <div className="hidden items-center @2xl/issue:flex">{renderActions(slotCtx)}</div>}
-          <CollapseChevron open={open} className="h-4 w-4" />
+        {/* Right cluster — meta chips, the per-row action and the chevron.
+            Inline at the row's right edge on a wide container; on a narrow
+            one it wraps onto its own line under the title, so the title never
+            has to truncate to make room. */}
+        <div className="flex shrink-0 items-center gap-3 @max-2xl/issue:basis-full @max-2xl/issue:flex-wrap @max-2xl/issue:gap-y-2 @max-2xl/issue:pl-[30px]">
+          {metaChips('flex flex-wrap')}
+          <div className="ml-auto flex items-center gap-3">
+            {renderActions?.(slotCtx)}
+            <CollapseChevron open={open} className="h-4 w-4" />
+          </div>
         </div>
       </div>
 

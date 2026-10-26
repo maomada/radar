@@ -499,7 +499,7 @@ export function ClusterHealthCard({
         </div>
 
         {/* Center column: Resources (aligned with health rings) */}
-        <div className="w-1/2 grid grid-cols-3 items-center justify-items-center px-4 max-[639px]:w-auto max-[639px]:grid-cols-2 max-[639px]:justify-items-start max-[639px]:px-0">
+        <div className="w-1/2 grid grid-cols-3 items-center justify-items-center px-4 max-[639px]:w-auto max-[639px]:flex max-[639px]:flex-wrap max-[639px]:gap-x-1 max-[639px]:px-0">
           {secondaryResources.map((res) => (
             <button
               key={res.kind}

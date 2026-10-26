@@ -213,6 +213,17 @@ export function UpdateNotification({ placement = 'floating' }: { placement?: 'fl
                   <CopyIcon copied={copied} failed={copyFailed} />
                 </button>
               </WithTooltip>
+              {/* Phones get the release page instead of the command. */}
+              {!inSettings && versionInfo.installMethod !== 'direct' && versionInfo.releaseUrl && (
+                <a
+                  href={versionInfo.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden max-[639px]:inline-flex items-center gap-1 mt-2 text-xs font-medium text-accent-text hover:underline"
+                >
+                  See the release on GitHub →
+                </a>
+              )}
               {/* Direct installs may have placed the binary somewhere the install
                   script won't touch — surface a download link as a fallback. */}
               {versionInfo.installMethod === 'direct' && versionInfo.releaseUrl && (
