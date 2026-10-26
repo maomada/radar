@@ -171,7 +171,7 @@ describe('GitOps permission gates on rendered controls', () => {
   })
   it('gates compact resource controls with the same permission map', () => {
     const html = renderToString(<ResourceActionsBar
-      resource={{ kind: 'applications', namespace: 'argocd', name: 'demo' }} data={{ spec: { syncPolicy: { automated: {} } } }}
+      resource={{ kind: 'applications', group: 'argoproj.io', namespace: 'argocd', name: 'demo' }} data={{ apiVersion: 'argoproj.io/v1alpha1', spec: { syncPolicy: { automated: {} } } }}
       onArgoSync={noop} onArgoRefresh={noop} onArgoSuspend={noop}
       gitOpsActionDisabledReasons={{ sync: reason, refresh: reason, suspend: reason }}
     />)
