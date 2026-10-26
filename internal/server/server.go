@@ -4384,6 +4384,9 @@ func (s *Server) handleDeleteResource(w http.ResponseWriter, r *http.Request) {
 	group := r.URL.Query().Get("group")
 
 	auth.AuditLog(r, namespace, name)
+	if !s.requireConnectedForAction(w) {
+		return
+	}
 	client := s.getDynamicClientForRequest(r)
 	if client == nil {
 		s.writeError(w, http.StatusServiceUnavailable, "cluster client not available — check cluster connection")

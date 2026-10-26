@@ -26,9 +26,12 @@ func TestDeleteResourceHandler(t *testing.T) {
 		kind      string
 		deleteErr error
 		status    int
+		state     k8s.ConnectionState
 	}{
 		{name: "accepted with pending finalizers", status: http.StatusOK},
 		{name: "unknown kind", kind: "unknownkind", status: http.StatusBadRequest},
+		{name: "connecting with a client", state: k8s.StateConnecting, status: http.StatusServiceUnavailable},
+		{name: "disconnected with a client", state: k8s.StateDisconnected, status: http.StatusServiceUnavailable},
 		{name: "forbidden", deleteErr: apierrors.NewForbidden(gvr.GroupResource(), "held", fmt.Errorf("denied")), status: http.StatusForbidden},
 		{name: "not found", deleteErr: apierrors.NewNotFound(gvr.GroupResource(), "held"), status: http.StatusNotFound},
 		{name: "invalid", deleteErr: apierrors.NewBadRequest("invalid deletion"), status: http.StatusBadRequest},
@@ -47,6 +50,13 @@ func TestDeleteResourceHandler(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(k8s.ResetTestDynamicState)
+			previous := k8s.GetConnectionStatus()
+			state := tc.state
+			if state == "" {
+				state = k8s.StateConnected
+			}
+			k8s.SetConnectionStatus(k8s.ConnectionStatus{State: state})
+			t.Cleanup(func() { k8s.SetConnectionStatus(previous) })
 			router := chi.NewRouter()
 			s := &Server{}
 			router.Delete("/api/resources/{kind}/{namespace}/{name}", s.handleDeleteResource)
@@ -68,8 +78,8 @@ func TestDeleteResourceHandler(t *testing.T) {
 					t.Fatalf("missing pending observation: %+v", result)
 				}
 			}
-			if tc.kind != "" && len(dyn.Actions()) != 0 {
-				t.Fatal("invalid kind reached the Kubernetes client")
+			if (tc.kind != "" || tc.state != "") && len(dyn.Actions()) != 0 {
+				t.Fatal("refused deletion reached the Kubernetes client")
 			}
 			for _, a := range dyn.Actions() {
 				if a.GetVerb() == "patch" {
