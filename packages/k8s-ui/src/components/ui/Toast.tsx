@@ -180,7 +180,12 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   const [copied, setCopied] = useState(false)
   const duration = toast.duration ?? (toast.type === 'error' ? 10000 : 7000)
   const remaining = useRef(duration)
-  useEffect(() => { remaining.current = duration }, [toast.shown, duration])
+  // A replacement starts over: full duration, details collapsed (it may have
+  // none, which would leave the pause with no control to end it).
+  useEffect(() => {
+    remaining.current = duration
+    setDetailsOpen(false)
+  }, [toast.shown, duration])
   useEffect(() => {
     if (duration <= 0 || hovered || focused || detailsOpen || toast.dismissing) return
     const started = Date.now()

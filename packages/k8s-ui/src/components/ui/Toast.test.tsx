@@ -22,6 +22,7 @@ beforeEach(async () => {
       <button onClick={() => showToast('z'.repeat(300), { detail: 'a'.repeat(300) })}>Long detail</button>
       <button onClick={() => showToast('Checking for updates', { type: 'info', id: 'update', duration: 0 })}>Progress</button>
       <button onClick={() => showToast("You're up to date", { type: 'success', id: 'update' })}>Result</button>
+      <button onClick={() => showToast('Update check failed', { type: 'error', id: 'update', rawDetail: 'stack trace' })}>Failed check</button>
     </>
   }
   await act(async () => root.render(<ToastProvider><Probe /></ToastProvider>))
@@ -126,4 +127,16 @@ it('keeps a duration 0 toast until a result replaces it, then dismisses the resu
   expect(update()).toBeDefined()
   await advance(1001)
   expect(update()).toBeUndefined()
+})
+
+it('dismisses a result that replaces an expanded error, whose details control is gone', async () => {
+  const click = async (label: string) => act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === label)!.click())
+  await advance(11000)
+  await click('Failed check')
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent?.includes('Error details'))!.click())
+  await advance(20000)
+  await click('Result')
+  expect(host.textContent).not.toContain('Error details')
+  await advance(8000)
+  expect(host.querySelector('.backdrop-blur-sm')).toBeNull()
 })
