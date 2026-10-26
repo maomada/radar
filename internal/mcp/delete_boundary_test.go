@@ -26,6 +26,9 @@ func TestApplyServerDoesNotExposeDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = cs.Close(); _ = ss.Wait() })
+	if !strings.Contains(cs.InitializeResult().Instructions, "patch_resource") {
+		t.Fatal("Apply lost write routing guidance")
+	}
 	listed, err := cs.ListTools(ctx, nil)
 	if err != nil {
 		t.Fatal(err)

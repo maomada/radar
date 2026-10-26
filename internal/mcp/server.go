@@ -76,7 +76,7 @@ func NewReadOnlyHandler() http.Handler {
 // newApplyServer omits deletion until the built-in approval flow presents its
 // preview. Removing it here enforces the boundary for every agent client.
 func newApplyServer() *mcpsdk.Server {
-	server := newServer(true, "")
+	server := newServer(true, serverInstructions(true))
 	server.RemoveTools("delete_resource")
 	return server
 }

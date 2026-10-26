@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"github.com/skyhook-io/radar/internal/k8s"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 )
@@ -80,6 +82,11 @@ func TestDeleteResourceDeadlineWithoutParentDeadline(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(k8s.ResetTestDynamicState)
+			if err := k8s.InitTestResourceCache(kubefake.NewClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "cfg", Namespace: "demo", UID: "u", ResourceVersion: "1"}})); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(k8s.ResetResourceCache)
+			addDeletePreviewKinds(t)
 			input := deleteResourceInput{Kind: "ConfigMap", Namespace: "demo", Name: "cfg"}
 			ctx := context.Background()
 			preview, _, err := handleDeleteResource(ctx, nil, input)

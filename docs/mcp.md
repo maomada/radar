@@ -1369,10 +1369,10 @@ The REST preview is advisory: it does not bind a later DELETE to the object
 shown in the dialog. Finalizers, admission and reconciliation can change or delay
 the result, so the preview does not guarantee completion.
 
-### MCP deletion approval
+### MCP deletion preview and confirmation
 
 External writable MCP exposes `delete_resource`. It is absent from read-only
-mounts and from the private `/mcp-apply` transport used by every built-in agent.
+mounts and from the private `/mcp-apply` transport used by Radar OSS's built-in CLI agents. Hub's sidecar independently enforces its read-only gate; it does not use this new mount.
 Built-in deletion stays deferred until the approval flow presents this preview.
 There is no new configuration switch.
 
@@ -1381,17 +1381,17 @@ summary, finalizers, propagation, the shared observed-impact preview, and a
 five-minute signed confirmation. `dry_run: false` requires that confirmation.
 It binds the caller and groups, the captured cluster context, root UID,
 generation/finalizers (resourceVersion for kinds without generation), policy,
-and the observed impact fingerprint. Root spec/finalizer/incarnation changes or
-changed observed impact require another preview. Status-only root changes can
+and the observed impact fingerprint. GC leaf-Pod replacements with the same recorded owners and counts are ordinary churn; non-leaf and non-Pod identities remain bound. Root spec/finalizer/incarnation changes or
+changed observed impact require another preview. For roots with generation, status-only changes can
 proceed with fresh resourceVersion preconditions, including one guarded retry
-on a status-only conflict. Cache observations are not an atomic snapshot of all
+on a status-only conflict. Kinds without generation bind resourceVersion and require a new preview for every update. Cache observations are not an atomic snapshot of all
 cluster objects; impact can still change after the last check.
 
 GC dependents, possible dependents and controller teardown stay separate.
 Counts cover the observed traversal before each 100-reference MCP list cap;
 `ownershipCoverage` carries source gaps, caller narrowing and traversal limits.
 Namespace contents and CRD instances are never interpreted as an empty list.
-A timeout in preview enumeration returns unknown/incomplete coverage. One 40s
+A completely unavailable or timed-out impact calculation returns no usable confirmation token; retry after the connection/cache recovers. Partial observed projections retain explicit coverage limits. One 40s
 budget covers the call, with at most 5s each for enumeration and post-delete
 observation. A stuck kubeconfig exec credential refresh can outlive the request
 budget, as with other client-go operations.
@@ -1400,6 +1400,6 @@ Accepted deletion is progress even while finalizers hold it. Failed post-delete
 observation cannot turn acceptance into failure. An interrupted DELETE with an
 uncertain result says to inspect the resource before retrying. The tool never
 patches finalizers. Explicit finalizer intervention remains a separate
-`patch_resource` action after inspecting cleanup. Audit records identify caller,
+`patch_resource` action after inspecting cleanup. A webhook whose side-effects declaration prohibits server dry-run prevents this tool from issuing confirmation; the API error identifies the rejecting webhook. The token checks reviewed state, not proof of a human decision: the external MCP host owns per-call approval. Audit records identify caller,
 kind/group/target and preview/accepted/failed/unknown outcomes; confirmation
 values are omitted from ordinary tool-argument logs.

@@ -137,16 +137,12 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	if !dryRun && input.Confirm == "" {
 		return nil, nil, fmt.Errorf("confirm is required; run dry_run=true and review the preview first")
 	}
-	var dyn dynamic.Interface
-	var contextName string
-	if user := auth.UserFromContext(ctx); user != nil {
-		dyn, contextName, err = k8s.UserDynamicClientSnapshot(user)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		dyn, contextName = k8s.GetDynamicClientSnapshot()
+	dyn, contextName, operation, err := k8s.DeletionClientSnapshot(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
+	stopOperation := context.AfterFunc(operation, cancel)
+	defer stopOperation()
 	ctx = context.WithValue(ctx, confirmationContextKey{}, contextName)
 	if dyn == nil {
 		return nil, nil, errNotConnected()
@@ -190,7 +186,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 		}
 		propagation = pendingPropagation
 	}
-	cascade, impactHash := deleteCascadePreview(ctx, obj, propagation)
+	cascade, impactHash := deleteCascadePreview(ctx, obj, propagation, operation)
 	current := deleteConfirmation{ImpactHash: impactHash, Resource: gvr.String(), Namespace: namespace, Name: name, UID: string(uid), Generation: obj.GetGeneration(), Finalizers: slices.Clone(obj.GetFinalizers()), Propagation: propagation}
 	slices.Sort(current.Finalizers)
 	if current.Generation == 0 {
@@ -199,6 +195,9 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	if !dryRun {
 		if err := approved.check(obj, propagation); err != nil {
 			return nil, nil, err
+		}
+		if approved.ImpactHash == "" || impactHash == "" {
+			return nil, nil, fmt.Errorf("deletion impact preview is unavailable; no deletion attempted; retry dry_run=true when Radar can resolve the target")
 		}
 		if approved.ImpactHash != impactHash {
 			return nil, nil, fmt.Errorf("observed deletion impact changed since preview; run dry_run=true again and review the new preview")
@@ -210,7 +209,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	}
 	target := string(targetBytes)
 	token := ""
-	if dryRun {
+	if dryRun && impactHash != "" {
 		token, err = issueMutationConfirmation(ctx, "delete_resource", target)
 		if err != nil {
 			return nil, nil, err
@@ -243,7 +242,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 		if err := approved.check(obj, propagation); err != nil {
 			return nil, nil, err
 		}
-		_, retryImpact := deleteCascadePreview(ctx, obj, propagation)
+		_, retryImpact := deleteCascadePreview(ctx, obj, propagation, operation)
 		if approved.ImpactHash != retryImpact {
 			return nil, nil, fmt.Errorf("observed deletion impact changed after conflict; run dry_run=true again")
 		}
@@ -289,6 +288,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 		result.Cascade = cascade
 		result.Summary = deletePreviewSummary(obj, propagation, result.Cascade)
 		result.Message = "Deletion preview validated by the API server; no deletion was persisted. Review the cascade limits before confirming."
+
 		if ts := obj.GetDeletionTimestamp(); ts != nil {
 			result.DeletionTimestamp = ts.UTC().Format(time.RFC3339)
 			result.Message = "Already deleting. Cleanup may continue, and DELETE may shorten a remaining grace period."
@@ -305,6 +305,9 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 			if len(finalizers) > 0 {
 				result.NamespaceFinalizerGuidance = "Namespace lifecycle finalizers may keep this Namespace deleting until its contents are cleaned up. Inspect status.conditions and remaining contents; this tool does not clear namespace lifecycle finalizers."
 			}
+		}
+		if token == "" {
+			result.Message = "Impact preview unavailable; no confirmation token was issued. " + result.Message + " Retry once Radar can resolve the target and its impact."
 		}
 	} else {
 		result.Message = "Deletion accepted; completion is asynchronous."
@@ -345,7 +348,7 @@ func (approved deleteConfirmation) check(obj *unstructured.Unstructured, propaga
 	return nil
 }
 
-func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, propagation metav1.DeletionPropagation) (map[string]any, string) {
+func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, propagation metav1.DeletionPropagation, operation context.Context) (map[string]any, string) {
 	ctx, cancel := context.WithTimeout(ctx, deleteCascadeTimeout)
 	defer cancel()
 	counts := &deleteDependentCounts{ByKind: map[string]int{}, Basis: "observed owner references (not exhaustive)"}
@@ -363,12 +366,15 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 	case obj.GetKind() == "CustomResourceDefinition" && obj.GetAPIVersion() == "apiextensions.k8s.io/v1":
 		result["notEnumerated"] = []string{"CRD instances"}
 		result["scopeWarning"] = "Deleting this CRD deletes ALL instances across the cluster. Orphan propagation does not preserve CRD instances."
+	case obj.GetAPIVersion() == "v1" && (obj.GetKind() == "PersistentVolumeClaim" || obj.GetKind() == "PersistentVolume"):
+		result["notEnumerated"] = []string{"storage reclamation"}
+		result["scopeWarning"] = "Backing storage/data may be reclaimed according to the PV reclaim policy. Storage teardown is not enumerated."
 	}
 	if propagation == metav1.DeletePropagationOrphan {
 		result["propagationEffect"] = "Owner-reference dependents will be orphaned; namespace, CRD and controller cleanup can still delete resources."
 	}
 	preview, err := waitStep(ctx, func() (*topology.CascadeDeletePreview, error) {
-		return k8s.DeletionPreview(ctx, obj, func(c *ownership.Catalog) ownership.Access { return ownershipAccess(ctx, c) }), nil
+		return k8s.DeletionPreview(ctx, obj, operation, func(c *ownership.Catalog) ownership.Access { return ownershipAccess(ctx, c) }), nil
 	})
 	if err != nil {
 		result["incomplete"] = true

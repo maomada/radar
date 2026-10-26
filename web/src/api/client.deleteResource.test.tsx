@@ -41,87 +41,41 @@ async function remove(responses: Response[], bulk: boolean, count = 1, namespace
   return failure
 }
 
-const legacy = 'resource is stuck in Terminating state due to finalizers — use force delete to remove it'
-for (const bulk of [false, true]) {
-  const mode = bulk ? 'bulk' : 'single'
-  it(`${mode}: treats only the historical finalizer 409 as accepted pending deletion`, async () => {
-    expect(await remove([new Response(JSON.stringify({ error: legacy }), { status: 409 })], bulk)).toBeUndefined()
-    expect(notice).toHaveBeenCalledExactlyOnceWith(
-      '[Toast]',
-      bulk ? 'Deleting — 1 resource waiting on finalizers' : 'Deleting — waiting on finalizers',
-      bulk ? 'shop/app: Deleting — waiting on finalizers' : undefined,
-    )
-    expect(success).not.toHaveBeenCalled()
-    expect(JSON.stringify(notice.mock.calls)).not.toContain('force')
-  })
-  it(`${mode}: rejects other conflicts and the same text on other statuses`, async () => {
-    expect(await remove([new Response(JSON.stringify({ error: 'operation in progress' }), { status: 409 })], bulk)).toBeInstanceOf(Error)
-    expect(await remove([new Response(JSON.stringify({ error: legacy }), { status: 500 })], bulk)).toBeInstanceOf(Error)
-    expect(success).not.toHaveBeenCalled()
-    expect(notice).not.toHaveBeenCalled()
-  })
-  for (const body of ['{}']) {
-    it(`${mode}: accepted 200 ${JSON.stringify(body)} reports deletion success`, async () => {
-      expect(await remove([new Response(body, { status: 200 })], bulk)).toBeUndefined()
-      expect(success).toHaveBeenCalledExactlyOnceWith('[Toast]', bulk ? '1 resource deleted' : 'Resource deleted', undefined)
-      expect(notice).not.toHaveBeenCalled()
-    })
-  }
-  it(`${mode}: 204 reports deletion success without a ToastProvider`, async () => {
-    expect(await remove([new Response(null, { status: 204 })], bulk)).toBeUndefined()
-    expect(success).toHaveBeenCalledExactlyOnceWith('[Toast]', bulk ? '1 resource deleted' : 'Resource deleted', undefined)
-    expect(notice).not.toHaveBeenCalled()
-  })
-  it(`${mode}: graceful termination stays neutral`, async () => {
-    await remove([new Response(JSON.stringify({ deletionTimestamp: '2026-10-10T00:00:00Z' }))], bulk)
-    expect(notice).toHaveBeenCalledExactlyOnceWith(
-      '[Toast]',
-      bulk ? 'Deleting 1 resource…' : 'Deleting…',
-      bulk ? 'shop/app: Deleting…' : undefined,
-    )
-    expect(success).not.toHaveBeenCalled()
-  })
-  it(`${mode}: finalizers show progress with their names`, async () => {
-    await remove([new Response(JSON.stringify({ pendingFinalizers: ['example.com/cleanup'], deletionTimestamp: 'now' }))], bulk)
-    expect(notice).toHaveBeenCalledExactlyOnceWith(
-      '[Toast]',
-      bulk ? 'Deleting — 1 resource waiting on finalizers' : 'Deleting — waiting on finalizers: example.com/cleanup',
-      bulk ? 'shop/app: Deleting — waiting on finalizers: example.com/cleanup' : undefined,
-    )
-    expect(success).not.toHaveBeenCalled()
-  })
-  it(`${mode}: a failed observation reports the deletion as accepted, not done, with its error`, async () => {
-    await remove([new Response(JSON.stringify({ observationError: 'get forbidden' }))], bulk)
-    expect(notice).toHaveBeenCalledExactlyOnceWith(
-      '[Toast]',
-      bulk ? "Deletion accepted for 1 resource; couldn't read the current state of 1" : 'Deletion accepted; current state unavailable',
-      bulk ? 'shop/app: Deletion accepted; current state unavailable: get forbidden' : 'get forbidden',
-    )
-    expect(success).not.toHaveBeenCalled()
-  })
-}
 
-it('bulk: finalizers still lead the headline when another item is unreadable', async () => {
-  await remove([
-    new Response(JSON.stringify({ pendingFinalizers: ['example.com/cleanup'], deletionTimestamp: 'now' })),
-    new Response(JSON.stringify({ observationError: 'get forbidden' })),
-  ], true, 2)
-  expect(notice).toHaveBeenCalledExactlyOnceWith(
-    '[Toast]',
-    "Deleting — 1 resource waiting on finalizers; couldn't read the current state of 1",
-    'shop/app: Deleting — waiting on finalizers: example.com/cleanup; shop/app-1: Deletion accepted; current state unavailable: get forbidden',
-  )
-  expect(success).not.toHaveBeenCalled()
-})
-
-for (const bulk of [false, true]) {
- it(`cluster-scoped ${bulk ? 'bulk' : 'single'} delete uses the API placeholder`, async () => { expect(await remove([new Response(null,{status:204})],bulk,1,'')).toBeUndefined() })
- for (const body of ['', 'not JSON']) {
-  it(`accepted malformed body stays unconfirmed, bulk=${bulk}, body=${body}`, async () => {
+for (const bulk of [false,true]) {
+ const mode=bulk?'bulk':'single'
+ it(`${mode}: confirms completed deletion from the current JSON contract`,async()=>{
+  expect(await remove([new Response('{}',{status:200})],bulk)).toBeUndefined()
+  expect(success).toHaveBeenCalledExactlyOnceWith('[Toast]',bulk?'1 resource deleted':'Resource deleted',undefined)
+  expect(notice).not.toHaveBeenCalled()
+ })
+ for(const body of ['', 'not JSON']) {
+  it(`${mode}: an accepted malformed response is unconfirmed`,async()=>{
    expect(await remove([new Response(body,{status:200})],bulk)).toBeUndefined()
    expect(success).not.toHaveBeenCalled()
-   expect(notice).toHaveBeenCalled()
    expect(JSON.stringify(notice.mock.calls)).toContain('did not confirm cleanup')
   })
  }
+ for(const status of [403,409,500]) {
+  it(`${mode}: rejects HTTP ${status}`,async()=>{
+   expect(await remove([new Response(JSON.stringify({error:'request rejected'}),{status})],bulk)).toBeInstanceOf(Error)
+   expect(success).not.toHaveBeenCalled();expect(notice).not.toHaveBeenCalled()
+  })
+ }
+ for(const result of [{deletionTimestamp:'now'}, {deletionTimestamp:'now',pendingFinalizers:['example.com/hold']}, {observationError:'no get permission'}]) {
+  it(`${mode}: accepted asynchronous or unconfirmed deletion stays progress`,async()=>{
+   expect(await remove([new Response(JSON.stringify(result))],bulk)).toBeUndefined()
+   expect(success).not.toHaveBeenCalled();expect(notice).toHaveBeenCalled()
+   expect(JSON.stringify(notice.mock.calls)).not.toContain('force delete')
+  })
+ }
+ it(`${mode}: cluster-scoped URLs use the namespace placeholder`,async()=>{
+  expect(await remove([new Response('{}')],bulk,1,'')).toBeUndefined()
+ })
 }
+it('bulk prioritizes pending finalizers while retaining unconfirmed item details',async()=>{
+ expect(await remove([new Response(JSON.stringify({pendingFinalizers:['hold'],deletionTimestamp:'now'})),new Response(JSON.stringify({observationError:'read denied'}))],true,2)).toBeUndefined()
+ expect(success).not.toHaveBeenCalled()
+ expect(JSON.stringify(notice.mock.calls)).toContain('waiting on finalizers')
+ expect(JSON.stringify(notice.mock.calls)).toContain('read denied')
+})

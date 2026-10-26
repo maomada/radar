@@ -23,8 +23,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 )
@@ -34,7 +36,7 @@ func TestDeleteResourceMandatoryPreviewAndPreconditions(t *testing.T) {
 	gvr := schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
 	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "v1", "kind": "ConfigMap", "metadata": map[string]any{"name": "held", "namespace": "demo", "uid": "uid-1", "resourceVersion": "42"}}}
 	obj.SetFinalizers([]string{"example.com/cleanup"})
-	dyn := setupMCPDynamicResource(t, gvr, "ConfigMapList", k8s.APIResource{Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+	dyn := setupDeletionResource(t, gvr, "ConfigMapList", k8s.APIResource{Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 	calls := 0
 	dyn.PrependReactor("delete", "configmaps", func(a clienttesting.Action) (bool, runtime.Object, error) {
 		opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
@@ -77,7 +79,7 @@ func TestDeleteResourceMandatoryPreviewAndPreconditions(t *testing.T) {
 		t.Fatalf("preview: %+v", got)
 	}
 	cascade := got["cascade"].(map[string]any)
-	if cascade["approximation"] != true || len(cascade["notEnumerated"].([]any)) != 1 || cascade["notEnumerated"].([]any)[0] != "controller-finalizer cleanup" {
+	if cascade["approximation"] != true || len(cascade["notEnumerated"].([]any)) != 1 || cascade["notEnumerated"].([]any)[0] != "cleanup performed by unrecognized finalizers or other controllers" {
 		t.Fatalf("cascade overclaimed: %+v", cascade)
 	}
 	token := got["confirm"].(string)
@@ -131,7 +133,7 @@ func TestDeleteResourcePreviewDenialAndRace(t *testing.T) {
 		t.Run(reason, func(t *testing.T) {
 			gvr := schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
 			obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "v1", "kind": "ConfigMap", "metadata": map[string]any{"name": "cfg", "namespace": "demo", "uid": "u", "resourceVersion": "1"}}}
-			dyn := setupMCPDynamicResource(t, gvr, "ConfigMapList", k8s.APIResource{Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+			dyn := setupDeletionResource(t, gvr, "ConfigMapList", k8s.APIResource{Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 			dyn.PrependReactor("delete", "configmaps", func(a clienttesting.Action) (bool, runtime.Object, error) {
 				opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
 				if reason == "denial" {
@@ -169,7 +171,7 @@ func TestDeleteCascadeScopeWarnings(t *testing.T) {
 		obj.SetKind(tc.kind)
 		obj.SetAPIVersion(tc.version)
 		obj.SetName("target")
-		result, _ := deleteCascadePreview(context.Background(), obj, metav1.DeletePropagationOrphan)
+		result, _ := deleteCascadePreview(context.Background(), obj, metav1.DeletePropagationOrphan, k8s.OperationContext())
 		if !strings.Contains(result["scopeWarning"].(string), tc.want) || result["propagationEffect"] == nil || !reflect.DeepEqual(result["notEnumerated"], []string{tc.category}) {
 			t.Fatalf("scope warning: %+v", result)
 		}
@@ -191,10 +193,10 @@ func TestDeleteCascadeWithholdsUnreadableDependents(t *testing.T) {
 	perms.SetCanI("get", "apps", "replicasets", "demo", false)
 	perms.SetCanI("get", "", "pods", "demo", true)
 	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo"}}}
-	setupMCPDynamicResource(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj)
+	setupDeletionResource(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj)
 	addDeletePreviewKinds(t)
 	obj.SetUID("dep")
-	result, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground)
+	result, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
 	refs := result["dependents"].([]topology.ResourceRef)
 	if len(refs) != 0 || result["withheld"] != nil || result["visibilityNote"] != "Only resources Radar observes and you can read are listed." {
 		t.Fatalf("caller visibility: %+v", result)
@@ -208,7 +210,7 @@ func TestDeleteCascadeWithholdsUnreadableDependents(t *testing.T) {
 		t.Fatalf("summary disclosed unreadable ReplicaSet: %s", summary)
 	}
 	perms.SetCanI("get", "apps", "replicasets", "demo", true)
-	readable, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground)
+	readable, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
 	if len(readable["dependents"].([]topology.ResourceRef)) != 2 || readable["withheld"] != nil || readable["visibilityNote"] != result["visibilityNote"] {
 		t.Fatalf("readable dependents changed coverage disclosure: %+v", readable)
 	}
@@ -216,7 +218,7 @@ func TestDeleteCascadeWithholdsUnreadableDependents(t *testing.T) {
 		t.Fatalf("readable counts: %+v", counts)
 	}
 	obj.SetUID("replacement")
-	missing, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground)
+	missing, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
 	if missing["rootResolved"] != false || missing["coverage"] != "unknown" || missing["visibilityNote"] != result["visibilityNote"] {
 		t.Fatalf("unresolved root was not unknown: %+v", missing)
 	}
@@ -229,7 +231,7 @@ func TestDeleteResourceGenerationBinding(t *testing.T) {
 			gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 			obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "u", "resourceVersion": "1", "generation": int64(5)}}}
 			obj.SetFinalizers([]string{"example.com/a", "example.com/b"})
-			dyn := setupMCPDynamicResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+			dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 			deletes := 0
 			dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
 				opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
@@ -292,7 +294,7 @@ func TestDeleteResourceAudit(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(previous) })
 	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "u", "resourceVersion": "1", "generation": int64(1)}}}
-	dyn := setupMCPDynamicResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+	dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 	denied := true
 	dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
 		if denied {
@@ -337,7 +339,7 @@ func TestDeleteCascadeIncludesCallerReadableCertificateSecret(t *testing.T) {
 	t.Cleanup(k8s.ResetTestState)
 	certificate := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "cert-manager.io/v1", "kind": "Certificate", "metadata": map[string]any{"name": "web-cert", "namespace": "demo", "uid": "cert-uid"}, "spec": map[string]any{"secretName": "web-tls"}}}
 	gvr := schema.GroupVersionResource{Group: "cert-manager.io", Version: "v1", Resource: "certificates"}
-	setupMCPDynamicResource(t, gvr, "CertificateList", k8s.APIResource{Group: "cert-manager.io", Version: "v1", Kind: "Certificate", Name: "certificates", Namespaced: true, Verbs: []string{"get", "list", "watch"}}, certificate)
+	setupDeletionResource(t, gvr, "CertificateList", k8s.APIResource{Group: "cert-manager.io", Version: "v1", Kind: "Certificate", Name: "certificates", Namespaced: true, Verbs: []string{"get", "list", "watch"}}, certificate)
 	cache := k8s.GetDynamicResourceCache()
 	if err := cache.EnsureWatching(gvr); err != nil {
 		t.Fatal(err)
@@ -350,17 +352,17 @@ func TestDeleteCascadeIncludesCallerReadableCertificateSecret(t *testing.T) {
 	perms.SetCanI("get", "cert-manager.io", "certificates", "demo", true)
 	perms.SetCanI("get", "", "secrets", "demo", false)
 	addDeletePreviewKinds(t)
-	hidden, _ := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground)
+	hidden, _ := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground, k8s.OperationContext())
 	if len(hidden["dependents"].([]topology.ResourceRef)) != 0 || hidden["withheld"] != nil {
 		t.Fatalf("unreadable Secret disclosed: %+v", hidden)
 	}
 	perms.SetCanI("get", "", "secrets", "demo", true)
-	visible, _ := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground)
+	visible, _ := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground, k8s.OperationContext())
 	refs := visible["dependents"].([]topology.ResourceRef)
 	if len(refs) != 1 || refs[0].Kind != "Secret" || refs[0].Name != "web-tls" || visible["withheld"] != nil {
 		t.Fatalf("owned Secret missing: %+v", visible)
 	}
-	if hidden["visibilityNote"] != "Dependents you can't read are not listed." || visible["visibilityNote"] != hidden["visibilityNote"] {
+	if hidden["visibilityNote"] != "Only resources Radar observes and you can read are listed." || visible["visibilityNote"] != hidden["visibilityNote"] {
 		t.Fatalf("visibility note depends on withheld objects: hidden=%+v visible=%+v", hidden, visible)
 	}
 }
@@ -404,7 +406,7 @@ func TestDeleteResourcePreviewSummaryAndDependentCounts(t *testing.T) {
 			t.Cleanup(k8s.ResetTestState)
 			obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "dep", "resourceVersion": "1", "generation": int64(1)}}}
 			obj.SetFinalizers([]string{"example.com/cleanup"})
-			dyn := setupMCPDynamicResource(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+			dyn := setupDeletionResource(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 			dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
 				if opts := a.(clienttesting.DeleteAction).GetDeleteOptions(); !slices.Equal(opts.DryRun, []string{metav1.DryRunAll}) {
 					t.Fatalf("preview persisted: %+v", opts)
@@ -467,7 +469,7 @@ func TestDeleteResourcePreviewFinalizerFields(t *testing.T) {
 				obj.Object["spec"] = map[string]any{"finalizers": []any{"kubernetes"}}
 			}
 			gvr := schema.GroupVersionResource{Version: "v1", Resource: resource}
-			dyn := setupMCPDynamicResource(t, gvr, kind+"List", k8s.APIResource{Version: "v1", Kind: kind, Name: resource, Namespaced: namespace != ""}, obj).(*dynamicfake.FakeDynamicClient)
+			dyn := setupDeletionResource(t, gvr, kind+"List", k8s.APIResource{Version: "v1", Kind: kind, Name: resource, Namespaced: namespace != ""}, obj).(*dynamicfake.FakeDynamicClient)
 			dyn.PrependReactor("delete", resource, func(clienttesting.Action) (bool, runtime.Object, error) { return true, nil, nil })
 			res, _, err := handleDeleteResource(context.Background(), nil, deleteResourceInput{Kind: kind, Namespace: namespace, Name: "target"})
 			if err != nil {
@@ -479,7 +481,7 @@ func TestDeleteResourcePreviewFinalizerFields(t *testing.T) {
 			}
 			cascade := got["cascade"].(map[string]any)
 			if kind == "Namespace" {
-				if !reflect.DeepEqual(got["namespaceFinalizers"], []any{"kubernetes"}) || got["namespaceFinalizerGuidance"] == nil || !reflect.DeepEqual(cascade["notEnumerated"], []any{"namespace contents"}) || !strings.Contains(got["summary"].(string), "may wait on finalizers: kubernetes") {
+				if !reflect.DeepEqual(got["namespaceFinalizers"], []any{"kubernetes"}) || got["namespaceFinalizerGuidance"] == nil || !reflect.DeepEqual(cascade["notEnumerated"], []any{"all namespace contents; deleting a namespace removes them regardless of owner references or orphan propagation"}) || !strings.Contains(got["summary"].(string), "may wait on finalizers: kubernetes") {
 					t.Fatalf("namespace lifecycle finalizers lost: %+v", got)
 				}
 			} else if cascade["notEnumerated"] != nil || got["namespaceFinalizers"] != nil || got["namespaceFinalizerGuidance"] != nil {
@@ -491,7 +493,7 @@ func TestDeleteResourcePreviewFinalizerFields(t *testing.T) {
 
 func TestDeleteResourceRefusesUntilConnected(t *testing.T) {
 	gvr := schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
-	dyn := setupMCPDynamicResource(t, gvr, "ConfigMapList", k8s.APIResource{Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true}).(*dynamicfake.FakeDynamicClient)
+	dyn := setupDeletionResource(t, gvr, "ConfigMapList", k8s.APIResource{Version: "v1", Kind: "ConfigMap", Name: "configmaps", Namespaced: true}).(*dynamicfake.FakeDynamicClient)
 	prev := k8s.GetConnectionStatus()
 	t.Cleanup(func() { k8s.SetConnectionStatus(prev) })
 	for _, tc := range []struct {
@@ -523,7 +525,7 @@ func TestDeleteResourcePreviewSaysWhenAlreadyDeleting(t *testing.T) {
 	obj.SetFinalizers([]string{"kubernetes.io/pvc-protection"})
 	since := metav1.NewTime(time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC))
 	obj.SetDeletionTimestamp(&since)
-	dyn := setupMCPDynamicResource(t, gvr, "PersistentVolumeClaimList", k8s.APIResource{Version: "v1", Kind: "PersistentVolumeClaim", Name: "persistentvolumeclaims", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+	dyn := setupDeletionResource(t, gvr, "PersistentVolumeClaimList", k8s.APIResource{Version: "v1", Kind: "PersistentVolumeClaim", Name: "persistentvolumeclaims", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 	dyn.PrependReactor("delete", "persistentvolumeclaims", func(clienttesting.Action) (bool, runtime.Object, error) { return true, nil, nil })
 	res, _, err := handleDeleteResource(context.Background(), nil, deleteResourceInput{Kind: "PersistentVolumeClaim", Namespace: "demo", Name: "data"})
 	if err != nil {
@@ -573,7 +575,7 @@ func TestDeleteResourcePreservesPendingPropagation(t *testing.T) {
 						effectivePolicy = strings.ToUpper(requested[:1]) + requested[1:]
 					}
 				}
-				dyn := setupMCPDynamicResource(t, gvr, "JobList", k8s.APIResource{Group: "batch", Version: "v1", Kind: "Job", Name: "jobs", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+				dyn := setupDeletionResource(t, gvr, "JobList", k8s.APIResource{Group: "batch", Version: "v1", Kind: "Job", Name: "jobs", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 				previews, confirms := 0, 0
 				dyn.PrependReactor("delete", "jobs", func(a clienttesting.Action) (bool, runtime.Object, error) {
 					opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
@@ -699,7 +701,7 @@ func TestDeleteResourceConflictRechecksApprovedPreview(t *testing.T) {
 			case "terminating status":
 				obj.SetFinalizers(nil)
 			}
-			dyn := setupMCPDynamicResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+			dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
 			deletes, readsAfterConflict := 0, 0
@@ -827,4 +829,33 @@ func addDeletePreviewKinds(t *testing.T) {
 		r.Verbs = []string{"get", "list", "watch", "delete"}
 		d.AddAPIResource(r)
 	}
+}
+
+func setupDeletionResource(t *testing.T, gvr schema.GroupVersionResource, listKind string, resource k8s.APIResource, objects ...runtime.Object) dynamic.Interface {
+	t.Helper()
+	client := setupMCPDynamicResource(t, gvr, listKind, resource, objects...)
+	if k8s.GetResourceCache() == nil {
+		var typed []runtime.Object
+		for _, object := range objects {
+			u, ok := object.(*unstructured.Unstructured)
+			if !ok {
+				typed = append(typed, object)
+				continue
+			}
+			o, err := scheme.Scheme.New(u.GroupVersionKind())
+			if err != nil {
+				continue
+			}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, o); err != nil {
+				t.Fatal(err)
+			}
+			typed = append(typed, o)
+		}
+		if err := k8s.InitTestResourceCache(kubefake.NewClientset(typed...)); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(k8s.ResetResourceCache)
+	}
+	addDeletePreviewKinds(t)
+	return client
 }

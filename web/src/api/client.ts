@@ -4520,7 +4520,6 @@ export function useCascadeDeletePreview(
 
 // Delete a resource
 interface DeleteResourceResult {
-  legacyPendingFinalizers?: boolean;
   deletionTimestamp?: string;
   pendingFinalizers?: string[];
   observationError?: string;
@@ -4529,13 +4528,8 @@ interface DeleteResourceResult {
 async function readDeleteResult(response: Response): Promise<DeleteResourceResult> {
   if (!response.ok) {
     const error = await readErrorBody(response);
-    // Older Radars reported this only after Kubernetes accepted DELETE.
-    if (response.status === 409 && error.error === "resource is stuck in Terminating state due to finalizers — use force delete to remove it") {
-      return { legacyPendingFinalizers: true };
-    }
     throw new Error(error.error || `HTTP ${response.status}`);
   }
-  if (response.status === 204) return {};
   const body = await response.text();
   if (!body.trim()) return { observationError: "Deletion accepted; the response did not confirm cleanup." };
   try {
@@ -4547,13 +4541,10 @@ async function readDeleteResult(response: Response): Promise<DeleteResourceResul
 
 function deleteResourceNotification(result: DeleteResourceResult): { message: string; type: "info" | "success"; detail?: string } {
   if (result.observationError) {
-    return { message: "Deletion accepted; current state unavailable", type: "info", detail: result.observationError };
+    return { message: "Deletion accepted; completion unconfirmed", type: "info", detail: result.observationError };
   }
   if (result.pendingFinalizers?.length) {
     return { message: `Deleting — waiting on finalizers: ${result.pendingFinalizers.join(", ")}`, type: "info" };
-  }
-  if (result.legacyPendingFinalizers) {
-    return { message: "Deleting — waiting on finalizers", type: "info" };
   }
   if (result.deletionTimestamp) return { message: "Deleting…", type: "info" };
   return { message: "Resource deleted", type: "success" };
@@ -4649,13 +4640,13 @@ export function useBulkDeleteResources() {
       errorMessage: "Failed to delete some resources",
     },
     onSuccess: (deleted) => {
-      const pending = deleted.filter(({ result }) => result.pendingFinalizers?.length || result.legacyPendingFinalizers);
+      const pending = deleted.filter(({ result }) => result.pendingFinalizers?.length);
       const unobserved = deleted.filter(({ result }) => result.observationError);
       const deleting = deleted.filter(({ result }) => result.deletionTimestamp);
       const resources = `${deleted.length} ${deleted.length === 1 ? "resource" : "resources"}`;
       let message = `${resources} deleted`;
       let type: "info" | "success" = "success";
-      const unread = `couldn't read the current state of ${unobserved.length}`;
+      const unread = `completion unconfirmed for ${unobserved.length}`;
       if (pending.length) {
         message = `Deleting — ${pending.length} ${pending.length === 1 ? "resource" : "resources"} waiting on finalizers${unobserved.length ? `; ${unread}` : ""}`;
         type = "info";
@@ -4668,7 +4659,7 @@ export function useBulkDeleteResources() {
       }
       const details = deleted.flatMap(({ namespace, name, result }) => {
         const notification = deleteResourceNotification(result);
-        return result.observationError || result.pendingFinalizers?.length || result.legacyPendingFinalizers || result.deletionTimestamp
+        return result.observationError || result.pendingFinalizers?.length || result.deletionTimestamp
           ? [`${namespace}/${name}: ${notification.message}${notification.detail ? `: ${notification.detail}` : ""}`]
           : [];
       });

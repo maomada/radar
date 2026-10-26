@@ -256,6 +256,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// semantics in the catalog so agents do not infer fresh external health
 	// or treat absence as ruling out another pause mechanism.
 	const (
+		// Includes the deletion preview, confirmation binding and uncertainty contract.
 		maxCatalogBytes         = 64850
 		maxToolDescriptionBytes = 3000
 	)

@@ -4405,7 +4405,7 @@ func (s *Server) handleDeleteResource(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusForbidden, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "stuck in Terminating state") {
+		if apierrors.IsConflict(err) {
 			s.writeError(w, http.StatusConflict, err.Error())
 			return
 		}
