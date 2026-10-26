@@ -81,7 +81,7 @@ func newApplyServer() *mcpsdk.Server {
 	return server
 }
 
-// NewApplyHandler is the private remediation transport for built-in agents.
+// NewApplyHandler is the built-in remediation transport for built-in agents.
 func NewApplyHandler() http.Handler { return handlerForServer(newApplyServer()) }
 
 // NewInvestigationHandler creates the private read-only MCP transport used by

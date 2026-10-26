@@ -37,6 +37,10 @@ func TestDeleteUnavailableImpactCannotBeConfirmed(t *testing.T) {
 	if token, _ := got["confirm"].(string); token != "" {
 		t.Fatal("unavailable preview minted token")
 	}
+	cascade := got["cascade"].(map[string]any)
+	if cascade["unavailableReason"] == nil || cascade["recoveryAction"] == nil || strings.Contains(got["message"].(string), "Retry once") {
+		t.Fatalf("missing actionable unavailability: %+v", got)
+	}
 	target, _ := json.Marshal(deleteConfirmation{Resource: gvr.String(), Namespace: "demo", Name: "held", UID: "u", ResourceVersion: "1", Propagation: metav1.DeletePropagationBackground})
 	input.Confirm, err = issueMutationConfirmation(context.Background(), "delete_resource", string(target))
 	if err != nil {

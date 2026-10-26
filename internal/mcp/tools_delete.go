@@ -16,6 +16,7 @@ import (
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/pkg/k8score"
 	"github.com/skyhook-io/radar/pkg/ownership"
+	"github.com/skyhook-io/radar/pkg/readreason"
 	"github.com/skyhook-io/radar/pkg/topology"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -307,7 +308,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 			}
 		}
 		if token == "" {
-			result.Message = "Impact preview unavailable; no confirmation token was issued. " + result.Message + " Retry once Radar can resolve the target and its impact."
+			result.Message = "Impact preview unavailable; no confirmation token was issued. " + result.Message + " Inspect cascade.reason and cascade.unavailableReason before retrying; this tool requires caller-readable impact. Use the UI or kubectl if Radar cannot provide it."
 		}
 	} else {
 		result.Message = "Deletion accepted; completion is asynchronous."
@@ -383,6 +384,10 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 	}
 	result["rootResolved"] = preview.RootResolved
 	if !preview.RootResolved {
+		result["unavailableReason"] = preview.UnavailableReason
+		if action, ok := readreason.ActionFor(readreason.Code(preview.UnavailableReason)); ok {
+			result["recoveryAction"] = action
+		}
 		result["reason"] = "Ownership preview unavailable: " + preview.UnavailableReason
 		return result, ""
 	}
@@ -419,6 +424,14 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 	}
 	if len(preview.NotEnumerated) > 0 {
 		result["notEnumerated"] = preview.NotEnumerated
+		for _, omitted := range preview.NotEnumerated {
+			if strings.Contains(omitted, "storage/data") {
+				warning, _ := result["scopeWarning"].(string)
+				if !strings.Contains(warning, "Backing storage/data") {
+					result["scopeWarning"] = strings.TrimSpace(warning + " Backing storage/data may be reclaimed according to the PV reclaim policy. Storage teardown is not enumerated.")
+				}
+			}
+		}
 	}
 	return result, preview.EvidenceHash
 }

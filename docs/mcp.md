@@ -1372,7 +1372,7 @@ the result, so the preview does not guarantee completion.
 ### MCP deletion preview and confirmation
 
 External writable MCP exposes `delete_resource`. It is absent from read-only
-mounts and from the private `/mcp-apply` transport used by Radar OSS's built-in CLI agents. Hub's sidecar independently enforces its read-only gate; it does not use this new mount.
+mounts and from the built-in `/mcp-apply` transport used by Radar OSS's built-in CLI agents. Hub's sidecar independently enforces its read-only gate; it does not use this new mount.
 Built-in deletion stays deferred until the approval flow presents this preview.
 There is no new configuration switch.
 
@@ -1391,7 +1391,7 @@ GC dependents, possible dependents and controller teardown stay separate.
 Counts cover the observed traversal before each 100-reference MCP list cap;
 `ownershipCoverage` carries source gaps, caller narrowing and traversal limits.
 Namespace contents and CRD instances are never interpreted as an empty list.
-A completely unavailable or timed-out impact calculation returns no usable confirmation token; retry after the connection/cache recovers. Partial observed projections retain explicit coverage limits. One 40s
+A completely unavailable or timed-out impact calculation returns no usable confirmation token. Inspect `cascade.unavailableReason` and `recoveryAction`: connection/cache loading can recover, but access or collection limits require a change. Use the UI or kubectl if Radar cannot provide caller-readable impact. Partial observed projections retain explicit coverage limits. One 40s
 budget covers the call, with at most 5s each for enumeration and post-delete
 observation. A stuck kubeconfig exec credential refresh can outlive the request
 budget, as with other client-go operations.
@@ -1403,3 +1403,6 @@ patches finalizers. Explicit finalizer intervention remains a separate
 `patch_resource` action after inspecting cleanup. A webhook whose side-effects declaration prohibits server dry-run prevents this tool from issuing confirmation; the API error identifies the rejecting webhook. The token checks reviewed state, not proof of a human decision: the external MCP host owns per-call approval. Audit records identify caller,
 kind/group/target and preview/accepted/failed/unknown outcomes; confirmation
 values are omitted from ordinary tool-argument logs.
+
+
+Confirmation tokens are process-local. Use a single Radar replica or session affinity so preview and confirmation reach the same process; a restart invalidates outstanding tokens. `/mcp-apply` is an authenticated subset of writable `/mcp`, intended for built-in agents, not a private network endpoint.
