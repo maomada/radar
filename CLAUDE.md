@@ -22,6 +22,7 @@ Not everything is in this file. The following files contain critical details tha
 
 | When you are... | Read this file FIRST |
 |-----------------|---------------------|
+| Preparing, editing, auditing or previewing **What's New** release notes | [.agents/skills/whats-new/SKILL.md](.agents/skills/whats-new/SKILL.md) — merged-work buckets, copy, scoring, preview, and opt-in docs/marketing changelog checks with safe sibling/worktree handling |
 | Adding or modifying **HTTP endpoints** | `internal/server/server.go` — all routes are defined here — **plus** the handler's doc comments (why the route is gated the way it is lives there; copy the gate of the closest sibling only after reading it) and the integration's section in [docs/integrations.md](docs/integrations.md) |
 | Adding or modifying **CLI flags** | `cmd/explorer/main.go` — flag definitions and defaults |
 | Adding a **new CRD integration** (renderer, topology, discovery) | [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) — full checklist with collision gotchas |
@@ -32,6 +33,7 @@ Not everything is in this file. The following files contain critical details tha
 | Working on an **integration's reverse-lookup or actions** (Velero, CloudNativePG, Kyverno, Argo Rollouts, …) | That integration's section in [docs/integrations.md](docs/integrations.md) + the doc comments in `internal/server/<name>_handlers.go` — both carry the per-integration gating and scope rules this file only summarizes |
 | Working on **RBAC visibility** (Permissions / blast radius, SA/Role/Binding reverse lookups) | `pkg/rbac/index.go` (index, implicit groups, `MaxFlatRules`), `internal/server/rbac_handlers.go`, and the header of `packages/k8s-ui/src/utils/rbac-blast-radius.ts` — the rule that resource-only wildcards must NOT trigger is load-bearing |
 | Working on **SSE / live updates** or anything the **topology** emits to a browser | `Server.handleSSE` in `internal/server/server.go` (per-user filtering), `internal/server/sse.go` (per-client RBAC grouping, `clientCanSeeChange`) + `pkg/topology/cluster_scoped_kinds.go` |
+| Working on **ownership** (owner references, dependents, GitOps managers' recorded members, the ownership oracle) | [docs/ownership.md](docs/ownership.md) — the evidence model (owner references, recorded membership, claims), coverage and completeness, and the oracle every change is checked against; contract in `pkg/ownership`, indexes in `pkg/k8score/owner_index.go` + `gitops_members_index.go` |
 | Working on the **informer cache** (new typed kind, field stripping, scope) | `pkg/k8score/cache.go` + `pkg/k8score/transform.go` (what is stripped and why), `internal/k8s/capabilities.go` (probe-based scope) |
 | Working on the **timeline / workload history** | `pkg/timeline/store.go` (`ResourceScope`: owner UID, `OwnerlessRefs`) + the `handleWorkloadHistory` doc comment in `internal/server/workload_history.go` |
 | Working on **network trace / reachability** | [docs/reachability.md](docs/reachability.md) + `internal/server/trace_handlers.go` |
@@ -187,6 +189,8 @@ After `make <name>-demo`, run `kubectl config use-context kind-radar-<name>-demo
 ### Timeline + resource relationships
 
 Timeline (`pkg/timeline/`): in-memory or SQLite (`--timeline-storage`), default 10k-event ring. Lane grouping (owner, app, topology) happens in the frontend (`packages/k8s-ui/src/utils/resource-hierarchy.ts`); the stores only filter and page. Resource relationships (`pkg/topology/relationships.go`): computed at query time — parent/children/deployment-grandparent/config/network/scalers/policies/storage — used for both detail views and topology edges.
+
+Ownership in Related Resources — `owner`, `owners`, `children`, `olderRevisions`, `deployment` on the REST resource GET, and the owner the AI resource context and MCP `get_resource` name — comes from owner references read off the informer caches (`pkg/ownership` View for the request's user, `topology.ApplyOwnership`, `internal/k8s.AnswerOwnership`; resource contexts use `AnswerOwner`, which searches for no children), never from manages edges, which also stand for GitOps management, spec links and display shortcuts. Management is separate: `managers` / `manages` (Managed By / Manages) come from GitOps managers' recorded member lists, and from manages edges with evidence they are management rather than ownership or a shortcut. Each request reads as its user through an `ownership.Access`: REST mirrors the per-user relationship graph's filter (`relationshipTopologyForUser`, list checks), MCP checks each kind exactly. A new surface that names owners or children must go through the same path; the drawer golden `pkg/topology/testdata/characterization/drawer-relationships.json` pins its answers.
 
 ### RBAC Visibility
 

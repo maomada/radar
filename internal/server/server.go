@@ -88,6 +88,7 @@ type Server struct {
 	startupLog              bool
 	remoteAccessHint        bool
 	devMode                 bool
+	enablePprof             *bool
 	trustedOrigins          map[string]struct{} // normalized; see browserOriginAllowed
 	staticFS                fs.FS
 	startTime               time.Time
@@ -205,6 +206,7 @@ type Config struct {
 	StartupLog              bool                        // Emit the operator-facing startup block after a successful bind
 	RemoteAccessHint        bool                        // Explain the explicit shared-listener opt-in (native CLI only)
 	DevMode                 bool                        // Serve frontend from filesystem instead of embedded
+	EnablePprof             *bool                       // nil uses the listener/authentication default; Cloud always disables profiling
 	TrustedOrigins          []string                    // Extra origins allowed to make changes, from ParseTrustedOrigins
 	StaticFS                embed.FS                    // Embedded frontend files
 	StaticRoot              string                      // Path within StaticFS
@@ -248,6 +250,7 @@ func New(cfg Config) *Server {
 		startupLog:              cfg.StartupLog,
 		remoteAccessHint:        cfg.RemoteAccessHint,
 		devMode:                 cfg.DevMode,
+		enablePprof:             cfg.EnablePprof,
 		startTime:               time.Now(),
 		mcpHandler:              cfg.MCPHandler,
 		mcpReadOnlyHandler:      cfg.MCPReadOnlyHandler,
@@ -395,7 +398,7 @@ func (s *Server) setupRoutes() {
 // r.URL.Path prefixed, while the auth middleware matches on r.URL.Path and
 // treats anything outside /api, /mcp and /debug as public static content — so a
 // still-prefixed path reads as public and skips authentication entirely,
-// /debug/pprof (which dumps the whole informer cache) included. Translating once
+// /debug/pprof process diagnostics included. Translating once
 // here keeps that concern at the edge rather than in every path check inside.
 func (s *Server) basePathHandler(app http.Handler) http.Handler {
 	stripped := http.StripPrefix(s.basePath, app)
@@ -481,14 +484,19 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 	metricsHandler := s.newMetricsHandler()
 	r.Get("/metrics", metricsHandler.ServeHTTP)
 
-	// pprof routes for profiling. Not mounted under cloud-mode — they'd be
-	// reachable via the Cloud tunnel and leak the in-memory K8s cache (every
-	// Secret, ConfigMap, Pod spec) via /debug/pprof/heap. Local/standalone
-	// installs keep them for debugging.
-	if !cloudMode() {
+	// Profiling exposes process diagnostics and can trigger costly collection.
+	// Keep unauthenticated shared listeners opt-in and Cloud routes unmounted.
+	if s.pprofEnabled() {
+		log.Printf("[server] pprof endpoints enabled at /debug/pprof/")
 		r.Route("/debug/pprof", func(r chi.Router) {
 			r.Get("/", pprof.Index)
-			r.Get("/cmdline", pprof.Cmdline)
+			r.Get("/cmdline", func(w http.ResponseWriter, r *http.Request) {
+				if s.authConfig.Enabled() {
+					s.writeError(w, http.StatusForbidden, "command-line arguments may contain credentials and are unavailable on authenticated installations")
+					return
+				}
+				pprof.Cmdline(w, r)
+			})
 			r.Get("/profile", pprof.Profile)
 			r.Get("/symbol", pprof.Symbol)
 			r.Get("/trace", pprof.Trace)
@@ -3072,23 +3080,12 @@ func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
 		}
 		setTypeMeta(resource)
 
-		// Get relationships from cached topology. Pass the already-fetched
-		// resource so ManagedBy synthesis disambiguates by group (avoids
-		// kind/plural collisions like Knative Service vs core Service).
-		var relationships *topology.Relationships
-		if cachedTopo, relIdx := s.broadcaster.GetCachedTopologyWithIndex(); cachedTopo != nil {
-			if auth.UserFromContext(r.Context()) != nil {
-				cachedTopo = s.relationshipTopologyForUser(r, cachedTopo)
-				relIdx = nil
-			}
-			relationships = topology.GetRelationshipsWithObject(kind, namespace, name, resource, cachedTopo,
-				k8s.NewTopologyResourceProvider(k8s.GetResourceCache()),
-				k8s.NewTopologyDynamicProvider(k8s.GetDynamicResourceCache(), k8s.GetResourceDiscovery()), relIdx)
-		}
-
+		// Pass the already-fetched resource so ManagedBy synthesis
+		// disambiguates by group (avoids kind/plural collisions like Knative
+		// Service vs core Service).
 		s.writeJSON(w, topology.ResourceWithRelationships{
 			Resource:      resource,
-			Relationships: relationships,
+			Relationships: s.relationshipsFor(r, kind, namespace, name, resource),
 			HPADiagnosis:  hpaDiagnosisFor(resource),
 		})
 		return
@@ -3318,31 +3315,11 @@ func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
 	// Set APIVersion and Kind for typed resources (informers don't populate these)
 	setTypeMeta(resource)
 
-	// Get relationships from cached topology. Pass the already-fetched
-	// resource so ManagedBy synthesis uses the authoritative object instead
-	// of a group-blind kind/name lookup. Skipped while serving from the
-	// mid-sync handle (ready singleton still nil) — relationships computed
-	// against a partially-synced cache would be silently incomplete.
-	var relationships *topology.Relationships
-	// One Load, reused: readers are lock-free and a context switch mid-request
-	// could otherwise pass the nil check on one handle and hand the provider a
-	// different (or nil) one.
-	if promoted := k8s.GetResourceCache(); promoted != nil {
-		if cachedTopo, relIdx := s.broadcaster.GetCachedTopologyWithIndex(); cachedTopo != nil {
-			if auth.UserFromContext(r.Context()) != nil {
-				cachedTopo = s.relationshipTopologyForUser(r, cachedTopo)
-				relIdx = nil
-			}
-			relationships = topology.GetRelationshipsWithObject(kind, namespace, name, resource, cachedTopo,
-				k8s.NewTopologyResourceProvider(promoted),
-				k8s.NewTopologyDynamicProvider(k8s.GetDynamicResourceCache(), k8s.GetResourceDiscovery()), relIdx)
-		}
-	}
-
-	// Return resource with relationships
+	// Pass the already-fetched resource so ManagedBy synthesis uses the
+	// authoritative object instead of a group-blind kind/name lookup.
 	response := topology.ResourceWithRelationships{
 		Resource:      resource,
-		Relationships: relationships,
+		Relationships: s.relationshipsFor(r, kind, namespace, name, resource),
 		HPADiagnosis:  hpaDiagnosisFor(resource),
 	}
 
@@ -6375,4 +6352,14 @@ func (s *Server) handleDebugInformers(w http.ResponseWriter, r *http.Request) {
 		"dynamicInformers": len(gvrs),
 		"watchedResources": resources,
 	})
+}
+
+func (s *Server) pprofEnabled() bool {
+	if cloudMode() {
+		return false
+	}
+	if s.enablePprof != nil {
+		return *s.enablePprof
+	}
+	return s.authConfig.Enabled() || s.listenAddress == "" || !s.sharedListener()
 }

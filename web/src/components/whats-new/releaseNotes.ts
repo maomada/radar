@@ -41,6 +41,7 @@ export interface ReleaseNotes {
 
 export const CHANGELOG_URL = 'https://radarhq.io/changelog'
 
+// Read .agents/skills/whats-new/SKILL.md before authoring or regrouping notes.
 // One entry per release that has something to announce. A user sees the
 // entries for the releases they haven't seen yet, composed into one dialog, so
 // a patch upgrade, or one that skips releases, still gets them. Every minor and
@@ -54,8 +55,8 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
         id: 'trivy-cve-search',
         icon: Search,
         title: 'Investigate CVEs across your cluster',
-        description: 'Search Trivy findings by CVE, package or image. MCP agents can also inventory declared runtime versions that package scans may miss.',
-        leadDescription: 'With Trivy Operator installed, search by CVE, package, failed check ID or image to find affected workloads and their installed and fixed package versions. MCP agents can also inventory runtime versions declared by running images and compare supported versions with a fixed release, covering runtimes that package scans may miss. Missing or unreadable declarations stay unknown; image metadata does not verify a fix.',
+        description: 'Search Trivy findings by CVE, package or image, including in resource tables. MCP agents can inventory declared runtime versions.',
+        leadDescription: 'With Trivy Operator installed, search globally or within report tables by CVE, package, failed check ID or image to find matching scan reports, then open a report for installed and fixed package versions. Partial searches say what could not be checked. MCP agents can also inventory runtime versions declared by running images and compare supported versions with a fixed release. Missing or unreadable declarations stay unknown; image metadata does not verify a fix.',
         importance: 8,
       },
       {
@@ -69,26 +70,32 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
         id: 'investigation-change-evidence',
         icon: GitCompareArrows,
         title: 'See more of what changed',
-        description: 'Investigations show more spec edits, policy and label changes, Secret rotations and stale env readers, and warn when history is incomplete.',
+        description: 'Investigations show more spec edits, NetworkPolicy changes, Secret rotations and stale env readers, and flag incomplete history.',
         importance: 5,
       },
       {
         id: 'workload-blockers',
         icon: Network,
-        title: 'Find what is blocking your workload',
-        description: 'Issues explain policy and admission blocks, mixed Service backends, volume conflicts, storage rollout deadlocks and CronJob scheduling failures.',
+        title: 'Better issue detection and warnings',
+        description: 'Issues catch more network, storage and scheduling problems, add diagnostic context, and flag checks that could not complete.',
         importance: 5,
         path: '/issues',
         cta: 'Open Issues',
       },
+      {
+        id: 'log-viewer-improvements',
+        icon: ScrollText,
+        title: 'Log viewer improvements',
+        description: 'Keep your place in fast-moving logs, select text without auto-scroll, and wait for containers to start with clearer status messages.',
+        importance: 4,
+      },
     ],
     improvements: [
-      'Logs keep your reading position and pause for text selection',
       'Resource tables remember your column order for each kind',
       'Open terminals and browse files in native sidecars',
       'Node drains keep results visible and name remaining Pods',
-      'Issues name incomplete checks and let you retry them',
-      'Helm upgrades require an explicit chart source',
+      'Audits recognize shared Pod CPU and memory budgets',
+      'Helm upgrades need a confirmed source; find public sources on ArtifactHub',
       'Prometheus reconnects automatically when it appears',
       'Argo CD views confirm when a local resource is missing',
     ],
@@ -310,9 +317,8 @@ export function unreadReleases(
 export const RELEASE_WEIGHTS = [1, 0.75, 0.5]
 export const MAX_CARDS = 5
 export const MAX_LINES = 8
-// The dialog opens by itself only when the cards it shows add up to this.
-// A release of mostly 4-6s stays behind the unread dot; one with a few solid
-// features, or a skipped release with them, opens it.
+// A fuller set of useful improvements can merit an announcement even without
+// a single release-defining feature.
 export const AUTO_OPEN_SCORE = 25
 
 export interface ComposedHighlight extends ReleaseHighlight {

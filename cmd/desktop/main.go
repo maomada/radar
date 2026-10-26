@@ -74,7 +74,12 @@ func main() {
 	prometheusURL := flag.String("prometheus-url", fileCfg.PrometheusURL, "Manual Prometheus/VictoriaMetrics URL (skips auto-discovery)")
 	openCostCurrency := flag.String("opencost-currency", fileCfg.OpenCostCurrency, "Override the ISO 4217 currency label for OpenCost values (empty: auto-detect, then USD)")
 	mcpFlags := config.RegisterMCPFlags(flag.CommandLine, fileCfg)
+	noVersionCheck := flag.Bool("no-version-check", fileCfg.NoVersionCheck, "Disable automatic checks for newer Radar versions and releases; manual Desktop checks remain available (also enabled via RADAR_DISABLE_VERSION_CHECK=1)")
 	flag.Parse()
+
+	if *noVersionCheck {
+		versionpkg.SetDisabled(true)
+	}
 
 	if *showVersion {
 		fmt.Printf("radar-desktop %s\n", version)
@@ -146,6 +151,10 @@ func main() {
 		log.Printf("ERROR: invalid --opencost-currency %q: %v", *openCostCurrency, err)
 		os.Exit(1)
 	}
+	enablePprof, err := config.PprofOverrideFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
 	resolvedNamespace, resolvedNamespaces, err := app.ResolveNamespaceSelection(*namespace, *namespaces, namespaceFlagSet, namespacesFlagSet)
 	if err != nil {
 		log.Printf("ERROR: %v", err)
@@ -186,6 +195,7 @@ func main() {
 		PortFallback:              desktopPortRemembered,
 		ListenAddress:             "127.0.0.1",
 		DevMode:                   false,
+		EnablePprof:               enablePprof,
 		HistoryLimit:              *historyLimit,
 		DebugEvents:               *debugEvents,
 		FakeInCluster:             *fakeInCluster,
