@@ -293,7 +293,10 @@ export function IssueRow({
         <SeverityIcon className={`h-[18px] w-[18px] shrink-0 ${ISSUE_SEVERITY_TEXT_CLASS[severity]}`} aria-hidden />
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex min-w-0 items-baseline gap-2">
+          {/* Narrow container: the row wraps so the title keeps the full
+              width and the badge + reason drop below it, instead of the
+              title truncating to nothing beside them. */}
+          <div className="flex min-w-0 items-baseline gap-2 @max-2xl/issue:flex-wrap @max-2xl/issue:gap-y-1">
             <span className="min-w-0 truncate text-sm font-medium text-theme-text-primary">{issueTitle(issue)}</span>
             <span className={`shrink-0 self-center ${groupBadgeClass(issue.category_group)}`}>{groupLabel(issue.category_group)}</span>
             {renderBadges?.(slotCtx)}
@@ -305,7 +308,7 @@ export function IssueRow({
             {issue.reason && !schedulingCause ? (
               <span
                 aria-hidden={open || undefined}
-                className={`min-w-0 flex-1 truncate text-xs text-theme-text-tertiary transition-opacity duration-200 ${open ? 'opacity-0' : 'opacity-100'}`}
+                className={`min-w-0 flex-1 truncate text-xs text-theme-text-tertiary transition-opacity duration-200 @max-2xl/issue:basis-full ${open ? 'opacity-0 @max-2xl/issue:hidden' : 'opacity-100'}`}
               >
                 <span className="font-medium text-theme-text-secondary">{issue.reason}</span>
                 {headline ? <span> — {headline}</span> : null}
@@ -348,17 +351,21 @@ export function IssueRow({
             ) : null}
             {renderMeta?.(slotCtx)}
           </div>
-          {/* Narrow container: the meta chips drop to their own line here rather
-              than stealing width from the title on the row above. Hidden once the
-              row is wide enough to hold them inline in the right cluster. */}
-          {metaChips('flex @2xl/issue:hidden')}
+          {/* Narrow container: the meta chips (and the per-row action) drop to
+              their own line here rather than stealing width from the title on
+              the row above. Hidden once the row is wide enough to hold them
+              inline in the right cluster. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 @2xl/issue:hidden">
+            {metaChips('flex flex-wrap')}
+            {renderActions && <div className="ml-auto flex items-center">{renderActions(slotCtx)}</div>}
+          </div>
         </div>
 
         {/* Right cluster — the always-visible affordances (per-row action +
             chevron) plus, on a wide container, the inline meta chips. */}
         <div className="flex shrink-0 items-center gap-3">
           {metaChips('hidden @2xl/issue:flex')}
-          {renderActions?.(slotCtx)}
+          {renderActions && <div className="hidden items-center @2xl/issue:flex">{renderActions(slotCtx)}</div>}
           <CollapseChevron open={open} className="h-4 w-4" />
         </div>
       </div>

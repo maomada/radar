@@ -166,7 +166,7 @@ export function UpdateNotification({ placement = 'floating' }: { placement?: 'fl
       inert={!show || undefined}
       className={clsx(
         'bg-theme-surface border border-accent/50 rounded-lg shadow-theme-lg p-4',
-        inSettings ? 'absolute top-full left-0 mt-2 z-10 w-[28rem] max-sm:left-4 max-sm:right-4 max-sm:w-auto origin-top-left' : 'fixed bottom-4 right-4 z-50 max-w-sm origin-bottom-right',
+        inSettings ? 'absolute top-full left-0 mt-2 z-10 w-[28rem] max-sm:left-4 max-sm:right-4 max-sm:w-auto origin-top-left' : 'fixed bottom-4 right-4 z-50 max-w-sm origin-bottom-right max-[639px]:left-4 max-[639px]:max-w-none',
         TRANSITION_MENU,
         isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-1 scale-[0.97]',
         !show && 'pointer-events-none',
@@ -202,10 +202,12 @@ export function UpdateNotification({ placement = 'floating' }: { placement?: 'fl
           {/* CLI: show update command with copy button for package managers */}
           {!isDesktop && versionInfo.updateCommand ? (
             <>
+              {/* The floating prompt drops the install command on phones:
+                  nobody runs a shell there, and it took most of the screen. */}
               <WithTooltip tip={versionInfo.updateCommand} delay={100}>
                 <button
                   onClick={handleCopyCommand}
-                  className="flex items-center gap-2 mt-2 px-2 py-1.5 bg-theme-elevated rounded font-mono text-theme-text-primary hover:bg-theme-surface-hover transition-colors w-full"
+                  className={clsx('flex items-center gap-2 mt-2 px-2 py-1.5 bg-theme-elevated rounded font-mono text-theme-text-primary hover:bg-theme-surface-hover transition-colors w-full', !inSettings && 'max-[639px]:hidden')}
                 >
                   <code className={clsx('inline-code flex-1 text-left text-[11px]', inSettings ? 'whitespace-pre-wrap break-all' : 'truncate')}>{versionInfo.updateCommand}</code>
                   <CopyIcon copied={copied} failed={copyFailed} />

@@ -18,7 +18,9 @@ interface PageHeaderProps {
 
 export function PageHeader({ icon: Icon, title, description, onBack, actions }: PageHeaderProps) {
   return (
-    <div className="flex items-center gap-4">
+    // Phones: actions (freshness, summary tiles) wrap under the title
+    // instead of squeezing it to nothing.
+    <div className="flex items-center gap-4 max-[639px]:flex-wrap max-[639px]:gap-y-3">
       {onBack && (
         <button
           onClick={onBack}
@@ -28,16 +30,16 @@ export function PageHeader({ icon: Icon, title, description, onBack, actions }: 
           <ArrowLeft className="w-5 h-5 text-theme-text-secondary" />
         </button>
       )}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 max-[639px]:basis-full">
         <div className="flex items-center gap-2">
           <Icon className="w-5 h-5 text-theme-text-secondary shrink-0" />
           <h1 className="text-lg font-semibold text-theme-text-primary truncate">{title}</h1>
         </div>
         {description && (
-          <p className="text-sm text-theme-text-tertiary mt-1 ml-7 truncate">{description}</p>
+          <p className="text-sm text-theme-text-tertiary mt-1 ml-7 truncate max-[639px]:whitespace-normal max-[639px]:line-clamp-2">{description}</p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 max-[639px]:shrink max-[639px]:justify-start">{actions}</div>}
     </div>
   )
 }

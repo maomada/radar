@@ -1800,10 +1800,13 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {/* Preserve the ~800px content floor: the rail is a fixed-width sibling, so
         the outer minimum must include it (176px pinned / 56px collapsed) or the
         content column (min-w-0, shrinkable) would fall below the old desktop
-        floor at small windows. Embedded mode has no rail → plain 800. */}
+        floor at small windows. Embedded mode has no rail → plain 800.
+        Phones get no floor: the content column clips horizontally, so on a
+        390px screen the floor hid the right half of every view with no way to
+        scroll to it. Views reflow down to phone width instead. */}
     <div
       className={`relative flex bg-theme-base ${navCustomization.embedded ? 'h-full min-h-0' : 'h-screen'}`}
-      style={{ minWidth: 800 + (showNavRail ? (navRailEffectivePinned ? 176 : 56) : 0) }}
+      style={isMobile ? undefined : { minWidth: 800 + (showNavRail ? (navRailEffectivePinned ? 176 : 56) : 0) }}
     >
       {showNavRail && (
         <PrimaryNavRail

@@ -301,16 +301,18 @@ export function HelmView({ namespaces, selectedRelease, onReleaseClick }: HelmVi
                   )}
                 </div>
               ) : (
+                // Phones keep Name (namespace as a sub-line), Status and
+                // Updated; the fixed-width columns otherwise leave Name no room.
                 <table className="w-full table-fixed">
                   <thead className="bg-theme-base sticky top-0 z-10">
                     <tr>
-                      <SortableTh label="Name" sortKey="name" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-[28%]" />
-                      <SortableTh label="Namespace" sortKey="namespace" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-[18%]" />
-                      <SortableTh label="Chart" sortKey="chart" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-[22%]" />
+                      <SortableTh label="Name" sortKey="name" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-[28%] max-[639px]:w-auto" />
+                      <SortableTh label="Namespace" sortKey="namespace" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-[18%] max-[639px]:hidden" />
+                      <SortableTh label="Chart" sortKey="chart" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-[22%] max-[639px]:hidden" />
                       <SortableTh label="App Version" sortKey="appVersion" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-24 hidden xl:table-cell" />
-                      <SortableTh label="Status" sortKey="status" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-40" />
-                      <SortableTh label="Rev" sortKey="revision" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-16" />
-                      <SortableTh label="Updated" sortKey="updated" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-24" />
+                      <SortableTh label="Status" sortKey="status" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-40 max-[639px]:w-28" />
+                      <SortableTh label="Rev" sortKey="revision" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-16 max-[639px]:hidden" />
+                      <SortableTh label="Updated" sortKey="updated" activeKey={sort?.key ?? null} direction={sort?.dir ?? 'asc'} onSort={onSort} className="w-24 max-[639px]:w-16" />
                     </tr>
                   </thead>
                   <tbody className="table-divide-subtle">
@@ -536,9 +538,10 @@ const ReleaseRow = forwardRef<HTMLTableRowElement, ReleaseRowProps>(
       )}
     >
       <td className="px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
+        {/* Phones: the name keeps its width and the badges wrap under it. */}
+        <div className="flex min-w-0 items-center gap-2 max-[639px]:flex-wrap max-[639px]:gap-y-1">
           <Package className="w-4 h-4 text-theme-text-tertiary shrink-0" />
-          <span className="min-w-0 truncate text-sm font-medium text-theme-text-primary">{release.name}</span>
+          <span className="min-w-0 truncate text-sm font-medium text-theme-text-primary max-[639px]:max-w-[calc(100%-1.5rem)] max-[639px]:shrink-0">{release.name}</span>
           {getHealthBadge()}
           {listOperation && <HelmOperationChip operation={listOperation} />}
           {release.managedByFluxHelmRelease && (
@@ -557,13 +560,14 @@ const ReleaseRow = forwardRef<HTMLTableRowElement, ReleaseRowProps>(
             </Tooltip>
           )}
         </div>
+        <span className="hidden truncate pl-6 text-xs text-theme-text-tertiary max-[639px]:block">{release.namespace}</span>
       </td>
-      <td className="px-4 py-3 w-[18%]">
+      <td className="px-4 py-3 w-[18%] max-[639px]:hidden">
         <Tooltip content={release.namespace}>
           <span className="block truncate text-sm text-theme-text-secondary">{release.namespace}</span>
         </Tooltip>
       </td>
-      <td className="px-4 py-3 w-[22%]">
+      <td className="px-4 py-3 w-[22%] max-[639px]:hidden">
         <Tooltip content={`${release.chart}-${release.chartVersion}`}>
           <span className="text-sm text-theme-text-secondary truncate block">
             {release.chart}-{release.chartVersion}
@@ -579,7 +583,7 @@ const ReleaseRow = forwardRef<HTMLTableRowElement, ReleaseRowProps>(
           </Tooltip>
         )}
       </td>
-      <td className="px-4 py-3 w-40">
+      <td className="px-4 py-3 w-40 max-[639px]:w-28">
         {isHelmReleaseActionable(release.status) ? (
           <Tooltip content="Click row to view rollback / history / logs and recover">
             <span
@@ -600,10 +604,10 @@ const ReleaseRow = forwardRef<HTMLTableRowElement, ReleaseRowProps>(
           </span>
         )}
       </td>
-      <td className="px-4 py-3 w-16">
+      <td className="px-4 py-3 w-16 max-[639px]:hidden">
         <span className="text-sm text-theme-text-secondary">{release.revision}</span>
       </td>
-      <td className="px-4 py-3 w-24">
+      <td className="px-4 py-3 w-24 max-[639px]:w-16">
         <Tooltip content={release.updated}>
           <span className="text-sm text-theme-text-secondary">
             {formatAge(release.updated)}
