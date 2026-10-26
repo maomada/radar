@@ -4,6 +4,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { Badge } from '../ui/Badge'
 import { PaneLoader } from '../ui/PaneLoader'
+import { DialogPortal } from '../ui/DialogPortal'
 import { RestrictedState } from '../ui/RestrictedState'
 import { FetchResult } from '../ui/FetchResult'
 import { Input } from '../ui/Input'
@@ -3752,12 +3753,6 @@ export function ResourcesView({
   useEffect(() => {
     if (!isPhone) setKindsDrawerOpen(false)
   }, [isPhone])
-  useEffect(() => {
-    if (!kindsDrawerOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setKindsDrawerOpen(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [kindsDrawerOpen])
   // Sync selectedKind from URL when the URL changes (browser back, external sidebar navigation).
   // Deps are URL-derived only — including selectedKind.name/group would race against pending
   // navigation: a sidebar click flips state before navigate() lands, this effect re-reads the
@@ -6083,6 +6078,32 @@ export function ResourcesView({
     onOpenWorkloadLogs,
   }), [onNavigate, certExpiry, certExpiryError, auditBadges, operationalIssues, operationalIssuesIncomplete, onOpenLogs, onOpenWorkloadLogs])
 
+  const renderSidebar = (className?: string) => (
+    <ResourcesSidebar
+      className={className}
+      selectedKind={selectedKind}
+      onSelectedKindChange={(kind) => {
+        shouldPushHistory.current = true
+        setSelectedKind(kind)
+        setKindsDrawerOpen(false)
+      }}
+      onKindChange={onKindChange}
+      apiResources={apiResourcesProp}
+      resourceCounts={counts}
+      resourceForbidden={Array.from(forbiddenKinds)}
+      resourceUnavailable={sidebarResourceUnavailable}
+      pinned={pinned}
+      togglePin={togglePin}
+      isPinned={isPinned}
+      categoryWorkspaces={sidebarCategoryWorkspaces}
+      onKindNavigated={() => {
+        // After selecting a kind via keyboard, move focus to the table search
+        // so the user can immediately filter within the selected kind.
+        setTimeout(() => searchInputRef.current?.focus(), 50)
+      }}
+    />
+  )
+
   const kindsButton = (
     <button
       type="button"
@@ -6098,35 +6119,20 @@ export function ResourcesView({
 
   return (
     <ResourcesViewDataContext.Provider value={resourcesViewDataContextValue}>
-    <div className="relative flex h-full w-full">
-      {/* Sidebar - Resource Types */}
-      {!hideSidebar && isPhone && kindsDrawerOpen && (
-        <div className="absolute inset-0 z-30 bg-black/40" aria-hidden onClick={() => setKindsDrawerOpen(false)} />
-      )}
-      {!hideSidebar && (!isPhone || kindsDrawerOpen) && (
-        <ResourcesSidebar
-          className={isPhone ? 'absolute inset-y-0 left-0 z-40 shadow-theme-lg' : undefined}
-          selectedKind={selectedKind}
-          onSelectedKindChange={(kind) => {
-            shouldPushHistory.current = true
-            setSelectedKind(kind)
-            setKindsDrawerOpen(false)
-          }}
-          onKindChange={onKindChange}
-          apiResources={apiResourcesProp}
-          resourceCounts={counts}
-          resourceForbidden={Array.from(forbiddenKinds)}
-          resourceUnavailable={sidebarResourceUnavailable}
-          pinned={pinned}
-          togglePin={togglePin}
-          isPinned={isPinned}
-          categoryWorkspaces={sidebarCategoryWorkspaces}
-          onKindNavigated={() => {
-            // After selecting a kind via keyboard, move focus to the table search
-            // so the user can immediately filter within the selected kind.
-            setTimeout(() => searchInputRef.current?.focus(), 50)
-          }}
-        />
+    <div className="flex h-full w-full">
+      {/* Sidebar - Resource Types. On phones it is a modal drawer: the
+          dialog primitive traps focus, captures Escape before the table's
+          own shortcuts, and returns focus to the kinds button. */}
+      {!hideSidebar && !isPhone && renderSidebar()}
+      {!hideSidebar && isPhone && (
+        <DialogPortal
+          open={kindsDrawerOpen}
+          onClose={() => setKindsDrawerOpen(false)}
+          ariaLabel="Resource kinds"
+          className="!ml-0 !mr-auto h-full w-72 max-w-[85vw] self-stretch overflow-hidden rounded-none border-y-0 border-l-0"
+        >
+          {renderSidebar('!w-full h-full border-r-0')}
+        </DialogPortal>
       )}
 
       {kindView !== null ? (
