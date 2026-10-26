@@ -20,6 +20,8 @@ beforeEach(async () => {
       <button onClick={() => showToast('Another denial', { type: 'info', id: 'gitops-denied:get' })}>Other shortcut</button>
       <button onClick={() => showToast('x'.repeat(300), { detail: 'https://example.test/' + 'y'.repeat(300), onDetailClick: () => {} })}>Long clickable</button>
       <button onClick={() => showToast('z'.repeat(300), { detail: 'a'.repeat(300) })}>Long detail</button>
+      <button onClick={() => showToast('Checking for updates', { type: 'info', id: 'update', duration: 0 })}>Progress</button>
+      <button onClick={() => showToast("You're up to date", { type: 'success', id: 'update' })}>Result</button>
     </>
   }
   await act(async () => root.render(<ToastProvider><Probe /></ToastProvider>))
@@ -109,4 +111,19 @@ it.each(['Long clickable', 'Long detail'])('keeps short words whole and allows o
     expect(word.classList.contains('[overflow-wrap:anywhere]')).toBe(true)
     expect(word.classList.contains('whitespace-nowrap')).toBe(false)
   }
+})
+
+it('keeps a duration 0 toast until a result replaces it, then dismisses the result on the normal timer', async () => {
+  const click = async (label: string) => act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === label)!.click())
+  const update = () => [...host.querySelectorAll<HTMLElement>('.backdrop-blur-sm')].find(item => item.textContent?.includes('Checking') || item.textContent?.includes('up to date'))
+  await click('Progress')
+  await advance(60000)
+  expect(update()?.textContent).toContain('Checking')
+  await click('Result')
+  expect(host.querySelectorAll('.backdrop-blur-sm')).toHaveLength(1)
+  expect(update()?.textContent).toContain('up to date')
+  await advance(6999)
+  expect(update()).toBeDefined()
+  await advance(1001)
+  expect(update()).toBeUndefined()
 })
