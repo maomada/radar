@@ -754,6 +754,7 @@ func setupDeletionResource(t *testing.T, gvr schema.GroupVersionResource, listKi
 }
 
 func TestDeleteCascadeWarnsForDependentStorage(t *testing.T) {
+	setConnectedForTest(t)
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: "demo", UID: "pod", ResourceVersion: "1"}}
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "data", Namespace: "demo", UID: "data", OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "Pod", Name: "worker", UID: "pod"}}}}
 	if err := k8s.InitTestResourceCache(kubefake.NewClientset(pod, pvc)); err != nil {
