@@ -2133,7 +2133,7 @@ func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured) *Issue {
 // would prune every managed resource or take resources over from another
 // Application; empty when a sync is a plain reconcile.
 func argoSyncHazardAction(root *unstructured.Unstructured) string {
-	return diagnose.ArgoSyncHazardAction(gitops.ArgoSyncPrunesEverything(root), gitops.ArgoConditionMessages(root, "SharedResourceWarning"))
+	return diagnose.ArgoSyncHazardAction(gitops.ArgoSyncPrunesEverything(root), gitops.ArgoComparisonFailed(root), gitops.ArgoConditionMessages(root, "SharedResourceWarning"))
 }
 
 // argoEmptyRenderGuardActive reports whether Argo's empty-render auto-sync

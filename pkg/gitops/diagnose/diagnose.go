@@ -299,8 +299,13 @@ func ArgoConditionAction(condType, appName string, messages []string) string {
 
 // ArgoSyncHazardAction replaces "review the diff, then sync" advice when a sync
 // would do more than reconcile drift: prune every managed resource, or take
-// resources over from another Application. Empty when neither applies.
-func ArgoSyncHazardAction(prunesEverything bool, sharedResourceMessages []string) string {
+// resources over from another Application. Empty when neither applies. When
+// the latest comparison failed, the pruning flags are the previous
+// comparison's, so the advice says so instead of describing the current render.
+func ArgoSyncHazardAction(prunesEverything, comparisonFailed bool, sharedResourceMessages []string) string {
+	if prunesEverything && comparisonFailed {
+		return "Argo CD's previous comparison marked every resource this Application manages for pruning, and its latest comparison failed. Fix the comparison error and refresh before syncing: if the render still includes none of them, a sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."
+	}
 	if prunesEverything {
 		return "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first."
 	}

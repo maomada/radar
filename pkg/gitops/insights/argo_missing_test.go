@@ -86,3 +86,36 @@ func TestMissingResourceAdviceCarriesSyncHazard(t *testing.T) {
 	}
 	t.Fatal("no missing-resource issue")
 }
+
+// A failed comparison leaves the previous comparison's resource list in
+// place; the hazard must not describe it as the current render, and must keep
+// withholding the remediation that would sync.
+func TestFailedComparisonKeepsPreviousPruneHazard(t *testing.T) {
+	app := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "argoproj.io/v1alpha1", "kind": "Application",
+		"metadata": map[string]any{"namespace": "argocd", "name": "demo"},
+		"spec": map[string]any{
+			"destination": map[string]any{"server": "https://kubernetes.default.svc", "namespace": "demo"},
+			"syncPolicy":  map[string]any{"automated": map[string]any{"prune": true}},
+		},
+		"status": map[string]any{
+			"sync":           map[string]any{"status": "Unknown"},
+			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},
+			"resources":      []any{map[string]any{"kind": "ConfigMap", "name": "settings", "namespace": "demo", "requiresPruning": true}},
+			"conditions":     []any{map[string]any{"type": "ComparisonError", "message": "Failed to load target state: revision not found"}},
+		},
+	}}
+	for _, issue := range Build(app, nil, nil).Issues {
+		if issue.Scope != ScopeOperation {
+			continue
+		}
+		if !strings.Contains(issue.Hazard, "its latest comparison failed") || strings.HasPrefix(issue.Hazard, "The render includes none") {
+			t.Fatalf("hazard = %q, want the previous-comparison wording", issue.Hazard)
+		}
+		if issue.Remediation != nil {
+			t.Fatalf("remediation offered while a sync could still prune everything: %+v", issue.Remediation)
+		}
+		return
+	}
+	t.Fatal("no operation issue")
+}

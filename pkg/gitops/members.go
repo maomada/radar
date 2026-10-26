@@ -55,7 +55,7 @@ func argoMembers(app *unstructured.Unstructured, collect bool) (list MemberList,
 		if reconciled, _, _ := unstructured.NestedString(app.Object, "status", "reconciledAt"); reconciled == "" {
 			return MemberList{}, false
 		}
-		if argoComparisonFailed(app) {
+		if ArgoComparisonFailed(app) {
 			return MemberList{}, false
 		}
 		return list, true
@@ -64,7 +64,7 @@ func argoMembers(app *unstructured.Unstructured, collect bool) (list MemberList,
 	if !isList {
 		return MemberList{}, false
 	}
-	if len(items) == 0 && argoComparisonFailed(app) {
+	if len(items) == 0 && ArgoComparisonFailed(app) {
 		return MemberList{}, false
 	}
 	if collect && len(items) > 0 {
@@ -164,12 +164,12 @@ func optionalString(v any) (string, bool) {
 	return s, ok
 }
 
-// argoComparisonFailed reports whether Argo CD's last comparison failed. A
+// ArgoComparisonFailed reports whether Argo CD's last comparison failed. A
 // failed comparison still sets reconciledAt and can leave an empty, partial
 // or previous resource list. An empty one then says nothing about what the
 // Application covers; a nonempty one is still what it recorded, though it
 // may leave objects out.
-func argoComparisonFailed(app *unstructured.Unstructured) bool {
+func ArgoComparisonFailed(app *unstructured.Unstructured) bool {
 	if status, _, _ := unstructured.NestedString(app.Object, "status", "sync", "status"); status == "Unknown" {
 		return true
 	}

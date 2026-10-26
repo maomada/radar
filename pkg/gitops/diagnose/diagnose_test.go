@@ -437,7 +437,7 @@ func TestArgoSyncHazardActionSharedTrackingIsTemporary(t *testing.T) {
 		{"Deployment/web is part of applications argocd/billing and payments", "Application payments"},
 		{"unparseable", "another Application"},
 	} {
-		got := ArgoSyncHazardAction(false, []string{tc.message})
+		got := ArgoSyncHazardAction(false, false, []string{tc.message})
 		if !strings.Contains(got, "A successful sync can take over their tracking unless it uses FailOnSharedResource=true") || !strings.Contains(got, "While "+tc.owner+" still declares them, its next successful sync can take tracking back") || !strings.Contains(got, "remove them from this Application's source before syncing") {
 			t.Errorf("must explain temporary tracking and how to leave ownership unchanged: %q", got)
 		}
@@ -459,16 +459,18 @@ func TestArgoSyncHazardAction(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		prunes   bool
+		failed   bool
 		shared   []string
 		contains string
 	}{
-		{"plain drift", false, nil, ""},
-		{"empty render", true, nil, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
-		{"empty render outranks shared", true, shared, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
-		{"shared", false, shared, "also tracked by Application live-shared-a"},
-		{"shared, owner unknown", false, []string{"unparseable"}, "also tracked by another Application"},
+		{"plain drift", false, false, nil, ""},
+		{"previous comparison only", true, true, nil, "its latest comparison failed. Fix the comparison error and refresh before syncing"},
+		{"empty render", true, false, nil, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
+		{"empty render outranks shared", true, false, shared, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
+		{"shared", false, false, shared, "also tracked by Application live-shared-a"},
+		{"shared, owner unknown", false, false, []string{"unparseable"}, "also tracked by another Application"},
 	} {
-		got := ArgoSyncHazardAction(tc.prunes, tc.shared)
+		got := ArgoSyncHazardAction(tc.prunes, tc.failed, tc.shared)
 		if tc.contains == "" {
 			if got != "" {
 				t.Errorf("%s: want no hazard, got %q", tc.name, got)

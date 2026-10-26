@@ -480,7 +480,7 @@ func argoResourceWarningProblems(app *unstructured.Unstructured, now time.Time) 
 // a sync would prune every managed resource or take resources over from
 // another Application; empty when a sync is a plain reconcile.
 func argoSyncHazardAction(app *unstructured.Unstructured) string {
-	return diagnose.ArgoSyncHazardAction(gitops.ArgoSyncPrunesEverything(app), gitops.ArgoConditionMessages(app, "SharedResourceWarning"))
+	return diagnose.ArgoSyncHazardAction(gitops.ArgoSyncPrunesEverything(app), gitops.ArgoComparisonFailed(app), gitops.ArgoConditionMessages(app, "SharedResourceWarning"))
 }
 
 func applyArgoOperationDiagnosis(d *Detection, app *unstructured.Unstructured, msg string) {
