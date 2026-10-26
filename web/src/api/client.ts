@@ -4523,11 +4523,21 @@ interface DeleteResourceResult {
   deletionTimestamp?: string;
   pendingFinalizers?: string[];
   observationError?: string;
+  outcomeUnknown?: boolean;
 }
 
-async function readDeleteResult(response: Response): Promise<DeleteResourceResult> {
+async function readDeleteResult(request: Promise<Response>): Promise<DeleteResourceResult> {
+  let response: Response;
+  try {
+    response = await request;
+  } catch (error) {
+    return { outcomeUnknown: true, observationError: String(error) };
+  }
   if (!response.ok) {
     const error = await readErrorBody(response);
+    if (response.status >= 500 || response.status === 408) {
+      return { outcomeUnknown: true, observationError: error.error || `HTTP ${response.status}` };
+    }
     throw new Error(error.error || `HTTP ${response.status}`);
   }
   const unconfirmed = { observationError: "Deletion accepted; the response did not confirm cleanup." };
@@ -4546,6 +4556,7 @@ async function readDeleteResult(response: Response): Promise<DeleteResourceResul
 }
 
 function deleteResourceNotification(result: DeleteResourceResult): { message: string; type: "info" | "success"; detail?: string } {
+  if (result.outcomeUnknown) return { message: "Deletion outcome unknown; inspect before retrying", type: "info", detail: result.observationError };
   if (result.observationError) {
     return { message: "Deletion accepted; completion unconfirmed", type: "info", detail: result.observationError };
   }
@@ -4583,10 +4594,7 @@ export function useDeleteResource() {
       if (force) {
         url.searchParams.set("force", "true");
       }
-      const response = await apiFetch(url.toString(), {
-        method: "DELETE",
-      });
-      return readDeleteResult(response);
+      return readDeleteResult(apiFetch(url.toString(), { method: "DELETE" }));
     },
     meta: {
       errorMessage: "Failed to delete resource",
@@ -4630,14 +4638,14 @@ export function useBulkDeleteResources() {
           );
           if (group) url.searchParams.set("group", group);
           if (force) url.searchParams.set("force", "true");
-          const response = await apiFetch(url.toString(), { method: "DELETE" });
-          return { kind, namespace, name, result: await readDeleteResult(response) };
+          return { kind, namespace, name, result: await readDeleteResult(apiFetch(url.toString(), { method: "DELETE" })) };
         }),
       );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length > 0) {
+        const unknown = results.filter(result => result.status === "fulfilled" && result.value.result.outcomeUnknown).length;
         throw new Error(
-          `Failed to delete ${failed.length} of ${items.length} ${items.length === 1 ? "resource" : "resources"}`,
+          `Failed to delete ${failed.length} of ${items.length} ${items.length === 1 ? "resource" : "resources"}${unknown ? `; deletion outcome unknown for ${unknown}; inspect before retrying` : ""}`,
         );
       }
       return results.flatMap((r) => r.status === "fulfilled" ? [r.value] : []);
@@ -4647,13 +4655,17 @@ export function useBulkDeleteResources() {
     },
     onSuccess: (deleted) => {
       const pending = deleted.filter(({ result }) => result.pendingFinalizers?.length);
+      const unknown = deleted.filter(({ result }) => result.outcomeUnknown);
       const unobserved = deleted.filter(({ result }) => result.observationError);
       const deleting = deleted.filter(({ result }) => result.deletionTimestamp);
       const resources = `${deleted.length} ${deleted.length === 1 ? "resource" : "resources"}`;
       let message = `${resources} deleted`;
       let type: "info" | "success" = "success";
       const unread = `completion unconfirmed for ${unobserved.length}`;
-      if (pending.length) {
+      if (unknown.length) {
+        message = `Deletion outcome unknown for ${unknown.length} ${unknown.length === 1 ? "resource" : "resources"}; inspect before retrying${pending.length ? `; ${pending.length} waiting on finalizers` : ""}`;
+        type = "info";
+      } else if (pending.length) {
         message = `Deleting — ${pending.length} ${pending.length === 1 ? "resource" : "resources"} waiting on finalizers${unobserved.length ? `; ${unread}` : ""}`;
         type = "info";
       } else if (unobserved.length) {

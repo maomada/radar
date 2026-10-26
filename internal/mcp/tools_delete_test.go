@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -454,6 +455,10 @@ func TestDeletePreviewSummaryUnknownAndNamespaceFinalizers(t *testing.T) {
 	if summary := deletePreviewSummary(obj, metav1.DeletePropagationBackground, cascade); summary != "Deletes ConfigMap demo/settings; no caller-readable dependents observed" {
 		t.Fatalf("empty observed dependents: %s", summary)
 	}
+	cascade["possibleDependentCount"] = 1
+	if summary := deletePreviewSummary(obj, metav1.DeletePropagationOrphan, cascade); !strings.Contains(summary, "will be orphaned") || strings.Contains(summary, "possible owner-reference deletions") {
+		t.Fatalf("orphan summary implies collection: %s", summary)
+	}
 }
 
 func TestDeleteResourcePreviewFinalizerFields(t *testing.T) {
@@ -679,19 +684,20 @@ func TestDeleteResourcePreservesPendingPropagation(t *testing.T) {
 	}
 }
 
-func TestDeleteResourceConflictRequiresAnotherPreview(t *testing.T) {
+func TestDeleteResourceConflictAndRequestTimeoutOutcomes(t *testing.T) {
 	setConnectedForTest(t)
 	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "u", "resourceVersion": "1", "generation": int64(5)}}}
 	dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
 	deletes := 0
+	deleteErr := apierrors.NewConflict(gvr.GroupResource(), "web", fmt.Errorf("resourceVersion changed"))
 	dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
 		opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
 		if len(opts.DryRun) > 0 {
 			return true, nil, nil
 		}
 		deletes++
-		return true, nil, apierrors.NewConflict(gvr.GroupResource(), "web", fmt.Errorf("resourceVersion changed"))
+		return true, nil, deleteErr
 	})
 	input := deleteResourceInput{Kind: "Deployment", Namespace: "demo", Name: "web"}
 	res, _, err := handleDeleteResource(context.Background(), nil, input)
@@ -703,6 +709,19 @@ func TestDeleteResourceConflictRequiresAnotherPreview(t *testing.T) {
 	_, _, err = handleDeleteResource(context.Background(), nil, input)
 	if err == nil || !apierrors.IsConflict(err) || !strings.Contains(err.Error(), "run dry_run=true again") || deletes != 1 {
 		t.Fatalf("conflict must not retry: %v, deletes=%d", err, deletes)
+	}
+	deleteErr = &apierrors.StatusError{ErrStatus: metav1.Status{Code: http.StatusRequestTimeout, Reason: metav1.StatusReasonTimeout, Message: "request timed out"}}
+	input.DryRun = nil
+	input.Confirm = ""
+	res, _, err = handleDeleteResource(context.Background(), nil, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.DryRun = ptr.To(false)
+	input.Confirm = decodeToolResult(t, res)["confirm"].(string)
+	_, _, err = handleDeleteResource(context.Background(), nil, input)
+	if err == nil || !strings.Contains(err.Error(), "deletion outcome unknown") || deletes != 2 {
+		t.Fatalf("request timeout must require inspection: %v, deletes=%d", err, deletes)
 	}
 }
 

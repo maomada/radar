@@ -18,8 +18,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-async function remove(responses: Response[], bulk: boolean, count = 1, namespace = 'shop') {
-  const fetchMock = vi.fn<typeof fetch>(async () => responses.shift()!)
+async function remove(responses: (Response | Error)[], bulk: boolean, count = 1, namespace = 'shop') {
+  const fetchMock = vi.fn<typeof fetch>(async () => {
+    const response = responses.shift()!
+    if (response instanceof Error) throw response
+    return response
+  })
   vi.stubGlobal('fetch', fetchMock)
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   let run: (() => Promise<unknown>) | undefined
@@ -63,12 +67,24 @@ for (const bulk of [false,true]) {
   expect(success).not.toHaveBeenCalled()
   expect(JSON.stringify(notice.mock.calls)).toContain('did not confirm cleanup')
  })
- for(const status of [403,409,500]) {
+ for(const status of [403,409]) {
   it(`${mode}: rejects HTTP ${status}`,async()=>{
    expect(await remove([new Response(JSON.stringify({error:'request rejected'}),{status})],bulk)).toBeInstanceOf(Error)
    expect(success).not.toHaveBeenCalled();expect(notice).not.toHaveBeenCalled()
   })
  }
+ for (const status of [408,500,502,504]) {
+  it(`${mode}: HTTP ${status} leaves deletion outcome unknown`,async()=>{
+   expect(await remove([new Response(JSON.stringify({error:'request interrupted'}),{status})],bulk)).toBeUndefined()
+   expect(success).not.toHaveBeenCalled()
+   expect(JSON.stringify(notice.mock.calls)).toContain('inspect before retrying')
+  })
+ }
+ it(`${mode}: a dropped DELETE response leaves outcome unknown`,async()=>{
+  expect(await remove([new TypeError('Failed to fetch')],bulk)).toBeUndefined()
+  expect(success).not.toHaveBeenCalled()
+  expect(JSON.stringify(notice.mock.calls)).toContain('inspect before retrying')
+ })
  for(const result of [{deletionTimestamp:'now'}, {deletionTimestamp:'now',pendingFinalizers:['example.com/hold']}, {observationError:'no get permission'}]) {
   it(`${mode}: accepted asynchronous or unconfirmed deletion stays progress`,async()=>{
    expect(await remove([new Response(JSON.stringify(result))],bulk)).toBeUndefined()
@@ -85,4 +101,11 @@ it('bulk prioritizes pending finalizers while retaining unconfirmed item details
  expect(success).not.toHaveBeenCalled()
  expect(JSON.stringify(notice.mock.calls)).toContain('waiting on finalizers')
  expect(JSON.stringify(notice.mock.calls)).toContain('read denied')
+})
+
+it('bulk rejection retains unknown-outcome guidance for another item',async()=>{
+ const failure = await remove([new Response(JSON.stringify({error:'denied'}),{status:403}),new TypeError('Failed to fetch')],true,2)
+ expect(failure).toBeInstanceOf(Error)
+ expect((failure as Error).message).toContain('deletion outcome unknown for 1; inspect before retrying')
+ expect(success).not.toHaveBeenCalled()
 })

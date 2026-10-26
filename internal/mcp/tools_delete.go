@@ -236,7 +236,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 			return nil, nil, fmt.Errorf("deletion preview failed; no deletion was persisted: %w", err)
 		}
 		var status apierrors.APIStatus
-		definitiveRejection := errors.As(err, &status) && status.Status().Code >= 400 && status.Status().Code < 500
+		definitiveRejection := errors.As(err, &status) && status.Status().Code >= 400 && status.Status().Code < 500 && status.Status().Code != http.StatusRequestTimeout
 		if !definitiveRejection {
 			audit.Outcome = "unknown"
 			return nil, nil, fmt.Errorf("deletion outcome unknown: DELETE may have been accepted; inspect the resource before retrying: %w", err)
@@ -286,9 +286,12 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 			result.Observation = &k8score.DeleteResourceResult{ObservationError: err.Error()}
 		}
 		if result.Observation.ObservationError != "" {
-			if observationCtx.Err() != nil {
+			switch {
+			case operation.Err() != nil:
+				result.Observation.ObservationError = "Deletion accepted, but the cluster connection changed before cleanup was observed: " + result.Observation.ObservationError
+			case errors.Is(observationCtx.Err(), context.DeadlineExceeded):
 				result.Observation.ObservationError = "Deletion accepted, but cleanup was not observed within the observation budget: " + result.Observation.ObservationError
-			} else {
+			default:
 				result.Observation.ObservationError = "Deletion accepted, but cleanup could not be observed because the follow-up read failed: " + result.Observation.ObservationError
 			}
 		}
@@ -444,7 +447,11 @@ func deletePreviewSummary(obj *unstructured.Unstructured, propagation metav1.Del
 		summary += fmt.Sprintf("; %s: %s (%d total, not exhaustive)", effect, strings.Join(parts, ", "), counts.Total)
 	}
 	if possible, ok := cascade["possibleDependentCount"].(int); ok && possible > 0 {
-		summary += fmt.Sprintf("; possible owner-reference deletions: %d (other owners unresolved)", possible)
+		effect := "possible owner-reference deletions"
+		if propagation == metav1.DeletePropagationOrphan {
+			effect = "possible owner-reference dependents (will be orphaned)"
+		}
+		summary += fmt.Sprintf("; %s: %d (other owners unresolved)", effect, possible)
 	}
 	if teardown, ok := cascade["controllerTeardown"].(*topology.ControllerTeardown); ok {
 		summary += fmt.Sprintf("; controller cleanup: %s %s (destination %s; inventory is not exhaustive)", teardown.Controller, teardown.Action, teardown.Destination)
