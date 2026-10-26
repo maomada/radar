@@ -15,19 +15,19 @@ interface Toast {
   dismissing?: boolean
   action?: { label: string; icon?: ReactNode; onClick: () => void }
   onDetailClick?: () => void
+  // Milliseconds before auto-dismiss; 0 keeps the toast until it is replaced
+  // or dismissed. Errors default to 10s, everything else to 7s.
+  duration?: number
+  // Bumped on every show, so a toast replaced by ID restarts its timer.
+  shown?: number
+}
+
+type ToastOptions = Omit<Toast, 'id' | 'message' | 'dismissing' | 'shown'> & {
+  id?: string
 }
 
 interface ToastContextType {
-  showToast: (message: string, options?: {
-    id?: string
-    rawDetail?: string
-    detail?: string
-    command?: string
-    type?: Toast['type']
-    position?: { x: number; y: number }
-    action?: Toast['action']
-    onDetailClick?: () => void
-  }) => void
+  showToast: (message: string, options?: ToastOptions) => void
   showCopied: (command: string, label?: string, event?: React.MouseEvent) => void
   showError: (message: string, detail?: string, rawDetail?: string) => void
   showSuccess: (message: string, detail?: string, action?: Toast['action'], onDetailClick?: () => void) => void
@@ -98,28 +98,35 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
 
   const animateDismiss = useCallback((id: string) => {
+    clearTimeout(timers.current.get(id))
     setToasts(prev => prev.map(t => t.id === id ? { ...t, dismissing: true } : t))
-    setTimeout(() => {
+    timers.current.set(id, setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
-    }, DURATION_TOAST_EXIT)
+      timers.current.delete(id)
+    }, DURATION_TOAST_EXIT))
   }, [])
 
-  const showToast = useCallback((message: string, options?: {
-    id?: string
-    rawDetail?: string
-    detail?: string
-    command?: string
-    type?: Toast['type']
-    position?: { x: number; y: number }
-    action?: Toast['action']
-    onDetailClick?: () => void
-  }) => {
-    const id = options?.id ?? Math.random().toString(36).slice(2)
-    const toast: Toast = { message, ...options, id }
+  const showSeq = useRef(0)
+  const showToast = useCallback((message: string, options?: ToastOptions) => {
+    const { id = Math.random().toString(36).slice(2), ...toastOptions } = options ?? {}
+    const toast: Toast = { id, message, ...toastOptions, shown: ++showSeq.current }
 
-    setToasts(prev => prev.some(existing => existing.id === id) ? prev : [...prev, toast])
+    clearTimeout(timers.current.get(id))
+    timers.current.delete(id)
+    setToasts(prev => prev.some(t => t.id === id)
+      ? prev.map(t => t.id === id ? toast : t)
+      : [...prev, toast])
+  }, [])
+
+  useEffect(() => {
+    const activeTimers = timers.current
+    return () => {
+      activeTimers.forEach(clearTimeout)
+      activeTimers.clear()
+    }
   }, [])
 
   const showCopied = useCallback((command: string, label?: string, event?: React.MouseEvent) => {
@@ -171,16 +178,18 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [copied, setCopied] = useState(false)
-  const remaining = useRef(toast.type === 'error' ? 10000 : 7000)
+  const duration = toast.duration ?? (toast.type === 'error' ? 10000 : 7000)
+  const remaining = useRef(duration)
+  useEffect(() => { remaining.current = duration }, [toast.shown, duration])
   useEffect(() => {
-    if (hovered || focused || detailsOpen || toast.dismissing) return
+    if (duration <= 0 || hovered || focused || detailsOpen || toast.dismissing) return
     const started = Date.now()
     const timer = setTimeout(onDismiss, remaining.current)
     return () => {
       clearTimeout(timer)
       remaining.current = Math.max(0, remaining.current - (Date.now() - started))
     }
-  }, [hovered, focused, detailsOpen, toast.dismissing, onDismiss])
+  }, [hovered, focused, detailsOpen, toast.dismissing, onDismiss, toast.shown, duration])
   // Calculate position - either near button or default to bottom-right
   const style: React.CSSProperties = toast.position
     ? {
@@ -206,6 +215,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
+      role="status"
       className={clsx(
         'flex items-start gap-3 p-4 rounded-lg shadow-2xl border backdrop-blur-sm',
         'w-[480px] max-w-[calc(100vw-32px)]',

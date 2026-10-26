@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/skyhook-io/radar/pkg/resourcecontext"
 )
 
 // ReadOnlyTools is the explicit allowlist of Radar MCP read tools an
@@ -20,7 +21,7 @@ var ReadOnlyTools = []string{
 	"list_helm_releases", "get_helm_release", "list_packages", "issues",
 	"search", "get_subject_permissions", "query_prometheus", "discover_metrics",
 	"get_prometheus_rules", "get_workload_logs", "get_cluster_upgrade_readiness",
-	"get_cost", "get_rightsizing", "wait_for",
+	"get_cost", "get_rightsizing", "wait_for", "get_runtime_versions",
 }
 
 // WriteTools are the mutating Radar MCP tools — enabled only on an apply turn
@@ -75,6 +76,8 @@ func (t Target) Label() string {
 // Issues/AuditFindings carry the top actual rows (capped) — aggregates alone
 // read as vague and starve the prompt of detail Radar already has.
 type HealthSignal struct {
+	CrossplanePause resourcecontext.CrossplanePauseState `json:"crossplanePause,omitempty"`
+
 	AuditMissingInputs []string     `json:"auditMissingInputs,omitempty"`
 	Health             string       `json:"health,omitempty"`
 	IssueCount         int          `json:"issueCount,omitempty"`
@@ -288,7 +291,7 @@ func explanationRuledOut(assessment Verdict) []string {
 // the reasoning the model must do before either. The prose story comes AFTER
 // the verdict block so the verdict is derived from the working notes rather
 // than rationalised from a story already written.
-const answerFormatInstruction = "FINAL ANSWER, three parts in this order. (1) Evidence ledger: one line per result you will cite, stating what it shows and what it does not cover, and one line per alternative cause, naming the result that contradicts it or marking it untested. Radar keeps everything before the verdict block in Activity, out of Findings. (2) The fenced ```json verdict block, consistent with the ledger: check the summary against each gap last, since it is the sentence most likely to say more than the ledger allows. (3) The story: everything after the block is what Findings shows. The summary, root_cause and story claim nothing the ledger marks as not covered: a result about one restart supports a sentence about one restart; something absent now was not necessarily never there; neighbours that restarted at similar ages suggest a shared cause and do not confirm one; words like ever, never, all and since creation need a result that shows them. Where the ledger states a limit, the story keeps it rather than restating the claim without it. "
+const answerFormatInstruction = "FINAL ANSWER, three parts in this order. (1) Evidence ledger: one line per result you will cite, stating what it shows and what it does not cover, and one line per alternative cause, naming the result that contradicts it or marking it untested. Radar keeps everything before the verdict block in Activity, out of Findings. (2) The fenced ```json verdict block, consistent with the ledger: check the summary against each gap last, since it is the sentence most likely to say more than the ledger allows. (3) The story: everything after the block is what Findings shows. The summary, root_cause and story claim nothing the ledger marks as not covered: a result about one restart supports a sentence about one restart; something absent now was not necessarily never there; a list covers only its coverage.scope, so a partial or narrowed list says nothing about what it did not read, and rows from your namespaces are not the cluster; neighbours that restarted at similar ages suggest a shared cause and do not confirm one; words like ever, never, all and since creation need a result that shows them. Where the ledger states a limit, the story keeps it rather than restating the claim without it. "
 
 func verdictContract(policy CitationPolicy) string {
 	citable := "at most 8 results from this investigation that returned data"
@@ -365,12 +368,20 @@ func healthFrame(target string, health *HealthSignal) string {
 			}
 			b.WriteString(".")
 		}
+	case health.CrossplanePause != "" && health.Health != "":
+		fmt.Fprintf(&b, "Radar records %s availability as %s, with 0 active issue rows.", target, health.Health)
 	case health.Health == "healthy":
 		fmt.Fprintf(&b, "Radar currently reports %s as healthy and flags 0 active issues.", target)
 	case health.Health != "":
 		fmt.Fprintf(&b, "Radar's resource summary currently marks %s as %s, with 0 active issue rows.", target, health.Health)
 	default:
 		fmt.Fprintf(&b, "Radar currently flags 0 active issues on %s.", target)
+	}
+	switch health.CrossplanePause {
+	case resourcecontext.CrossplanePauseRequested:
+		b.WriteString(" This resource carries the crossplane.io/paused annotation set to true; no Synced=False/ReconcilePaused acknowledgement is recorded.")
+	case resourcecontext.CrossplanePauseAcknowledged:
+		b.WriteString(" The crossplane.io/paused annotation requests a pause for this resource, corroborated by its recorded Synced=False/ReconcilePaused condition. Recorded availability is not a fresh external check while reconciliation is paused.")
 	}
 	if health.AuditCount > 0 {
 		fmt.Fprintf(&b, " Radar audit also reports %d static posture finding%s", health.AuditCount, pluralS(health.AuditCount))

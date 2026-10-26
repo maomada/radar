@@ -23,16 +23,51 @@ For **namespaced** resources, reads are authorized at **namespace granularity**:
 
 This is a deliberate tradeoff that follows from how Radar reads the cluster. Rather than calling the Kubernetes API on every request, Radar watches each resource kind once under its own ServiceAccount and serves reads from an in-memory cache shared by all users — that's what makes it fast on large clusters and able to render topology and real-time views. Because the cache is populated by Radar's identity, not yours, per-user access has to be re-derived by asking Kubernetes "is this user allowed?" via `SubjectAccessReview`. Doing that at namespace granularity is one such check per namespace; doing it per-resource-kind would be a check for *every kind in every namespace* on *every* read — many times the API-server load, and worst exactly on the large, multi-namespace clusters where the shared cache matters most. So namespace membership is the per-user filter, and per-kind checks are reserved for the cases below where the exposure is highest.
 
-Two kinds are gated more tightly, per-resource-kind, because the shared cache can hold data the user's own RBAC wouldn't grant:
+These kinds are gated more tightly, per-resource-kind, because the shared cache can hold data the user's own RBAC wouldn't grant:
 
 - **Secrets** (and Secret-derived data such as TLS certificate metadata) — shown only if the user can list Secrets in that namespace.
+- **Roles, RoleBindings and LimitRanges** — lists, detail pages, counts, search and MCP reads require the caller’s exact permission on that kind in the namespace (`list` for inventories, `get` for a single object).
+- **Trivy Operator reports** (the `aquasecurity.github.io` group: VulnerabilityReports, ExposedSecretReports, ConfigAuditReports, SbomReports and the rest): shown only if the user can list that report kind in that namespace, and across all namespaces at once only with a cluster-wide grant. An ExposedSecretReport holds the secret Trivy found in an image, so reports are treated like Secrets in lists, detail pages, counts, search and the MCP tools.
 - **Cluster-scoped resources** (Nodes, PersistentVolumes, ClusterRoles, cluster-scoped CRDs, etc.) — shown only if the user's RBAC permits listing that kind.
 
-Issues follow the same rule: you see an issue only if you could open its resource. A namespaced resource needs namespace access, a Secret also needs Secret access, and a cluster-scoped resource needs list on its kind. A cluster-scoped resource's issues are composed across namespaces, so a Node's issues can draw on Pods anywhere, but only rows from namespaces you can access feed them: another namespace's Pods never appear among its members or in its blast radius. Issues roll up to a resource's owner, such as a Pod's Deployment, only if you could open the owner; otherwise the issue stays on the resource. A finding drawn from a Secret's history reaches you without that history if you can't read the Secret: a Pod still running with environment values from a Secret that changed is flagged, with the restart it needs, but not which Secret or keys changed, or when. A finding that something your resource names does not exist (an Ingress's TLS Secret or IngressClass, a PVC's StorageClass, a RoleBinding's ClusterRole) is shown with namespace access: it says only that a name you can already read is missing, and Kubernetes reports a missing StorageClass in the PVC's events too. The Home dashboard's problem list and the MCP tools follow the same rules. The per-resource Issues view says when something was withheld, rather than showing an empty list as "none".
+Issues follow the same rule: you see an issue only if you could open its resource. A namespaced resource needs namespace access, the tightly gated namespaced kinds above also need exact kind access, and a cluster-scoped resource needs list on its kind. A cluster-scoped resource's issues are composed across namespaces, so a Node's issues can draw on Pods anywhere, but only rows from namespaces you can access feed them: another namespace's Pods never appear among its members or in its blast radius. Issues roll up to a resource's owner, such as a Pod's Deployment, only if you could open the owner; otherwise the issue stays on the resource. A finding drawn from a Secret's history reaches you without that history if you can't read the Secret: a Pod still running with environment values from a Secret that changed is flagged, with the restart it needs, but not which Secret or keys changed, or when. A finding that something your resource names does not exist (an Ingress's TLS Secret or IngressClass, a PVC's StorageClass, a RoleBinding's ClusterRole) is shown with namespace access: it says only that a name you can already read is missing, and Kubernetes reports a missing StorageClass in the PVC's events too. The Home dashboard's problem list and the MCP tools follow the same rules. The per-resource Issues view says when something was withheld, rather than showing an empty list as "none".
+
+Search uses the same exact list permissions as resource reads for Secrets, Roles, RoleBindings, LimitRanges and Trivy reports. Ordinary namespaced kinds, including ServiceAccounts, NetworkPolicies, ResourceQuotas and dynamic CRDs, use namespace visibility, as resource lists do. Sensitive-kind checks try a cluster-wide SAR first and fan out over visible namespaces only after a denial. Your own access is the scope of a search, so its coverage response reports a denial only for a kind or namespace the query names, keeping caller denial, failed permission checks and collector limitations apart; see [Search coverage](mcp.md#search-coverage-and-cel-object-filters).
 
 **If namespace-level isn't tight enough for you**, scope the boundary at the cache instead of at read time: run a Radar instance per trust boundary and give each one a **namespace-scoped ServiceAccount** (a `Role`/`RoleBinding`, no `ClusterRole`) limited to that boundary's namespaces. Radar detects the restricted permissions at startup and only watches and caches what its ServiceAccount can list — so the instance simply never holds another team's data, and there's nothing to over-expose. Point each team at their own instance (an ingress or auth proxy can route them). See [In-Cluster Deployment → namespace-scoped RBAC](in-cluster.md) for the `rbac.create: false` + custom `Role` setup.
 
-Deletion-impact previews require read access to the root resource and use the caller's visible topology. Related resources describe observed management relationships, not a guarantee of Kubernetes garbage collection. Policy coverage metadata is filtered alongside its referenced workloads; it does not reveal names from hidden namespaces.
+Deletion-impact previews fetch the root as the caller and use caller-readable ownership data. Permission and collection gaps make the result partial; remote or unknown GitOps destinations expose no local inventory. See [Shared deletion preview](mcp.md#shared-deletion-preview). Policy coverage metadata is filtered alongside its referenced workloads; it does not reveal names from hidden namespaces.
+
+### Image inspection
+
+Authenticated requests (proxy, OIDC, or Radar Cloud) to `/api/images/metadata`,
+`/api/images/inspect`, and `/api/images/file` must name a `pod` and `namespace`
+(400 otherwise), so Radar only contacts the registry of an image a Pod runs. The
+caller must have `get pods` in that namespace, and the image must match a
+regular, init, or ephemeral container's spec image or status imageID digest reference.
+Authorization failures deny access; an unavailable authorization check returns 503.
+Registry credentials come from that Pod's `spec.imagePullSecrets`, each used only
+if the caller can `get` that exact Secret or `create pods/exec` in the namespace.
+Radar's own registry credentials (its Docker config and Google application default
+credentials) are used only for callers with `create pods/exec`, and only to fetch
+the digest the kubelet recorded as pulled for one of the Pod's containers. This
+covers images pulled with the node's cloud identity and no pull secret, such as
+Artifact Registry on GKE. Denied or non-authoritative checks drop the credential,
+with anonymous fallback. The `pullSecrets` query parameter and ServiceAccount pull
+secrets are ignored. Every registry request, including redirects and token
+endpoints, is checked before Radar connects: link-local addresses (cloud metadata)
+are refused, and loopback is refused in-cluster (locally it is allowed only for the
+registry the Pod's image names). Private addresses are allowed, because self-hosted
+registries often serve tokens or layers from a second internal host. Credentials
+are sent only over HTTPS, as the node's container runtime does by default; a
+registry that needs credentials over plain HTTP can't be inspected. Behind an HTTP
+proxy, a request Radar can't pin to an address it has checked is refused rather
+than left to the proxy. A refused request returns 403. Downloaded layers are cached
+for a few minutes and shared by all users, keyed by the image's repository and
+digest, so a cached image is only served after the caller has read its manifest
+from that same repository.
+Without an authenticated user, local image inspection keeps its existing
+credential discovery and network behavior.
 
 ### Prometheus metrics
 

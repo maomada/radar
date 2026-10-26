@@ -67,25 +67,8 @@ func main() {
 	// `-X main.version=...`; mirror it here rather than adding a second
 	// ldflags target so there's a single source of truth.
 	cloud.Version = version
-
-	// The in-cluster reachability probe Job runs the version-matched published
-	// Radar image by default (overridable via --reachability-image / RADAR_IMAGE).
-	// The flag override is applied just after it is parsed (see below) so BOTH the
-	// REST handler and the MCP diagnose(inCluster) path resolve the same image.
-	reachability.DefaultImageRef = "ghcr.io/skyhook-io/radar:" + version
-	// A dev build's git-describe version ("1.10.3-78-gabc123", "dev") is never a
-	// published image tag, so its version-matched default ImagePullBackOffs on
-	// every in-cluster test. Fall back to the latest published release instead -
-	// only for dev-shaped versions; a released binary keeps its exact match.
-	// The release-only lookup is cached and cheap relative to the probe run it precedes.
-	if !versionpkg.IsReleaseVersion(version) {
-		reachability.LatestReleaseImage = func() string {
-			if u := versionpkg.CheckForUpdateRelease(context.Background()); u != nil && u.LatestVersion != "" {
-				return "ghcr.io/skyhook-io/radar:" + u.LatestVersion
-			}
-			return ""
-		}
-	}
+	versionpkg.SetCurrent(version)
+	configureReachabilityImages()
 
 	// `radar cloud <sub>` — the one subcommand family, dispatched before flag
 	// parsing. Supported subcommands handle themselves and exit; the reserved
@@ -112,13 +95,14 @@ func main() {
 	trustedOrigins := flag.String("trusted-origins", os.Getenv("RADAR_TRUSTED_ORIGINS"), "Comma-separated origins, besides the address Radar is opened at, that may use Radar's API, including changes and terminals (e.g. http://radar.internal). Set this when a proxy in front of Radar rewrites the Host header and changes fail with \"Radar refused this request\". Exact origins only, no wildcards. Does not apply to /mcp (see RADAR_MCP_TRUSTED_ORIGINS). Env: RADAR_TRUSTED_ORIGINS")
 	noBrowser := flag.Bool("no-browser", fileCfg.NoBrowser, "Don't auto-open browser")
 	browser := flag.String("browser", fileCfg.Browser, "Browser to use when opening the UI (default: OS default browser; macOS app names supported)")
+	noVersionCheck := flag.Bool("no-version-check", fileCfg.NoVersionCheck, "Disable automatic checks for newer Radar versions and releases (also enabled via RADAR_DISABLE_VERSION_CHECK=1)")
 	devMode := flag.Bool("dev", false, "Development mode (serve frontend from filesystem)")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	historyLimit := flag.Int("history-limit", fileCfg.HistoryLimitOr(10000), "Maximum number of events to retain in timeline")
 	debugEvents := flag.Bool("debug-events", false, "Enable verbose event debugging (logs all event drops)")
 	fakeInCluster := flag.Bool("fake-in-cluster", false, "Simulate in-cluster mode for testing (shows kubectl copy buttons instead of port-forward)")
 	disableHelmWrite := flag.Bool("disable-helm-write", false, "Simulate restricted Helm permissions (disables install/upgrade/rollback/uninstall)")
-	disableExec := flag.Bool("disable-exec", false, "Simulate restricted exec permissions (disables terminal, debug shell)")
+	disableExec := flag.Bool("disable-exec", false, "Disable pod exec: terminal, debug shells and pod file browsing")
 	disableLocalTerminal := flag.Bool("disable-local-terminal", false, "Disable the host local terminal")
 	podShellDefault := flag.String("pod-shell-default", "", "Override the default pod exec shell command (runs as 'sh -c <value>'; empty = built-in bash -il → ash → sh cascade)")
 	debugImage := flag.String("debug-image", fileCfg.DebugImage, "Image for ephemeral debug containers and node debug pods (empty = busybox:latest; point at a mirror for air-gapped/private-registry clusters)")
@@ -196,7 +180,12 @@ func main() {
 	// the token from a Secret without exposing it in `ps` output.
 	cloudURL := flag.String("cloud-url", os.Getenv("RADAR_CLOUD_URL"), "Radar Hub WebSocket URL (e.g. wss://api.radarhq.io/agent) — empty = local-only. Env: RADAR_CLOUD_URL")
 	cloudToken := flag.String("cloud-token", os.Getenv("RADAR_CLOUD_TOKEN"), "Connection token from the Radar install flow (rhc_<random>). Env: RADAR_CLOUD_TOKEN")
-	cloudClusterName := flag.String("cluster-name", os.Getenv("RADAR_CLOUD_CLUSTER_NAME"), "Human-readable cluster name shown in Radar (required with --cloud-url). Env: RADAR_CLOUD_CLUSTER_NAME")
+	cloudClusterName := flag.String("cluster-name", os.Getenv("RADAR_CLOUD_CLUSTER_NAME"), "Human-readable cluster name shown in Radar (required with --cloud-url). With an enrollment key it is the exact name, and Radar picks one when it is empty. Env: RADAR_CLOUD_CLUSTER_NAME")
+	cloudHubURL := flag.String("cloud-hub-url", os.Getenv("RADAR_CLOUD_HUB_URL"), "Radar Hub https:// address to join with an enrollment key. Replaces --cloud-url when --cloud-enrollment-key-file is set. Env: RADAR_CLOUD_HUB_URL")
+	cloudEnrollmentKeyFile := flag.String("cloud-enrollment-key-file", os.Getenv("RADAR_CLOUD_ENROLLMENT_KEY_FILE"), "File holding a Radar Hub enrollment key (rhe_...). Radar joins the Hub with it on every start. Ignored when --cloud-token is set. Env: RADAR_CLOUD_ENROLLMENT_KEY_FILE")
+	cloudCAFile := flag.String("cloud-ca-file", os.Getenv("RADAR_CLOUD_CA_FILE"), "With an enrollment key: PEM file of extra CA certificates to trust for the Radar Hub, read once at startup. Env: RADAR_CLOUD_CA_FILE")
+	clusterNamePrefix := flag.String("cluster-name-prefix", os.Getenv("RADAR_CLUSTER_NAME_PREFIX"), "With an enrollment key: text put before the cluster name Radar picks. Ignored when --cluster-name is set. Env: RADAR_CLUSTER_NAME_PREFIX")
+	clusterNameSuffix := flag.String("cluster-name-suffix", os.Getenv("RADAR_CLUSTER_NAME_SUFFIX"), "With an enrollment key: text put after the cluster name Radar picks. Ignored when --cluster-name is set. Env: RADAR_CLUSTER_NAME_SUFFIX")
 	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("RADAR_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Skip TLS verification on the Radar Hub tunnel — for trials against a Radar Cloud Self-Managed control plane with a self-signed cert (insecure: encrypted but not authenticated). Env: RADAR_CLOUD_INSECURE_SKIP_VERIFY")
 	k8sCredentials := flag.String("auth-k8s-credentials", os.Getenv("RADAR_AUTH_K8S_CREDENTIALS"), "How Radar authenticates the Kubernetes calls it makes for a user: impersonate (default; Radar's ServiceAccount impersonates the user) or user-token (the user's own token, received with each request through the Radar Cloud tunnel; no impersonation). user-token requires RADAR_CLOUD_MODE and a verified tunnel. Env: RADAR_AUTH_K8S_CREDENTIALS")
 	// Tunable deadlines for slow / high-latency / SSH-tunneled clusters.
@@ -209,6 +198,9 @@ func main() {
 	namespaceListTimeout := flag.Duration("namespace-list-timeout", k8s.EnvDurationOr("RADAR_NAMESPACE_LIST_TIMEOUT", 5*time.Second), "Timeout for the cluster-wide namespace LIST used to decide if the user is RBAC-namespace-restricted (default: 5s). Widen to 30s or more on slow control planes — a timeout here is misreported in the UI as 'Limited list — RBAC'. Env: RADAR_NAMESPACE_LIST_TIMEOUT")
 	maxScopeCandidates := flag.Int("max-scope-candidates", k8s.EnvIntOr("RADAR_MAX_SCOPE_CANDIDATES", 20), "Cap on the namespace-fallback probe fanout for users who can list namespaces cluster-wide but not list a specific kind cluster-wide (default: 20). Raise for clusters with more than 20 namespaces to avoid silently marking kinds as denied in dropped namespaces. Env: RADAR_MAX_SCOPE_CANDIDATES")
 	flag.Parse()
+	if *noVersionCheck {
+		versionpkg.SetDisabled(true)
+	}
 	if *workloadSingleCluster || len(workloadClusterLabels) > 0 {
 		if _, err := (prom.WorkloadMetricsScope{SingleCluster: *workloadSingleCluster, ClusterLabels: workloadClusterLabels}).Matchers(); err != nil {
 			log.Fatalf("Invalid workload metrics scope: %v", err)
@@ -237,6 +229,27 @@ func main() {
 	// other site that reads RADAR_CLOUD_MODE. The resolved mode is included
 	// in both the preflight line (so early failures retain it) and the startup
 	// summary after the HTTP listener binds.
+	cloudStart, err := resolveCloudStartup(cloudStartupFlags{
+		CloudURL:           *cloudURL,
+		Token:              *cloudToken,
+		ClusterName:        *cloudClusterName,
+		InsecureSkipVerify: *cloudInsecureSkipVerify,
+		HubURL:             *cloudHubURL,
+		EnrollmentKeyFile:  *cloudEnrollmentKeyFile,
+		CAFile:             *cloudCAFile,
+		NamePrefix:         *clusterNamePrefix,
+		NameSuffix:         *clusterNameSuffix,
+		PodNamespace:       os.Getenv("MY_POD_NAMESPACE"),
+		HelmRelease:        os.Getenv("RADAR_HELM_RELEASE"),
+	})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for _, warning := range cloudStart.warnings {
+		log.Printf("[cloud] WARNING: %s", warning)
+	}
+	cloudTunnelConfigured := cloudStart.mode != cloudOff
+
 	cloudMode := cloud.Mode()
 	if cloudMode {
 		if *authMode != "none" && *authMode != "proxy" {
@@ -257,7 +270,9 @@ func main() {
 		if !cloudMode {
 			log.Fatalf("--auth-k8s-credentials=user-token requires RADAR_CLOUD_MODE=true: the token arrives only through the Radar Cloud tunnel")
 		}
-		if *cloudInsecureSkipVerify || cloud.ValidateWebSocketURL(*cloudURL) != nil {
+		// Enrollment mode already refused an insecure or plaintext Hub URL,
+		// and the agent address the Hub returns is checked the same way.
+		if cloudStart.mode != cloudEnrollMode && (*cloudInsecureSkipVerify || cloud.ValidateWebSocketURL(*cloudURL) != nil) {
 			log.Fatalf("--auth-k8s-credentials=user-token needs a verified tunnel (wss:// without --cloud-insecure-skip-verify; ws:// only to loopback): user tokens travel over it")
 		}
 		log.Printf("[auth] Kubernetes credentials: user-token (no impersonation)")
@@ -306,8 +321,8 @@ func main() {
 	// would 404 both. Fail loudly instead of coming up broken. Both Cloud
 	// signals are checked because the chart sets them together but they are
 	// independent inputs, and either one alone is enough to break the prefix.
-	if normalizedBasePath != "" && (*cloudURL != "" || cloud.Mode()) {
-		log.Fatalf("--base-path is not supported in Radar Cloud mode (--cloud-url / RADAR_CLOUD_MODE): Radar Cloud owns the URL path")
+	if normalizedBasePath != "" && (*cloudURL != "" || cloudTunnelConfigured || cloud.Mode()) {
+		log.Fatalf("--base-path is not supported in Radar Cloud mode (--cloud-url / --cloud-enrollment-key-file / RADAR_CLOUD_MODE): Radar Cloud owns the URL path")
 	}
 	timelineMaxSizeBytes, err := config.ParseByteSize(*timelineMaxSize)
 	if err != nil {
@@ -339,6 +354,10 @@ func main() {
 			prometheusURLFlagSet = true
 		}
 	})
+	enablePprof, err := config.PprofOverrideFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
 	mcpMode, err := mcpFlags.Resolve()
 	if err != nil {
 		log.Fatal(err)
@@ -400,6 +419,7 @@ func main() {
 		NoBrowser:                   *noBrowser,
 		Browser:                     *browser,
 		DevMode:                     *devMode,
+		EnablePprof:                 enablePprof,
 		HistoryLimit:                *historyLimit,
 		DebugEvents:                 *debugEvents,
 		FakeInCluster:               *fakeInCluster,
@@ -441,7 +461,7 @@ func main() {
 		Version:                     version,
 		HubAPIURL:                   hubAPIURL,
 		HubAppURL:                   hubAppURL,
-		CloudTunnelConfigured:       *cloudURL != "",
+		CloudTunnelConfigured:       cloudTunnelConfigured,
 		AuthConfig: auth.Config{
 			Mode:                      *authMode,
 			TokenReviewer:             k8s.ReviewUserToken,
@@ -565,13 +585,9 @@ func main() {
 	app.InitializeCluster()
 	k8s.LogTiming(" Total startup (to connected): %v", time.Since(startupStart))
 
-	// When --cloud-url is set, dial out to Radar Hub and serve the
-	// existing router over yamux-tunneled streams. No behavior change
-	// when empty.
-	if *cloudURL != "" {
-		if *cloudToken == "" || *cloudClusterName == "" {
-			log.Fatalf("--cloud-url requires --cloud-token and --cluster-name")
-		}
+	// With a Hub configured, dial out to it and serve the existing router
+	// over yamux-tunneled streams. No behavior change when none is.
+	if cloudStart.mode != cloudOff {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -590,11 +606,7 @@ func main() {
 			namespace := os.Getenv("MY_POD_NAMESPACE")
 			deploymentName := os.Getenv("MY_DEPLOYMENT_NAME")
 			helmRelease := os.Getenv("RADAR_HELM_RELEASE")
-			runErr := cloud.Run(rootCtx, cloud.Config{
-				URL:                *cloudURL,
-				Token:              *cloudToken,
-				ClusterID:          *cloudClusterName,
-				ClusterName:        *cloudClusterName,
+			tunnel := cloud.Config{
 				Namespace:          namespace,
 				Release:            helmRelease,
 				APIServerURL:       apiServerURL,
@@ -607,7 +619,32 @@ func main() {
 				// only the image, leaving an older pod template in place.
 				SelfUpgradeAvailable: func() bool { return canSelfUpgrade(rootCtx, k8s.GetClient(), namespace, deploymentName) },
 				Handler:              srv.Handler(),
-			})
+			}
+			var runErr error
+			if cloudStart.mode == cloudEnrollMode {
+				kc := k8s.GetClient()
+				if kc == nil {
+					log.Printf("[cloud] cannot join the Hub: no Kubernetes client, so this cluster's identity cannot be read")
+					return
+				}
+				runErr = cloud.RunEnrollment(rootCtx, cloud.EnrollmentConfig{
+					HubOrigin: cloudStart.hubOrigin,
+					KeyFile:   *cloudEnrollmentKeyFile,
+					CA:        cloudStart.ca,
+					Client:    kc,
+					Namespace: namespace,
+					Release:   helmRelease,
+					Names:     cloudStart.names,
+					Facts:     enrollmentFacts,
+					Tunnel:    tunnel,
+				})
+			} else {
+				tunnel.URL = *cloudURL
+				tunnel.Token = *cloudToken
+				tunnel.ClusterID = *cloudClusterName
+				tunnel.ClusterName = *cloudClusterName
+				runErr = cloud.Run(rootCtx, tunnel)
+			}
 			if runErr != nil && !errors.Is(runErr, context.Canceled) {
 				log.Printf("[cloud] tunnel exited: %v", runErr)
 			}

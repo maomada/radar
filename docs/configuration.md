@@ -66,6 +66,30 @@ listener must be reachable through a published container port or Kubernetes
 Service. Desktop Radar and temporary `radar diagnose` servers remain
 loopback-only.
 
+## Profiling
+
+Radar keeps `/debug/pprof/*` available by default on loopback-only listeners
+and when Radar authentication is enabled, so memory, goroutine, and CPU profiles
+can be collected from a troubled process without restarting it. Authenticated
+installations require sign-in to access these process-wide diagnostics and
+refuse `/debug/pprof/cmdline`, because command-line arguments can contain
+credentials shared users must not see.
+
+Profiling defaults off on unauthenticated shared listeners, including the
+default Docker and non-authenticated Helm deployments. This applies in `--dev`
+mode too. Both CLI and Desktop accept `RADAR_PPROF=true` / `false` (or `1` / `0`)
+to override the default for troubleshooting. An unset or empty environment value
+preserves the automatic default. The automatic policy covers normal use; the
+environment override keeps occasional profiling adjustments out of the CLI flag
+surface.
+
+Cloud mode continues to omit these routes even with an explicit opt-in.
+Profiling exposes process information, including command-line arguments and
+goroutine stacks, and active collection has overhead. Heap profiles describe
+allocation sites and sizes; they are not raw dumps of cached resource contents.
+The diagnostics overlay and generated bug reports use `/api/diagnostics`,
+which remains available independently of profiling.
+
 ## Desktop Window Behavior
 
 On macOS, closing the Radar window hides the app rather than quitting it. The
@@ -159,6 +183,7 @@ below describe that installation-scoped behavior.
   "namespaces": [],
   "port": 9280,
   "noBrowser": false,
+  "noVersionCheck": false,
   "browser": "",
   "timelineStorage": "memory",
   "timelineDbPath": "~/.radar/timeline.db",
@@ -187,6 +212,7 @@ All fields are optional — omitted fields use built-in defaults.
 | `namespaces` | Initial namespace filters as a list (same as `--namespaces ns1,ns2,ns3`) |
 | `port` | Server port (default 9280) |
 | `noBrowser` | Don't auto-open browser |
+| `noVersionCheck` | Disable automatic version checks; Desktop's manual Check for Updates remains available |
 | `browser` | Browser for automatic launch (same as `--browser`; on macOS, app names like `Google Chrome` are supported) |
 | `timelineStorage` | `memory`, `sqlite`, or `postgres` |
 | `timelineDbPath` | Path to SQLite database (sqlite only) |
@@ -744,6 +770,34 @@ freshness; the existing scan memo can lag evidence changes by up to five seconds
 The per-resource audit endpoint remains a findings array and has no completeness
 metadata. Use the scan response or AI resource context when that distinction matters.
 
+### Resource budget checks
+
+Missing CPU/memory request and limit checks recognize both container resources
+and shared Pod budgets in `spec.resources` (or the workload's Pod template).
+Regular containers and restartable init sidecars are checked; one-shot init
+containers are excluded from these efficiency checks.
+
+For standalone Pods with no owner references, Radar reads the stored, admitted
+specification. Owned Pods are not checked directly by these efficiency checks.
+For workload
+templates, it considers request-from-limit defaulting, namespace LimitRanges,
+and possible shared-budget admission behavior. When those possibilities disagree,
+Radar leaves the affected evaluation unknown rather than reporting a certain
+pass or failure. Scan-level `missingInputs` includes `pod-resource-defaulting`
+when this uncertainty prevents an evaluation. These are configuration checks,
+not measurements of actual consumption. If LimitRanges cannot be listed,
+workload-template efficiency checks are skipped and `missingInputs` includes
+`limitranges`.
+
+### Per-resource check suppression
+
+Add `radarhq.io/ignore-checks` with comma-separated check IDs to the resource
+named in a finding, for example `singleReplica,hostNetwork`. For workload
+Pod-spec findings, put the annotation on the Deployment or other owning workload,
+not only on its generated Pods. Unknown check IDs have no effect. The annotation
+travels with the manifest and suppresses the matching findings for every Radar
+reading it; it does not disable those checks for other resources.
+
 ### Storage review checks
 
 Three snapshot checks in **Efficiency**, at **Medium** posture priority
@@ -830,11 +884,31 @@ request, all to Skyhook, none containing your resources, logs or events:
 - **Update check** — to `releases.skyhook.io`, with the Radar version, OS/arch,
   install method, whether it is running locally or in-cluster, and the
   installation timestamp when Radar can determine it. Radar caches the release
-  result for one hour. Development builds are excluded.
+  result for one hour. Development builds skip the browser relay and use
+  release-only lookups when fetching release metadata.
 - **[Anonymous usage stats](usage-stats.md)**: once a day, strictly opt-in.
 - **Cloud dialog copy** — only when you *open* the Cloud dialog, to fetch the
   current terms shown in it. No identifiers are sent. `RADAR_CLOUD_FUNNEL=off`
   stops this request from ever happening.
+
+Disable automatic version checks with `--no-version-check`,
+`RADAR_DISABLE_VERSION_CHECK=1` (or `true`), or `"noVersionCheck": true` in
+`~/.radar/config.json`. The config setting works for both CLI and Desktop,
+including Desktop launched from Finder or the Dock. These controls stop both
+automatic release lookups and the in-cluster browser relay. Desktop's Help >
+Check for Updates remains available and makes one fresh lookup when clicked,
+including when automatic checks are disabled. It reports an available update,
+an up-to-date installation or a lookup failure, and leaves the automatic-check
+setting unchanged. `DO_NOT_TRACK` does not
+change version checks; [usage stats](usage-stats.md) are controlled separately.
+
+For Helm deployments, use the chart's existing environment-variable support:
+
+```yaml
+env:
+  - name: RADAR_DISABLE_VERSION_CHECK
+    value: "1"
+```
 
 A standalone Radar sends your cluster's data nowhere: it talks to your
 Kubernetes API directly and keeps everything it reads on your machine.

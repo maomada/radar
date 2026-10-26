@@ -296,6 +296,7 @@ function useActionsBarProps(
   cascadeEnabled: boolean,
   nodeUID: string,
 ) {
+  const [deletePreviewOpen, setDeletePreviewOpen] = useState(false)
   const { showCopied } = useToast()
   const { features } = useCapabilitiesContext()
   const openTerminal = useOpenTerminal()
@@ -361,14 +362,14 @@ function useActionsBarProps(
 
   const {
     data: cascadePreview,
-    isLoading: cascadeLoading,
+    isFetching: cascadeLoading,
     isError: cascadeError,
   } = useCascadeDeletePreview(
     kind,
     namespace,
     name,
     group,
-    cascadeEnabled,
+    cascadeEnabled && deletePreviewOpen,
   )
 
   const canNodeWrite = useCanNodeWrite()
@@ -407,6 +408,8 @@ function useActionsBarProps(
       callbacks?: { onSuccess?: () => void },
     ) => deleteMutation.mutate(params, { onSuccess: callbacks?.onSuccess }),
     isDeleting: deleteMutation.isPending,
+    onDeletePreviewOpenChange: setDeletePreviewOpen,
+    cascadeDetail: cascadePreview,
     cascadeDependents: cascadePreview?.dependents,
     cascadeLoading,
     cascadeRootResolved: cascadePreview?.rootResolved,
@@ -819,6 +822,11 @@ export function WorkloadView({
   const liveIssues = useCronJobCoverage ? cronJobIssues.data?.issues : ordinaryIssues.data
   const issuesPending = useCronJobCoverage ? cronJobIssues.isPending : ordinaryIssues.isPending
   const schedulingEvidence = cronJobIssues.data?.scheduling_report?.uid === resource?.metadata?.uid ? cronJobIssues.data?.scheduling_report : undefined
+  const [schedulingTimelineFocus, setSchedulingTimelineFocus] = useState<{ uid: string; id: string }>()
+  const viewSchedulingReport = useCallback(() => {
+    setSchedulingTimelineFocus(schedulingEvidence?.event_id ? { uid: schedulingEvidence.uid, id: schedulingEvidence.event_id } : undefined)
+    handleTabChange('timeline')
+  }, [schedulingEvidence, handleTabChange])
   const { data: auditFindings } = useResourceAudit(apiKind, namespace, name, effectiveGroup)
   const hasOperationalIssues = Boolean(liveIssues?.length)
   const {
@@ -1165,6 +1173,7 @@ export function WorkloadView({
         refetch={refetchResourceAndRuns}
         // Timeline
         allEvents={allEvents}
+        timelineFocusEvent={schedulingTimelineFocus?.uid === resource?.metadata?.uid ? schedulingTimelineFocus : undefined}
         historyTruncated={!historyFallback && historyTruncated}
         onLoadOlderHistory={historyFallback ? undefined : loadOlderHistory}
         loadingOlderHistory={!historyFallback && loadingOlderHistory}
@@ -1301,10 +1310,10 @@ export function WorkloadView({
         }}
         renderOverviewLead={() => (
           <div className="flex flex-col gap-4">
-          <CronJobSchedulingContext evidence={schedulingEvidence} onViewTimeline={() => handleTabChange('timeline')} />
+          <CronJobSchedulingContext evidence={schedulingEvidence} onViewTimeline={viewSchedulingReport} />
           <ResourceIssuesSection
             issues={liveIssues}
-            renderDetailSection={schedulingEvidence?.state === 'reported' ? ({ issue }) => issue.kind === 'CronJob' && issue.reason === schedulingEvidence.reason ? <CronJobSchedulingDetails evidence={schedulingEvidence} onViewTimeline={() => handleTabChange('timeline')} /> : null : undefined}
+            renderDetailSection={schedulingEvidence?.state === 'reported' ? ({ issue }) => issue.kind === 'CronJob' && issue.reason === schedulingEvidence.reason ? <CronJobSchedulingDetails evidence={schedulingEvidence} onViewTimeline={viewSchedulingReport} /> : null : undefined}
             compact={!expanded}
             subjectResource={{ kind: apiKind, namespace, name, group: rest.group }}
             onResourceClick={
@@ -1324,7 +1333,9 @@ export function WorkloadView({
         hasOverviewLead={hasOperationalIssues || Boolean(schedulingEvidence && schedulingEvidence.state !== 'reported')}
         hasOperationalIssues={hasOperationalIssues}
         operationalIssuesPending={issuesPending}
-        onOpenGitOpsResource={gitopsOwnerObject ? handleOpenGitOpsResource : undefined}
+        // A manager answer's chip links only managers the server found; a
+        // disagreement has no lead, so no owner object, but its managers link.
+        onOpenGitOpsResource={gitopsOwnerObject || relationships?.ownership?.manager ? handleOpenGitOpsResource : undefined}
         resolvedGitOpsOwner={gitopsOwner}
         gitOpsOwnerVerified={gitOpsOwnerVerified}
         gitOpsOwnerPending={gitOpsOwnerPending}
