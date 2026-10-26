@@ -1,3 +1,4 @@
+import { getGitOpsTool } from '@skyhook-io/k8s-ui'
 import { gitOpsDenialMessage, type GitOpsPermission } from '@skyhook-io/k8s-ui/utils/gitops-permissions'
 import type { ErrorBody } from './httpErrors'
 import type { RadarFeatureSupport } from './radarFeatures'
@@ -18,7 +19,7 @@ export interface GitOpsActionCapabilities {
 export const GITOPS_ACTION_KINDS = ['applications', 'gitrepositories', 'ocirepositories', 'helmrepositories', 'kustomizations', 'helmreleases', 'alerts']
 
 export function isGitOpsActionTarget(kind: string, group: string | undefined): boolean {
-  return GITOPS_ACTION_KINDS.includes(kind) && (kind === 'applications' ? group === 'argoproj.io' : !!group?.endsWith('.toolkit.fluxcd.io'))
+  return GITOPS_ACTION_KINDS.includes(kind) && getGitOpsTool(kind, group) !== null
 }
 
 function denialFromBody(body: ErrorBody): GitOpsPermission {

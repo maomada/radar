@@ -458,7 +458,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   const [helmValuesOpen, setHelmValuesOpen] = useState(false)
 
   const { data: capabilities } = useCapabilities()
-  const { permissions: actionPermissions, disabledReasons: actionDisabledReasons } = useGitOpsActionCapabilities(kind, group, namespace, name)
+  const { permissions: actionPermissions, disabledReasons: actionDisabledReasons } = useGitOpsActionCapabilities(kind, effectiveGroup, namespace, name)
   const argoSync = useArgoSync()
   const argoResourceValidation = useArgoResourceValidation()
   const argoRefresh = useArgoRefresh()

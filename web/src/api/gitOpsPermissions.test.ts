@@ -11,6 +11,11 @@ describe('GitOps action permission states', () => {
     expect(isGitOpsActionTarget('applications', 'app.k8s.io')).toBe(false)
     expect(isGitOpsActionTarget('applications', 'argoproj.io')).toBe(true)
     expect(isGitOpsActionTarget('kustomizations', 'kustomize.toolkit.fluxcd.io')).toBe(true)
+    // The capability endpoint resolves the controller kind, so a lookalike group must not probe it.
+    expect(isGitOpsActionTarget('kustomizations', 'vendor.kustomize.toolkit.fluxcd.io')).toBe(false)
+    expect(isGitOpsActionTarget('kustomizations', 'source.toolkit.fluxcd.io')).toBe(false)
+    expect(isGitOpsActionTarget('helmreleases', 'source.toolkit.fluxcd.io')).toBe(false)
+    expect(isGitOpsActionTarget('alerts', 'notification.toolkit.fluxcd.io')).toBe(true)
   })
   it('retains known permissions during errors and treats review uncertainty as unknown', () => {
     const data = { actions: { sync: { allowed: true }, refresh: { reason: "Couldn't check your permissions — retrying" } } }
