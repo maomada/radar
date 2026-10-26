@@ -9,7 +9,7 @@ import { DebugOverlay } from './components/DebugOverlay'
 import { GlobalDiagnoseButton } from './components/diagnose/LocalDiagnoseAction'
 import { investigationWorkspaceSearch, isInvestigationWorkspacePath, useDiagnoseLayout } from './components/diagnose/DiagnoseContext'
 import { DiagnoseSurface } from './components/diagnose/DiagnoseSurface'
-import { TopologyGraph, TopologySearch, TopologyBreadcrumb, TopologyFilterSidebar, TopologyControls, FreshnessControl, gitOpsRouteForKind, gitOpsRouteForResource, ScopePill, PaneLoader, usePhoneLayout, PHONE_MEDIA_QUERY } from '@skyhook-io/k8s-ui'
+const PHONE_READY_VIEWS: ReadonlySet<ExtendedMainView> = new Set<ExtendedMainView>(['issues', 'topology'])
 import { resetNavigationMap } from '@skyhook-io/k8s-ui/utils/navigation'
 import { topologyNodeResourceKind } from '@skyhook-io/k8s-ui/utils/topology-neighborhood'
 import { useAPIResources, findAPIResourceForRoute } from './api/apiResources'
@@ -135,7 +135,7 @@ type ExtendedMainView = MainView | 'traffic' | 'cost' | 'capacity' | 'cnpg' | 'w
 // Views that have been laid out for phone width (640px and below). The rest
 // keep their desktop width on a phone and scroll sideways; add a view here in
 // the PR that gives it a phone layout.
-const PHONE_READY_VIEWS: ReadonlySet<ExtendedMainView> = new Set<ExtendedMainView>(['topology'])
+const PHONE_READY_VIEWS: ReadonlySet<ExtendedMainView> = new Set<ExtendedMainView>(['issues', 'topology'])
 
 // Extract view from URL path
 function getViewFromPath(pathname: string): ExtendedMainView {
