@@ -13,6 +13,7 @@ import (
 
 	"github.com/skyhook-io/radar/internal/issues"
 	"github.com/skyhook-io/radar/internal/meaningfulchanges"
+	"github.com/skyhook-io/radar/internal/search"
 	"github.com/skyhook-io/radar/pkg/investigation"
 )
 
@@ -276,9 +277,16 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// load-bearing routing and uncertainty contracts. Raise them deliberately.
 	// The manage_node drain contract (a 'partial' drain, with pods still on the
 	// node in errors/pendingPods/skippedPods, is not safe to take down) is one
-	// such uncertainty boundary.
+	// such uncertainty boundary, and get_runtime_versions' "declared, not
+	// proof" and "unknown, not absent" another, and list_resources' and
+	// get_resource's result shapes, with "only object_not_found means it is
+	// absent", a third, and get_resource's "manager: none is not unmanaged" a
+	// fourth.
+	// Annotation pause intent and stored acknowledgement need distinct source
+	// semantics in the catalog so agents do not infer fresh external health
+	// or treat absence as ruling out another pause mechanism.
 	const (
-		maxCatalogBytes         = 61880
+		maxCatalogBytes         = 64040
 		maxToolDescriptionBytes = 3000
 	)
 
@@ -294,6 +302,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 		}
 		total += len(tool.Description) + len(schema)
 	}
+	t.Logf("MCP catalog: %d bytes (budget %d)", total, maxCatalogBytes)
 	if total > maxCatalogBytes {
 		t.Fatalf("MCP tool descriptions and schemas use %d bytes, budget is %d; raise deliberately for new tools or load-bearing contracts, and trim response-field manuals rather than routing or uncertainty boundaries",
 			total, maxCatalogBytes)
@@ -721,4 +730,20 @@ func TestDiagnoserAllowlistCoversAllReadTools(t *testing.T) {
 	if len(stale) > 0 {
 		t.Errorf("investigation.ReadOnlyTools names tools that are not registered: %v", stale)
 	}
+}
+
+func TestSearchDescriptionNamesCoverageStatus(t *testing.T) {
+	var body search.Result
+	if err := json.Unmarshal([]byte(`{"coverage":{"status":"partial","gaps":[]}}`), &body); err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range listRegisteredTools(t) {
+		if tool.Name == "search" {
+			if !strings.Contains(tool.Description, "coverage.status="+string(body.Coverage.Status)) || strings.Contains(tool.Description, "partial=true") {
+				t.Fatalf("search coverage routing: %s", tool.Description)
+			}
+			return
+		}
+	}
+	t.Fatal("search tool missing")
 }

@@ -31,6 +31,7 @@ const NOTE_MARKUP = 'Auto-sync controls for Applications with automated.enabled:
 
 function app(automated: Record<string, unknown> | undefined, annotations?: Record<string, string>) {
   return {
+    apiVersion: 'argoproj.io/v1alpha1',
     metadata: { name: 'guestbook', namespace: 'argocd', annotations },
     spec: { project: 'default', source: {}, destination: {}, syncPolicy: automated ? { automated } : {} },
     status: {},

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -87,6 +88,23 @@ type PermissionCheckResult struct {
 	ScopeCandidatesTruncated bool                // Candidate set is incomplete: namespace enumeration was non-authoritative or MaxScopeCandidates omitted entries
 }
 
+// CredentialRejectedNamespaces returns, sorted, the namespaces among
+// namespaces (nil: every namespace) where Kubernetes rejected Radar's
+// credentials (401) when it checked its access to resource.
+func (r *PermissionCheckResult) CredentialRejectedNamespaces(resource string, namespaces []string) []string {
+	if r == nil {
+		return nil
+	}
+	var out []string
+	for ns, err := range r.NamespaceProbeErrors[resource] {
+		if apierrors.IsUnauthorized(err) && (namespaces == nil || slices.Contains(namespaces, ns)) {
+			out = append(out, ns)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Capabilities represents the features available based on RBAC permissions
 type Capabilities struct {
 	ConfigManagement string                   `json:"configManagement"`
@@ -144,6 +162,8 @@ type CloudConnectCapability struct {
 // (TestFeatureFlagsHaveFrontendGates enforces the pairing).
 type FeatureCapabilities struct {
 	HelmSourceIdentity    bool `json:"helmSourceIdentity"`
+	ResourceReadCoverage  bool `json:"resourceReadCoverage"`
+	SearchCoverage        bool `json:"searchCoverage"`
 	YAMLReview            bool `json:"yamlReview"`
 	YAMLSchemas           bool `json:"yamlSchemas"`
 	WorkloadImages        bool `json:"workloadImages"`
@@ -256,7 +276,8 @@ var (
 
 	// ForceDisableHelmWrite overrides the helmWrite capability to false (for dev testing)
 	ForceDisableHelmWrite bool
-	// ForceDisableExec overrides the exec capability to false (for dev testing)
+	// ForceDisableExec turns off exec (--disable-exec): the capability reports false
+	// and the exec, debug and pod-file routes refuse requests.
 	ForceDisableExec bool
 	// ForceDisableLocalTerminal turns the local terminal off (--disable-local-terminal)
 	ForceDisableLocalTerminal bool
@@ -616,6 +637,9 @@ func CheckCapabilitiesForUser(ctx context.Context, username string, groups []str
 
 	if ForceDisableHelmWrite {
 		caps.HelmWrite = false
+	}
+	if ForceDisableExec {
+		caps.Exec = false
 	}
 
 	// Cache result

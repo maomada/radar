@@ -562,6 +562,10 @@ resource, including core Secrets and these excluded kinds. See the
 
 **Resource Browser:** Smart columns show severity counts and scan status at a glance.
 
+**Search (UI, REST `/api/search`, MCP `search`):** reports are searchable by CVE ID, SBOM component name and version, failed check ID and the scanned image, so `CVE-2026-109618` or `image:php kind:VulnerabilityReport` finds every report that lists it. Severity words and titles are not indexed, and a secret finding's matched text is never indexed, never exposed to the CEL `filter`, and redacted from what AI agents receive (MCP `get_resource`, `search` with `include=raw`). The `filter` binds `report` to the findings (vulnerabilities, components, checks, secrets without their match) for single-finding predicates such as `report.vulnerabilities.exists(v, v.vulnerabilityID == "CVE-2026-109618" && v.resource.contains("php"))`. The global search UI identifies the matching report; it does not display package versions or workload attribution in the result row. REST and MCP search summaries include the matched finding, package and installed/fixed versions when available, and the workload behind the scanned object; ReplicaSet summaries also include replica count. With Trivy Operator's default `operator.vulnerabilityScannerScanOnlyCurrentRevisions: true`, an old ReplicaSet's reports are deleted after a rollout. With it set to `false` they stay, and a replica count of 0 usually marks one, though a Deployment scaled to zero also reads 0. A report is evidence about the scanned image at scan time: a CVE published after the last scan is absent until Trivy rescans with an updated database, and runtimes built from source (such as the official `php` images) are not detected by Trivy at all. With auth enabled, search returns a report only where the user may `list` that report kind, not wherever they may list Pods. When a search could not cover every report, the results say why: access to some namespaces' reports couldn't be confirmed in this search, because its limit on access checks was reached or a check failed (searching again checks more), or the search ran out of time before reading every report's findings (narrow with `ns:`).
+
+**Resources table:** on a report kind's table, the search box also matches findings: CVE ID with package and versions, SBOM component, failed check ID, secret rule ID and target, and the scanned image. A row that matched only through its findings is tagged *in findings*, with the finding on hover. Regex mode matches names and namespaces only, and a very large list stops after 200,000 findings and says some weren't searched.
+
 ### Supported CRDs
 
 | CRD | Group | Topology | Detail View | AI Summary |
@@ -1009,7 +1013,7 @@ Deliberately narrow: the absence of a ScheduledBackup does not prove a cluster i
 
 **Managed Resource Detail View** (the generic MR renderer — works for every provider, including Upbound AWS/GCP/Azure, provider-kubernetes, provider-helm, and any community provider):
 - Kind, API group, external-name annotation, deletion + management policies
-- Paused banner (`crossplane.io/paused: "true"`) — reconciliation suppressed by operator intent
+- Neutral pause chip plus visible reconciliation context when `crossplane.io/paused` is exactly `"true"`; distinguishes a request from recorded `Synced=False/ReconcilePaused` acknowledgement. Acknowledged pause shows readiness as last reported, and the expected pause condition adds no failing-condition count. Independent failures stay visible.
 - Alert banner when `Synced=False` or `Ready=False` with the upstream cloud error verbatim
 - Linked `ProviderConfig` and (when this MR is composed) linked parent Composite via owner-ref walk
 - Collapsed `spec.forProvider` and `status.atProvider` JSON for deep diagnosis
@@ -1017,7 +1021,7 @@ Deliberately narrow: the absence of a ScheduledBackup does not prove a cluster i
 **Composite / Claim Detail View** — the killer feature:
 - Linked Composition and CompositionRevision (when pinned)
 - **Composed Resources list** — every entry in `spec.crossplane.resourceRefs` (v2) or `spec.resourceRefs` (v1) rendered as a clickable row with **its own live status badge**, fetched per-row via React Query. Clicking opens the composed resource's drawer.
-- Paused banner when `crossplane.io/paused: "true"`
+- The same neutral pause context as managed resources, scoped to this resource’s reconciler; it does not assert that composed resources or the bound XR are paused.
 - For v1 Claims: linked bound XR
 
 **Composition Detail View:**
@@ -1050,6 +1054,21 @@ Deliberately narrow: the absence of a ScheduledBackup does not prove a cluster i
 **Resource Browser:** MR list shows kind / external name / provider config / status; Provider list shows package, revision, status; Composition list shows mode, composite kind, function count; XRD list shows generated kind and claim kind.
 
 **Topology:** Radar connects a v1 Claim to its bound XR, and an XR to its composed Managed Resources. Edges follow Crossplane's v1 and v2 spec references; only resources Radar already watches and can read are shown.
+
+**Pause display:** Exact annotation intent plus recorded `Synced=False/ReconcilePaused` also qualifies pause context before an XR or Claim has resource references; this does not infer its resource type or enable composite-specific features. An annotation-only request without a recognized Crossplane shape remains unclassified. A neutral chip stays beside the row name, including XR/Claim tables using CRD printer columns. Condition-derived printer values retain their raw text; only exact condition-source metadata plus corroborated pause changes the expected Synced=False or recorded Ready=True tone. Older Radar servers omit that source metadata, so their printer cells keep generic tones alongside the neutral pause chip. Deletion requested while pause intent is set gets an inline warning that reconciliation may defer this resource’s controller cleanup. No pause age or freshness is inferred from condition transition times. Without exact annotation intent, `ReconcilePaused` remains an alert with its raw reason. A newer UI against a server predating the pause Issue rule can still show that server’s warning Issue.
+
+For shape-detected XRs and Claims without printer columns, the primary table status, filter and sort share the Crossplane status helper even when unpaused, matching the detail header.
+
+The topology graph retains its recorded readiness color and does not add this pause chip; opening the resource shows the reconciliation context.
+
+**Issues:** `Synced=False/ReconcilePaused` does not add a warning when `crossplane.io/paused` is exactly `"true"`. Other failure conditions remain eligible under the usual condition and generation filters; unlike Cluster Audit, the pause annotation does not exclude the whole resource from Issues. Pausing through empty `managementPolicies` is not covered by this rule.
+
+**Agent context:** AI resource summaries, per-row `summaryContext` (REST/MCP list and search), resource detail `resourceContext`, and the Diagnose kickoff health frame expose optional `crossplanePause`. `requested` means `crossplane.io/paused` is exactly `"true"`; `acknowledged` additionally has a recorded `Synced=False/ReconcilePaused` condition. This is annotation intent and stored controller evidence, independent of readiness and Issues. It does not establish freshness, matching generation, a pause start time, or the state of any child/provider controller. Omission makes no claim about management-policy pause or a prior resume. Summary rows retain the fact with `context=none`; generic CRD rows carrying `crossplanePause` retain an independent Synced failure in `issue` even when Ready is True. Compact retains the exact pause annotation and raw conditions; other Crossplane annotation keys are not broadly allowed through.
+
+**Operation context:** Delete confirmations identify annotated paused MR/XR/Claim resources holding a known Crossplane finalizer, whose controller cleanup is deferred; force delete can bypass that cleanup and leave external or related resources behind. YAML apply review and direct-save confirmations distinguish Kubernetes accepting edits from the resource controller acting on them. Review states whether the server preview keeps or clears a pause request; unavailable previews label unverified pause state. Direct editor saves also explain that omitting the annotation from server-side apply YAML does not guarantee removal. Removing `crossplane.io/paused` requests resumption; it does not prove the controller resumed or that related controllers paused. Generic Apply without a live preview labels existing pause state as unknown and explains that omitting the annotation from server-side apply YAML does not guarantee removal. A known pause uses the exact annotation value `"true"`; empty `managementPolicies` alone is outside this annotation-only context.
+
+Resources without a known Crossplane spec shape qualify for operation context only when the exact pause annotation is corroborated by `Synced=False/ReconcilePaused`. A single-target editor retains that raw evidence when review YAML omits status; generic Apply with no such evidence does not infer controller identity from the annotation alone.
+
 
 **Cluster Audit:** New `crossplaneStuck` check flags MRs/XRs/Claims reporting `Ready=False` or `Synced=False` for more than 5 minutes (Medium) or 30 minutes (High). Synced=False takes priority over Ready=False because it usually indicates the actionable problem (bad ProviderConfig, malformed spec, missing IAM). Same severity ramp as `stuckTerminating` for cross-surface consistency. Paused resources are deliberately suppressed.
 

@@ -2348,7 +2348,10 @@ func (rc *ResourceCache) ReadableCount(resource string, namespaces []string) (in
 }
 
 // PermissionResult returns the probes that selected this cache's informer
-// scope. A later global refresh must not re-label rows from this cache.
+// scope. A later global refresh must not re-label rows from this cache. Its
+// errors, including 401s, describe this cache for its whole life; they clear
+// only when the cache is rebuilt and probes again, as on a reconnect or a
+// --namespace-scope change.
 func (rc *ResourceCache) PermissionResult() *PermissionCheckResult {
 	if rc == nil {
 		return nil
@@ -2427,4 +2430,21 @@ func permissionUnauthorized(result *PermissionCheckResult) error {
 		}
 	}
 	return nil
+}
+
+// KnownMissingNamespaces returns the namespaces among names that Radar knows
+// don't exist: its Namespace informer has synced and holds none by that name.
+// Without a synced informer none is known to be missing. Only a caller who can
+// see every namespace may be told the answer.
+func (c *ResourceCache) KnownMissingNamespaces(names []string) []string {
+	if c == nil || c.Namespaces() == nil || !c.IsKindReady("namespaces") {
+		return nil
+	}
+	var missing []string
+	for _, ns := range names {
+		if _, err := c.Namespaces().Get(ns); apierrors.IsNotFound(err) {
+			missing = append(missing, ns)
+		}
+	}
+	return missing
 }
