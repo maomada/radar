@@ -35,7 +35,6 @@ import (
 // emerges that needs deterministic prose, add it as a separate
 // `explain_resource` tool rather than re-introducing it inline here.
 type ResourceContext struct {
-	RelatedApplicationFindings *issuesapi.RelatedApplicationFindings `json:"relatedApplicationFindings,omitempty"`
 	Reflection                 *ReflectionContext                    `json:"reflection,omitempty"`
 	Tier                       ContextTier                           `json:"tier"`
 	Owner                      *ContextRef                           `json:"owner,omitempty"`
@@ -69,6 +68,7 @@ type ResourceContext struct {
 	CronJobSummary             *CronJobSummary                       `json:"cronJobSummary,omitempty"`
 	HPASummary                 *HPASummary                           `json:"hpaSummary,omitempty"`
 	IssueSummary               *IssueSummary                         `json:"issueSummary,omitempty"`
+	RelatedApplicationFindings *issuesapi.RelatedApplicationFindings `json:"relatedApplicationFindings,omitempty"`
 	AuditSummary               *AuditSummary                         `json:"auditSummary,omitempty"`
 	PolicySummary              *PolicySummary                        `json:"policySummary,omitempty"`
 	AppReferences              *AppReferences                        `json:"appReferences,omitempty"`
