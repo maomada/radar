@@ -4409,6 +4409,11 @@ func (s *Server) handleDeleteResource(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusConflict, err.Error())
 			return
 		}
+		var status apierrors.APIStatus
+		if errors.As(err, &status) && status.Status().Code >= 400 && status.Status().Code < 500 {
+			s.writeError(w, int(status.Status().Code), err.Error())
+			return
+		}
 		log.Printf("[delete] Failed to delete %s %s/%s (force=%v): %v", kind, namespace, name, force, err)
 		s.writeError(w, http.StatusInternalServerError, err.Error())
 		return

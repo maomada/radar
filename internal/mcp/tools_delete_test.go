@@ -486,7 +486,7 @@ func TestDeleteResourcePreviewFinalizerFields(t *testing.T) {
 			}
 			cascade := got["cascade"].(map[string]any)
 			if kind == "Namespace" {
-				if !reflect.DeepEqual(got["namespaceFinalizers"], []any{"kubernetes"}) || got["namespaceFinalizerGuidance"] == nil || !reflect.DeepEqual(cascade["notEnumerated"], []any{"all namespace contents; deleting a namespace removes them regardless of owner references or orphan propagation"}) || !strings.Contains(got["summary"].(string), "may wait on finalizers: kubernetes") {
+				if !reflect.DeepEqual(got["namespaceFinalizers"], []any{"kubernetes"}) || got["namespaceFinalizerGuidance"] == nil || !reflect.DeepEqual(cascade["notEnumerated"], []any{"all namespace contents; deleting a namespace removes them regardless of owner references or orphan propagation", "backing storage/data removal governed by the PV reclaim policy"}) || !strings.Contains(got["summary"].(string), "may wait on finalizers: kubernetes") {
 					t.Fatalf("namespace lifecycle finalizers lost: %+v", got)
 				}
 			} else if cascade["notEnumerated"] != nil || got["namespaceFinalizers"] != nil || got["namespaceFinalizerGuidance"] != nil {

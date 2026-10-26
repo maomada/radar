@@ -29,6 +29,10 @@ func TestDeleteResourceHandler(t *testing.T) {
 		{name: "accepted with pending finalizers", status: http.StatusOK},
 		{name: "forbidden", deleteErr: apierrors.NewForbidden(gvr.GroupResource(), "held", fmt.Errorf("denied")), status: http.StatusForbidden},
 		{name: "not found", deleteErr: apierrors.NewNotFound(gvr.GroupResource(), "held"), status: http.StatusNotFound},
+		{name: "invalid", deleteErr: apierrors.NewBadRequest("invalid deletion"), status: http.StatusBadRequest},
+		{name: "throttled", deleteErr: apierrors.NewTooManyRequests("slow down", 1), status: http.StatusTooManyRequests},
+		{name: "unsupported", deleteErr: apierrors.NewMethodNotSupported(gvr.GroupResource(), "delete"), status: http.StatusMethodNotAllowed},
+		{name: "request timeout", deleteErr: &apierrors.StatusError{ErrStatus: metav1.Status{Code: http.StatusRequestTimeout, Reason: metav1.StatusReasonTimeout}}, status: http.StatusRequestTimeout},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "v1", "kind": "ConfigMap", "metadata": map[string]any{"name": "held", "namespace": "demo", "uid": "original"}}}
