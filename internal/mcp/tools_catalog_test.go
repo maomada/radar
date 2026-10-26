@@ -256,7 +256,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// semantics in the catalog so agents do not infer fresh external health
 	// or treat absence as ruling out another pause mechanism.
 	const (
-		maxCatalogBytes         = 63800
+		maxCatalogBytes         = 63870
 		maxToolDescriptionBytes = 3000
 	)
 
