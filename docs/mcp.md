@@ -1379,13 +1379,17 @@ There is no new configuration switch.
 The default call performs a caller-authenticated server dry-run and returns a
 summary, finalizers, propagation, the shared observed-impact preview, and a
 five-minute signed confirmation. `dry_run: false` requires that confirmation.
-It binds the caller and groups, the captured cluster context, root UID,
-generation/finalizers (resourceVersion for kinds without generation), policy,
-and the observed impact fingerprint. GC leaf-Pod replacements with the same recorded owners and counts are ordinary churn; non-leaf and non-Pod identities remain bound. Root spec/finalizer/incarnation changes or
-changed observed impact require another preview. For roots with generation, status-only changes can
-proceed with fresh resourceVersion preconditions, including one guarded retry
-on a status-only conflict. Kinds without generation bind resourceVersion and require a new preview for every update. Cache observations are not an atomic snapshot of all
-cluster objects; impact can still change after the last check.
+It binds the caller and groups, captured cluster context, root UID,
+generation/finalizers (resourceVersion for kinds without generation), and propagation policy.
+Root spec/finalizer/incarnation or policy changes require another preview. For roots
+with generation, status-only changes before confirmation can proceed with fresh
+resourceVersion preconditions. Kinds without generation require another preview
+after any update. An API-server conflict returns an error requiring another preview;
+the tool does not retry DELETE automatically.
+
+Dependent lists are advisory observations. Confirmation does not compare a child
+fingerprint or freeze the cascade: dependents and controller inventory can change
+independently of the root, including after preview or confirmation.
 
 GC dependents, possible dependents and controller teardown stay separate.
 Counts cover the observed traversal before each 100-reference MCP list cap;

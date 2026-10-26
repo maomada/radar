@@ -2,9 +2,7 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/skyhook-io/radar/internal/k8s"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -41,15 +39,10 @@ func TestDeleteUnavailableImpactCannotBeConfirmed(t *testing.T) {
 	if cascade["unavailableReason"] == nil || cascade["recoveryAction"] == nil || strings.Contains(got["message"].(string), "Retry once") {
 		t.Fatalf("missing actionable unavailability: %+v", got)
 	}
-	target, _ := json.Marshal(deleteConfirmation{Resource: gvr.String(), Namespace: "demo", Name: "held", UID: "u", ResourceVersion: "1", Propagation: metav1.DeletePropagationBackground})
-	input.Confirm, err = issueMutationConfirmation(context.Background(), "delete_resource", string(target))
-	if err != nil {
-		t.Fatal(err)
-	}
 	no := false
 	input.DryRun = &no
 	_, _, err = handleDeleteResource(context.Background(), nil, input)
-	if err == nil || !strings.Contains(err.Error(), "preview is unavailable") || calls != 1 {
+	if err == nil || !strings.Contains(err.Error(), "confirm is required") || calls != 1 {
 		t.Fatalf("err=%v calls=%d", err, calls)
 	}
 }

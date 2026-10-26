@@ -43,7 +43,6 @@ type deleteResourceInput struct {
 }
 
 type deleteConfirmation struct {
-	ImpactHash      string
 	Resource        string
 	Namespace       string
 	Name            string
@@ -176,7 +175,6 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	if uid == "" || rv == "" {
 		return nil, nil, fmt.Errorf("deletion target is missing UID or resourceVersion; no deletion attempted")
 	}
-	requestedPropagation := propagation
 	pendingPropagation, hasPendingPolicy := k8score.PendingDeletionPolicy(obj.GetFinalizers())
 	if hasPendingPolicy {
 		if strings.TrimSpace(input.Propagation) != "" && propagation != pendingPropagation {
@@ -187,34 +185,27 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 		}
 		propagation = pendingPropagation
 	}
-	cascade, impactHash := deleteCascadePreview(ctx, obj, propagation, operation)
-	current := deleteConfirmation{ImpactHash: impactHash, Resource: gvr.String(), Namespace: namespace, Name: name, UID: string(uid), Generation: obj.GetGeneration(), Finalizers: slices.Clone(obj.GetFinalizers()), Propagation: propagation}
-	slices.Sort(current.Finalizers)
-	if current.Generation == 0 {
-		current.ResourceVersion = rv
-	}
-	if !dryRun {
-		if err := approved.check(obj, propagation); err != nil {
-			return nil, nil, err
-		}
-		if approved.ImpactHash == "" || impactHash == "" {
-			return nil, nil, fmt.Errorf("deletion impact preview is unavailable; no deletion attempted; retry dry_run=true when Radar can resolve the target")
-		}
-		if approved.ImpactHash != impactHash {
-			return nil, nil, fmt.Errorf("observed deletion impact changed since preview; run dry_run=true again and review the new preview")
-		}
-	}
-	targetBytes, err := json.Marshal(current)
-	if err != nil {
-		return nil, nil, err
-	}
-	target := string(targetBytes)
+	var cascade map[string]any
 	token := ""
-	if dryRun && impactHash != "" {
-		token, err = issueMutationConfirmation(ctx, "delete_resource", target)
-		if err != nil {
-			return nil, nil, err
+	if dryRun {
+		cascade = deleteCascadePreview(ctx, obj, propagation, operation)
+		if cascade["rootResolved"] == true {
+			current := deleteConfirmation{Resource: gvr.String(), Namespace: namespace, Name: name, UID: string(uid), Generation: obj.GetGeneration(), Finalizers: slices.Clone(obj.GetFinalizers()), Propagation: propagation}
+			slices.Sort(current.Finalizers)
+			if current.Generation == 0 {
+				current.ResourceVersion = rv
+			}
+			target, err := json.Marshal(current)
+			if err != nil {
+				return nil, nil, err
+			}
+			token, err = issueMutationConfirmation(ctx, "delete_resource", string(target))
+			if err != nil {
+				return nil, nil, err
+			}
 		}
+	} else if err := approved.check(obj, propagation); err != nil {
+		return nil, nil, err
 	}
 	opts := metav1.DeleteOptions{PropagationPolicy: &propagation, Preconditions: &metav1.Preconditions{UID: &uid, ResourceVersion: &rv}}
 	if hasPendingPolicy {
@@ -228,38 +219,6 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	}
 	deleteAttempted = true
 	err = client.Delete(ctx, name, opts)
-	if !dryRun && apierrors.IsConflict(err) {
-		obj, err = waitStep(ctx, func() (*unstructured.Unstructured, error) {
-			return client.Get(ctx, name, metav1.GetOptions{})
-		})
-		if err != nil {
-			return nil, nil, fmt.Errorf("DELETE was rejected due to conflict; no retry attempted: failed to re-read deletion target: %w", err)
-		}
-		propagation = requestedPropagation
-		pendingPropagation, hasPendingPolicy = k8score.PendingDeletionPolicy(obj.GetFinalizers())
-		if hasPendingPolicy {
-			propagation = pendingPropagation
-		}
-		if err := approved.check(obj, propagation); err != nil {
-			return nil, nil, err
-		}
-		_, retryImpact := deleteCascadePreview(ctx, obj, propagation, operation)
-		if approved.ImpactHash != retryImpact {
-			return nil, nil, fmt.Errorf("observed deletion impact changed after conflict; run dry_run=true again")
-		}
-		rv = obj.GetResourceVersion()
-		if rv == "" {
-			return nil, nil, fmt.Errorf("deletion target is missing resourceVersion; no retry attempted")
-		}
-		opts.PropagationPolicy = &propagation
-		if hasPendingPolicy {
-			opts.PropagationPolicy = nil
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, nil, fmt.Errorf("deletion retry not attempted after conflict: %w", err)
-		}
-		err = client.Delete(ctx, name, opts)
-	}
 	if err == nil {
 		audit.Outcome = "accepted"
 		if dryRun {
@@ -349,7 +308,7 @@ func (approved deleteConfirmation) check(obj *unstructured.Unstructured, propaga
 	return nil
 }
 
-func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, propagation metav1.DeletionPropagation, operation context.Context) (map[string]any, string) {
+func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, propagation metav1.DeletionPropagation, operation context.Context) map[string]any {
 	ctx, cancel := context.WithTimeout(ctx, deleteCascadeTimeout)
 	defer cancel()
 	counts := &deleteDependentCounts{ByKind: map[string]int{}, Basis: "observed owner references (not exhaustive)"}
@@ -380,7 +339,7 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 	if err != nil {
 		result["incomplete"] = true
 		result["reason"] = "Deletion preview budget exhausted; dependents are unknown."
-		return result, ""
+		return result
 	}
 	result["rootResolved"] = preview.RootResolved
 	if !preview.RootResolved {
@@ -389,7 +348,7 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 			result["recoveryAction"] = action
 		}
 		result["reason"] = "Ownership preview unavailable: " + preview.UnavailableReason
-		return result, ""
+		return result
 	}
 	result["basis"] = preview.Basis
 	result["coverage"] = "partial"
@@ -424,16 +383,9 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 	}
 	if len(preview.NotEnumerated) > 0 {
 		result["notEnumerated"] = preview.NotEnumerated
-		for _, omitted := range preview.NotEnumerated {
-			if strings.Contains(omitted, "storage/data") {
-				warning, _ := result["scopeWarning"].(string)
-				if !strings.Contains(warning, "Backing storage/data") {
-					result["scopeWarning"] = strings.TrimSpace(warning + " Backing storage/data may be reclaimed according to the PV reclaim policy. Storage teardown is not enumerated.")
-				}
-			}
-		}
+
 	}
-	return result, preview.EvidenceHash
+	return result
 }
 
 func deletePreviewSummary(obj *unstructured.Unstructured, propagation metav1.DeletionPropagation, cascade map[string]any) string {
@@ -488,6 +440,9 @@ func deletePreviewSummary(obj *unstructured.Unstructured, propagation metav1.Del
 	}
 	if coverage, ok := cascade["ownershipCoverage"].(*topology.ChildrenCoverage); ok && !coverage.Complete {
 		summary += "; garbage-collection coverage incomplete"
+	}
+	if omitted, ok := cascade["notEnumerated"].([]string); ok && len(omitted) > 0 {
+		summary += "; cleanup not enumerated: " + strings.Join(omitted, "; ")
 	}
 	finalizers := obj.GetFinalizers()
 	if obj.GetKind() == "Namespace" && obj.GetAPIVersion() == "v1" {

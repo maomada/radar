@@ -171,7 +171,7 @@ func TestDeleteCascadeScopeWarnings(t *testing.T) {
 		obj.SetKind(tc.kind)
 		obj.SetAPIVersion(tc.version)
 		obj.SetName("target")
-		result, _ := deleteCascadePreview(context.Background(), obj, metav1.DeletePropagationOrphan, k8s.OperationContext())
+		result := deleteCascadePreview(context.Background(), obj, metav1.DeletePropagationOrphan, k8s.OperationContext())
 		if !strings.Contains(result["scopeWarning"].(string), tc.want) || result["propagationEffect"] == nil || !reflect.DeepEqual(result["notEnumerated"], []string{tc.category}) {
 			t.Fatalf("scope warning: %+v", result)
 		}
@@ -196,7 +196,7 @@ func TestDeleteCascadeWithholdsUnreadableDependents(t *testing.T) {
 	setupDeletionResource(t, schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj)
 	addDeletePreviewKinds(t)
 	obj.SetUID("dep")
-	result, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
+	result := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
 	refs := result["dependents"].([]topology.ResourceRef)
 	if len(refs) != 0 || result["withheld"] != nil || result["visibilityNote"] != "Only resources Radar observes and you can read are listed." {
 		t.Fatalf("caller visibility: %+v", result)
@@ -210,7 +210,7 @@ func TestDeleteCascadeWithholdsUnreadableDependents(t *testing.T) {
 		t.Fatalf("summary disclosed unreadable ReplicaSet: %s", summary)
 	}
 	perms.SetCanI("get", "apps", "replicasets", "demo", true)
-	readable, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
+	readable := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
 	if len(readable["dependents"].([]topology.ResourceRef)) != 2 || readable["withheld"] != nil || readable["visibilityNote"] != result["visibilityNote"] {
 		t.Fatalf("readable dependents changed coverage disclosure: %+v", readable)
 	}
@@ -218,7 +218,7 @@ func TestDeleteCascadeWithholdsUnreadableDependents(t *testing.T) {
 		t.Fatalf("readable counts: %+v", counts)
 	}
 	obj.SetUID("replacement")
-	missing, _ := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
+	missing := deleteCascadePreview(ctx, obj, metav1.DeletePropagationBackground, k8s.OperationContext())
 	if missing["rootResolved"] != false || missing["coverage"] != "unknown" || missing["visibilityNote"] != result["visibilityNote"] {
 		t.Fatalf("unresolved root was not unknown: %+v", missing)
 	}
@@ -352,12 +352,12 @@ func TestDeleteCascadeIncludesCallerReadableCertificateSecret(t *testing.T) {
 	perms.SetCanI("get", "cert-manager.io", "certificates", "demo", true)
 	perms.SetCanI("get", "", "secrets", "demo", false)
 	addDeletePreviewKinds(t)
-	hidden, _ := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground, k8s.OperationContext())
+	hidden := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground, k8s.OperationContext())
 	if len(hidden["dependents"].([]topology.ResourceRef)) != 0 || hidden["withheld"] != nil {
 		t.Fatalf("unreadable Secret disclosed: %+v", hidden)
 	}
 	perms.SetCanI("get", "", "secrets", "demo", true)
-	visible, _ := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground, k8s.OperationContext())
+	visible := deleteCascadePreview(ctx, certificate, metav1.DeletePropagationBackground, k8s.OperationContext())
 	refs := visible["dependents"].([]topology.ResourceRef)
 	if len(refs) != 1 || refs[0].Kind != "Secret" || refs[0].Name != "web-tls" || visible["withheld"] != nil {
 		t.Fatalf("owned Secret missing: %+v", visible)
@@ -679,137 +679,30 @@ func TestDeleteResourcePreservesPendingPropagation(t *testing.T) {
 	}
 }
 
-func TestDeleteResourceConflictRechecksApprovedPreview(t *testing.T) {
+func TestDeleteResourceConflictRequiresAnotherPreview(t *testing.T) {
 	setConnectedForTest(t)
-	for _, change := range []string{"status", "pending status", "pending orphan status", "live orphan status", "terminating custom status", "terminating custom foreground status", "terminating status", "spec", "generation", "finalizers", "replacement", "no generation", "conflict again", "deadline"} {
-		t.Run(change, func(t *testing.T) {
-			gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-			obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "u", "resourceVersion": "1", "generation": int64(5)}}}
-			if change == "no generation" {
-				obj.SetGeneration(0)
-			}
-			obj.SetFinalizers([]string{"example.com/cleanup"})
-			if strings.HasPrefix(change, "pending") || strings.HasPrefix(change, "terminating") {
-				now := metav1.Now()
-				obj.SetDeletionTimestamp(&now)
-			}
-			switch change {
-			case "pending status":
-				obj.SetFinalizers([]string{metav1.FinalizerDeleteDependents})
-			case "pending orphan status", "live orphan status":
-				obj.SetFinalizers([]string{metav1.FinalizerOrphanDependents})
-			case "terminating status":
-				obj.SetFinalizers(nil)
-			}
-			dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-			defer cancel()
-			deletes, readsAfterConflict := 0, 0
-			dyn.PrependReactor("get", "deployments", func(clienttesting.Action) (bool, runtime.Object, error) {
-				if deletes == 1 {
-					readsAfterConflict++
-					if change == "deadline" {
-						return true, nil, ctx.Err()
-					}
-				}
-				return false, nil, nil
-			})
-			dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
-				opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
-				switch change {
-				case "pending status", "pending orphan status", "live orphan status":
-					if opts.PropagationPolicy != nil {
-						t.Fatalf("recorded policy changed on retry: %+v", opts)
-					}
-				default:
-					want := metav1.DeletePropagationBackground
-					if change == "terminating custom foreground status" {
-						want = metav1.DeletePropagationForeground
-					}
-					if opts.PropagationPolicy == nil || *opts.PropagationPolicy != want {
-						t.Fatalf("requested policy not sent on retry: %+v, want %s", opts, want)
-					}
-				}
-				wantRV := "1"
-				if deletes > 0 {
-					wantRV = "2"
-				}
-				if opts.Preconditions == nil || ptr.Deref(opts.Preconditions.ResourceVersion, "") != wantRV || ptr.Deref(opts.Preconditions.UID, "") != "u" {
-					t.Fatalf("wrong preconditions: %+v, want RV %s", opts, wantRV)
-				}
-				if len(opts.DryRun) > 0 {
-					return true, nil, nil
-				}
-				deletes++
-				if deletes == 1 {
-					live := obj.DeepCopy()
-					live.SetResourceVersion("2")
-					switch change {
-					case "spec":
-						live.Object["spec"] = map[string]any{"replicas": int64(3)}
-						live.SetGeneration(6)
-					case "generation":
-						live.SetGeneration(6)
-					case "finalizers":
-						live.SetFinalizers([]string{"example.com/new"})
-					case "replacement":
-						live.SetUID("replacement")
-					case "deadline":
-						cancel()
-					default:
-						live.Object["status"] = map[string]any{"readyReplicas": int64(2)}
-					}
-					if err := dyn.Tracker().Update(gvr, live, "demo"); err != nil {
-						t.Fatal(err)
-					}
-					return true, nil, apierrors.NewConflict(gvr.GroupResource(), "web", fmt.Errorf("resourceVersion changed"))
-				}
-				if change == "conflict again" {
-					return true, nil, apierrors.NewConflict(gvr.GroupResource(), "web", fmt.Errorf("changed again"))
-				}
-				return true, nil, nil
-			})
-			input := deleteResourceInput{Kind: "Deployment", Namespace: "demo", Name: "web"}
-			if change == "terminating custom foreground status" {
-				input.Propagation = "foreground"
-			}
-			res, _, err := handleDeleteResource(ctx, nil, input)
-			if err != nil {
-				t.Fatal(err)
-			}
-			input.DryRun = ptr.To(false)
-			input.Confirm = decodeToolResult(t, res)["confirm"].(string)
-			res, _, err = handleDeleteResource(ctx, nil, input)
-			wantReads := 1
-			if change == "deadline" {
-				wantReads = 0
-			}
-			if readsAfterConflict != wantReads {
-				t.Fatalf("conflict re-reads=%d, want %d", readsAfterConflict, wantReads)
-			}
-			switch change {
-			case "status", "pending status", "pending orphan status", "live orphan status", "terminating custom status", "terminating custom foreground status", "terminating status":
-				if err != nil || deletes != 2 {
-					t.Fatalf("status retry: %v, deletes=%d", err, deletes)
-				}
-				if got := decodeToolResult(t, res); got["resourceVersion"] != "2" {
-					t.Fatalf("retry result has stale RV: %+v", got)
-				}
-			case "conflict again":
-				if err == nil || !apierrors.IsConflict(err) || deletes != 2 {
-					t.Fatalf("retry must stop after second conflict: %v, deletes=%d", err, deletes)
-				}
-			case "deadline":
-				if err == nil || !strings.Contains(err.Error(), "context canceled") || deletes != 1 {
-					t.Fatalf("deadline ignored: %v, deletes=%d", err, deletes)
-				}
-			default:
-				want := map[string]string{"spec": "its spec changed", "generation": "its spec changed", "finalizers": "its finalizers are now", "replacement": "object replaced", "no generation": "its resourceVersion differs"}[change]
-				if err == nil || !strings.Contains(err.Error(), "since preview") || !strings.Contains(err.Error(), want) || deletes != 1 {
-					t.Fatalf("unsafe retry after %s: %v, deletes=%d", change, err, deletes)
-				}
-			}
-		})
+	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
+	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "u", "resourceVersion": "1", "generation": int64(5)}}}
+	dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+	deletes := 0
+	dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
+		opts := a.(clienttesting.DeleteAction).GetDeleteOptions()
+		if len(opts.DryRun) > 0 {
+			return true, nil, nil
+		}
+		deletes++
+		return true, nil, apierrors.NewConflict(gvr.GroupResource(), "web", fmt.Errorf("resourceVersion changed"))
+	})
+	input := deleteResourceInput{Kind: "Deployment", Namespace: "demo", Name: "web"}
+	res, _, err := handleDeleteResource(context.Background(), nil, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.DryRun = ptr.To(false)
+	input.Confirm = decodeToolResult(t, res)["confirm"].(string)
+	_, _, err = handleDeleteResource(context.Background(), nil, input)
+	if err == nil || !apierrors.IsConflict(err) || !strings.Contains(err.Error(), "run dry_run=true again") || deletes != 1 {
+		t.Fatalf("conflict must not retry: %v, deletes=%d", err, deletes)
 	}
 }
 

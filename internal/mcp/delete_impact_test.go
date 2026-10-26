@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +20,7 @@ import (
 	"github.com/skyhook-io/radar/pkg/k8score"
 )
 
-func TestDeleteResourceBindsObservedImpactButAllowsStatusLag(t *testing.T) {
+func TestDeleteResourceConfirmationKeepsDependentsAdvisory(t *testing.T) {
 	for _, addDependent := range []bool{false, true} {
 		t.Run(map[bool]string{false: "status-only lag", true: "new dependent"}[addDependent], func(t *testing.T) {
 			setConnectedForTest(t)
@@ -38,9 +37,6 @@ func TestDeleteResourceBindsObservedImpactButAllowsStatusLag(t *testing.T) {
 			deletes := 0
 			dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
 				deletes++
-				if deletes > 1 && addDependent {
-					t.Fatal("DELETE reached after impact changed")
-				}
 				return true, nil, nil
 			})
 			input := deleteResourceInput{Kind: "Deployment", Namespace: "demo", Name: "web"}
@@ -73,12 +69,8 @@ func TestDeleteResourceBindsObservedImpactButAllowsStatusLag(t *testing.T) {
 			no := false
 			input.DryRun = &no
 			_, _, err = handleDeleteResource(context.Background(), nil, input)
-			if addDependent {
-				if err == nil || !strings.Contains(err.Error(), "impact changed") || deletes != 1 {
-					t.Fatalf("err=%v deletes=%d", err, deletes)
-				}
-			} else if err != nil || deletes != 2 {
-				t.Fatalf("status-only change refused: %v deletes=%d", err, deletes)
+			if err != nil || deletes != 2 {
+				t.Fatalf("root-bound confirmation rejected unchanged target: %v deletes=%d", err, deletes)
 			}
 		})
 	}
