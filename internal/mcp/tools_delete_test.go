@@ -725,6 +725,35 @@ func TestDeleteResourceConflictAndRequestTimeoutOutcomes(t *testing.T) {
 	}
 }
 
+func TestDeleteResourceStopsWhenOperationChangesDuringTargetRead(t *testing.T) {
+	setConnectedForTest(t)
+	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
+	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "metadata": map[string]any{"name": "web", "namespace": "demo", "uid": "u", "resourceVersion": "1", "generation": int64(1)}}}
+	dyn := setupDeletionResource(t, gvr, "DeploymentList", k8s.APIResource{Group: "apps", Version: "v1", Kind: "Deployment", Name: "deployments", Namespaced: true}, obj).(*dynamicfake.FakeDynamicClient)
+	deletes := 0
+	dyn.PrependReactor("delete", "deployments", func(a clienttesting.Action) (bool, runtime.Object, error) {
+		if len(a.(clienttesting.DeleteAction).GetDeleteOptions().DryRun) == 0 {
+			deletes++
+		}
+		return true, nil, nil
+	})
+	input := deleteResourceInput{Kind: "Deployment", Namespace: "demo", Name: "web"}
+	preview, _, err := handleDeleteResource(context.Background(), nil, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.DryRun = ptr.To(false)
+	input.Confirm = decodeToolResult(t, preview)["confirm"].(string)
+	dyn.PrependReactor("get", "deployments", func(clienttesting.Action) (bool, runtime.Object, error) {
+		k8s.CancelOngoingOperations()
+		return true, obj.DeepCopy(), nil
+	})
+	_, _, err = handleDeleteResource(context.Background(), nil, input)
+	if err == nil || !strings.Contains(err.Error(), "no deletion attempted") || deletes != 0 {
+		t.Fatalf("operation change did not stop DELETE: err=%v deletes=%d", err, deletes)
+	}
+}
+
 func addDeletePreviewKinds(t *testing.T) {
 	t.Helper()
 	d := k8s.GetResourceDiscovery()

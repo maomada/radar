@@ -220,6 +220,9 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	if dryRun {
 		opts.DryRun = []string{metav1.DryRunAll}
 	}
+	if err := operation.Err(); err != nil {
+		return nil, nil, fmt.Errorf("cluster connection changed before DELETE; no deletion attempted: %w", err)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
