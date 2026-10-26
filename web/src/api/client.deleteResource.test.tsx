@@ -49,13 +49,20 @@ for (const bulk of [false,true]) {
   expect(success).toHaveBeenCalledExactlyOnceWith('[Toast]',bulk?'1 resource deleted':'Resource deleted',undefined)
   expect(notice).not.toHaveBeenCalled()
  })
- for(const body of ['', 'not JSON']) {
+ for(const body of ['', 'not JSON', 'null', '[]', 'true', '{"pendingFinalizers":[1]}', '{"observationError":false}']) {
   it(`${mode}: an accepted malformed response is unconfirmed`,async()=>{
    expect(await remove([new Response(body,{status:200})],bulk)).toBeUndefined()
    expect(success).not.toHaveBeenCalled()
    expect(JSON.stringify(notice.mock.calls)).toContain('did not confirm cleanup')
   })
  }
+ it(`${mode}: an accepted body-read failure is unconfirmed`,async()=>{
+  const response = new Response('{}', {status:200})
+  vi.spyOn(response, 'text').mockRejectedValue(new Error('response stream interrupted'))
+  expect(await remove([response],bulk)).toBeUndefined()
+  expect(success).not.toHaveBeenCalled()
+  expect(JSON.stringify(notice.mock.calls)).toContain('did not confirm cleanup')
+ })
  for(const status of [403,409,500]) {
   it(`${mode}: rejects HTTP ${status}`,async()=>{
    expect(await remove([new Response(JSON.stringify({error:'request rejected'}),{status})],bulk)).toBeInstanceOf(Error)

@@ -101,6 +101,16 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	if kind == "" || name == "" {
 		return nil, nil, fmt.Errorf("kind and name are required")
 	}
+	dyn, contextName, operation, err := k8s.DeletionClientSnapshot(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	stopOperation := context.AfterFunc(operation, cancel)
+	defer stopOperation()
+	ctx = context.WithValue(ctx, confirmationContextKey{}, contextName)
+	if dyn == nil {
+		return nil, nil, errNotConnected()
+	}
 	type resolved struct {
 		gvr        schema.GroupVersionResource
 		namespaced bool
@@ -111,6 +121,9 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	})
 	if err != nil {
 		return nil, nil, err
+	}
+	if err := operation.Err(); err != nil {
+		return nil, nil, fmt.Errorf("cluster connection changed while resolving deletion target: %w", err)
 	}
 	gvr, namespaced := r.gvr, r.namespaced
 	if namespaced && namespace == "" {
@@ -138,16 +151,6 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	defer func() { auth.AuditLogAction(auditRequest, audit) }()
 	if !dryRun && input.Confirm == "" {
 		return nil, nil, fmt.Errorf("confirm is required; run dry_run=true and review the preview first")
-	}
-	dyn, contextName, operation, err := k8s.DeletionClientSnapshot(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	stopOperation := context.AfterFunc(operation, cancel)
-	defer stopOperation()
-	ctx = context.WithValue(ctx, confirmationContextKey{}, contextName)
-	if dyn == nil {
-		return nil, nil, errNotConnected()
 	}
 	var client dynamic.ResourceInterface = dyn.Resource(gvr)
 	if namespaced {

@@ -4530,12 +4530,18 @@ async function readDeleteResult(response: Response): Promise<DeleteResourceResul
     const error = await readErrorBody(response);
     throw new Error(error.error || `HTTP ${response.status}`);
   }
-  const body = await response.text();
-  if (!body.trim()) return { observationError: "Deletion accepted; the response did not confirm cleanup." };
+  const unconfirmed = { observationError: "Deletion accepted; the response did not confirm cleanup." };
   try {
-    return JSON.parse(body) as DeleteResourceResult;
+    const result = JSON.parse(await response.text()) as DeleteResourceResult;
+    if (result === null || typeof result !== "object" || Array.isArray(result)
+      || (result.deletionTimestamp !== undefined && typeof result.deletionTimestamp !== "string")
+      || (result.observationError !== undefined && typeof result.observationError !== "string")
+      || (result.pendingFinalizers !== undefined && (!Array.isArray(result.pendingFinalizers) || result.pendingFinalizers.some(value => typeof value !== "string")))) {
+      return unconfirmed;
+    }
+    return result;
   } catch {
-    return { observationError: "Deletion accepted; the response did not confirm cleanup." };
+    return unconfirmed;
   }
 }
 
