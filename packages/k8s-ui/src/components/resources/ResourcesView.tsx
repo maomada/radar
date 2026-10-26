@@ -354,7 +354,6 @@ const COMPARE_COLUMN_STYLE: React.CSSProperties = {
 const CHECKBOX_COLUMN_WIDTH = 40
 const PHONE_PINNED_CELL = 'phone:sticky phone:left-[var(--pin-left)] phone:z-[1] phone:bg-theme-surface'
 const PHONE_PINNED_HEAD = 'phone:sticky phone:left-[var(--pin-left)] phone:z-[3]'
-// The pinned Name column's widest share of a phone screen.
 const PHONE_NAME_MAX_VW = 45
 function phonePinnedLeft(compareMode: boolean | undefined, showCheckbox: boolean | undefined, column: 'compare' | 'checkbox' | 'name'): React.CSSProperties {
   const compare = compareMode ? COMPARE_COLUMN_WIDTH : 0
@@ -5885,10 +5884,19 @@ export function ResourcesView({
   // Fixed-width columns can consume the table's flexible space and collapse
   // the required name column. Keep a real table minimum and let the container
   // scroll horizontally when the viewport is too narrow.
-  // Phones pin a leading Name column (see PHONE_PINNED_CELL). Cap it so a
-  // width saved on desktop can't make the pinned column cover the screen;
-  // the saved width itself is left alone.
-  const phoneNameCap = isPhone && columns[0]?.key === 'name' ? Math.round(window.innerWidth * PHONE_NAME_MAX_VW / 100) : Infinity
+  // Phones pin a leading Name column (see PHONE_PINNED_CELL). Cap it at
+  // PHONE_NAME_MAX_VW percent of the screen so a width saved on desktop can't
+  // make the pinned column cover it; the saved width itself is left alone.
+  // Tracked through resizes and rotation, which can stay within phone width.
+  const [phoneViewportWidth, setPhoneViewportWidth] = useState(() => (typeof window === 'undefined' ? 0 : window.innerWidth))
+  useEffect(() => {
+    if (!isPhone) return
+    const onResize = () => setPhoneViewportWidth(window.innerWidth)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [isPhone])
+  const phoneNameCap = isPhone && columns[0]?.key === 'name' ? Math.round(phoneViewportWidth * PHONE_NAME_MAX_VW / 100) : Infinity
   const tableMinWidth = useMemo(() => {
     const compareColumnWidth = compareMode ? COMPARE_COLUMN_WIDTH : 0
     const baseMinWidth = columns.reduce((sum, col, i) => {
@@ -7033,7 +7041,7 @@ export function ResourcesView({
                         })()}
                         {/* Resize handle with visible divider */}
                         <div
-                          className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center"
+                          className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center phone:hidden"
                           style={{ transform: 'translateX(50%)' , zIndex: 10 }}
                           onMouseDown={(e) => {
                             const th = e.currentTarget.parentElement!
