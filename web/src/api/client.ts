@@ -4585,7 +4585,7 @@ export function useDeleteResource() {
       force?: boolean;
     }) => {
       const url = new URL(
-        `${getApiBase()}/resources/${kind}/${namespace || "_"}/${name}`,
+        apiUrl(`/resources/${kind}/${namespace || "_"}/${name}`),
         window.location.origin,
       );
       if (group) {
@@ -4633,7 +4633,7 @@ export function useBulkDeleteResources() {
       const results = await Promise.allSettled(
         items.map(async ({ kind, group, namespace, name }) => {
           const url = new URL(
-            `${getApiBase()}/resources/${kind}/${namespace || "_"}/${name}`,
+            apiUrl(`/resources/${kind}/${namespace || "_"}/${name}`),
             window.location.origin,
           );
           if (group) url.searchParams.set("group", group);

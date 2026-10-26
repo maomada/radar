@@ -602,7 +602,7 @@ func (m *WorkloadManager) DeleteResourceWithResult(ctx context.Context, opts Del
 
 	gvr, ok := m.discovery.GetGVRWithGroup(opts.Kind, opts.Group)
 	if !ok {
-		return nil, fmt.Errorf("unknown resource kind: %s", opts.Kind)
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("unknown resource kind: %s", opts.Kind))
 	}
 
 	var client dynamic.ResourceInterface = m.dynClient.Resource(gvr)

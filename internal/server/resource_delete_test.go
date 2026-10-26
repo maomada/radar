@@ -23,10 +23,12 @@ func TestDeleteResourceHandler(t *testing.T) {
 	gvr := schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
 	for _, tc := range []struct {
 		name      string
+		kind      string
 		deleteErr error
 		status    int
 	}{
 		{name: "accepted with pending finalizers", status: http.StatusOK},
+		{name: "unknown kind", kind: "unknownkind", status: http.StatusBadRequest},
 		{name: "forbidden", deleteErr: apierrors.NewForbidden(gvr.GroupResource(), "held", fmt.Errorf("denied")), status: http.StatusForbidden},
 		{name: "not found", deleteErr: apierrors.NewNotFound(gvr.GroupResource(), "held"), status: http.StatusNotFound},
 		{name: "invalid", deleteErr: apierrors.NewBadRequest("invalid deletion"), status: http.StatusBadRequest},
@@ -49,7 +51,11 @@ func TestDeleteResourceHandler(t *testing.T) {
 			s := &Server{}
 			router.Delete("/api/resources/{kind}/{namespace}/{name}", s.handleDeleteResource)
 			res := httptest.NewRecorder()
-			router.ServeHTTP(res, httptest.NewRequest(http.MethodDelete, "/api/resources/configmaps/demo/held", nil))
+			kind := tc.kind
+			if kind == "" {
+				kind = "configmaps"
+			}
+			router.ServeHTTP(res, httptest.NewRequest(http.MethodDelete, "/api/resources/"+kind+"/demo/held", nil))
 			if res.Code != tc.status {
 				t.Fatalf("status %d: %s", res.Code, res.Body.String())
 			}
@@ -61,6 +67,9 @@ func TestDeleteResourceHandler(t *testing.T) {
 				if result.DeletionTimestamp == nil || len(result.PendingFinalizers) != 1 {
 					t.Fatalf("missing pending observation: %+v", result)
 				}
+			}
+			if tc.kind != "" && len(dyn.Actions()) != 0 {
+				t.Fatal("invalid kind reached the Kubernetes client")
 			}
 			for _, a := range dyn.Actions() {
 				if a.GetVerb() == "patch" {
