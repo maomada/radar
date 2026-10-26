@@ -3,6 +3,7 @@ package ownership
 import (
 	"cmp"
 	"slices"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -15,8 +16,8 @@ import (
 // It captures each object's metadata once, whether it read the object or
 // found it searching an owner's dependents, and answers every question from
 // that capture, so an object reads the same in every answer. Member lists
-// aren't captured: Members and RecordingManagers read the managers' status
-// each time they are asked. Answers read the
+// aren't captured: Members reads a manager's status each time it is asked,
+// and RecordingManagers searches for an object's managers once. Answers read the
 // cache as it is when asked, so one can be a moment older than another, as
 // any informer read can. It searches each owner's dependents at most once.
 // It never reads an object the caller may not read, and says nothing of
@@ -24,10 +25,11 @@ import (
 // ValidateCaches passes once they are built. They share the view's captures,
 // so they must not be modified. A View is not safe for concurrent use.
 type View struct {
-	session  ReadSession
-	access   Access
-	reads    map[resourceid.Ref]accessRead
-	searches map[resourceid.Ref]DependentCandidatesRead
+	session   ReadSession
+	access    Access
+	reads     map[resourceid.Ref]accessRead
+	searches  map[resourceid.Ref]DependentCandidatesRead
+	recording map[resourceid.Ref]RecordingManagersAnswer
 }
 
 type accessRead struct {
@@ -38,10 +40,11 @@ type accessRead struct {
 // NewView answers for the caller access describes, from s.
 func NewView(s ReadSession, access Access) *View {
 	return &View{
-		session:  s,
-		access:   access,
-		reads:    map[resourceid.Ref]accessRead{},
-		searches: map[resourceid.Ref]DependentCandidatesRead{},
+		session:   s,
+		access:    access,
+		reads:     map[resourceid.Ref]accessRead{},
+		searches:  map[resourceid.Ref]DependentCandidatesRead{},
+		recording: map[resourceid.Ref]RecordingManagersAnswer{},
 	}
 }
 
@@ -235,7 +238,7 @@ func (v *View) Children(ref resourceid.Ref) ChildrenAnswer {
 
 // mayResolveTo reports whether a reference naming ref's UID, whose resolution
 // is unknown, may still resolve to ref: it names ref's name, and a kind Radar
-// resolved to ref's or couldn't resolve within ref's group. UIDs are unique,
+// resolved to ref's or couldn't resolve with ref's group and kind. UIDs are unique,
 // so a reference to other coordinates never resolves to the object holding
 // its UID, however the read of those coordinates goes.
 func mayResolveTo(res OwnerResolution, name string, ref resourceid.Ref) bool {
@@ -245,7 +248,7 @@ func mayResolveTo(res OwnerResolution, name string, ref resourceid.Ref) bool {
 	case res.Ref != (resourceid.Ref{}):
 		return res.Ref.GroupKind() == ref.GroupKind()
 	}
-	return res.Gap.Kind.Group == ref.Group
+	return res.Gap.Kind.Group == ref.Group && strings.EqualFold(res.Gap.Kind.Kind, ref.Kind)
 }
 
 // candidates are the objects the search found that the caller may read, each
@@ -451,6 +454,9 @@ type RecordingManagersAnswer struct {
 	Remote []resourceid.Ref
 	// Gaps are the search's gaps the caller may read; see RecordingManagersRead.Gaps.
 	Gaps []Gap
+	// Undecided: Radar couldn't check whether the caller may read some of the
+	// managers or gaps the search found, so the answer may lack some it may.
+	Undecided bool
 	// searchGaps are all the search's gaps, for Searched.
 	searchGaps []Gap
 }
@@ -483,12 +489,26 @@ func covers(g Gap, ref resourceid.Ref) bool {
 // manager the view already read answers as it was read, and one it hadn't is
 // captured as found.
 func (v *View) RecordingManagers(ref resourceid.Ref) RecordingManagersAnswer {
+	if a, ok := v.recording[ref]; ok {
+		return a
+	}
+	a := v.recordingManagers(ref)
+	v.recording[ref] = a
+	return a
+}
+
+func (v *View) recordingManagers(ref resourceid.Ref) RecordingManagersAnswer {
 	found := v.session.RecordingManagers(ref)
 	a := RecordingManagersAnswer{searchGaps: found.Gaps}
+	may := func(gk resourceid.GroupKind, namespace string) bool {
+		d := v.access.CanRead(gk, namespace)
+		a.Undecided = a.Undecided || d == Undecided
+		return d == Allowed
+	}
 	for _, g := range found.Gaps {
 		// A gap the caller may not read would say what Radar collects where
 		// the caller can't look.
-		if v.access.CanRead(g.Kind, g.Namespace) == Allowed {
+		if may(g.Kind, g.Namespace) {
 			a.Gaps = append(a.Gaps, g)
 		}
 	}
@@ -501,17 +521,29 @@ func (v *View) RecordingManagers(ref resourceid.Ref) RecordingManagersAnswer {
 			}
 			v.reads[m.Ref] = r
 		}
-		if r.may == Allowed && r.read.State == Present {
+		a.Undecided = a.Undecided || r.may == Undecided
+		if r.may != Allowed {
+			continue
+		}
+		// The view read this manager before the search found it: an earlier
+		// read that couldn't see it, or saw another incarnation, can't vouch
+		// for the list the search read, and isn't silently dropped either.
+		switch {
+		case r.read.State == Unavailable:
+			a.Gaps = append(a.Gaps, r.read.Gap)
+		case r.read.State != Present || r.read.Object.UID != m.UID:
+			a.Gaps = append(a.Gaps, Gap{Kind: m.Ref.GroupKind(), Namespace: m.Ref.Namespace, Reason: readreason.KindSyncPending})
+		default:
 			a.Managers = append(a.Managers, r.read.Object)
 		}
 	}
 	for _, m := range found.Unreadable {
-		if v.access.CanRead(m.GroupKind(), m.Namespace) == Allowed {
+		if may(m.GroupKind(), m.Namespace) {
 			a.Unreadable = append(a.Unreadable, m)
 		}
 	}
 	for _, m := range found.Remote {
-		if v.access.CanRead(m.GroupKind(), m.Namespace) == Allowed {
+		if may(m.GroupKind(), m.Namespace) {
 			a.Remote = append(a.Remote, m)
 		}
 	}
