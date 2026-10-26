@@ -26,6 +26,8 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+const deleteStorageWarning = "Backing storage/data may be reclaimed according to the PV reclaim policy. Storage teardown is not enumerated."
+
 var (
 	deleteCallTimeout        = 40 * time.Second
 	deleteObservationTimeout = 5 * time.Second
@@ -328,7 +330,7 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 		result["scopeWarning"] = "Deleting this CRD deletes ALL instances across the cluster. Orphan propagation does not preserve CRD instances."
 	case obj.GetAPIVersion() == "v1" && (obj.GetKind() == "PersistentVolumeClaim" || obj.GetKind() == "PersistentVolume"):
 		result["notEnumerated"] = []string{"storage reclamation"}
-		result["scopeWarning"] = "Backing storage/data may be reclaimed according to the PV reclaim policy. Storage teardown is not enumerated."
+		result["scopeWarning"] = deleteStorageWarning
 	}
 	if propagation == metav1.DeletePropagationOrphan {
 		result["propagationEffect"] = "Owner-reference dependents will be orphaned; namespace, CRD and controller cleanup can still delete resources."
@@ -383,7 +385,12 @@ func deleteCascadePreview(ctx context.Context, obj *unstructured.Unstructured, p
 	}
 	if len(preview.NotEnumerated) > 0 {
 		result["notEnumerated"] = preview.NotEnumerated
-
+	}
+	if preview.MayReclaimStorage {
+		warning, _ := result["scopeWarning"].(string)
+		if warning != deleteStorageWarning {
+			result["scopeWarning"] = strings.TrimSpace(warning + " " + deleteStorageWarning)
+		}
 	}
 	return result
 }
@@ -442,7 +449,7 @@ func deletePreviewSummary(obj *unstructured.Unstructured, propagation metav1.Del
 		summary += "; garbage-collection coverage incomplete"
 	}
 	if omitted, ok := cascade["notEnumerated"].([]string); ok && len(omitted) > 0 {
-		summary += "; cleanup not enumerated: " + strings.Join(omitted, "; ")
+		summary += "; cleanup not enumerated: " + strings.Join(omitted, ", ")
 	}
 	finalizers := obj.GetFinalizers()
 	if obj.GetKind() == "Namespace" && obj.GetAPIVersion() == "v1" {

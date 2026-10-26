@@ -752,3 +752,19 @@ func setupDeletionResource(t *testing.T, gvr schema.GroupVersionResource, listKi
 	addDeletePreviewKinds(t)
 	return client
 }
+
+func TestDeleteCascadeWarnsForDependentStorage(t *testing.T) {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: "demo", UID: "pod", ResourceVersion: "1"}}
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "data", Namespace: "demo", UID: "data", OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "Pod", Name: "worker", UID: "pod"}}}}
+	if err := k8s.InitTestResourceCache(kubefake.NewClientset(pod, pvc)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(k8s.ResetTestState)
+	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "v1", "kind": "Pod", "metadata": map[string]any{"name": "worker", "namespace": "demo", "uid": "pod", "resourceVersion": "1"}}}
+	setupDeletionResource(t, schema.GroupVersionResource{Version: "v1", Resource: "pods"}, "PodList", k8s.APIResource{Version: "v1", Kind: "Pod", Name: "pods", Namespaced: true}, obj)
+	k8s.GetResourceDiscovery().AddAPIResource(k8s.APIResource{Version: "v1", Kind: "PersistentVolumeClaim", Name: "persistentvolumeclaims", Namespaced: true, Verbs: []string{"get", "list", "watch", "delete"}})
+	preview := deleteCascadePreview(context.Background(), obj, metav1.DeletePropagationBackground, k8s.OperationContext())
+	if preview["scopeWarning"] != deleteStorageWarning {
+		t.Fatalf("dependent storage warning missing: %+v", preview)
+	}
+}
