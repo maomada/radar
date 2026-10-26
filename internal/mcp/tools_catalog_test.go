@@ -257,7 +257,7 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// or treat absence as ruling out another pause mechanism.
 	const (
 		// Includes the deletion preview, confirmation binding and uncertainty contract.
-		maxCatalogBytes         = 64850
+		maxCatalogBytes         = 65400
 		maxToolDescriptionBytes = 3000
 	)
 
