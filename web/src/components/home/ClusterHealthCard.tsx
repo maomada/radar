@@ -224,11 +224,11 @@ export function ClusterHealthCard({
 
   return (
     <div className="rounded-xl bg-theme-surface shadow-theme-sm overflow-hidden">
-      {/* Main health section - three columns; stacked on phones */}
-      <div className="px-6 py-5 border-b border-theme-border/50 max-[639px]:px-4">
-        <div className="flex items-stretch gap-8 max-[639px]:flex-col max-[639px]:gap-5">
+      {/* Main health section - three columns */}
+      <div className="px-6 py-5 border-b border-theme-border/50">
+        <div className="flex items-stretch gap-8">
           {/* Left: Cluster info */}
-          <div className="flex flex-col justify-center w-[300px] shrink-0 pr-8 border-r border-theme-border/50 max-[639px]:w-auto max-[639px]:pr-0 max-[639px]:border-r-0">
+          <div className="flex flex-col justify-center w-[300px] shrink-0 pr-8 border-r border-theme-border/50">
             <div className="flex items-center gap-2 mb-1.5">
               {platformInfo.icon ? (
                 <img src={platformInfo.icon} alt={platformInfo.name} className="w-5 h-5 object-contain" />
@@ -330,7 +330,7 @@ export function ClusterHealthCard({
           </div>
 
           {/* Center: Three health rings */}
-          <div className="flex-1 flex items-center justify-center gap-12 max-[639px]:flex-wrap max-[639px]:gap-x-6 max-[639px]:gap-y-4">
+          <div className="flex-1 flex items-center justify-center gap-12">
             {/* Pods Ring */}
             {isRestricted('pods') ? (
               <RestrictedRing label="Pods" />
@@ -410,7 +410,7 @@ export function ClusterHealthCard({
           </div>
 
           {/* Right: Resource utilization */}
-          <div className="flex flex-col justify-center w-[300px] shrink-0 pl-8 border-l border-theme-border/50 max-[639px]:w-auto max-[639px]:pl-0 max-[639px]:border-l-0">
+          <div className="flex flex-col justify-center w-[300px] shrink-0 pl-8 border-l border-theme-border/50">
             <div className="flex items-center gap-2 mb-3">
               <Boxes className="w-4 h-4 text-theme-text-tertiary" />
               <span className="text-[10px] uppercase tracking-wider text-theme-text-tertiary">Resource Utilization</span>
@@ -470,10 +470,10 @@ export function ClusterHealthCard({
         </div>
       </div>
 
-      {/* Secondary resources row — matches top row's 3-column layout; stacked on phones */}
-      <div className="flex items-stretch px-6 py-2.5 bg-theme-surface/30 max-[639px]:flex-col max-[639px]:gap-3 max-[639px]:px-4 max-[639px]:py-3">
+      {/* Secondary resources row — matches top row's 3-column layout */}
+      <div className="flex items-stretch px-6 py-2.5 bg-theme-surface/30">
         {/* Left column: Warning indicators (aligned with cluster info) */}
-        <div className="flex flex-col justify-center gap-1 w-1/4 shrink-0 pr-4 border-r border-theme-border/50 max-[639px]:w-auto max-[639px]:flex-row max-[639px]:flex-wrap max-[639px]:pr-0 max-[639px]:border-r-0">
+        <div className="flex flex-col justify-center gap-1 w-1/4 shrink-0 pr-4 border-r border-theme-border/50">
           {health.warningEvents > 0 && (
             <Tooltip content="Native Kubernetes Warning events (e.g., ImagePullBackOff, FailedScheduling)" wrapperClassName="w-fit">
             <button
@@ -499,7 +499,7 @@ export function ClusterHealthCard({
         </div>
 
         {/* Center column: Resources (aligned with health rings) */}
-        <div className="w-1/2 grid grid-cols-3 items-center justify-items-center px-4 max-[639px]:w-auto max-[639px]:flex max-[639px]:flex-wrap max-[639px]:gap-x-1 max-[639px]:px-0">
+        <div className="w-1/2 grid grid-cols-3 items-center justify-items-center px-4">
           {secondaryResources.map((res) => (
             <button
               key={res.kind}
@@ -523,7 +523,7 @@ export function ClusterHealthCard({
         </div>
 
         {/* Right column: Browse All (aligned with resource utilization) */}
-        <div className="flex items-center justify-center w-1/4 shrink-0 pl-4 border-l border-theme-border/50 max-[639px]:w-auto max-[639px]:justify-start max-[639px]:pl-0 max-[639px]:border-l-0">
+        <div className="flex items-center justify-center w-1/4 shrink-0 pl-4 border-l border-theme-border/50">
           <button
             onClick={onNavigateToView}
             className="flex items-center gap-2 text-base font-medium text-theme-text-secondary hover:text-theme-text-primary transition-colors"
