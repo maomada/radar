@@ -101,6 +101,16 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 	if kind == "" || name == "" {
 		return nil, nil, fmt.Errorf("kind and name are required")
 	}
+	dryRun := input.DryRun == nil || *input.DryRun
+	auditRequest := (&http.Request{Method: http.MethodDelete, URL: &url.URL{Path: "/mcp"}}).WithContext(ctx)
+	audit := auth.AuditActionDetails{Action: "delete_resource", Kind: kind, Group: group, Namespace: namespace, Name: name, Source: "mcp", Outcome: "failed"}
+	if dryRun {
+		audit.Outcome = "preview_failed"
+	}
+	defer func() { auth.AuditLogAction(auditRequest, audit) }()
+	if !dryRun && input.Confirm == "" {
+		return nil, nil, fmt.Errorf("confirm is required; run dry_run=true and review the preview first")
+	}
 	dyn, contextName, operation, err := k8s.DeletionClientSnapshot(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -126,6 +136,7 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 		return nil, nil, fmt.Errorf("cluster connection changed while resolving deletion target: %w", err)
 	}
 	gvr, namespaced := r.gvr, r.namespaced
+	audit.Group = gvr.Group
 	if namespaced && namespace == "" {
 		return nil, nil, fmt.Errorf("namespace is required for namespaced kind %q", kind)
 	}
@@ -141,16 +152,6 @@ func handleDeleteResource(ctx context.Context, req *mcp.CallToolRequest, input d
 		propagation = metav1.DeletePropagationOrphan
 	default:
 		return nil, nil, fmt.Errorf("propagation must be background, foreground, or orphan")
-	}
-	dryRun := input.DryRun == nil || *input.DryRun
-	auditRequest := (&http.Request{Method: http.MethodDelete, URL: &url.URL{Path: "/mcp"}}).WithContext(ctx)
-	audit := auth.AuditActionDetails{Action: "delete_resource", Kind: kind, Group: gvr.Group, Namespace: namespace, Name: name, Source: "mcp", Outcome: "failed"}
-	if dryRun {
-		audit.Outcome = "preview_failed"
-	}
-	defer func() { auth.AuditLogAction(auditRequest, audit) }()
-	if !dryRun && input.Confirm == "" {
-		return nil, nil, fmt.Errorf("confirm is required; run dry_run=true and review the preview first")
 	}
 	var client dynamic.ResourceInterface = dyn.Resource(gvr)
 	if namespaced {
