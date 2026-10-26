@@ -17,7 +17,7 @@ import (
 
 // nonIntegrationWriteTools act on built-in kinds or edit arbitrary objects
 // with whatever the caller's roles allow; they are not integration actions.
-var nonIntegrationWriteTools = []string{"manage_cronjob", "manage_node", "apply_resource", "patch_resource"}
+var nonIntegrationWriteTools = []string{"manage_cronjob", "manage_node", "apply_resource", "patch_resource", "delete_resource"}
 
 // TestIntegrationWriteToolActionsHaveReviewedRows makes a new MCP write tool,
 // or a new action on an integration tool, fail until it is classified here or
