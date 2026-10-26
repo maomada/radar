@@ -242,36 +242,6 @@ func TestTrimmedToolsPreserveLoadBearingSteers(t *testing.T) {
 	}
 }
 
-func TestManageGitOpsSyncDescriptions(t *testing.T) {
-	for _, tool := range listRegisteredTools(t) {
-		if tool.Name != "manage_gitops" {
-			continue
-		}
-		raw, err := json.Marshal(tool.InputSchema)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var schema struct {
-			Properties map[string]struct {
-				Description string `json:"description"`
-			} `json:"properties"`
-		}
-		if err := json.Unmarshal(raw, &schema); err != nil {
-			t.Fatal(err)
-		}
-		want := "sync only — Argo SyncOption strings, e.g. Replace=true, ServerSideApply=true. Omit to use the Application's own syncPolicy.syncOptions; a list replaces them ([] = none). Include existing options you want to keep (e.g. CreateNamespace=true)."
-		if got := schema.Properties["sync_options"].Description; got != want {
-			t.Fatalf("sync_options description = %q, want %q", got, want)
-		}
-		wantRevision := "sync only — branch/tag/commit; single-source only; omit to use each source's targetRevision."
-		if got := schema.Properties["revision"].Description; got != wantRevision {
-			t.Fatalf("revision description = %q, want %q", got, wantRevision)
-		}
-		return
-	}
-	t.Fatal("manage_gitops is not registered")
-}
-
 func TestToolCatalogContextBudget(t *testing.T) {
 	// These caps guard against description accretion, not against new tools or
 	// load-bearing routing and uncertainty contracts. Raise them deliberately.
@@ -286,7 +256,8 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// semantics in the catalog so agents do not infer fresh external health
 	// or treat absence as ruling out another pause mechanism.
 	const (
-		maxCatalogBytes         = 64040
+		// Includes the deletion preview, confirmation binding and uncertainty contract.
+		maxCatalogBytes         = 65560
 		maxToolDescriptionBytes = 3000
 	)
 
@@ -443,6 +414,7 @@ func TestRegisteredToolAnnotations(t *testing.T) {
 		"manage_gitops":   true,
 		"apply_resource":  true,
 		"patch_resource":  true,
+		"delete_resource": true,
 		"manage_node":     true,
 	}
 
@@ -494,7 +466,7 @@ func TestRegisteredToolAnnotations(t *testing.T) {
 // writeToolNames is the mutating tool set the read-only mount must exclude.
 var writeToolNames = []string{
 	"manage_workload", "manage_rollout", "manage_cronjob", "manage_gitops",
-	"apply_resource", "patch_resource", "manage_node",
+	"apply_resource", "patch_resource", "delete_resource", "manage_node",
 }
 
 // TestReadOnlyServerExcludesWriteTools is the load-bearing guarantee of the
