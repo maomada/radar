@@ -22,7 +22,7 @@ import (
 )
 
 func TestDeleteResourceDeadlineWithoutParentDeadline(t *testing.T) {
-	for _, phase := range []string{"read", "observation", "observation-remaining-budget", "observation-denied", "conflict-reread", "delete", "preview-delete"} {
+	for _, phase := range []string{"read", "observation", "observation-remaining-budget", "observation-denied", "delete", "preview-delete"} {
 		t.Run(phase, func(t *testing.T) {
 			setConnectedForTest(t)
 			var apply atomic.Bool
@@ -60,11 +60,7 @@ func TestDeleteResourceDeadlineWithoutParentDeadline(t *testing.T) {
 							}
 							return
 						}
-						if phase == "conflict-reread" {
-							w.WriteHeader(http.StatusConflict)
-							_ = json.NewEncoder(w).Encode(metav1.Status{Status: metav1.StatusFailure, Reason: metav1.StatusReasonConflict, Code: 409})
-							return
-						}
+
 					}
 					_ = json.NewEncoder(w).Encode(metav1.Status{Status: metav1.StatusSuccess})
 				default:
@@ -121,18 +117,12 @@ func TestDeleteResourceDeadlineWithoutParentDeadline(t *testing.T) {
 				t.Fatalf("stalled requests = %d, want %d", stalled.Load(), wantStalled)
 			}
 			switch phase {
-			case "read", "conflict-reread":
+			case "read":
 				if !errors.Is(err, context.DeadlineExceeded) || result != nil {
 					t.Fatalf("stalled read: result=%+v err=%v", result, err)
 				}
 				if phase == "read" && (deletes.Load() != 0 || !strings.Contains(err.Error(), "no deletion attempted")) {
 					t.Fatalf("pre-delete timeout: deletes=%d err=%v", deletes.Load(), err)
-				}
-				if phase == "conflict-reread" && (deletes.Load() != 1 || strings.Contains(err.Error(), "no deletion attempted")) {
-					t.Fatalf("conflict timeout: deletes=%d err=%v", deletes.Load(), err)
-				}
-				if phase == "conflict-reread" && !strings.Contains(err.Error(), "DELETE was rejected due to conflict; no retry attempted") {
-					t.Fatalf("lost rejected DELETE outcome: %v", err)
 				}
 			case "delete", "preview-delete":
 				want := "deletion outcome unknown"

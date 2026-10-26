@@ -94,7 +94,7 @@ func TestDeleteResourceMandatoryPreviewAndPreconditions(t *testing.T) {
 	if _, err := dyn.Resource(gvr).Namespace("demo").Update(context.Background(), live, metav1.UpdateOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := handleDeleteResource(context.Background(), nil, direct); err == nil || !strings.Contains(err.Error(), "changed") {
+	if _, _, err := handleDeleteResource(context.Background(), nil, direct); err == nil || !strings.Contains(err.Error(), "resourceVersion") || calls != 1 {
 		t.Fatalf("stale token accepted: %v", err)
 	}
 	live.SetResourceVersion("42")
@@ -378,10 +378,10 @@ func TestDeleteResourcePreviewSummaryAndDependentCounts(t *testing.T) {
 		// topology folds into a pod group past a handful per owner.
 		labelled bool
 	}{
-		{"deployment", 3, 12, metav1.DeletePropagationBackground, "Deletes Deployment demo/web; observed dependents: Pod: 12, ReplicaSet: 3 (15 total, not exhaustive); may wait on finalizers: example.com/cleanup", false},
-		{"truncated", 3, 105, metav1.DeletePropagationForeground, "Deletes Deployment demo/web; observed dependents: Pod: 105, ReplicaSet: 3 (108 total, not exhaustive); may wait on finalizers: example.com/cleanup", false},
-		{"grouped pods", 3, 12, metav1.DeletePropagationBackground, "Deletes Deployment demo/web; observed dependents: Pod: 12, ReplicaSet: 3 (15 total, not exhaustive); may wait on finalizers: example.com/cleanup", true},
-		{"orphan", 1, 1, metav1.DeletePropagationOrphan, "Deletes Deployment demo/web; observed related resources (owner-reference dependents will be orphaned): Pod: 1, ReplicaSet: 1 (2 total, not exhaustive); may wait on finalizers: example.com/cleanup", false},
+		{"deployment", 3, 12, metav1.DeletePropagationBackground, "Deletes Deployment demo/web; observed dependents: Pod: 12, ReplicaSet: 3 (15 total, not exhaustive); cleanup not enumerated: cleanup performed by unrecognized finalizers or other controllers; may wait on finalizers: example.com/cleanup", false},
+		{"truncated", 3, 105, metav1.DeletePropagationForeground, "Deletes Deployment demo/web; observed dependents: Pod: 105, ReplicaSet: 3 (108 total, not exhaustive); cleanup not enumerated: cleanup performed by unrecognized finalizers or other controllers; may wait on finalizers: example.com/cleanup", false},
+		{"grouped pods", 3, 12, metav1.DeletePropagationBackground, "Deletes Deployment demo/web; observed dependents: Pod: 12, ReplicaSet: 3 (15 total, not exhaustive); cleanup not enumerated: cleanup performed by unrecognized finalizers or other controllers; may wait on finalizers: example.com/cleanup", true},
+		{"orphan", 1, 1, metav1.DeletePropagationOrphan, "Deletes Deployment demo/web; observed related resources (owner-reference dependents will be orphaned): Pod: 1, ReplicaSet: 1 (2 total, not exhaustive); cleanup not enumerated: cleanup performed by unrecognized finalizers or other controllers; may wait on finalizers: example.com/cleanup", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setConnectedForTest(t)
