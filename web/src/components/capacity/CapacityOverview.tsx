@@ -373,7 +373,7 @@ export function CapacityOverview({
         </Notice>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 phone:grid-cols-1 lg:grid-cols-3 xl:grid-cols-5">
         <ManagersTile
           managers={summary.managers}
           groups={data.groups}
