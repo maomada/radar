@@ -598,7 +598,11 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   const [showPolicyEffect, setShowPolicyEffect] = useState(false)
   // Topology filter state
   const [visibleKinds, setVisibleKinds] = useState<Set<NodeKind>>(() => new Set(DEFAULT_VISIBLE_KINDS))
-  const [filterSidebarCollapsed, setFilterSidebarCollapsed] = useState(false)
+  // Phones start with the filters collapsed to their icon rail: expanded, the
+  // panel took two thirds of the width from the graph.
+  const [filterSidebarCollapsed, setFilterSidebarCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches,
+  )
   // Topology node-search → canvas focus request (nonce lets the same node re-focus)
   const [topologyFocus, setTopologyFocus] = useState<{ id: string; nonce: number } | null>(null)
   // The topology pane element — the search overlay portals into it so its
@@ -2173,8 +2177,12 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                 </div>
               </div>
             ) : (
-              <>
-                {/* Filter sidebar */}
+              // Own positioned box so the phone overlay below anchors to the
+              // topology area, not the whole content column.
+              <div className="relative flex flex-1 min-w-0 min-h-0">
+                {/* Filter sidebar. On phones, expanded it overlays the graph
+                    instead of squeezing it. */}
+                <div className={isMobile && !filterSidebarCollapsed ? 'absolute inset-y-0 left-0 z-20 flex shadow-theme-lg' : 'contents'}>
                 <TopologyFilterSidebar
                   nodes={filterSidebarNodes}
                   visibleKinds={visibleKinds}
@@ -2189,6 +2197,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     console.log(`[topology] User requested to show hidden kind: ${kind}`)
                   }}
                 />
+                </div>
 
                 <div ref={setTopologyPane} className="flex-1 relative">
                   <TopologyGraph
@@ -2251,7 +2260,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     </div>
                   </TopologyGraph>
                 </div>
-              </>
+              </div>
             )}
           </>
         )}

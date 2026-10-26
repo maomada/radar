@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef, useContext, useId } from 'react'
 import { TableVirtuoso, type TableVirtuosoHandle } from 'react-virtuoso'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { Badge } from '../ui/Badge'
 import { PaneLoader } from '../ui/PaneLoader'
 import { RestrictedState } from '../ui/RestrictedState'
@@ -32,6 +33,7 @@ import {
   ListChecks,
   Minus,
   Scale,
+  PanelLeft,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { ResourceBar } from '../ui/ResourceBar'
@@ -3743,6 +3745,19 @@ export function ResourcesView({
 }: ResourcesViewProps) {
   const initialFilters = getInitialFiltersFromURL()
   const [selectedKind, setSelectedKind] = useState<SelectedKindInfo>(() => getInitialKindFromURL(basePath, defaultKind, locationPathname, locationSearch))
+  // Phones: the 224px kind list would leave the table a sliver, so it lives in
+  // a drawer over the table, opened from the toolbar and closed by a pick.
+  const isPhone = useMediaQuery('(max-width: 639px)')
+  const [kindsDrawerOpen, setKindsDrawerOpen] = useState(false)
+  useEffect(() => {
+    if (!isPhone) setKindsDrawerOpen(false)
+  }, [isPhone])
+  useEffect(() => {
+    if (!kindsDrawerOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setKindsDrawerOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [kindsDrawerOpen])
   // Sync selectedKind from URL when the URL changes (browser back, external sidebar navigation).
   // Deps are URL-derived only — including selectedKind.name/group would race against pending
   // navigation: a sidebar click flips state before navigate() lands, this effect re-reads the
@@ -6068,16 +6083,34 @@ export function ResourcesView({
     onOpenWorkloadLogs,
   }), [onNavigate, certExpiry, certExpiryError, auditBadges, operationalIssues, operationalIssuesIncomplete, onOpenLogs, onOpenWorkloadLogs])
 
+  const kindsButton = (
+    <button
+      type="button"
+      onClick={() => setKindsDrawerOpen(true)}
+      aria-expanded={kindsDrawerOpen}
+      aria-label={`Resource kinds (showing ${selectedKind.kind})`}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-theme-border bg-theme-elevated px-2.5 py-1.5 text-sm font-medium text-theme-text-primary hover:bg-theme-hover"
+    >
+      <PanelLeft className="h-4 w-4 text-theme-text-tertiary" />
+      <span className="max-w-[7rem] truncate">{selectedKind.kind}</span>
+    </button>
+  )
+
   return (
     <ResourcesViewDataContext.Provider value={resourcesViewDataContextValue}>
-    <div className="flex h-full w-full">
+    <div className="relative flex h-full w-full">
       {/* Sidebar - Resource Types */}
-      {!hideSidebar && (
+      {!hideSidebar && isPhone && kindsDrawerOpen && (
+        <div className="absolute inset-0 z-30 bg-black/40" aria-hidden onClick={() => setKindsDrawerOpen(false)} />
+      )}
+      {!hideSidebar && (!isPhone || kindsDrawerOpen) && (
         <ResourcesSidebar
+          className={isPhone ? 'absolute inset-y-0 left-0 z-40 shadow-theme-lg' : undefined}
           selectedKind={selectedKind}
           onSelectedKindChange={(kind) => {
             shouldPushHistory.current = true
             setSelectedKind(kind)
+            setKindsDrawerOpen(false)
           }}
           onKindChange={onKindChange}
           apiResources={apiResourcesProp}
@@ -6097,12 +6130,19 @@ export function ResourcesView({
       )}
 
       {kindView !== null ? (
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-theme-surface">{kindView}</div>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-theme-surface">
+          {!hideSidebar && isPhone && (
+            <div className="flex items-center px-3 py-2 border-b border-theme-border bg-theme-base shrink-0">{kindsButton}</div>
+          )}
+          {kindView}
+        </div>
       ) : (
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-theme-surface">
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-theme-border bg-theme-base shrink-0">
-          <div className="flex-1 min-w-0">
+        {/* Phones: the toolbar wraps and search takes its own full row. */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-theme-border bg-theme-base shrink-0 max-[639px]:flex-wrap max-[639px]:gap-2 max-[639px]:px-3">
+          {!hideSidebar && isPhone && kindsButton}
+          <div className="flex-1 min-w-0 max-[639px]:order-last max-[639px]:basis-full">
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-tertiary" />
               <Input
