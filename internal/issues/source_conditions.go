@@ -1,7 +1,9 @@
 package issues
 
 import (
+	"fmt"
 	"log"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/internal/logsafe"
 	"github.com/skyhook-io/radar/pkg/conditions"
+	"github.com/skyhook-io/radar/pkg/health"
 	"github.com/skyhook-io/radar/pkg/issuesapi"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -138,6 +141,12 @@ func detectGenericCRDIssues(p Provider, f Filters, ownedSubjects map[string]bool
 		}
 
 		for _, u := range items {
+			if gvr.Group == "" && kind == "Pod" {
+				phase, _, _ := unstructured.NestedString(u.Object, "status", "phase")
+				if phase == "Succeeded" {
+					continue
+				}
+			}
 			if gvr.Group == "kafka.strimzi.io" && kind == "KafkaConnector" {
 				out = append(out, detectStrimziConnectorIssues(gvr, u)...)
 				continue
@@ -157,20 +166,11 @@ func detectGenericCRDIssues(p Provider, f Filters, ownedSubjects map[string]bool
 			if cnpgSuppressesGenericConditions(gvr.Group, kind, u) {
 				continue
 			}
-			condition, ok := conditions.FindFalseConditionWithTime(u)
+			condition, ok := findActionableCondition(u)
 			if !ok {
 				continue
 			}
 			condType, reason, msg := condition.Type, condition.Reason, condition.Message
-			// Noise-floor suppression: a False Ready/Available on an object that
-			// is suspended, still reconciling, or whose controller hasn't yet
-			// observed the current spec is NOT a failure — it's in-flight.
-			// Emitting a warning for it is the canonical alert-fatigue trap,
-			// since auto-refresh keeps it permanently lit. Skip those; keep
-			// genuinely-failed objects.
-			if isTransientCRDCondition(u, reason) {
-				continue
-			}
 			severity := SeverityWarning
 			issReason := condTypeReason(condType, reason)
 			issMsg := msg
@@ -262,11 +262,59 @@ func detectGatewayConditionIssues(gvr schema.GroupVersionResource, kind string, 
 }
 
 func detectObjectConditionIssues(gvr schema.GroupVersionResource, kind string, u *unstructured.Unstructured, severity Severity, condTypes ...string) []Issue {
-	condition, ok := conditions.FindFalseConditionWithTime(u, condTypes...)
-	if !ok || isTransientCRDCondition(u, condition.Reason) {
+	condition, ok := findActionableCondition(u, condTypes...)
+	if !ok {
 		return nil
 	}
 	return []Issue{newConditionIssue(gvr, kind, u.GetNamespace(), u.GetName(), severity, condTypeReason(condition.Type, condition.Reason), condition.Message, condition.LastTransitionTime, condition.HasLastTransitionTime, "", u.GetCreationTimestamp().Time)}
+}
+
+func findActionableCondition(u *unstructured.Unstructured, condTypes ...string) (conditions.FalseCondition, bool) {
+	if len(condTypes) == 0 {
+		condTypes = conditions.DefaultFalseConditionTypes
+	}
+	now := time.Now()
+	// Spec edits do not prove recovery. Keep older failures as a qualified fallback.
+	var stale, deleting conditions.FalseCondition
+	hasStale, hasDeletingFallback := false, false
+	for len(condTypes) > 0 {
+		condition, found := conditions.FindFalseConditionWithTime(u, condTypes...)
+		if !found {
+			break
+		}
+		current, _ := conditions.Find(u, condition.Type)
+		paused := condition.Type == "Synced" && condition.Reason == "ReconcilePaused" && u.GetAnnotations()["crossplane.io/paused"] == "true"
+		if current.Status == "False" && !paused && !isTransientCRDCondition(u, condition.Reason) {
+			isDeleting := condition.Type == "Ready" && condition.Reason == "Deleting"
+			deletion := u.GetDeletionTimestamp()
+			expectedDeletion := false
+			if isDeleting && deletion != nil && !deletion.IsZero() {
+				age := now.Sub(deletion.Time)
+				expectedDeletion = age >= -health.NodeRemovalWarningAfter && age < health.NodeRemovalWarningAfter
+			}
+			if !expectedDeletion {
+				isStale := u.GetGeneration() > 0 && condition.ObservedGeneration > 0 && condition.ObservedGeneration < u.GetGeneration()
+				if isStale {
+					condition.Message = strings.TrimSpace(fmt.Sprintf("Condition was last reported for generation %d; current resource generation is %d. %s", condition.ObservedGeneration, u.GetGeneration(), condition.Message))
+				}
+				switch {
+				case isDeleting:
+					// A specific failure is more actionable than the deletion summary.
+					deleting, hasDeletingFallback = condition, true
+				case !isStale:
+					return condition, true
+				case !hasStale:
+					stale, hasStale = condition, true
+				}
+			}
+		}
+		// Skip the whole type so an older representation cannot revive an expected condition.
+		condTypes = slices.DeleteFunc(slices.Clone(condTypes), func(candidateType string) bool { return candidateType == condition.Type })
+	}
+	if hasStale {
+		return stale, true
+	}
+	return deleting, hasDeletingFallback
 }
 
 // gwListenerCond is one listener's failing condition within a gateway group.

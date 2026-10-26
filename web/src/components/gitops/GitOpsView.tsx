@@ -1,3 +1,4 @@
+import type { ResourceCoverage } from '@skyhook-io/k8s-ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -21,6 +22,7 @@ import {
   formatGitOpsSourceUrl,
   getGitOpsResourceStatus,
   getGitOpsTool,
+  gitOpsDetailGroup,
   isDestinationRef,
   isArgoAutoSyncEnabled,
   isArgoAutoSyncSwitchedOff,
@@ -56,7 +58,9 @@ import { useDestinationCluster } from './useDestinationCluster'
 import { destinationToast } from './destination-toast'
 
 import {
+  ApiError,
   fetchJSON,
+  fetchResourceList as fetchCoveredResourceList,
   buildArgoResourceSyncVars,
   useApplyResource,
   useArgoRefresh,
@@ -76,8 +80,8 @@ import {
   useResource,
 } from '../../api/client'
 import { useAPIResources, GITOPS_KINDS } from '../../api/apiResources'
+import { combinedListStatus, lowerBound } from '../../api/resourceLists'
 import { useConnection } from '../../context/ConnectionContext'
-import { apiUrl, getAuthHeaders, getCredentialsMode } from '../../api/config'
 import { useRegisterShortcut } from '../../hooks/useKeyboardShortcuts'
 import { CodeViewer } from '../ui/CodeViewer'
 import { ArgoResourceDiffLoader } from './ArgoResourceDiffLoader'
@@ -101,6 +105,7 @@ const GITOPS_ROWS_REFRESH_INTERVAL_MS = 120_000
 
 interface ResourceCountsResponse {
   counts: Record<string, number>
+  coverage?: Record<string, ResourceCoverage>
   forbidden?: string[]
   unavailable?: string[]
 }
@@ -187,6 +192,19 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
   const rowsQuery = useQuery({
     queryKey: ['gitops-rows-main', namespaces, apiResources?.length ?? 0],
     queryFn: async () => {
+      const coverage: ResourceCoverage[] = []
+      const failures: unknown[] = []
+      const fetchResourceList = async (kind: string, group: string, namespacesParam: string): Promise<any[]> => {
+        try {
+          const result = await fetchCoveredResourceList<any>(kind, { group, namespaces: namespacesParam ? namespacesParam.split(',') : [] })
+          coverage.push(result.coverage)
+          return result.items
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) throw error
+          failures.push(error)
+          return []
+        }
+      }
       const hasApplications = hasAPIResource(apiResources, 'applications', 'argoproj.io')
       const hasApplicationSets = hasAPIResource(apiResources, 'applicationsets', 'argoproj.io')
       const hasKustomizations = hasAPIResource(apiResources, 'kustomizations', 'kustomize.toolkit.fluxcd.io')
@@ -206,13 +224,17 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
         hasOCIRepos ? fetchResourceList('ocirepositories', 'source.toolkit.fluxcd.io', '') : Promise.resolve([]),
         hasBuckets ? fetchResourceList('buckets', 'source.toolkit.fluxcd.io', '') : Promise.resolve([]),
       ])
+      if (coverage.length === 0 && failures.length > 0) throw failures[0]
       const fluxSourceUrls = buildFluxSourceUrlMap([...gitRepos, ...helmRepos, ...ociRepos, ...buckets])
-      return [
+      // Discovery that finds no row kind is itself a complete answer: nothing
+      // was fetched because there is nothing to fetch.
+      const rowKindsDiscovered = hasApplications || hasApplicationSets || hasKustomizations || hasHelmReleases
+      return { coverageStatus: combinedListStatus(coverage, failures.length > 0, apiResources != null && !rowKindsDiscovered), rows: [
         ...applications.map((r) => normalizeArgoApplication(r)),
         ...applicationSets.map((r) => normalizeArgoApplicationSet(r)),
         ...kustomizations.map((r) => normalizeFluxKustomization(r, fluxSourceUrls)),
         ...helmReleases.map((r) => normalizeFluxHelmRelease(r, fluxSourceUrls)),
-      ]
+      ] }
     },
     enabled: !apiResourcesLoading,
     staleTime: 30_000,
@@ -251,7 +273,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
   useEffect(() => {
     if (!hasGitOpsRowResource || rowsQuery.error) { setColdRetrying(false); return }
     if (apiResourcesLoading || rowsQuery.isFetching) return
-    if ((rowsQuery.data?.length ?? 0) > 0) { setColdRetrying(false); return }
+    if ((rowsQuery.data?.rows.length ?? 0) > 0) { setColdRetrying(false); return }
     if (coldRetriesRef.current >= 4) { setColdRetrying(false); return }
     setColdRetrying(true)
     const t = window.setTimeout(() => { coldRetriesRef.current += 1; refetchTable() }, 2000)
@@ -300,11 +322,13 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
   return (
     <>
       <SharedGitOpsTableView
-        rows={rowsQuery.data ?? []}
+        rows={rowsQuery.data?.rows ?? []}
+        coverageStatus={rowsQuery.data?.coverageStatus ?? 'unknown'}
         loading={apiResourcesLoading || countsQuery.isLoading || rowsQuery.isLoading || coldRetrying}
-        error={(rowsQuery.error as Error | null) ?? null}
+        error={rowsQuery.error}
         counts={countsQuery.data?.counts ?? {}}
         countsUnavailable={countsQuery.data?.unavailable}
+        countsPartial={Object.entries(countsQuery.data?.coverage ?? {}).filter(([, c]) => lowerBound(c)).map(([key]) => key)}
         freshnessSlot={
           <FreshnessControl
             mode="auto"
@@ -379,21 +403,23 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   const treeQ = useGitOpsTree(kind, namespace, name, group, namespaces)
   const insightsQ = useGitOpsInsights(kind, namespace, name, group, namespaces)
   const switchFlow = useContextSwitchFlow()
-  const status = resourceQ.data ? getGitOpsResourceStatus(kind, resourceQ.data) : null
-  const tool = getGitOpsTool(kind, group)
+  const effectiveGroup = gitOpsDetailGroup(group, resourceQ.data)
+  const tool = resourceQ.data ? getGitOpsTool(kind, effectiveGroup) : null
+  const isArgoApp = tool === 'argo' && kind === 'applications'
+  const status = tool && resourceQ.data ? getGitOpsResourceStatus(kind, resourceQ.data) : null
   // Argo "auto-sync ON" is read from spec.syncPolicy.automated (honoring
   // `enabled: false`), not from health.status === Suspended (which is Argo's
   // CronJob-style suspend).
   // The toggle button reads from this so the label flips correctly when an
   // app is in Manual mode or suspended via Radar's annotations.
-  const argoAutoSyncEnabled = kind === 'applications' && isArgoAutoSyncEnabled(resourceQ.data)
+  const argoAutoSyncEnabled = isArgoApp && isArgoAutoSyncEnabled(resourceQ.data)
   // Radar-driven Argo suspension is signaled by annotations that record the
   // pre-suspend prune/selfHeal state for restoration on resume. When present,
   // the app is in a deliberately-paused state (vs. Manual mode, which is a
   // normal operational choice) and should surface a Suspended chip alongside
   // the other status indicators. Shared with the fleet table's row normalizer
   // (isArgoSuspendedByRadar) so both surfaces agree on what "suspended" means.
-  const argoSuspendedByRadar = kind === 'applications' && isArgoSuspendedByRadar(resourceQ.data)
+  const argoSuspendedByRadar = isArgoApp && isArgoSuspendedByRadar(resourceQ.data)
   const effectiveSuspended = (status?.suspended ?? false) || argoSuspendedByRadar
   // Lifecycle gate: when the resource is pending deletion, mutating
   // actions are futile (the controller is processing finalizers and
@@ -462,9 +488,9 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
     setSyncDialogTarget(null)
   }
 
-  const detailRow = resourceQ.data ? normalizeDetailResource(kind, group, resourceQ.data) : null
+  const detailRow = tool && resourceQ.data ? normalizeDetailResource(kind, effectiveGroup, tool, resourceQ.data) : null
   const tree = treeQ.data ?? null
-  const helmValues = useMemo(() => extractHelmValues(kind, resourceQ.data), [kind, resourceQ.data])
+  const helmValues = useMemo(() => (tool ? extractHelmValues(kind, resourceQ.data) : null), [tool, kind, resourceQ.data])
   const graphFilters = useMemo<GitOpsTreeFilters>(() => ({
     kinds: graphKinds,
     sync: graphSync,
@@ -475,8 +501,8 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   const graphFacets = useMemo(() => buildTreeFacets(tree), [tree])
   // The tree and insights load separately; either one seeing a remote
   // destination is enough to keep its resources from opening here.
-  const remoteDestination = !!(tree?.remoteDestination || insightsQ.data?.summary?.remoteDestination)
-  const destination = useDestinationCluster(remoteDestination, kind, namespace, name)
+  const remoteDestination = tool !== null && !!(tree?.remoteDestination || insightsQ.data?.summary?.remoteDestination)
+  const destination = useDestinationCluster(remoteDestination, kind, namespace, name, effectiveGroup)
 
   function openResourceFromTree(ref: GitOpsTreeRef | GitOpsInsightRef, node?: GitOpsTreeNode) {
     // Locality comes from the node, not the name: a remote app can deploy a
@@ -551,9 +577,11 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
 
   const isRunning = resourceQ.data?.status?.operationState?.phase === 'Running'
   const operationInProgress = isArgoOperationInProgress(resourceQ.data)
-  const isFluxWorkload = kind === 'kustomizations' || kind === 'helmreleases'
+  const isFluxWorkload = tool === 'flux' && (kind === 'kustomizations' || kind === 'helmreleases')
   const isFlux = tool === 'flux'
-  const isArgoApp = kind === 'applications'
+  const notGitOpsError = resourceQ.data && tool === null
+    ? new Error(notGitOpsMessage(resourceQ.data.kind ?? apiKind?.kind ?? kind, effectiveGroup, namespace, name))
+    : null
 
   // Detail-page shortcuts. Skip when a modal is already open so a stray "s"
   // in an input field doesn't pop another sync dialog.
@@ -668,7 +696,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
         group,
         namespace,
         name,
-        toolLabel: tool === 'argo' ? 'ArgoCD' : 'FluxCD',
+        toolLabel: tool === 'argo' ? 'ArgoCD' : tool === 'flux' ? 'FluxCD' : undefined,
         kindLabel: apiKind?.kind ?? kind,
       }}
       parent={parent}
@@ -676,8 +704,8 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
       terminating={terminating}
       terminatingChipTooltip={terminatingChipTooltip}
       terminatingActionTooltip={terminatingActionTooltip}
-      detail={detail}
-      insight={insightsQ.data ?? null}
+      detail={tool ? detail : undefined}
+      insight={tool ? insightsQ.data ?? null : null}
       insightLoading={insightsQ.isLoading}
       healthDocsUrl={GITOPS_HEALTH_DOCS_URL}
       remoteDestinationHint={<RemoteDestinationCloudHint />}
@@ -712,7 +740,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
                 // Defer the success toast until we know whether the follow-on
                 // sync was triggered, so a successful create-namespace + sync
                 // failure doesn't yield a misleading "sync triggered" toast.
-                if (kind === 'applications') {
+                if (isArgoApp) {
                   argoSync.mutate(
                     { namespace, name },
                     {
@@ -755,7 +783,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
       fullscreen={graphFullscreen}
       onToggleFullscreen={() => setGraphFullscreen(!graphFullscreen)}
       resourceLoading={resourceQ.isLoading}
-      resourceError={(resourceQ.error as Error | null) ?? null}
+      resourceError={(resourceQ.error as Error | null) ?? notGitOpsError}
       onNavigateRoot={() => navigate('/gitops')}
       onNavigateParent={parent ? () => {
         const params = new URLSearchParams()
@@ -1000,16 +1028,23 @@ function tryParseYaml(value: string): unknown {
 
 
 
-function normalizeDetailResource(kind: string, group: string, resource: any): GitOpsRow | null {
-  if (kind === 'applications') return normalizeArgoApplication(resource)
-  if (kind === 'applicationsets') return normalizeArgoApplicationSet(resource)
-  if (kind === 'kustomizations') return normalizeFluxKustomization(resource)
-  if (kind === 'helmreleases') return normalizeFluxHelmRelease(resource)
+// notGitOpsMessage matches the tree/insights endpoints' refusal text.
+function notGitOpsMessage(kind: string, group: string, namespace: string, name: string): string {
+  const kindGroup = group ? `${kind}.${group}` : kind
+  const ref = namespace ? `${namespace}/${name}` : name
+  return `${kindGroup} ${ref} is not a supported Argo CD or Flux resource, so it has no GitOps view`
+}
+
+function normalizeDetailResource(kind: string, group: string, tool: 'argo' | 'flux', resource: any): GitOpsRow | null {
+  if (tool === 'argo' && kind === 'applications') return normalizeArgoApplication(resource)
+  if (tool === 'argo' && kind === 'applicationsets') return normalizeArgoApplicationSet(resource)
+  if (tool === 'flux' && kind === 'kustomizations') return normalizeFluxKustomization(resource)
+  if (tool === 'flux' && kind === 'helmreleases') return normalizeFluxHelmRelease(resource)
   const status = getGitOpsResourceStatus(kind, resource)
   return {
     id: `${group}/${kind}/${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`,
     mode: 'applications',
-    tool: getGitOpsTool(kind, group),
+    tool,
     kindName: kind,
     kind: resource.kind ?? kind,
     group,
@@ -1068,19 +1103,6 @@ function isValidKubernetesName(name: string): boolean {
 
 function hasAPIResource(resources: APIResource[] | undefined, name: string, group: string): boolean {
   return (resources ?? []).some((resource) => resource.name === name && resource.group === group)
-}
-
-async function fetchResourceList(kind: string, group: string, namespacesParam: string): Promise<any[]> {
-  const params = new URLSearchParams()
-  if (namespacesParam) params.set('namespaces', namespacesParam)
-  if (group) params.set('group', group)
-  const res = await fetch(apiUrl(`/resources/${kind}?${params}`), {
-    credentials: getCredentialsMode(),
-    headers: getAuthHeaders(),
-  })
-  if (res.status === 400 || res.status === 403 || res.status === 404) return []
-  if (!res.ok) throw new Error(`Failed to fetch ${kind}: HTTP ${res.status}`)
-  return res.json()
 }
 
 function isTerminating(resource: any): boolean {

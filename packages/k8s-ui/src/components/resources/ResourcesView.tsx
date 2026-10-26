@@ -1,8 +1,13 @@
+import type { ResourceCoverage } from '../../types/resource-coverage'
+import { resourceCoverageNotice, resourceEmptyMessage, resourceNarrowedNotice } from '../../utils/resource-coverage'
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef, useContext, useId } from 'react'
 import { TableVirtuoso, type TableVirtuosoHandle } from 'react-virtuoso'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { usePhoneLayout } from '../../hooks/usePhoneLayout'
+import { CrossplaneDeleteNotice } from '../ui/CrossplaneOperationNotice'
 import { Badge } from '../ui/Badge'
 import { PaneLoader } from '../ui/PaneLoader'
+import { DialogPortal } from '../ui/DialogPortal'
 import { RestrictedState } from '../ui/RestrictedState'
 import { FetchResult } from '../ui/FetchResult'
 import { Input } from '../ui/Input'
@@ -32,6 +37,7 @@ import {
   ListChecks,
   Minus,
   Scale,
+  PanelLeft,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { ResourceBar } from '../ui/ResourceBar'
@@ -148,6 +154,7 @@ import {
   SEVERITY_DOT_COLOR,
   healthColors,
 } from './resource-utils'
+import { TRIVY_GROUP, searchTrivyFindings, type TrivyFindingMatch, type TrivyFindingsSearch } from './resource-utils-trivy'
 import { getGenericResourceStatus } from './generic-status'
 import { ActiveFilterBar } from './ActiveFilterBar'
 import { getIstioGatewayServerCount, getIstioGatewaySelectorString } from './resource-utils-istio'
@@ -156,7 +163,7 @@ import {
   printerCellTone, printerColumnKey, printerColumnWidth, printerTableKey, printerTableMatchesKind, readPrinterCell,
 } from './printer-columns'
 import { SEVERITY_BADGE, SEVERITY_TEXT, healthToSeverity, EVENT_TYPE_COLORS } from '../../utils/badge-colors'
-import { pluralize } from '../../utils/pluralize'
+import { englishPlural, isEnglishPlural, pluralize } from '../../utils/pluralize'
 import { getPodGpuCount, getNodeGpuCount } from '../../utils/extended-resources'
 import { formatRelativeAgeTime, parseQuantityToNumber } from '../../utils/format'
 import { type CustomColumnDef, type CustomColumnSource, customColumnKey, readCustomColumnValue, sanitizeCustomColumnDefs } from '../../utils/custom-columns'
@@ -201,8 +208,9 @@ import { BackupCell, RestoreCell, ScheduleCell, BackupStorageLocationCell, Volum
 import { isVeleroResource } from './resource-utils-velero'
 import { CNPGClusterCell, CNPGBackupCell, CNPGScheduledBackupCell, CNPGPoolerCell, CNPGObjectStoreCell, CNPGDeclarativeCell, CNPGImageCatalogCell } from './renderers/cnpg-cells'
 import { isApiGroup, CNPG_GROUP } from './resource-utils-cnpg'
-import { ManagedResourceCell, CompositeResourceCell, CrossplaneProviderCell, CrossplaneProviderConfigCell, CompositionCell, XRDCell } from './renderers/crossplane-cells'
-import { isManagedResource, isComposite } from './resource-utils-crossplane'
+import { CrossplaneStatusCell, ManagedResourceCell, CompositeResourceCell, CrossplaneProviderCell, CrossplaneProviderConfigCell, CompositionCell, XRDCell } from './renderers/crossplane-cells'
+import { getCrossplaneStatus, isManagedResource, isComposite, getCrossplanePauseState } from './resource-utils-crossplane'
+import { CrossplanePauseChip } from './renderers/CrossplanePauseContext'
 import { VirtualServiceCell, DestinationRuleCell, IstioGatewayCell, ServiceEntryCell, PeerAuthenticationCell, AuthorizationPolicyCell } from './renderers/istio-cells'
 import { KnativeServiceCell, ConfigurationCell as KnativeConfigurationCell, RevisionCell as KnativeRevisionCell, RouteCell as KnativeRouteCell, BrokerCell, TriggerCell, EventTypeCell, PingSourceCell, ApiServerSourceCell, ContainerSourceCell, SinkBindingCell, ChannelCell, InMemoryChannelCell, SubscriptionCell, SequenceCell, ParallelCell, DomainMappingCell, ServerlessServiceCell, KnativeIngressCell, KnativeCertificateCell } from './renderers/knative-cells'
 import { IngressRouteCell, MiddlewareCell, TraefikServiceCell, ServersTransportCell, TLSOptionCell } from './renderers/traefik-cells'
@@ -215,7 +223,7 @@ import { CalicoInfraCell, CalicoPolicyCell } from './renderers/calico-cells'
 import { isCalicoPolicyResource, isCoreNetworkPolicyKind } from './resource-utils-calico'
 import { useRegisterShortcut, useRegisterShortcuts, type KeyboardShortcut } from '../../hooks/useKeyboardShortcuts'
 import { ResourcesSidebar } from './ResourcesSidebar'
-import type { SelectedKindInfo, SidebarCategoryWorkspace } from './ResourcesSidebar'
+import type { SelectedKindInfo, SidebarCategoryWorkspace, SidebarDisplayState } from './ResourcesSidebar'
 import { CompareTray, togglePick, pickIndex, refToParam, SIDE_TONES, type CompareTrayPick, type NamespacedRef } from '../compare'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 
@@ -336,6 +344,24 @@ const COMPARE_COLUMN_STYLE: React.CSSProperties = {
   width: COMPARE_COLUMN_WIDTH,
   minWidth: COMPARE_COLUMN_WIDTH,
   maxWidth: COMPARE_COLUMN_WIDTH,
+}
+
+// Phones: the leading columns (compare marker, selection checkbox, then Name
+// when it is the first column) stay in place while the rest of the table
+// scrolls sideways, so every row stays identifiable. The opaque background
+// keeps scrolled cells from showing through; on phones it hides the selection
+// tint on these cells, where a tap opens the full-screen detail anyway.
+// The offset rides a CSS variable that only the phone classes read, so the
+// desktop header (position: relative) never moves.
+const CHECKBOX_COLUMN_WIDTH = 40
+const PHONE_PINNED_CELL = 'phone:sticky phone:left-[var(--pin-left)] phone:z-[1] phone:bg-theme-surface'
+const PHONE_PINNED_HEAD = 'phone:sticky phone:left-[var(--pin-left)] phone:z-[3]'
+const PHONE_NAME_MAX_VW = 45
+function phonePinnedLeft(compareMode: boolean | undefined, showCheckbox: boolean | undefined, column: 'compare' | 'checkbox' | 'name'): React.CSSProperties {
+  const compare = compareMode ? COMPARE_COLUMN_WIDTH : 0
+  const checkbox = showCheckbox ? CHECKBOX_COLUMN_WIDTH : 0
+  const left = column === 'compare' ? 0 : column === 'checkbox' ? compare : compare + checkbox
+  return { '--pin-left': `${left}px` } as React.CSSProperties
 }
 
 // Built-in sortable keys. Hoisted so getColumnMinWidth can reserve room for the
@@ -3129,12 +3155,12 @@ function buildPrinterColumn(def: PrinterColumnDef, index: number, table: Printer
       // A column the vendor named Ready/Healthy/Established carries the only
       // scannable signal these kinds have — they have no curated Status column.
       // Rendering it as grey text would leave a screen of uniform "True".
-      const tone = printerCellTone(def, value)
+      const tone = printerCellTone(def, value, resource)
       if (tone) {
         return (
           // The value, not the column's description — the header tooltip
           // carries that. A cell tooltip exists to reveal a truncated value.
-          <Tooltip content={text}>
+          <Tooltip content={tone === 'neutral' ? `${text} · ${String(value).trim().toLowerCase() === 'false' ? 'Controller recorded reconciliation paused' : 'Last reported readiness while reconciliation is paused'}` : text}>
             <span className={clsx('badge', healthColors[tone])}>{text}</span>
           </Tooltip>
         )
@@ -3363,6 +3389,7 @@ interface ResourcesViewData {
 export const ResourcesViewDataContext = React.createContext<ResourcesViewData>({})
 
 export interface ResourceQueryResult {
+  coverage?: ResourceCoverage
   resourceName?: string
   group?: string
   data?: any[]
@@ -3398,6 +3425,7 @@ interface ResourcesViewProps {
   resourceQueries?: ResourceQueryResult[]
   // Lightweight counts for sidebar badges (from /api/resource-counts)
   resourceCounts?: Record<string, number | null>
+  resourceCoverage?: Record<string, ResourceCoverage>
   resourceForbidden?: string[]
   /** Per-kind reason a forbidden kind is hidden ("rbac_denied" | "unavailable"),
    *  keyed by the same count key as resourceForbidden. Drives RestrictedState copy. */
@@ -3551,6 +3579,7 @@ const DEFAULT_KIND_INFO: SelectedKindInfo = { name: 'pods', kind: 'Pod', group: 
 export const LOADED_RESOURCE_COUNT_TTL_MS = 5 * 60 * 1000
 
 interface LoadedResourceCount {
+  coverage?: ResourceCoverage
   count: number
   expiresAt: number
 }
@@ -3660,6 +3689,22 @@ export function deriveSidebarResourceCounts(
   return results
 }
 
+export function deriveSidebarResourceCoverage(
+  resourceCounts: Record<string, number | null> | undefined,
+  resourceCoverage: Record<string, ResourceCoverage> | undefined,
+  loadedCountCache: LoadedResourceCountCache,
+  now = Date.now(),
+): Record<string, ResourceCoverage> {
+  const result: Record<string, ResourceCoverage> = { ...resourceCoverage }
+  for (const key of Object.keys(resourceCounts ?? {})) {
+    if (!(key in result)) result[key] = { status: 'unknown' }
+  }
+  for (const [key, cached] of Object.entries(loadedCountCache)) {
+    if (!(key in result) && cached.expiresAt > now) result[key] = cached.coverage ?? { status: 'unknown' }
+  }
+  return result
+}
+
 const FILTER_INTENT_PARAMS = [...RESOURCE_LIST_FILTER_PARAMS, 'resource']
 
 /**
@@ -3694,6 +3739,7 @@ export function ResourcesView({
   apiResources: apiResourcesProp,
   resourceQueries: resourceQueriesProp,
   resourceCounts: resourceCountsProp,
+  resourceCoverage: resourceCoverageProp,
   resourceForbidden: resourceForbiddenProp,
   resourceReasons,
   resourceUnavailable: resourceUnavailableProp,
@@ -3742,6 +3788,15 @@ export function ResourcesView({
 }: ResourcesViewProps) {
   const initialFilters = getInitialFiltersFromURL()
   const [selectedKind, setSelectedKind] = useState<SelectedKindInfo>(() => getInitialKindFromURL(basePath, defaultKind, locationPathname, locationSearch))
+  // Phones: the 224px kind list would leave the table a sliver, so it lives in
+  // a drawer over the table, opened from the toolbar and closed by a pick.
+  const isPhone = usePhoneLayout()
+  const [kindsDrawerOpen, setKindsDrawerOpen] = useState(false)
+  // The drawer unmounts its sidebar on close; keep its display settings here.
+  const [drawerSidebarState, setDrawerSidebarState] = useState<SidebarDisplayState>(() => ({ showEmptyKinds: false, favoritesExpanded: pinned.length > 0 }))
+  useEffect(() => {
+    if (!isPhone) setKindsDrawerOpen(false)
+  }, [isPhone])
   // Sync selectedKind from URL when the URL changes (browser back, external sidebar navigation).
   // Deps are URL-derived only — including selectedKind.name/group would race against pending
   // navigation: a sidebar click flips state before navigate() lands, this effect re-reads the
@@ -4317,7 +4372,7 @@ export function ResourcesView({
     category: 'Search',
     scope: 'resources',
     handler: () => searchInputRef.current?.focus(),
-    enabled: tableActive,
+    enabled: tableActive && !kindsDrawerOpen,
   })
 
   // Keyboard navigation: highlighted row state
@@ -4426,6 +4481,8 @@ export function ResourcesView({
     onResourceClick?.(isSelected ? null : stripped)
   }, [onRowSelect, onResourceClick, selectedKind.name, selectedKind.group])
 
+  // Shortcuts here (and the search shortcut above) pause while the phone
+  // kind drawer is open: it's modal, so the table behind it takes no keys.
   useRegisterShortcuts(([
     {
       id: 'resources-nav-down',
@@ -4599,7 +4656,7 @@ export function ResourcesView({
         else searchInputRef.current?.blur()
       },
     },
-  ] as KeyboardShortcut[]).map((sc) => ({ ...sc, enabled: tableActive && (sc.enabled ?? true) })))
+  ] as KeyboardShortcut[]).map((sc) => ({ ...sc, enabled: tableActive && !kindsDrawerOpen && (sc.enabled ?? true) })))
 
   // Refs for accessing filteredResources inside shortcuts (computed later in component)
   const filteredResourceCountRef = useRef(0)
@@ -4609,7 +4666,7 @@ export function ResourcesView({
   const flatKindListRef = useRef<SelectedKindInfo[]>([])
 
   // Sidebar kind navigation: [ = previous kind, ] = next kind
-  useRegisterShortcuts([
+  useRegisterShortcuts(([
     {
       id: 'resources-prev-kind',
       keys: '[',
@@ -4642,7 +4699,7 @@ export function ResourcesView({
         onKindChange?.()
       },
     },
-  ])
+  ] as KeyboardShortcut[]).map((sc) => ({ ...sc, enabled: !kindsDrawerOpen && (sc.enabled ?? true) })))
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -5165,16 +5222,16 @@ export function ResourcesView({
       }
 
       const existing = next[selectedKindCountKey]
-      if (existing?.count === selectedLoadedResourceCount && existing.expiresAt === expiresAt) {
+      if (existing?.count === selectedLoadedResourceCount && existing.expiresAt === expiresAt && existing.coverage === selectedQuery?.coverage) {
         return changed ? next : prev
       }
 
       return {
         ...next,
-        [selectedKindCountKey]: { count: selectedLoadedResourceCount, expiresAt },
+        [selectedKindCountKey]: { count: selectedLoadedResourceCount, expiresAt, coverage: selectedQuery?.coverage },
       }
     })
-  }, [selectedQueryHasLoadedCount, selectedLoadedResourceCount, selectedKindCountKey, selectedQuery?.dataUpdatedAt])
+  }, [selectedQueryHasLoadedCount, selectedLoadedResourceCount, selectedKindCountKey, selectedQuery?.dataUpdatedAt, selectedQuery?.coverage])
 
   // Derive counts — prefer lightweight resourceCounts prop over full query data
   const counts = useMemo(() => {
@@ -5194,6 +5251,12 @@ export function ResourcesView({
     })
     return results
   }, [useNewCountsMode, resourcesToCount, resourceCountsProp, resourceUnavailableProp, loadedCountCache, selectedQueryHasLoadedCount, selectedLoadedResourceCount, selectedKindCountKey, resourceQueries])
+
+  const sidebarResourceCoverage = useMemo(() => {
+    const result = deriveSidebarResourceCoverage(resourceCountsProp, resourceCoverageProp, loadedCountCache)
+    if (selectedQueryHasLoadedCount) result[selectedKindCountKey] = selectedQuery?.coverage ?? { status: 'unknown' }
+    return result
+  }, [resourceCountsProp, resourceCoverageProp, loadedCountCache, selectedQueryHasLoadedCount, selectedKindCountKey, selectedQuery?.coverage])
 
   const sidebarResourceUnavailable = useMemo(() => {
     if (!resourceUnavailableProp?.length) {
@@ -5318,8 +5381,16 @@ export function ResourcesView({
       if (issue) return issueTitle(issue)
       if (operationalIssuesIncomplete) return 'Unknown'
     }
+    if (column === 'status') {
+      const managedColumns = isLikelyCrossplaneMRGroup(selectedKind.name, selectedKind.group ?? '')
+      if ((managedColumns && isManagedResource(resource))
+        || ((!hasCuratedColumns(selectedKind.name, selectedKind.group) || managedColumns)
+          && getCrossplanePauseState(resource) === 'acknowledged')) {
+        return getCrossplaneStatus(resource).text
+      }
+    }
     return getCellFilterValue(resource, column, kind)
-  }, [operationalIssues, operationalIssuesIncomplete, selectedKind.group])
+  }, [operationalIssues, operationalIssuesIncomplete, selectedKind.name, selectedKind.group])
 
   // Get sortable value from a resource for a given column
   const getSortValue = useCallback((resource: any, column: string, kind?: string): string | number => {
@@ -5462,13 +5533,18 @@ export function ResourcesView({
     }
   }, [regexMode, deferredSearchTerm])
 
+  const isTrivyKind = selectedKind.group === TRIVY_GROUP
+
   // Filter resources by search term, status, problems, and sort
-  const filteredResources = useMemo(() => {
-    if (!tableActive || !resources) return []
+  const { list: filteredResources, findings: findingsSearch } = useMemo((): { list: any[]; findings: TrivyFindingsSearch | null } => {
+    if (!tableActive || !resources) return { list: [], findings: null }
 
     let result = resources
+    let findings: TrivyFindingsSearch | null = null
 
-    // Apply search filter
+    // Apply search filter. On Trivy report kinds a plain search also matches
+    // findings and runs below, after the other filters. Regex mode stays on
+    // names: a pattern run over every finding could backtrack for seconds.
     if (deferredSearchTerm) {
       if (regexMode) {
         const re = searchRegex.re
@@ -5478,7 +5554,7 @@ export function ResourcesView({
             re.test(r.metadata?.namespace ?? '')
           )
         }
-      } else {
+      } else if (!isTrivyKind) {
         const term = deferredSearchTerm.toLowerCase()
         result = result.filter((r: any) =>
           r.metadata?.name?.toLowerCase().includes(term) ||
@@ -5552,6 +5628,19 @@ export function ResourcesView({
           ref.kind === ownerKind && ref.name === ownerName
         )
       })
+    }
+
+    // Trivy findings are searched after the other filters, so rows they hide
+    // don't spend the findings budget.
+    if (deferredSearchTerm && !regexMode && isTrivyKind) {
+      const term = deferredSearchTerm.toLowerCase()
+      const matched = searchTrivyFindings(result, term)
+      findings = matched
+      result = result.filter((r: any) =>
+        r.metadata?.name?.toLowerCase().includes(term) ||
+        r.metadata?.namespace?.toLowerCase().includes(term) ||
+        matched.matches.has(r)
+      )
     }
 
     // Apply custom sorting if set. Extra columns override
@@ -5649,8 +5738,8 @@ export function ResourcesView({
       }
     }
 
-    return result
-  }, [tableActive, resources, deferredSearchTerm, regexMode, searchRegex, columnFilters, columnFilterExcludes, problemFilters, showInactiveReplicaSets, labelSelector, ownerKind, ownerName, selectedKind.name, effectiveSortColumn, sortDirection, getSortValue, getDisplayFilterValue, extraColumnsByKey, podMatchesProblemFilter])
+    return { list: result, findings }
+  }, [tableActive, resources, deferredSearchTerm, regexMode, searchRegex, isTrivyKind, columnFilters, columnFilterExcludes, problemFilters, showInactiveReplicaSets, labelSelector, ownerKind, ownerName, selectedKind.name, effectiveSortColumn, sortDirection, getSortValue, getDisplayFilterValue, extraColumnsByKey, podMatchesProblemFilter])
 
   // For nodes table: compute the majority minor version so outliers can be highlighted
   const majorityNodeMinorVersion = useMemo(() => {
@@ -5805,14 +5894,30 @@ export function ResourcesView({
   // Fixed-width columns can consume the table's flexible space and collapse
   // the required name column. Keep a real table minimum and let the container
   // scroll horizontally when the viewport is too narrow.
+  // Phones pin a leading Name column (see PHONE_PINNED_CELL). Cap it at
+  // PHONE_NAME_MAX_VW percent of the screen so a width saved on desktop can't
+  // make the pinned column cover it; the saved width itself is left alone.
+  // Tracked through resizes and rotation, which can stay within phone width.
+  const [phoneViewportWidth, setPhoneViewportWidth] = useState(() => (typeof window === 'undefined' ? 0 : window.innerWidth))
+  useEffect(() => {
+    if (!isPhone) return
+    const onResize = () => setPhoneViewportWidth(window.innerWidth)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [isPhone])
+  const phoneNameCap = isPhone && columns[0]?.key === 'name' ? Math.round(phoneViewportWidth * PHONE_NAME_MAX_VW / 100) : Infinity
   const tableMinWidth = useMemo(() => {
     const compareColumnWidth = compareMode ? COMPARE_COLUMN_WIDTH : 0
-    const baseMinWidth = columns.reduce((sum, col) => sum + (columnWidths[col.key] || getColumnMinWidth(col, extraColumnsByKey)), compareColumnWidth)
+    const baseMinWidth = columns.reduce((sum, col, i) => {
+      const width = columnWidths[col.key] || getColumnMinWidth(col, extraColumnsByKey)
+      return sum + (i === 0 && col.key === 'name' ? Math.min(width, phoneNameCap) : width)
+    }, compareColumnWidth)
     const flexibleNameColumn = columns.find(col => col.key === 'name' && !columnWidths[col.key])
 
     if (!hasResizedColumns || !flexibleNameColumn) return baseMinWidth
     return baseMinWidth + getColumnMinWidth(flexibleNameColumn, extraColumnsByKey)
-  }, [columns, columnWidths, compareMode, hasResizedColumns, extraColumnsByKey, headerFontEpoch])
+  }, [columns, columnWidths, compareMode, hasResizedColumns, extraColumnsByKey, headerFontEpoch, phoneNameCap])
 
   // Stable virtuoso components — memoized to avoid remounting the table on every render
   const virtuosoComponents = useMemo(() => ({
@@ -5834,13 +5939,15 @@ export function ResourcesView({
             */}
             {compareMode && <col style={{ width: COMPARE_COLUMN_WIDTH }} />}
             {isCheckboxMode && <col style={{ width: '40px' }} />}
-            {columns.map(col => (
+            {columns.map((col, i) => (
               <col
                 key={col.key}
                 style={{
-                  width: columnWidths[col.key]
-                    ? `${columnWidths[col.key]}px`
-                    : col.key === 'name' ? undefined : `${getColumnMinWidth(col, extraColumnsByKey)}px`,
+                  width: i === 0 && col.key === 'name' && phoneNameCap !== Infinity
+                    ? `min(${columnWidths[col.key] || getColumnMinWidth(col, extraColumnsByKey)}px, ${PHONE_NAME_MAX_VW}vw)`
+                    : columnWidths[col.key]
+                      ? `${columnWidths[col.key]}px`
+                      : col.key === 'name' ? undefined : `${getColumnMinWidth(col, extraColumnsByKey)}px`,
                 }}
               />
             ))}
@@ -5851,7 +5958,7 @@ export function ResourcesView({
       )
     }),
     TableRow: VirtuosoTableRow,
-  }), [columns, columnWidths, hasResizedColumns, compareMode, tableMinWidth, isCheckboxMode, extraColumnsByKey, headerFontEpoch])
+  }), [columns, columnWidths, hasResizedColumns, compareMode, tableMinWidth, isCheckboxMode, extraColumnsByKey, headerFontEpoch, phoneNameCap])
 
   // Calculate filter options with counts based on current resources (before filtering)
   const filterOptions = useMemo(() => {
@@ -6049,46 +6156,86 @@ export function ResourcesView({
     onOpenWorkloadLogs,
   }), [onNavigate, certExpiry, certExpiryError, auditBadges, operationalIssues, operationalIssuesIncomplete, onOpenLogs, onOpenWorkloadLogs])
 
+  const renderSidebar = (className?: string, inDrawer = false) => (
+    <ResourcesSidebar
+      className={className}
+      displayState={inDrawer ? drawerSidebarState : undefined}
+      onDisplayStateChange={inDrawer ? setDrawerSidebarState : undefined}
+      containEscape={inDrawer}
+      selectedKind={selectedKind}
+      onSelectedKindChange={(kind) => {
+        shouldPushHistory.current = true
+        setSelectedKind(kind)
+        setKindsDrawerOpen(false)
+      }}
+      onKindChange={onKindChange}
+      apiResources={apiResourcesProp}
+      resourceCounts={counts}
+      resourceCoverage={sidebarResourceCoverage}
+      resourceForbidden={Array.from(forbiddenKinds)}
+      resourceUnavailable={sidebarResourceUnavailable}
+      pinned={pinned}
+      togglePin={togglePin}
+      isPinned={isPinned}
+      categoryWorkspaces={sidebarCategoryWorkspaces}
+      onKindNavigated={() => {
+        // After selecting a kind via keyboard, move focus to the table search
+        // so the user can immediately filter within the selected kind.
+        setTimeout(() => searchInputRef.current?.focus(), 50)
+      }}
+    />
+  )
+
+  const kindsButton = (
+    <button
+      type="button"
+      onClick={() => setKindsDrawerOpen(true)}
+      aria-expanded={kindsDrawerOpen}
+      aria-label={`Resource kinds (showing ${selectedKind.kind})`}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-theme-border bg-theme-elevated px-2.5 py-1.5 text-sm font-medium text-theme-text-primary hover:bg-theme-hover"
+    >
+      <PanelLeft className="h-4 w-4 text-theme-text-tertiary" />
+      <span className="max-w-[7rem] truncate">{selectedKind.kind}</span>
+    </button>
+  )
+
   return (
     <ResourcesViewDataContext.Provider value={resourcesViewDataContextValue}>
     <div className="flex h-full w-full">
-      {/* Sidebar - Resource Types */}
-      {!hideSidebar && (
-        <ResourcesSidebar
-          selectedKind={selectedKind}
-          onSelectedKindChange={(kind) => {
-            shouldPushHistory.current = true
-            setSelectedKind(kind)
-          }}
-          onKindChange={onKindChange}
-          apiResources={apiResourcesProp}
-          resourceCounts={counts}
-          resourceForbidden={Array.from(forbiddenKinds)}
-          resourceUnavailable={sidebarResourceUnavailable}
-          pinned={pinned}
-          togglePin={togglePin}
-          isPinned={isPinned}
-          categoryWorkspaces={sidebarCategoryWorkspaces}
-          onKindNavigated={() => {
-            // After selecting a kind via keyboard, move focus to the table search
-            // so the user can immediately filter within the selected kind.
-            setTimeout(() => searchInputRef.current?.focus(), 50)
-          }}
-        />
+      {/* Sidebar - Resource Types. On phones it is a modal drawer: the
+          dialog primitive traps focus, captures Escape before the table's
+          own shortcuts, and returns focus to the kinds button. */}
+      {!hideSidebar && !isPhone && renderSidebar()}
+      {!hideSidebar && isPhone && (
+        <DialogPortal
+          open={kindsDrawerOpen}
+          onClose={() => setKindsDrawerOpen(false)}
+          ariaLabel="Resource kinds"
+          className="!ml-0 !mr-auto h-full w-72 max-w-[85vw] self-stretch overflow-hidden rounded-none border-y-0 border-l-0"
+        >
+          {renderSidebar('!w-full h-full border-r-0', true)}
+        </DialogPortal>
       )}
 
       {kindView !== null ? (
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-theme-surface">{kindView}</div>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-theme-surface">
+          {!hideSidebar && isPhone && (
+            <div className="flex items-center px-3 py-2 border-b border-theme-border bg-theme-base shrink-0">{kindsButton}</div>
+          )}
+          {kindView}
+        </div>
       ) : (
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-theme-surface">
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-theme-border bg-theme-base shrink-0">
-          <div className="flex-1 min-w-0">
+        {/* Phones: the toolbar wraps and search takes its own full row. */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-theme-border bg-theme-base shrink-0 phone:relative phone:flex-wrap phone:gap-2 phone:px-3">
+          {!hideSidebar && isPhone && kindsButton}
+          <div className="flex-1 min-w-0 phone:order-last phone:basis-full">
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-tertiary" />
               <Input
                 ref={searchInputRef}
-                placeholder={regexMode ? 'Search by regex... (press /)' : 'Search... (press /)'}
+                placeholder={regexMode ? 'Search by regex... (press /)' : isTrivyKind ? 'Search names and findings... (press /)' : 'Search... (press /)'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => {
@@ -6150,6 +6297,11 @@ export function ResourcesView({
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
+              {!searchRegex.error && findingsSearch?.truncated && (
+                <div className="absolute left-0 top-full mt-1 z-10 px-2 py-1 rounded bg-theme-elevated border border-theme-border text-xs text-theme-text-secondary shadow-theme-sm">
+                  Too many findings to search them all here; some weren't searched.
+                </div>
+              )}
               {searchRegex.error && (
                 <div
                   title={searchRegex.error}
@@ -6161,9 +6313,11 @@ export function ResourcesView({
             </div>
           </div>
 
-          {/* Problems dropdown (pods only) */}
+          {/* Problems dropdown (pods only). On phones the toolbar wraps, so this
+              menu and Labels' anchor to the toolbar (full width below it)
+              rather than to a trigger that may sit near either edge. */}
           {filterOptions?.problems && filterOptions.problems.length > 0 && (
-            <div className="relative" ref={problemsDropdownRef}>
+            <div className="relative phone:static" ref={problemsDropdownRef}>
               <button
                 onClick={() => { setShowProblemsDropdown(!showProblemsDropdown); setShowLabelsDropdown(false) }}
                 className={clsx(
@@ -6182,7 +6336,7 @@ export function ResourcesView({
                 )}
               </button>
               {showProblemsDropdown && (
-                <div className="absolute right-0 top-full mt-1 min-w-48 bg-theme-surface border border-theme-border rounded-lg shadow-xl z-50">
+                <div className="absolute right-0 top-full mt-1 min-w-48 phone:left-3 phone:right-3 phone:min-w-0 bg-theme-surface border border-theme-border rounded-lg shadow-xl z-50">
                   {problemFilters.length > 0 && (
                     <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-border">
                       <span className="text-xs font-medium text-theme-text-secondary">Problems</span>
@@ -6213,7 +6367,7 @@ export function ResourcesView({
 
           {/* Labels dropdown */}
           {filterOptions?.labels && filterOptions.labels.length > 0 && (
-            <div className="relative" ref={labelsDropdownRef}>
+            <div className="relative phone:static" ref={labelsDropdownRef}>
               <button
                 onClick={() => { setShowLabelsDropdown(!showLabelsDropdown); setShowProblemsDropdown(false); setLabelSearch('') }}
                 className={clsx(
@@ -6237,7 +6391,7 @@ export function ResourcesView({
                   ? labels.filter(l => l.value.toLowerCase().includes(labelSearch.toLowerCase()))
                   : labels
                 return (
-                  <div className="absolute right-0 top-full mt-1 min-w-64 max-w-80 bg-theme-surface border border-theme-border rounded-lg shadow-xl z-50">
+                  <div className="absolute right-0 top-full mt-1 min-w-64 max-w-80 phone:left-3 phone:right-3 phone:min-w-0 phone:max-w-none bg-theme-surface border border-theme-border rounded-lg shadow-xl z-50">
                     <div className="flex items-center gap-2 p-2 border-b border-theme-border">
                       <div className="relative flex-1">
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-theme-text-tertiary" />
@@ -6477,7 +6631,7 @@ export function ResourcesView({
 
         {/* Bulk actions bar */}
         {showBulkBar && (
-          <div className="flex items-center gap-3 px-4 py-2 bg-skyhook-500/10 border-b border-skyhook-400/20 shrink-0">
+          <div className="flex items-center gap-3 px-4 py-2 bg-skyhook-500/10 border-b border-skyhook-400/20 shrink-0 phone:flex-wrap phone:gap-2 phone:px-3">
             <span className="text-sm font-medium text-theme-text-primary">
               {checkedItems.length} selected
             </span>
@@ -6524,6 +6678,18 @@ export function ResourcesView({
           </div>
         )}
 
+        {!isLoading && !selectedQueryError && resourceCoverageNotice(selectedQuery?.coverage, isEnglishPlural(selectedKind.kind) ? selectedKind.kind : englishPlural(selectedKind.kind)) && (
+          <div role="status" className="px-4 py-2 text-xs text-warning-text border-b border-theme-border bg-theme-surface">
+            {resourceCoverageNotice(selectedQuery?.coverage, isEnglishPlural(selectedKind.kind) ? selectedKind.kind : englishPlural(selectedKind.kind))}
+          </div>
+        )}
+
+        {!isLoading && !selectedQueryError && resourceNarrowedNotice(selectedQuery?.coverage) && (
+          <div role="status" className="px-4 py-2 text-xs text-theme-text-tertiary border-b border-theme-border bg-theme-surface">
+            {resourceNarrowedNotice(selectedQuery?.coverage)}
+          </div>
+        )}
+
         {!isLoading && !isSelectedForbidden && !largeListGuard && filteredResources.length > 0 && (
           <ActiveFilterBar
             columnFilters={columnFilters}
@@ -6565,7 +6731,7 @@ export function ResourcesView({
                 />
               </div>
             </div>
-          ) : selectedQueryError && !Array.isArray(resources) ? (
+          ) : selectedQueryError && !Array.isArray(resources) && !largeListGuard ? (
             // A failed fetch with no rows to fall back on must not reach the
             // empty state below — it would tell the user the cluster has none.
             <FetchResult
@@ -6585,7 +6751,9 @@ export function ResourcesView({
               <p className="text-sm mt-1 max-w-xl">
                 {largeListGuard.reason === 'count-unavailable'
                   ? 'Radar could not verify this list is small enough to load. Choose a namespace or smaller namespace set to try again.'
-                  : `${largeListGuard.count?.toLocaleString()} ${largeListGuard.kind.toLowerCase()} are in the current scope. Choose a namespace or smaller namespace set to load this view.`}
+                  : largeListGuard.count == null
+                    ? 'This list exceeds the resource limit. Choose a namespace or smaller namespace set to load this view.'
+                    : `${largeListGuard.count.toLocaleString()} ${largeListGuard.kind.toLowerCase()} were read in the current scope. Choose a namespace or smaller namespace set to load this view.`}
               </p>
               <p className="text-xs mt-2 text-theme-text-disabled">
                 Radar limits full table loads to {largeListGuard.limit.toLocaleString()} resources to keep the UI responsive.
@@ -6596,8 +6764,8 @@ export function ResourcesView({
             </div>
           ) : filteredResources.length === 0 ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-theme-text-tertiary">
-              <p>No {selectedKind.kind} found</p>
-              {emptyKindNote(selectedKind.kind, selectedKind.group, resources?.length ?? 0) && (
+              <p>{resourceEmptyMessage(selectedKind.kind, selectedQuery?.coverage, (resources?.length ?? 0) > 0)}</p>
+              {selectedQuery?.coverage?.status !== 'partial' && emptyKindNote(selectedKind.kind, selectedKind.group, resources?.length ?? 0) && (
                 <p className="text-xs mt-2 max-w-md text-center text-theme-text-disabled">
                   {emptyKindNote(selectedKind.kind, selectedKind.group, resources?.length ?? 0)}
                 </p>
@@ -6613,6 +6781,13 @@ export function ResourcesView({
                   No results for "{searchTerm}"
                   <X className="w-3.5 h-3.5" />
                 </button>
+              )}
+              {searchTerm && isTrivyKind && (
+                <p className="text-xs mt-1 text-theme-text-tertiary">
+                  {regexMode
+                    ? 'Regex search matches names and namespaces only.'
+                    : 'Searched names, namespaces and report findings (CVE, package, check ID, image).'}
+                </p>
               )}
               {namespaces.length > 0 && <p className="text-sm mt-1 text-theme-text-disabled">Searching in {namespaces.length === 1 ? `namespace: ${namespaces[0]}` : `${namespaces.length} namespaces`}</p>}
               <ActiveFilterBar
@@ -6653,15 +6828,15 @@ export function ResourcesView({
                       // Inline px width — under `table-layout:fixed`,
                       // `w-9` is a hint the browser absorbs into leftover
                       // row width on an icon-only column.
-                      style={COMPARE_COLUMN_STYLE}
-                      className="px-2 py-3 text-xs font-medium uppercase tracking-wide bg-theme-base border-b border-r-subtle border-theme-border text-center text-skyhook-400"
+                      style={{ ...COMPARE_COLUMN_STYLE, ...phonePinnedLeft(compareMode, isCheckboxMode, 'compare') }}
+                      className={clsx('px-2 py-3 text-xs font-medium uppercase tracking-wide bg-theme-base border-b border-r-subtle border-theme-border text-center text-skyhook-400', PHONE_PINNED_HEAD)}
                       title="Compare mode"
                     >
                       <GitCompare className="w-3.5 h-3.5 inline-block opacity-70" />
                     </th>
                   )}
                   {isCheckboxMode && (
-                    <th className="bg-theme-surface border-b border-theme-border w-10 text-center px-0 py-3">
+                    <th style={phonePinnedLeft(compareMode, isCheckboxMode, 'checkbox')} className={clsx('bg-theme-surface border-b border-theme-border w-10 text-center px-0 py-3', PHONE_PINNED_HEAD)}>
                       <input
                         type="checkbox"
                         checked={allVisibleChecked}
@@ -6684,9 +6859,11 @@ export function ResourcesView({
                     return (
                       <th
                         key={col.key}
+                        style={colIdx === 0 && col.key === 'name' ? phonePinnedLeft(compareMode, isCheckboxMode, 'name') : undefined}
                         className={clsx(
                           'text-left px-4 py-3 text-xs font-medium uppercase tracking-wide relative group/th',
                           'bg-theme-base border-b border-theme-border',
+                          colIdx === 0 && col.key === 'name' && PHONE_PINNED_HEAD,
                           !isLastCol && 'border-r-subtle',
                           isSortable ? 'text-theme-text-secondary hover:text-theme-text-primary cursor-pointer select-none' : 'text-theme-text-secondary'
                         )}
@@ -6874,7 +7051,7 @@ export function ResourcesView({
                         })()}
                         {/* Resize handle with visible divider */}
                         <div
-                          className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center"
+                          className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center phone:hidden"
                           style={{ transform: 'translateX(50%)' , zIndex: 10 }}
                           onMouseDown={(e) => {
                             const th = e.currentTarget.parentElement!
@@ -6922,6 +7099,7 @@ export function ResourcesView({
                     comparePickIndex={pickIdx}
                     rowHref={rowHrefFor?.(resource)}
                     onRowCheckToggle={toggleChecked}
+                    findingMatch={findingsSearch?.matches.get(resource)}
                   />
                 )
               }}
@@ -6972,6 +7150,7 @@ export function ResourcesView({
       isLoading={isBulkDeleting}
       isClosable
     >
+      <CrossplaneDeleteNotice resources={checkedItems} force={bulkForceDelete} />
       <label className="flex items-center gap-2 text-sm text-theme-text-secondary">
         <input
           type="checkbox"
@@ -7089,6 +7268,9 @@ interface ResourceRowCellsProps {
    *  is unaffected (still toggles picks). */
   rowHref?: string
   onRowCheckToggle?: (resource: any) => void
+  /** What a Trivy report matched the table search through, when its name
+   *  and namespace didn't. */
+  findingMatch?: TrivyFindingMatch
 }
 
 function rowHighlightClass(
@@ -7110,7 +7292,7 @@ function rowHighlightClass(
   return 'group-hover/row:bg-theme-surface/50'
 }
 
-const ResourceRowCells = React.memo(function ResourceRowCells({ resource, kind, group, columns, extraColumnsByKey, hasSpacerColumn, isSelected, isHighlighted, isChecked, showCheckbox, majorityNodeMinorVersion, storeProviders, onRowClick, onRowMouseEnter, compareMode, comparePickIndex = -1, rowHref, onRowCheckToggle }: ResourceRowCellsProps) {
+const ResourceRowCells = React.memo(function ResourceRowCells({ resource, kind, group, columns, extraColumnsByKey, hasSpacerColumn, isSelected, isHighlighted, isChecked, showCheckbox, majorityNodeMinorVersion, storeProviders, onRowClick, onRowMouseEnter, compareMode, comparePickIndex = -1, rowHref, onRowCheckToggle, findingMatch }: ResourceRowCellsProps) {
   const rowHighlight = rowHighlightClass(compareMode, comparePickIndex, isSelected, isHighlighted, isChecked)
   const pickedSide = comparePickIndex === 0 ? 'a' : comparePickIndex === 1 ? 'b' : null
   const onClick = onRowClick ? () => onRowClick(resource, !!isSelected) : undefined
@@ -7125,8 +7307,8 @@ const ResourceRowCells = React.memo(function ResourceRowCells({ resource, kind, 
         <td
           onClick={onClick}
           onMouseEnter={onMouseEnter}
-          style={COMPARE_COLUMN_STYLE}
-          className={clsx('px-2 py-3 border-b-subtle cursor-pointer text-center align-middle transition-colors', rowHighlight)}
+          style={{ ...COMPARE_COLUMN_STYLE, ...phonePinnedLeft(compareMode, showCheckbox, 'compare') }}
+          className={clsx('px-2 py-3 border-b-subtle cursor-pointer text-center align-middle transition-colors', rowHighlight, PHONE_PINNED_CELL)}
         >
           {pickedSide ? (
             <span
@@ -7148,7 +7330,8 @@ const ResourceRowCells = React.memo(function ResourceRowCells({ resource, kind, 
       )}
       {showCheckbox && (
         <td
-          className={clsx('border-b-subtle text-center px-0 py-3 w-10 cursor-pointer transition-colors', rowHighlight)}
+          style={phonePinnedLeft(compareMode, showCheckbox, 'checkbox')}
+          className={clsx('border-b-subtle text-center px-0 py-3 w-10 cursor-pointer transition-colors', rowHighlight, PHONE_PINNED_CELL)}
           onClick={(e) => { e.stopPropagation(); onRowCheckToggle?.(resource) }}
         >
           <input
@@ -7159,16 +7342,18 @@ const ResourceRowCells = React.memo(function ResourceRowCells({ resource, kind, 
           />
         </td>
       )}
-      {columns.map((col) => (
+      {columns.map((col, colIdx) => (
         <td
           key={col.key}
           onClick={cellsAreClickable ? onClick : undefined}
           onMouseEnter={onMouseEnter}
+          style={colIdx === 0 && col.key === 'name' ? phonePinnedLeft(compareMode, showCheckbox, 'name') : undefined}
           className={clsx(
             'px-4 py-3 border-b-subtle transition-colors',
             cellsAreClickable && 'cursor-pointer',
             col.key !== 'status' && 'overflow-hidden truncate',
             rowHighlight,
+            colIdx === 0 && col.key === 'name' && PHONE_PINNED_CELL,
           )}
         >
           <CellContent
@@ -7180,6 +7365,7 @@ const ResourceRowCells = React.memo(function ResourceRowCells({ resource, kind, 
             storeProviders={storeProviders}
             extraColumn={extraColumnsByKey?.get(col.key)}
             nameHref={col.key === 'name' ? rowHref : undefined}
+            findingMatch={col.key === 'name' ? findingMatch : undefined}
           />
         </td>
       ))}
@@ -7229,9 +7415,10 @@ interface CellContentProps {
   /** When set on the name column, the resource name renders as `<a href>`
    *  so ⌘-click / copy-link / hover-URL all work. */
   nameHref?: string
+  findingMatch?: TrivyFindingMatch
 }
 
-function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, storeProviders, extraColumn, nameHref }: CellContentProps) {
+function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, storeProviders, extraColumn, nameHref, findingMatch }: CellContentProps) {
   const { auditBadges } = useContext(ResourcesViewDataContext)
   // Parent-injected extra columns short-circuit the built-in switch.
   // Used by hosts that inject leading columns (e.g. a multi-cluster Cluster column).
@@ -7245,11 +7432,12 @@ function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, 
   if (column === 'name') {
     const isTerminating = !!meta.deletionTimestamp
     const nameClass = clsx('text-sm font-medium truncate block', isTerminating ? 'text-theme-text-tertiary line-through' : 'text-theme-text-primary')
+    const pauseState = isManagedResource(resource) || isComposite(resource) || getCrossplanePauseState(resource) === 'acknowledged' ? getCrossplanePauseState(resource) : null
     const audit = auditBadges?.[`${meta.namespace || ''}/${meta.name}`]
     const auditTotal = audit ? audit.danger + audit.warning : 0
     return (
       <div className="flex items-center gap-1.5 min-w-0">
-        <Tooltip content={meta.name}>
+        <Tooltip content={meta.name} wrapperClassName={findingMatch || pauseState ? 'min-w-0' : undefined}>
           {nameHref ? (
             <a
               href={nameHref}
@@ -7264,6 +7452,14 @@ function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, 
           )}
         </Tooltip>
         <CopyNameButton name={meta.name} />
+        <CrossplanePauseChip state={pauseState} compact />
+        {findingMatch && (
+          <Tooltip content={findingMatch.text}>
+            <span className="shrink-0 text-xs italic text-theme-text-tertiary cursor-help">
+              {findingMatch.site === 'image' ? 'in image' : 'in findings'}
+            </span>
+          </Tooltip>
+        )}
         {auditTotal > 0 && audit && (
           <Tooltip content={audit.messages && audit.messages.length > 0
             ? <AuditBadgeTooltip messages={audit.messages} />
@@ -7305,6 +7501,9 @@ function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, 
 
   // Kind-specific columns (normalize CRD singular names like 'ScaledObject' → 'scaledobjects')
   const kindLower = normalizeKindToPlural(kind, group)
+  if (column === 'status' && isLikelyCrossplaneMRGroup(kind, group ?? '') && isManagedResource(resource)) {
+    return <ManagedResourceCell resource={resource} column={column} />
+  }
   if (group && !hasCuratedColumns(kind, group)) {
     return <GenericCell resource={resource} column={column} />
   }
@@ -7400,7 +7599,7 @@ function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, 
       // Disambiguate Gateway API vs Istio Gateway by apiVersion. Retained
       // alongside the case above because not every call site normalizes the
       // kind through GROUP_QUALIFIED_COLUMN_KEYS before dispatching.
-      if (resource.apiVersion?.includes('networking.istio.io')) {
+      if (isApiGroup(resource.apiVersion, 'networking.istio.io')) {
         return <IstioGatewayCell resource={resource} column={column} />
       }
       return <GatewayCell resource={resource} column={column} />
@@ -7890,6 +8089,9 @@ function CellContent({ resource, kind, column, group, majorityNodeMinorVersion, 
 function GenericCell({ resource, column }: { resource: any; column: string }) {
   switch (column) {
     case 'status': {
+      if (isManagedResource(resource) || isComposite(resource) || getCrossplanePauseState(resource) === 'acknowledged') {
+        return <CrossplaneStatusCell resource={resource} />
+      }
       const derived = getGenericResourceStatus(resource)
       if (!derived) return <span className="text-sm text-theme-text-tertiary">-</span>
       return (

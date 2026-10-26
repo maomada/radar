@@ -95,7 +95,7 @@ type ApplyResourceResult struct {
 	Submitted  *unstructured.Unstructured `json:"-"`
 
 	// Warnings are advisory notes derived from the actual state of the cluster
-	// (e.g., "this resource is reconciled by Helm" or "field X you omitted is
+	// (e.g., "its metadata says Helm installed it" or "field X you omitted is
 	// still present after apply because manager Y owns it"). They never block
 	// the apply — the apply succeeded if no error was returned. Treat each
 	// entry as a self-contained sentence.
@@ -599,8 +599,35 @@ func (m *WorkloadManager) DeleteResource(ctx context.Context, opts DeleteResourc
 		return fmt.Errorf("unknown resource kind: %s", opts.Kind)
 	}
 
-	if opts.Force {
-		finalizerPatch := []byte(`{"metadata":{"finalizers":null}}`)
+	// Background propagation avoids legacy defaults that orphan a Job's Pods.
+	background := metav1.DeletePropagationBackground
+	deleteOpts := metav1.DeleteOptions{PropagationPolicy: &background}
+	var client dynamic.ResourceInterface = m.dynClient.Resource(gvr)
+	if opts.Namespace != "" {
+		client = m.dynClient.Resource(gvr).Namespace(opts.Namespace)
+	}
+	current, readErr := client.Get(ctx, opts.Name, metav1.GetOptions{})
+	if readErr == nil && current.GetUID() != "" {
+		uid := current.GetUID()
+		deleteOpts.Preconditions = &metav1.Preconditions{UID: &uid}
+	}
+	if readErr == nil {
+		if _, pending := PendingDeletionPolicy(current.GetFinalizers()); pending {
+			deleteOpts.PropagationPolicy = nil
+		}
+	}
+
+	if opts.Force && (readErr != nil || len(current.GetFinalizers()) > 0) {
+		metadata := map[string]any{"finalizers": nil}
+		if readErr == nil {
+			if current.GetUID() != "" {
+				metadata["uid"] = current.GetUID()
+			}
+			if current.GetResourceVersion() != "" {
+				metadata["resourceVersion"] = current.GetResourceVersion()
+			}
+		}
+		finalizerPatch, _ := json.Marshal(map[string]any{"metadata": metadata})
 		var patchErr error
 		if opts.Namespace != "" {
 			_, patchErr = m.dynClient.Resource(gvr).Namespace(opts.Namespace).Patch(ctx, opts.Name, types.MergePatchType, finalizerPatch, metav1.PatchOptions{})
@@ -611,12 +638,12 @@ func (m *WorkloadManager) DeleteResource(ctx context.Context, opts DeleteResourc
 			if apierrors.IsForbidden(patchErr) {
 				return fmt.Errorf("force delete requires patch permission to strip finalizers: %w", patchErr)
 			}
-			log.Printf("[delete] Failed to strip finalizers from %s %s/%s: %v", opts.Kind, opts.Namespace, opts.Name, patchErr)
+			return fmt.Errorf("force delete could not strip finalizers: %w", patchErr)
 		}
 	}
 
-	deleteOpts := metav1.DeleteOptions{}
 	if opts.Force {
+		deleteOpts.PropagationPolicy = &background
 		gracePeriod := int64(0)
 		deleteOpts.GracePeriodSeconds = &gracePeriod
 	}

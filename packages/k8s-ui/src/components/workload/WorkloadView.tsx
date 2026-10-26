@@ -43,7 +43,7 @@ import type { NavigateToResource } from '../../utils/navigation'
 import { refToSelectedResource, pluralToKind, knownKindForPluralWithGroup, kindToPlural, kindToPluralWithGroup, apiVersionToGroup } from '../../utils/navigation'
 import { neighborhoodFor, seedNodeIds, topologyNodeResourceKind } from '../../utils/topology-neighborhood'
 import { TopologyGraph } from '../topology/TopologyGraph'
-import { gitOpsOwnerFromRelationships, type GitOpsOwnerRef } from '../../utils/gitops-owner'
+import { gitOpsOwnerFromRelationships, managerChipCoversGroup, managerChipPresentation, managerListing, type GitOpsOwnerRef } from '../../utils/gitops-owner'
 import { gitOpsRouteForResource } from '../../utils/gitops-route'
 import { buildResourceHierarchy, getAllEventsFromHierarchy, isProblematicEvent, type ResourceLane } from '../../utils/resource-hierarchy'
 import { TimelineSwimlanes, type TimeWindow } from '../timeline/TimelineSwimlanes'
@@ -57,11 +57,13 @@ import {
 import { ResourceRendererDispatch, getResourceStatus, diagnoseHealthHint, type DiagnoseHealthHint, type RendererOverrides } from '../shared/ResourceRendererDispatch'
 import type { ScalerDiagnosis } from '../resources/renderers/WorkloadRenderer'
 import { DetailShell, type DetailShellTab } from '../shared/DetailShell'
-import { HelmManagedByChip, ManagedByChip, type HelmOwnerRef } from '../shared/ManagedByChip'
+import { gitOpsOwnerKindLabel, HelmManagedByChip, ManagedByChip, type HelmOwnerRef } from '../shared/ManagedByChip'
 import { AlertBanner, getKindColorOutline, displayKindName, OperationalIssuesShownContext, ResourceRefBadge } from '../ui/drawer-components'
 import { Badge, type BadgeSeverity } from '../ui/Badge'
 import { Tooltip } from '../ui/Tooltip'
 import { midTruncate } from '../../utils/format'
+import { isManagedResource, isComposite, getCrossplanePauseState } from '../resources/resource-utils-crossplane'
+import { CrossplanePauseChip } from '../resources/renderers/CrossplanePauseContext'
 import { hpaStateLabel } from '../resources/resource-utils-hpa'
 import {
   cronToHuman,
@@ -216,6 +218,8 @@ interface WorkloadViewProps {
   /** Timeline events the history lanes are built from: this workload's own
    *  history, or events for its namespace from a host that has no scoped query. */
   allEvents?: TimelineEvent[]
+  /** Reveals one event, loading older pages if needed. Use a new object for each navigation request. */
+  timelineFocusEvent?: { id: string }
   /** Older history exists beyond allEvents. */
   historyTruncated?: boolean
   /** Loads the next older page of history; omit when the host can't page. */
@@ -469,6 +473,7 @@ export function WorkloadView({
   refetch: refetchProp,
   // Timeline
   allEvents,
+  timelineFocusEvent,
   historyTruncated = false,
   onLoadOlderHistory,
   loadingOlderHistory = false,
@@ -537,7 +542,7 @@ export function WorkloadView({
   gitOpsOwnerPending = false,
   gitOpsOwnerSource,
   gitOpsOwnerStatus,
-  helmOwner,
+  helmOwner: resolvedHelmOwner,
   helmOwnerSource,
   onOpenHelmRelease,
   onNavigateGitOpsPath,
@@ -722,7 +727,24 @@ export function WorkloadView({
   // Metadata
   const metadata = useMemo(() => extractMetadata(kind, resource), [kind, resource])
   const relationshipGitOpsOwner = useMemo(() => gitOpsOwnerFromRelationships(relationships), [relationships])
-  const gitopsOwner = resolvedGitOpsOwner ?? relationshipGitOpsOwner
+  const manager = relationships?.ownership?.manager
+  const gitopsOwner = manager ? relationshipGitOpsOwner : resolvedGitOpsOwner ?? relationshipGitOpsOwner
+  const helmOwner = manager
+    ? manager.lead?.kind === 'HelmRelease' && !manager.lead.group ? { namespace: manager.lead.namespace, name: manager.lead.name } : null
+    : resolvedHelmOwner
+  const showGitOpsChip = manager ? !helmOwner && Boolean(managerChipPresentation(manager)) : Boolean(gitopsOwner)
+  const listing = useMemo(
+    () => managerListing(gitopsOwner, relationships?.managers, gitOpsOwnerVerified, !relationships?.ownership?.managers),
+    [gitopsOwner, relationships?.managers, relationships?.ownership?.managers, gitOpsOwnerVerified],
+  )
+  // When the chip's manager is the only one whose status lists the resource,
+  // the chip says it all: Related Resources would repeat it.
+  const rendererRelationships = useMemo(
+    () => (relationships && (manager ? managerChipCoversGroup(relationships) : listing?.state === 'confirmed') ? { ...relationships, managers: undefined } : relationships),
+    [relationships, manager, listing],
+  )
+  // When they disagree, Related Resources says which manager the label names.
+  const trackedBy = !manager && listing?.state === 'conflict' && gitopsOwner ? `${gitOpsOwnerKindLabel(gitopsOwner)} ${gitopsOwner.namespace ? `${gitopsOwner.namespace}/` : ''}${gitopsOwner.name}` : undefined
   // When the resource itself is a portal GitOps CR (Application, Kustomization,
   // HelmRelease, etc.), surface a link to its dedicated GitOps detail page —
   // the drawer's renderer is thorough but the tab has the tree + insights +
@@ -820,6 +842,7 @@ export function WorkloadView({
     ? getWorkloadDisplayStatus(resource, apiKind, workloadPods)
     : null
   const rolloutActivity = rolloutDisplay?.activity ?? null
+  const crossplaneResource = isManagedResource(resource) || isComposite(resource) || getCrossplanePauseState(resource) === 'acknowledged'
   // A 404 with a cached copy: the object was deleted while this view was
   // open. Everything below that copy describes the past.
   const resourceGone = Boolean(resource) && isFetchError(resourceError) && resourceError.status === 404
@@ -960,6 +983,7 @@ export function WorkloadView({
                   {status.text}
                 </span>
               )}
+              {!resourceGone && crossplaneResource && <CrossplanePauseChip state={getCrossplanePauseState(resource)} />}
             </div>
             <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5">
               {diagnoseAction}
@@ -1020,10 +1044,10 @@ export function WorkloadView({
               </Tooltip>
             </div>
             <p className="text-sm text-theme-text-tertiary">{namespace}</p>
-            {(gitopsOwner || helmOwner || (gitOpsResourcePath && onNavigateGitOpsPath) || onOpenLiveTraffic) && (
+            {(showGitOpsChip || helmOwner || (gitOpsResourcePath && onNavigateGitOpsPath) || onOpenLiveTraffic) && (
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {gitopsOwner && <ManagedByChip owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} onOpen={onOpenGitOpsResource} />}
-                {helmOwner && <HelmManagedByChip owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} />}
+                {showGitOpsChip && <ManagedByChip manager={manager} owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} listing={listing} onOpen={onOpenGitOpsResource} />}
+                {helmOwner && <HelmManagedByChip manager={manager} owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} />}
                 {gitOpsResourcePath && onNavigateGitOpsPath && (
                   <OpenInGitOpsChip onClick={() => onNavigateGitOpsPath(gitOpsResourcePath)} />
                 )}
@@ -1109,7 +1133,8 @@ export function WorkloadView({
               <ResourceRendererDispatch
                 resource={selectedResource}
                 data={resource}
-                relationships={relationships}
+                relationships={rendererRelationships}
+                trackedBy={trackedBy}
                 certificateInfo={certificateInfo}
                 hpaDiagnosis={hpaDiagnosis}
                 scalerDiagnostics={scalerDiagnostics}
@@ -1185,6 +1210,7 @@ export function WorkloadView({
                 {status.text}
               </span>
             )}
+            {!resourceGone && crossplaneResource && <CrossplanePauseChip state={getCrossplanePauseState(resource)} />}
             {!resourceGone && statusNote}
           </>
         )
@@ -1206,11 +1232,11 @@ export function WorkloadView({
               </span>
             </Tooltip>
           ),
-          gitopsOwner && (
-            <ManagedByChip key="gitops" owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} onOpen={onOpenGitOpsResource} variant="block" />
+          showGitOpsChip && (
+            <ManagedByChip key="gitops" manager={manager} owner={gitopsOwner} status={gitOpsOwnerStatus} verified={gitOpsOwnerVerified} pending={gitOpsOwnerPending} source={gitOpsOwnerSource} listing={listing} onOpen={onOpenGitOpsResource} variant="block" />
           ),
           helmOwner && (
-            <HelmManagedByChip key="helm" owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} variant="block" />
+            <HelmManagedByChip key="helm" manager={manager} owner={helmOwner} source={helmOwnerSource} onOpen={onOpenHelmRelease} variant="block" />
           ),
           gitOpsResourcePath && onNavigateGitOpsPath && (
             <OpenInGitOpsChip key="open-gitops" onClick={() => onNavigateGitOpsPath(gitOpsResourcePath)} />
@@ -1322,7 +1348,8 @@ export function WorkloadView({
             <InfoTab
               resource={resource}
               selectedResource={selectedResource}
-              relationships={relationships}
+              relationships={rendererRelationships}
+              trackedBy={trackedBy}
               certificateInfo={certificateInfo}
               hpaDiagnosis={hpaDiagnosis}
               scalerDiagnostics={scalerDiagnostics}
@@ -1383,6 +1410,7 @@ export function WorkloadView({
         )}
         {effectiveTab === 'timeline' && (
           <EventsTab
+            focusEvent={timelineFocusEvent}
             events={resourceEvents}
             isLoading={eventsLoading}
             truncated={historyTruncated}
@@ -1688,6 +1716,7 @@ function OwnershipHeading({
 // ============================================================================
 
 function EventsTab({
+  focusEvent,
   events,
   isLoading,
   truncated,
@@ -1703,6 +1732,7 @@ function EventsTab({
   topology,
   onResourceClick,
 }: {
+  focusEvent?: { id: string }
   events: TimelineEvent[]
   isLoading: boolean
   truncated?: boolean
@@ -1798,6 +1828,22 @@ function EventsTab({
     onSelectEvent(id)
   }, [onSelectEvent])
 
+  const focusedRequest = useRef<typeof focusEvent>(undefined)
+  const requestedPage = useRef<{ focus: typeof focusEvent; events: TimelineEvent[] } | undefined>(undefined)
+  const focusFound = Boolean(focusEvent && cleanEvents.some((event) => event.id === focusEvent.id))
+  useEffect(() => {
+    if (!focusEvent || focusedRequest.current === focusEvent || isLoading) return
+    if (focusFound) {
+      handleSelect(focusEvent.id)
+      focusedRequest.current = focusEvent
+    } else if (truncated && onLoadOlder && !loadingOlder && !olderError && !error) {
+      // Strict Mode can replay this effect before the loading prop updates.
+      if (requestedPage.current?.focus === focusEvent && requestedPage.current.events === events) return
+      requestedPage.current = { focus: focusEvent, events }
+      onLoadOlder()
+    }
+  }, [focusEvent, focusFound, events, isLoading, truncated, onLoadOlder, loadingOlder, olderError, error, handleSelect])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full text-theme-text-tertiary">
@@ -1827,6 +1873,15 @@ function EventsTab({
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {focusEvent && !focusFound && (
+        <div className="shrink-0 border-b border-theme-border px-4 py-2 text-xs text-theme-text-secondary" role="status">
+          {olderError || error
+            ? "Couldn't find the reported error because some history couldn't be loaded."
+            : truncated && onLoadOlder
+              ? 'Finding the reported error in older history…'
+              : 'The reported error is not available in the retained timeline history.'}
+        </div>
+      )}
       {error && (
         <div className="shrink-0 flex flex-wrap items-center gap-x-2 border-b border-theme-border bg-theme-base px-4 py-1.5 text-xs" role="alert">
           <span className="text-[var(--color-error)]" title={error.message}>
@@ -1932,6 +1987,7 @@ function InfoTab({
   resource,
   selectedResource,
   relationships,
+  trackedBy,
   certificateInfo,
   hpaDiagnosis,
   scalerDiagnostics,
@@ -1968,6 +2024,7 @@ function InfoTab({
   resource: any
   selectedResource: SelectedResource
   relationships?: Relationships
+  trackedBy?: string
   certificateInfo?: any
   hpaDiagnosis?: HPADiagnosis
   scalerDiagnostics?: ScalerDiagnosis[]
@@ -2022,6 +2079,7 @@ function InfoTab({
           resource={selectedResource}
           data={resource}
           relationships={relationships}
+          trackedBy={trackedBy}
           certificateInfo={certificateInfo}
           hpaDiagnosis={hpaDiagnosis}
           scalerDiagnostics={scalerDiagnostics}
@@ -2252,7 +2310,7 @@ function WorkloadOverviewTab({
 
           <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
             <div className="space-y-4">
-              <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+              <div className="grid items-start gap-4 phone:grid-cols-[minmax(0,1fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                 <div className="space-y-4">
                   {showServingPath && (
                     <ServingConfigurationCard
@@ -2345,7 +2403,7 @@ function WorkloadOverviewTab({
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="space-y-4">
             <CurrentStateCard resource={resource} apiKind={apiKind} readiness={readiness} />
-            <div className="grid items-start gap-4 2xl:grid-cols-2">
+            <div className="grid items-start gap-4 phone:grid-cols-[minmax(0,1fr)] 2xl:grid-cols-2">
               {overviewShape === 'cronjob' ? (
                 <CronJobRunsCard
                   resource={resource}
@@ -2385,7 +2443,7 @@ function WorkloadOverviewTab({
               />
             ) : null}
             {extraContent && (
-              <div className="grid items-start gap-4 2xl:grid-cols-2">
+              <div className="grid items-start gap-4 phone:grid-cols-[minmax(0,1fr)] 2xl:grid-cols-2">
                 {extraContent}
               </div>
             )}

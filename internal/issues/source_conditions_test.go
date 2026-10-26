@@ -5,9 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/pkg/issuesapi"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 )
 
 func rolloutWithConditions(conds []map[string]any) *unstructured.Unstructured {
@@ -18,6 +21,206 @@ func rolloutWithConditions(conds []map[string]any) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]any{
 		"status": map[string]any{"conditions": raw},
 	}}
+}
+
+func TestGenericConditionSelectionKeepsActionableFailures(t *testing.T) {
+	failedAt := time.Now().Add(-2 * time.Minute).UTC().Truncate(time.Second)
+	creating := map[string]any{"type": "Ready", "status": "False", "reason": "Creating", "lastTransitionTime": failedAt.Add(-time.Minute).Format(time.RFC3339)}
+	failure := map[string]any{"type": "Synced", "status": "False", "reason": "ReconcileError", "message": "credentials rejected", "lastTransitionTime": failedAt.Format(time.RFC3339)}
+	readyFailure := map[string]any{"type": "Ready", "status": "False", "reason": "Unavailable", "lastTransitionTime": failedAt.Format(time.RFC3339)}
+	for _, tc := range []struct {
+		name        string
+		legacy      []map[string]any
+		current     []map[string]any
+		suspended   bool
+		lagging     bool
+		wantReason  string
+		wantMessage string
+	}{
+		{name: "expected first", legacy: []map[string]any{creating, failure}, wantReason: "Synced: ReconcileError", wantMessage: "credentials rejected"},
+		{name: "failure first", legacy: []map[string]any{failure, creating}, wantReason: "Synced: ReconcileError", wantMessage: "credentials rejected"},
+		{name: "only expected", legacy: []map[string]any{creating}},
+		{name: "actionable order unchanged", legacy: []map[string]any{readyFailure, failure}, wantReason: "Ready: Unavailable"},
+		{name: "current expected hides stale same type", current: []map[string]any{creating}, legacy: []map[string]any{readyFailure, failure}, wantReason: "Synced: ReconcileError", wantMessage: "credentials rejected"},
+		{name: "current healthy hides stale same type", current: []map[string]any{{"type": "Ready", "status": "True"}}, legacy: []map[string]any{readyFailure}},
+		{name: "current unknown hides stale same type", current: []map[string]any{{"type": "Ready", "status": "Unknown"}}, legacy: []map[string]any{readyFailure}},
+		{name: "current healthy does not hide independent failure", current: []map[string]any{{"type": "Ready", "status": "True"}}, legacy: []map[string]any{readyFailure, failure}, wantReason: "Synced: ReconcileError", wantMessage: "credentials rejected"},
+		{name: "current failing overrides older healthy", current: []map[string]any{readyFailure}, legacy: []map[string]any{{"type": "Ready", "status": "True"}}, wantReason: "Ready: Unavailable"},
+		{name: "first duplicate healthy is authoritative", legacy: []map[string]any{{"type": "Ready", "status": "True"}, readyFailure}},
+		{name: "first duplicate expected is authoritative", legacy: []map[string]any{creating, readyFailure}},
+		{name: "suspend preserved", legacy: []map[string]any{creating, failure}, suspended: true},
+		{name: "generation lag preserved", legacy: []map[string]any{creating, failure}, lagging: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := rolloutWithConditions(tc.legacy)
+			u.SetName("example")
+			u.SetNamespace("test")
+			if tc.current != nil {
+				u.Object["status"].(map[string]any)["v1beta2"] = rolloutWithConditions(tc.current).Object["status"]
+			}
+			if tc.suspended {
+				u.Object["spec"] = map[string]any{"suspend": true}
+			}
+			if tc.lagging {
+				u.SetGeneration(2)
+				u.Object["status"].(map[string]any)["observedGeneration"] = int64(1)
+			}
+			gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+			p := &fakeProvider{
+				dynamic:    map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}},
+				kinds:      map[schema.GroupVersionResource]string{gvr: "Widget"},
+				namespaced: map[schema.GroupVersionResource]bool{gvr: true},
+			}
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if tc.wantReason == "" {
+					if len(got) != 0 {
+						t.Fatalf("grouped=%v: expected no issue, got %+v", grouped, got)
+					}
+					continue
+				}
+				if len(got) != 1 || got[0].Reason != tc.wantReason || got[0].Severity != SeverityWarning {
+					t.Fatalf("grouped=%v: got %+v, want one warning %q", grouped, got, tc.wantReason)
+				}
+				if got[0].Message != tc.wantMessage {
+					t.Fatalf("message = %q, want %q", got[0].Message, tc.wantMessage)
+				}
+				if !got[0].FirstSeen.Equal(failedAt) {
+					t.Fatalf("failure onset = %v, want %v", got[0].FirstSeen, failedAt)
+				}
+			}
+		})
+	}
+}
+
+func TestGenericConditionsRespectExplicitCrossplanePause(t *testing.T) {
+	for _, tc := range []struct {
+		name, annotation, condType, reason, want string
+		failureFirst                             bool
+		independentFailure                       bool
+		current                                  []map[string]any
+	}{
+		{name: "intentional pause", annotation: "true", condType: "Synced", reason: "ReconcilePaused"},
+		{name: "missing annotation", condType: "Synced", reason: "ReconcilePaused", want: "Synced: ReconcilePaused"},
+		{name: "false annotation", annotation: "false", condType: "Synced", reason: "ReconcilePaused", want: "Synced: ReconcilePaused"},
+		{name: "noncanonical annotation", annotation: "True", condType: "Synced", reason: "ReconcilePaused", want: "Synced: ReconcilePaused"},
+		{name: "different condition", annotation: "true", condType: "Ready", reason: "ReconcilePaused", want: "Ready: ReconcilePaused"},
+		{name: "error while paused", annotation: "true", condType: "Synced", reason: "ReconcileError", want: "Synced: ReconcileError"},
+		{name: "independent error after pause", annotation: "true", condType: "Synced", reason: "ReconcilePaused", independentFailure: true, want: "Ready: Unavailable"},
+		{name: "independent error before pause", annotation: "true", condType: "Synced", reason: "ReconcilePaused", independentFailure: true, failureFirst: true, want: "Ready: Unavailable"},
+		{name: "current pause replaces older error", annotation: "true", condType: "Synced", reason: "ReconcileError", current: []map[string]any{{"type": "Synced", "status": "False", "reason": "ReconcilePaused"}}},
+		{name: "current error replaces older pause", annotation: "true", condType: "Synced", reason: "ReconcilePaused", current: []map[string]any{{"type": "Synced", "status": "False", "reason": "ReconcileError"}}, want: "Synced: ReconcileError"},
+		{name: "current unknown replaces older pause", condType: "Synced", reason: "ReconcilePaused", current: []map[string]any{{"type": "Synced", "status": "Unknown"}}},
+		{name: "current true replaces older pause", condType: "Synced", reason: "ReconcilePaused", current: []map[string]any{{"type": "Synced", "status": "True"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			conds := []map[string]any{{"type": tc.condType, "status": "False", "reason": tc.reason}}
+			if tc.independentFailure {
+				failure := map[string]any{"type": "Ready", "status": "False", "reason": "Unavailable"}
+				if tc.failureFirst {
+					conds = append([]map[string]any{failure}, conds...)
+				} else {
+					conds = append(conds, failure)
+				}
+			}
+			u := rolloutWithConditions(conds)
+			u.SetName("example")
+			u.SetNamespace("test")
+			if tc.annotation != "" {
+				u.SetAnnotations(map[string]string{"crossplane.io/paused": tc.annotation})
+			}
+			if tc.current != nil {
+				u.Object["status"].(map[string]any)["v1beta2"] = rolloutWithConditions(tc.current).Object["status"]
+			}
+			gvr := schema.GroupVersionResource{Group: "platform.example.com", Version: "v1", Resource: "databases"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Database"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if tc.want == "" {
+					if len(got) != 0 {
+						t.Fatalf("expected quiet pause, got %+v", got)
+					}
+					continue
+				}
+				if len(got) != 1 || got[0].Reason != tc.want || got[0].Severity != SeverityWarning {
+					t.Fatalf("want warning %q, got %+v", tc.want, got)
+				}
+			}
+		})
+	}
+}
+
+func TestCrossplanePauseKeepsIndependentFailureObservation(t *testing.T) {
+	failedAt := time.Now().Add(-8 * time.Minute).UTC().Truncate(time.Second)
+	for _, tc := range []struct {
+		name                        string
+		stale, unknownTime, lagging bool
+	}{
+		{name: "known onset"},
+		{name: "older generation", stale: true},
+		{name: "unknown onset", unknownTime: true},
+		{name: "existing object generation gate", stale: true, lagging: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			failure := map[string]any{"type": "Ready", "status": "False", "reason": "Unavailable", "message": "last known availability failure"}
+			if !tc.unknownTime {
+				failure["lastTransitionTime"] = failedAt.Format(time.RFC3339)
+			}
+			if tc.stale {
+				failure["observedGeneration"] = int64(1)
+			}
+			u := rolloutWithConditions([]map[string]any{{"type": "Synced", "status": "False", "reason": "ReconcilePaused", "lastTransitionTime": failedAt.Add(-time.Hour).Format(time.RFC3339)}, failure})
+			u.SetName("example")
+			u.SetNamespace("test")
+			u.SetGeneration(2)
+			u.SetAnnotations(map[string]string{"crossplane.io/paused": "true"})
+			if tc.lagging {
+				u.Object["status"].(map[string]any)["observedGeneration"] = int64(1)
+			}
+			gvr := schema.GroupVersionResource{Group: "platform.example.com", Version: "v1", Resource: "databases"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Database"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if tc.lagging {
+					if len(got) != 0 {
+						t.Fatalf("existing generation gate changed: %+v", got)
+					}
+					continue
+				}
+				message := "last known availability failure"
+				if tc.stale {
+					message = "Condition was last reported for generation 1; current resource generation is 2. " + message
+				}
+				if len(got) != 1 || got[0].Reason != "Ready: Unavailable" || got[0].Message != message || got[0].OnsetUnknown != tc.unknownTime {
+					t.Fatalf("independent observation changed: %+v", got)
+				}
+				if !tc.unknownTime && !got[0].FirstSeen.Equal(failedAt) {
+					t.Fatalf("failure inherited pause timestamp: %v, want %v", got[0].FirstSeen, failedAt)
+				}
+			}
+		})
+	}
+}
+
+func TestCuratedConditionsContinueAfterAnExpectedCondition(t *testing.T) {
+	gvr := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+	u := rolloutWithConditions([]map[string]any{
+		{"type": "Established", "status": "False", "reason": "Creating"},
+		{"type": "NamesAccepted", "status": "False", "reason": "NameConflict", "message": "name is already in use"},
+	})
+	u.SetName("widgets.example.com")
+	p := &fakeProvider{
+		dynamic:    map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}},
+		kinds:      map[schema.GroupVersionResource]string{gvr: "CustomResourceDefinition"},
+		namespaced: map[schema.GroupVersionResource]bool{gvr: false},
+	}
+	got := Compose(p, Filters{})
+	if len(got) != 1 || got[0].Reason != "NamesAccepted: NameConflict" || got[0].Severity != SeverityCritical {
+		t.Fatalf("expected critical name conflict, got %+v", got)
+	}
+	if !got[0].OnsetUnknown || !got[0].FirstSeen.IsZero() || got[0].IssueTiming != "" {
+		t.Fatalf("missing transition time must remain unknown: %+v", got[0])
+	}
 }
 
 // TestArgoRolloutFailure pins that the Rollout reader prefers the definitive
@@ -457,5 +660,340 @@ func TestDetectGenericCRDIssues_PlatformConditions(t *testing.T) {
 	}
 	if byKind["CustomResourceDefinition"].Category != issuesapi.CategoryOperatorConditionFail || byKind["CustomResourceDefinition"].Severity != SeverityCritical {
 		t.Fatalf("CRD issue = %+v, want critical operator condition", byKind["CustomResourceDefinition"])
+	}
+}
+
+func TestGenericConditionSelectionHonorsCandidateGeneration(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		observed    *int64
+		independent bool
+		want        string
+		message     string
+	}{
+		{name: "stale secondary error remains qualified", observed: ptr.To[int64](1), want: "Synced: ReconcileError", message: "Condition was last reported for generation 1; current resource generation is 2. original reconcile error"},
+		{name: "current secondary error", observed: ptr.To[int64](2), want: "Synced: ReconcileError", message: "original reconcile error"},
+		{name: "missing generation stays actionable", want: "Synced: ReconcileError", message: "original reconcile error"},
+		{name: "zero generation stays actionable", observed: ptr.To[int64](0), want: "Synced: ReconcileError", message: "original reconcile error"},
+		{name: "future generation is not known stale", observed: ptr.To[int64](3), want: "Synced: ReconcileError", message: "original reconcile error"},
+		{name: "stale candidate keeps independent current error", observed: ptr.To[int64](1), independent: true, want: "Available: AvailabilityFailed", message: "current availability error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			failure := map[string]any{"type": "Synced", "status": "False", "reason": "ReconcileError", "message": "original reconcile error"}
+			if tc.observed != nil {
+				failure["observedGeneration"] = *tc.observed
+			}
+			conds := []map[string]any{{"type": "Ready", "status": "False", "reason": "Creating", "observedGeneration": int64(2)}, failure}
+			if tc.independent {
+				conds = append(conds, map[string]any{"type": "Available", "status": "False", "reason": "AvailabilityFailed", "message": "current availability error", "observedGeneration": int64(2)})
+			}
+			u := rolloutWithConditions(conds)
+			u.SetName("example")
+			u.SetNamespace("test")
+			u.SetGeneration(2)
+			gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Widget"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if len(got) != 1 || got[0].Reason != tc.want || got[0].Message != tc.message {
+					t.Fatalf("want %s message %q got %+v", tc.want, tc.message, got)
+				}
+			}
+		})
+	}
+}
+
+func TestActionableConditionsPreserveRolloutPauseAndFailure(t *testing.T) {
+	for _, failed := range []bool{false, true} {
+		conds := []map[string]any{{"type": "Ready", "status": "False", "reason": "Creating"}, {"type": "Healthy", "status": "False", "reason": "RolloutHealthy"}}
+		if failed {
+			conds = append(conds, map[string]any{"type": "InvalidSpec", "status": "True", "reason": "InvalidSpec", "message": "bad rollout spec"})
+		}
+		u := rolloutWithConditions(conds)
+		u.SetAPIVersion("argoproj.io/v1alpha1")
+		u.SetKind("Rollout")
+		u.SetName("rollout")
+		u.SetNamespace("test")
+		u.Object["status"].(map[string]any)["phase"] = "Paused"
+		gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "rollouts"}
+		p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Rollout"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+		got := Compose(p, Filters{})
+		if !failed {
+			if len(got) != 0 {
+				t.Fatalf("paused rollout became noisy: %+v", got)
+			}
+		} else if len(got) != 1 || got[0].Severity != SeverityCritical || got[0].Reason != "InvalidSpec" || got[0].Message != "bad rollout spec" {
+			t.Fatalf("failure lost after expected condition: %+v", got)
+		}
+	}
+}
+
+func TestCuratedGatewayConditionsHonorCandidateGeneration(t *testing.T) {
+	for _, tc := range []struct {
+		name, kind, plural                       string
+		acceptedGeneration, programmedGeneration int64
+		want                                     string
+	}{
+		{name: "all stale stays visible", kind: "Gateway", plural: "gateways", acceptedGeneration: 1, programmedGeneration: 1, want: "Accepted: ListenersNotValid"},
+		{name: "stale accepted keeps current programmed failure", kind: "Gateway", plural: "gateways", acceptedGeneration: 1, programmedGeneration: 2, want: "Programmed: AddressNotAssigned"},
+		{name: "current accepted failure", kind: "Gateway", plural: "gateways", acceptedGeneration: 2, programmedGeneration: 1, want: "Accepted: ListenersNotValid"},
+		{name: "stale class failure stays visible", kind: "GatewayClass", plural: "gatewayclasses", acceptedGeneration: 1, want: "Accepted: InvalidParameters"},
+		{name: "current class failure", kind: "GatewayClass", plural: "gatewayclasses", acceptedGeneration: 2, want: "Accepted: InvalidParameters"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reason := "ListenersNotValid"
+			if tc.kind == "GatewayClass" {
+				reason = "InvalidParameters"
+			}
+			conds := []map[string]any{{"type": "Accepted", "status": "False", "reason": reason, "observedGeneration": tc.acceptedGeneration}}
+			if tc.programmedGeneration > 0 {
+				conds = append(conds, map[string]any{"type": "Programmed", "status": "False", "reason": "AddressNotAssigned", "observedGeneration": tc.programmedGeneration})
+			}
+			u := rolloutWithConditions(conds)
+			u.SetName("example")
+			u.SetGeneration(2)
+			u.Object["status"].(map[string]any)["observedGeneration"] = int64(2)
+			gvr := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: tc.plural}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: tc.kind}, namespaced: map[schema.GroupVersionResource]bool{gvr: tc.kind == "Gateway"}}
+			got := Compose(p, Filters{})
+			if len(got) != 1 || got[0].Reason != tc.want || got[0].Severity != SeverityWarning {
+				t.Fatalf("want warning %s got %+v", tc.want, got)
+			}
+			if len(got) == 1 {
+				staleSelected := strings.HasPrefix(tc.want, "Accepted:") && tc.acceptedGeneration == 1
+				if strings.Contains(got[0].Message, "generation 1") != staleSelected {
+					t.Fatalf("generation certainty wrong: %+v", got[0])
+				}
+			}
+		})
+	}
+}
+
+func TestCurrentConditionGenerationDoesNotReviveOlderRepresentation(t *testing.T) {
+	u := rolloutWithConditions([]map[string]any{{"type": "Ready", "status": "False", "reason": "Unavailable", "observedGeneration": int64(2)}})
+	u.SetName("example")
+	u.SetGeneration(2)
+	u.Object["status"].(map[string]any)["v1beta2"] = map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "False", "reason": "Unavailable", "observedGeneration": int64(1)}}}
+	if c, found := findActionableCondition(u); !found || c.ObservedGeneration != 1 || !strings.Contains(c.Message, "generation 1") {
+		t.Fatalf("current representation must stay authoritative and qualified: %+v found=%v", c, found)
+	}
+}
+
+func TestDeletionConditionSelectionRetainsSpecificEvidence(t *testing.T) {
+	failedAt := time.Now().Add(-20 * time.Minute).UTC().Truncate(time.Second)
+	for _, tc := range []struct {
+		name                                       string
+		deletionAge                                time.Duration
+		missingDeletion, staleDeleting, staleError bool
+		error, errorFirst, unknownOnset            bool
+		currentReady                               string
+		want                                       string
+	}{
+		{name: "recent deletion keeps older error", deletionAge: time.Minute, staleError: true, error: true, want: "Synced: ReconcileError"},
+		{name: "overdue deletion keeps older error", deletionAge: 11 * time.Minute, staleError: true, error: true, want: "Synced: ReconcileError"},
+		{name: "older error before overdue deletion", deletionAge: 11 * time.Minute, staleError: true, error: true, errorFirst: true, want: "Synced: ReconcileError"},
+		{name: "uncertain deletion keeps older error", missingDeletion: true, staleError: true, error: true, want: "Synced: ReconcileError"},
+		{name: "older deletion yields to current error", deletionAge: 11 * time.Minute, staleDeleting: true, error: true, want: "Synced: ReconcileError"},
+		{name: "older deletion keeps qualification", deletionAge: 11 * time.Minute, staleDeleting: true, want: "Ready: Deleting"},
+		{name: "older deletion cannot revive expected progress", deletionAge: time.Minute, staleDeleting: true},
+		{name: "unknown time does not inherit deletion onset", deletionAge: 11 * time.Minute, error: true, unknownOnset: true, want: "Synced: ReconcileError"},
+		{name: "modern unknown supersedes older deletion", deletionAge: 11 * time.Minute, currentReady: "Unknown"},
+		{name: "modern true supersedes older deletion", deletionAge: 11 * time.Minute, currentReady: "True"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			deleting := map[string]any{"type": "Ready", "status": "False", "reason": "Deleting", "message": "cleanup requested", "lastTransitionTime": failedAt.Add(-time.Hour).Format(time.RFC3339)}
+			if tc.staleDeleting {
+				deleting["observedGeneration"] = int64(1)
+			}
+			conds := []map[string]any{deleting}
+			if tc.error {
+				failure := map[string]any{"type": "Synced", "status": "False", "reason": "ReconcileError", "message": "delete failed: denied"}
+				if tc.staleError {
+					failure["observedGeneration"] = int64(1)
+				}
+				if !tc.unknownOnset {
+					failure["lastTransitionTime"] = failedAt.Format(time.RFC3339)
+				}
+				if tc.errorFirst {
+					conds = append([]map[string]any{failure}, conds...)
+				} else {
+					conds = append(conds, failure)
+				}
+			}
+			u := rolloutWithConditions(conds)
+			u.SetName("example")
+			u.SetNamespace("test")
+			u.SetGeneration(2)
+			if !tc.missingDeletion {
+				ts := metav1.NewTime(time.Now().Add(-tc.deletionAge))
+				u.SetDeletionTimestamp(&ts)
+			}
+			if tc.currentReady != "" {
+				u.Object["status"].(map[string]any)["v1beta2"] = rolloutWithConditions([]map[string]any{{"type": "Ready", "status": tc.currentReady}}).Object["status"]
+			}
+			gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Widget"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if tc.want == "" {
+					if len(got) != 0 {
+						t.Fatalf("expected quiet condition, got %+v", got)
+					}
+					continue
+				}
+				if len(got) != 1 || got[0].Reason != tc.want {
+					t.Fatalf("want %s, got %+v", tc.want, got)
+				}
+				wantMessage, wantAt, stale := "cleanup requested", failedAt.Add(-time.Hour), tc.staleDeleting
+				if tc.error {
+					wantMessage, wantAt, stale = "delete failed: denied", failedAt, tc.staleError
+				}
+				if stale {
+					wantMessage = "Condition was last reported for generation 1; current resource generation is 2. " + wantMessage
+				}
+				if got[0].Message != wantMessage || got[0].OnsetUnknown != tc.unknownOnset {
+					t.Fatalf("selected observation changed: %+v", got[0])
+				}
+				if !tc.unknownOnset && !got[0].FirstSeen.Equal(wantAt) {
+					t.Fatalf("wrong onset %v, want %v", got[0].FirstSeen, wantAt)
+				}
+			}
+		})
+	}
+}
+
+func TestDeletingFallbackDoesNotInventOnset(t *testing.T) {
+	for _, timestamp := range []string{"", time.Now().Add(time.Hour).UTC().Format(time.RFC3339)} {
+		t.Run(timestamp, func(t *testing.T) {
+			u := rolloutWithConditions([]map[string]any{{"type": "Ready", "status": "False", "reason": "Deleting", "lastTransitionTime": timestamp}})
+			u.SetName("example")
+			u.SetNamespace("test")
+			deletion := metav1.NewTime(time.Now().Add(-11 * time.Minute))
+			u.SetDeletionTimestamp(&deletion)
+			gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Widget"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			var id string
+			for _, grouped := range []bool{false, true} {
+				got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped})
+				if len(got) != 1 || got[0].Reason != "Ready: Deleting" || !got[0].OnsetUnknown || !got[0].FirstSeen.IsZero() || got[0].IssueTiming != "" {
+					t.Fatalf("deletion age invented condition onset: %+v", got)
+				}
+				if id != "" && got[0].ID != id {
+					t.Fatalf("unknown onset changed identity: %s != %s", got[0].ID, id)
+				}
+				id = got[0].ID
+			}
+		})
+	}
+}
+
+func TestDeletionPreservesExistingWholeObjectGenerationGate(t *testing.T) {
+	u := rolloutWithConditions([]map[string]any{{"type": "Synced", "status": "False", "reason": "ReconcileError", "message": "provider was unavailable before deletion"}})
+	u.SetName("example")
+	u.SetNamespace("test")
+	u.SetGeneration(2)
+	u.Object["status"].(map[string]any)["observedGeneration"] = int64(1)
+	deletion := metav1.NewTime(time.Now().Add(-time.Minute))
+	u.SetDeletionTimestamp(&deletion)
+	gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+	p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Widget"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+	for _, grouped := range []bool{false, true} {
+		if got := Compose(p, Filters{Namespaces: []string{"test"}, Grouped: grouped}); len(got) != 0 {
+			t.Fatalf("existing whole-object generation policy changed: %+v", got)
+		}
+	}
+}
+
+func TestGenericConditionsDuringDeletion(t *testing.T) {
+	for _, tc := range []struct {
+		name                                                              string
+		deletionAge                                                       time.Duration
+		missing, zero, finalizer, failure, failureFirst, root, rootAccess bool
+		condType                                                          string
+		wantReason                                                        string
+		wantCount                                                         int
+	}{
+		{name: "ordinary deletion", deletionAge: time.Minute},
+		{name: "ordinary deletion with finalizer", deletionAge: time.Minute, finalizer: true},
+		{name: "no deletion timestamp", missing: true, wantReason: "Ready: Deleting", wantCount: 1},
+		{name: "zero deletion timestamp", zero: true, wantReason: "Ready: Deleting", wantCount: 1},
+		{name: "small future deletion timestamp", deletionAge: -time.Minute},
+		{name: "far future deletion timestamp", deletionAge: -time.Hour, wantReason: "Ready: Deleting", wantCount: 1},
+
+		{name: "missing timestamp with error", missing: true, failure: true, wantReason: "Synced: ReconcileError", wantCount: 1},
+		{name: "zero timestamp with error", zero: true, failure: true, wantReason: "Synced: ReconcileError", wantCount: 1},
+		{name: "future timestamp with error", deletionAge: -time.Minute, failure: true, wantReason: "Synced: ReconcileError", wantCount: 1},
+		{name: "overdue without finalizer", deletionAge: 11 * time.Minute, wantReason: "Ready: Deleting", wantCount: 1},
+		{name: "error after ordinary deletion", deletionAge: time.Minute, failure: true, wantReason: "Synced: ReconcileError", wantCount: 1},
+		{name: "error after overdue deletion", deletionAge: 11 * time.Minute, failure: true, wantReason: "Synced: ReconcileError", wantCount: 1},
+		{name: "error before overdue deletion", deletionAge: 11 * time.Minute, failure: true, failureFirst: true, wantReason: "Synced: ReconcileError", wantCount: 1},
+		{name: "other condition meaning", deletionAge: time.Minute, condType: "Synced", wantReason: "Synced: Deleting", wantCount: 1},
+		{name: "overdue with root", deletionAge: 11 * time.Minute, root: true, rootAccess: true, wantCount: 1},
+		{name: "overdue root does not hide error", deletionAge: 11 * time.Minute, root: true, rootAccess: true, failure: true, wantReason: "Synced: ReconcileError", wantCount: 2},
+		{name: "root not run keeps fallback", deletionAge: 11 * time.Minute, root: true, wantReason: "Ready: Deleting", wantCount: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			condType := tc.condType
+			if condType == "" {
+				condType = "Ready"
+			}
+			conds := []map[string]any{{"type": condType, "status": "False", "reason": "Deleting"}}
+			if tc.failure {
+				failure := map[string]any{"type": "Synced", "status": "False", "reason": "ReconcileError"}
+				if tc.failureFirst {
+					conds = append([]map[string]any{failure}, conds...)
+				} else {
+					conds = append(conds, failure)
+				}
+			}
+			u := rolloutWithConditions(conds)
+			u.SetName("example")
+			u.SetNamespace("test")
+			if !tc.missing {
+				ts := metav1.NewTime(time.Now().Add(-tc.deletionAge))
+				if tc.zero {
+					ts = metav1.Time{}
+				}
+				u.SetDeletionTimestamp(&ts)
+			}
+			if tc.finalizer {
+				u.SetFinalizers([]string{"example.com/cleanup"})
+			}
+			gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+			p := &fakeProvider{dynamic: map[schema.GroupVersionResource][]*unstructured.Unstructured{gvr: {u}}, kinds: map[schema.GroupVersionResource]string{gvr: "Widget"}, namespaced: map[schema.GroupVersionResource]bool{gvr: true}}
+			if tc.root {
+				p.terminatingProblems = []k8s.Detection{{Group: gvr.Group, Kind: "Widget", Namespace: "test", Name: "example", Reason: "Terminating stuck", Severity: "high"}}
+			}
+			for _, grouped := range []bool{false, true} {
+				f := Filters{Namespaces: []string{"test"}, Grouped: grouped}
+				if tc.rootAccess {
+					f.CanReadEvidence = func(EvidenceRead) bool { return true }
+				}
+				got := Compose(p, f)
+				if len(got) != tc.wantCount {
+					t.Fatalf("grouped=%v want %d, got %+v", grouped, tc.wantCount, got)
+				}
+				found := tc.wantReason == ""
+				for _, issue := range got {
+					if issue.Reason == tc.wantReason {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatalf("missing %q: %+v", tc.wantReason, got)
+				}
+				if tc.rootAccess {
+					roots := 0
+					for _, issue := range got {
+						if issue.Category == issuesapi.CategoryTerminationStuck {
+							roots++
+						}
+					}
+					if roots != 1 {
+						t.Fatalf("want one termination root, got %+v", got)
+					}
+				}
+			}
+		})
 	}
 }

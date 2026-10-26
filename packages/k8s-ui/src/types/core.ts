@@ -162,6 +162,8 @@ export interface CloudConnectCapability {
 
 export interface FeatureCapabilities {
  helmSourceIdentity?: boolean
+  resourceReadCoverage?: boolean
+  searchCoverage?: boolean
   yamlReview?: boolean
   yamlSchemas?: boolean
   workloadImages?: boolean
@@ -653,10 +655,23 @@ export interface Relationships {
     sourceResourceVersion?: string
     mirrors?: ResourceRef[]
   }
-  owner?: ResourceRef
+  owner?: ResourceRef        // The owner Kubernetes acts through: the controller reference, else the only reference
+  owners?: ResourceRef[]     // Every owner reference that resolves to an existing owner
   deployment?: ResourceRef   // Grandparent Deployment (for Pods owned by ReplicaSets)
   managedBy?: ResourceRef[]  // Topmost meaningful manager(s): GitOps controller (ArgoCD Application / Flux Kustomization / Flux HelmRelease), Helm release, or the topmost K8s owner. Synthesized server-side; replaces client-side detectGitOpsOwner.
-  children?: ResourceRef[]
+  children?: ResourceRef[]   // Objects whose owner references name this one, less olderRevisions
+  // Children kept apart because they only keep history: ReplicaSets that run
+  // no Pods and aren't their owner's current revision. ownership.children
+  // covers both lists together.
+  olderRevisions?: ResourceRef[]
+  // Management without an owner reference: GitOps member lists, class
+  // bindings, spec and status references. Never ownership or garbage collection.
+  managers?: ResourceRef[]
+  manages?: ResourceRef[]
+  /** How complete the owner-reference and recorded-membership answers are.
+   * Absent: no completeness is claimed, whether because the server answers
+   * Owner and Children from graph edges or because the resource is an Event. */
+  ownership?: OwnershipCoverage
   services?: ResourceRef[]
   ingresses?: ResourceRef[]
   gateways?: ResourceRef[]
@@ -681,6 +696,101 @@ export interface Relationships {
   serviceAccount?: ResourceRef      // For Pods: derived from pod.spec.serviceAccountName
   node?: ResourceRef                // For scheduled Pods: derived from pod.spec.nodeName
   resourceClaims?: ResourceRef[]    // For Pods: DRA ResourceClaims (direct + template-generated)
+}
+
+/** A kind Radar couldn't read, in namespace or (without one) in several or all of them, or the cluster for a cluster-scoped kind; reason is a readreason code. No kind stands for kinds discovery didn't list; no group is the core group. */
+export interface OwnershipGap {
+  group?: string
+  kind?: string
+  namespace?: string
+  reason: string
+}
+
+export interface OwnershipCoverage {
+  /** The owner reference's state when no owner is named: gone, replaced, withheld, unknown, unresolvable, excluded (it names an Event) or several. */
+  primaryOwnerState?: string
+  /** The owner the reference names when it is gone, replaced or unknown. */
+  ownerRef?: ResourceRef
+  /** A readreason code saying why an unknown owner couldn't be checked. */
+  ownerReason?: string
+  children: {
+    /** Children are every child the viewer may read. */
+    complete: boolean
+    notChecked?: OwnershipGap[]
+    truncated?: boolean
+    /** The viewer may read only some of the places children could be. */
+    narrowed?: boolean
+  }
+  /** For a GitOps manager whose status lists its members. */
+  manages?: {
+    membership: 'recorded' | 'remote' | 'unreadable'
+    /** A readreason code when the member list couldn't be read, as opposed to the status recording none. */
+    unavailableReason?: string
+    missing?: number
+    withheld?: number
+    unknown?: number
+    truncated?: boolean
+  }
+  /** Set when the search for the GitOps managers whose status lists this resource, for `managers`, couldn't settle every one the viewer may read. */
+  managers?: {
+    /** Managers with a member list Radar can't read, any of which may list this resource. */
+    unreadable?: number
+    /** Managers listing this resource's coordinates for a cluster Radar can't confirm is this one. */
+    remote?: number
+    notChecked?: OwnershipGap[]
+  }
+  /** What manages this resource, from its own evidence or its nearest controller ancestor's. Absent means no answer (a Radar that predates it, or unavailableReason), never "none". */
+  manager?: ManagerAnswer
+  /** A readreason code when Radar couldn't answer at all. */
+  unavailableReason?: string
+}
+
+/** What manages a resource: the managers whose status lists name it and what its metadata claims. It names no winner the evidence doesn't support. */
+export interface ManagerAnswer {
+  /** none: no evidence in what Radar collects and the viewer may read, never "unmanaged". */
+  state: 'shared' | 'disagree' | 'agree' | 'listed' | 'claimed' | 'unknown' | 'none'
+  /** The manager to show first, never a verdict: the recorder for agree/listed; for shared, the one recorder a claim names, if exactly one; for claimed, the manager every claim names, if they agree. Its namespace is "" when it comes from a claim that names none. */
+  lead?: ResourceRef
+  /** The evidence on the resource itself. */
+  direct: ManagerEvidence
+  /** The nearest controller ancestor's evidence that settles it when the resource's own doesn't, or, when nothing does and the resource makes no claim that isn't copied, the nearest ancestor that makes one; state and lead then come from it. */
+  via?: ManagerEvidence
+  /** Other objects the walk passed that make claims, in chain order. When via is a fallback to the nearest claim, claims farther up stay here. */
+  between?: ManagerEvidence[]
+  /** Why a walk that found no settling evidence stopped short. Absent when evidence settled it first, or the walk reached the chain's top. */
+  chainEnd?: 'unfollowed' | 'cycle' | 'truncated'
+  /** The controller reference the walk couldn't follow, when chainEnd is unfollowed. */
+  stop?: {
+    at: ResourceRef
+    /** As primaryOwnerState: gone, replaced, withheld, unknown, unresolvable or excluded. */
+    state: string
+    /** The owner the reference names when it is gone, replaced or unknown. */
+    owner?: ResourceRef
+    /** A readreason code when the owner is unknown. */
+    reason?: string
+  }
+  /** The viewer's access is restricted, so the evidence is the part it may read. */
+  narrowed?: boolean
+}
+
+export interface ManagerEvidence {
+  object: ResourceRef
+  /** Local managers whose status lists name it. */
+  recorders?: ResourceRef[]
+  /** Managers its own metadata names. */
+  claims?: ManagerClaim[]
+}
+
+/** source, check, and the answer's state and chainEnd may gain values in newer Radars: show an unfamiliar one generically and never treat it as confirming. */
+export interface ManagerClaim {
+  /** Its namespace is "" when the metadata doesn't say. */
+  manager: ResourceRef
+  source: 'flux-helm-labels' | 'flux-kustomize-labels' | 'argo-tracking-id' | 'argo-instance-label' | 'helm-release'
+  check: 'recorded' | 'omitted' | 'unreadable' | 'remote' | 'missing' | 'not-recording' | 'unresolved' | 'withheld' | 'unchecked'
+  /** An Argo CD tracking ID naming another object. */
+  copied?: boolean
+  /** Copied, or an instance label or Helm release annotation on an object a controller owns: it doesn't stop the walk. One that isn't copied can still answer when nothing on the chain settles it. */
+  weak?: boolean
 }
 
 // Parsed X.509 certificate metadata (from backend cert parsing)
@@ -1213,6 +1323,7 @@ export interface InstallChartRequest {
 
 // ArtifactHub chart with rich metadata
 export interface ArtifactHubChart {
+  official?: boolean
   packageId: string
   name: string
   version: string
@@ -1235,6 +1346,9 @@ export interface ArtifactHubChart {
 
 // ArtifactHub repository info
 export interface ArtifactHubRepository {
+  organizationDisplayName?: string
+  userAlias?: string
+  displayName?: string
   name: string
   url: string
   official?: boolean
@@ -1452,7 +1566,7 @@ export interface AggregatedFlow {
 
 // Cluster info for traffic detection
 export interface TrafficClusterInfo {
-  platform: string // rke2, gke, eks, aks, minikube, kind, docker-desktop, openshift, rancher, generic
+  platform: string // nkp, rke2, gke, eks, aks, nutanix, minikube, kind, docker-desktop, openshift, rancher, generic
   cni: string // cilium, canal, calico, flannel, vpc-cni, azure-cni, gke-native, unknown
   dataplaneV2: boolean
   clusterName?: string
