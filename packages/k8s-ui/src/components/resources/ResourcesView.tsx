@@ -4328,7 +4328,7 @@ export function ResourcesView({
     category: 'Search',
     scope: 'resources',
     handler: () => searchInputRef.current?.focus(),
-    enabled: tableActive,
+    enabled: tableActive && !kindsDrawerOpen,
   })
 
   // Keyboard navigation: highlighted row state
@@ -4437,6 +4437,8 @@ export function ResourcesView({
     onResourceClick?.(isSelected ? null : stripped)
   }, [onRowSelect, onResourceClick, selectedKind.name, selectedKind.group])
 
+  // Shortcuts here (and the search shortcut above) pause while the phone
+  // kind drawer is open: it's modal, so the table behind it takes no keys.
   useRegisterShortcuts(([
     {
       id: 'resources-nav-down',
@@ -4610,7 +4612,7 @@ export function ResourcesView({
         else searchInputRef.current?.blur()
       },
     },
-  ] as KeyboardShortcut[]).map((sc) => ({ ...sc, enabled: tableActive && (sc.enabled ?? true) })))
+  ] as KeyboardShortcut[]).map((sc) => ({ ...sc, enabled: tableActive && !kindsDrawerOpen && (sc.enabled ?? true) })))
 
   // Refs for accessing filteredResources inside shortcuts (computed later in component)
   const filteredResourceCountRef = useRef(0)
@@ -4620,7 +4622,7 @@ export function ResourcesView({
   const flatKindListRef = useRef<SelectedKindInfo[]>([])
 
   // Sidebar kind navigation: [ = previous kind, ] = next kind
-  useRegisterShortcuts([
+  useRegisterShortcuts(([
     {
       id: 'resources-prev-kind',
       keys: '[',
@@ -4653,7 +4655,7 @@ export function ResourcesView({
         onKindChange?.()
       },
     },
-  ])
+  ] as KeyboardShortcut[]).map((sc) => ({ ...sc, enabled: !kindsDrawerOpen && (sc.enabled ?? true) })))
 
   // Close dropdowns on outside click
   useEffect(() => {
