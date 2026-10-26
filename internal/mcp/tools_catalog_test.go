@@ -249,9 +249,10 @@ func TestToolCatalogContextBudget(t *testing.T) {
 	// such uncertainty boundary, and get_runtime_versions' "declared, not
 	// proof" and "unknown, not absent" another, and list_resources' and
 	// get_resource's result shapes, with "only object_not_found means it is
-	// absent", a third.
+	// absent", a third. The bounded application collector and cached Strimzi
+	// diagnosis contract add 1,153 bytes together, preserving the base headroom.
 	const (
-		maxCatalogBytes         = 63200
+		maxCatalogBytes         = 64353
 		maxToolDescriptionBytes = 3000
 	)
 
