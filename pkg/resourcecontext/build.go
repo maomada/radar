@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/skyhook-io/radar/pkg/ownership"
 	"github.com/skyhook-io/radar/pkg/resourceid"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -58,6 +59,13 @@ type Options struct {
 	// helpers (e.g. ManagedBy owner walk) read Topology and RelIndex through
 	// it.
 	Relationships *topology.Relationships
+
+	// Ownership, when set, answers the relationships' Owner from owner
+	// references in place of the topology's manages edges, for fetched, the
+	// object Build describes. Build reads only Owner, the owner state and the
+	// manager answer (rel.Ownership.Manager) of rel.Ownership, so a host
+	// needn't search for children (see topology.ApplyOwner). rel is never nil.
+	Ownership func(rel *topology.Relationships, fetched ownership.Observation)
 
 	// RelIndex is the topology inverted-edge index. Pass a shared instance
 	// (topology.IndexByResource(topo)) for high-fanout callers; nil is fine
@@ -171,7 +179,7 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 		return &ResourceContext{Tier: opts.Tier}
 	}
 
-	rc := &ResourceContext{Tier: opts.Tier}
+	rc := &ResourceContext{Tier: opts.Tier, CrossplanePause: CrossplanePauseFor(obj)}
 	omitted := newOmittedTracker()
 
 	// Topology-derived relationships drive ManagedBy / Exposes / SelectedBy /
@@ -202,6 +210,20 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 			opts.Topology, opts.Provider, opts.DynamicProv, opts.RelIndex,
 		)
 	}
+	// Whether the topology answered, before an ownership answer exists to
+	// carry the rest.
+	fromTopology := rel != nil
+	// answered: the host's ownership answer stands, even one with nothing to
+	// say, as for an Event, whose owner references ownership doesn't follow.
+	answered := false
+	if m, ok := obj.(metav1.Object); ok && opts.Ownership != nil {
+		if rel == nil {
+			rel = &topology.Relationships{}
+		}
+		ref := resourceid.Ref{Group: ident.Group, Kind: ident.Kind, Namespace: ident.Namespace, Name: ident.Name}
+		opts.Ownership(rel, ownership.Observe(ref, m))
+		answered = true
+	}
 
 	// 1. ManagedBy — prefer Relationships.ManagedBy (server-synthesized when
 	// a topology is available; covers GitOps signals + owner-chain walk).
@@ -211,7 +233,7 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 	var managedBy []topology.ResourceRef
 	if rel != nil && len(rel.ManagedBy) > 0 {
 		managedBy = rel.ManagedBy
-	} else if rel == nil {
+	} else if !fromTopology {
 		if m, ok := obj.(metav1.Object); ok {
 			managedBy = topology.SynthesizeManagedBy(m, ident.Kind, ident.Namespace, ident.Name, nil, nil, nil)
 		}
@@ -220,6 +242,10 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 		rc.ManagedBy = filterRefs(ctx, opts.AccessChecker,
 			toContextRefs(managedBy),
 			"managedBy", omitted)
+	}
+
+	if answered && rel.Ownership != nil && rel.Ownership.Manager != nil {
+		rc.Manager = managerContext(rel.Ownership.Manager)
 	}
 
 	if rel != nil && rel.Owner != nil {
@@ -234,7 +260,18 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 		} else {
 			omitted.add("owner", OmittedRBACDenied)
 		}
-	} else if owner := ownerFromObject(obj, ident.Namespace); owner != nil {
+	} else if rel != nil && rel.Ownership != nil {
+		// An ownership answer without an owner: say why, unless there is no
+		// owner to name (none referenced, or one that is gone).
+		switch {
+		case rel.Ownership.PrimaryOwnerState == "withheld":
+			omitted.add("owner", OmittedRBACDenied)
+		case rel.Ownership.PrimaryOwnerState == "unknown",
+			rel.Ownership.UnavailableReason != "" && ownerFromObject(obj, ident.Namespace) != nil:
+			omitted.add("owner", OmittedUnavailable)
+		}
+	} else if owner := ownerFromObject(obj, ident.Namespace); owner != nil && !answered {
+		// Without an ownership answer, the object's own controller reference.
 		if checkRef(ctx, opts.AccessChecker, owner) {
 			rc.Owner = owner
 		} else {
@@ -1560,6 +1597,55 @@ func (s *refSet) refs(kind, group string) []ContextRef {
 // ---------------------------------------------------------------------------
 // Topology ref → ContextRef
 // ---------------------------------------------------------------------------
+
+// managerContext compacts a manager answer: the evidence that answers, the
+// resource's or its controller's, and in AlsoClaimed the claims that didn't
+// settle it, each on its object. Copied claims are dropped. Every reference
+// in it is one the caller may read, or metadata on one.
+func managerContext(m *topology.ManagerAnswer) *ManagerContext {
+	out := &ManagerContext{State: m.State, Narrowed: m.Narrowed}
+	if m.Lead != nil {
+		lead := toContextRef(*m.Lead)
+		out.Lead = &lead
+	}
+	evidence := m.Direct
+	if m.Via != nil {
+		evidence = *m.Via
+		via := toContextRef(m.Via.Object)
+		out.Via = &via
+	}
+	out.ListedBy = toContextRefs(evidence.Recorders)
+	out.Claims = claimContexts(evidence, false)
+	if m.Via != nil {
+		out.AlsoClaimed = claimContexts(m.Direct, true)
+	}
+	for _, e := range m.Between {
+		out.AlsoClaimed = append(out.AlsoClaimed, claimContexts(e, true)...)
+	}
+	return out
+}
+
+// claimContexts are e's claims but the copied ones, which name another object;
+// with on, each says which object makes it.
+func claimContexts(e topology.ManagerEvidence, on bool) []ManagerClaimContext {
+	var out []ManagerClaimContext
+	for _, c := range e.Claims {
+		if c.Copied {
+			continue
+		}
+		cc := ManagerClaimContext{Manager: toContextRef(c.Manager), Check: c.Check}
+		if on {
+			object := toContextRef(e.Object)
+			cc.On = &object
+		}
+		out = append(out, cc)
+	}
+	return out
+}
+
+func toContextRef(r topology.ResourceRef) ContextRef {
+	return ContextRef{Kind: r.Kind, Group: r.Group, Namespace: r.Namespace, Name: r.Name}
+}
 
 // toContextRefs translates a slice of topology.ResourceRef into ContextRefs.
 // Sorted by (kind, namespace, name) for determinism — golden tests rely on

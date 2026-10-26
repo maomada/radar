@@ -136,6 +136,10 @@ Radar identifies a chart by its repository URL and chart name. Local repository 
 
 Normal upgrades use the saved source. If no source is confirmed, use **Choose chart source** in the release drawer. The picker shows the last recorded source first, followed by other configured sources. A name match is a suggestion, not proof of where the release was installed from.
 
+Use **ArtifactHub** to find a public source, then click **Search ArtifactHub**. Only the installed chart name is sent, after the click. Results show exact chart-name matches, publisher details and addresses. Select a result and add its repository or OCI prefix. This saves configuration without changing the release. Private sources can be entered through **Add manually**.
+
+**Check and record source** compares the chart information Helm saved. Matching copies can come from more than one publisher. To use a source for an upgrade, select it and review the existing version, settings and resource preview before applying. Search badges do not prove the installed chart's origin.
+
 You can associate an original source when its installed package matches the chart Helm stored. Older source records may need confirmation again if they lack a chart binding or a later Helm command changed the chart. This comparison cannot establish the origin of identical copies or verify subchart bodies Helm omitted from release storage.
 
 Values-only edits can use the chart Helm stored. If Helm omitted dependencies from an umbrella chart, record its original source so Radar can restore the exact installed package before editing values.
@@ -148,3 +152,19 @@ Programmatic upgrades require a confirmed saved source or an explicit source sel
 
 
 Explicit source changes use `POST /api/helm/releases/{namespace}/{name}/source/preview`, followed by `/source/upgrade` or `/source/upgrade-stream`. These routes require the `sourceUpgrade` selection, explicit values and an exact version (body `version` for preview, query `version` for upgrade). Preview returns `previewDigest`; send it back in the selection when applying. The selection also carries `expectedRevision` and `expectedSource` from source status. Older backends return 404 for these routes instead of ignoring the selected source. Ordinary upgrade routes reject source-change fields.
+
+### Repository credentials and redirects
+
+For HTTP repositories, Radar sends repository passwords and client certificates only to the configured address's scheme, hostname and port. A redirect or a chart URL on another origin is fetched without those credentials by default. Public chart hosts are fetched without repository credentials. By default, on a different origin, Radar verifies the server certificate using system trust plus any configured CA, even if verification was skipped for the repository.
+
+If a private repository deliberately shares credentials with its chart host, its Helm configuration must explicitly enable `pass_credentials_all`. This also permits sending the client certificate to that host. Use it only for hosts you trust. Redirected Basic authentication still follows Go's hostname restrictions; Radar does not restore a header Go removed.
+
+Custom CA certificates, client certificates and `insecure_skip_tls_verify` remain supported, including configurations with both a CA file and skipped certificate verification. If a repository address redirects from HTTP to HTTPS, configure its final HTTPS address to keep authenticated requests on the configured origin.
+
+### Chart download checksums
+
+When an HTTP repository index advertises a SHA-256 checksum, Radar checks the downloaded chart archive before reading or using it. An invalid checksum or a mismatch stops chart details, installation, source recording and any upgrade or values operation that downloads that chart. The release stays unchanged.
+
+If the download does not match, refresh the repository and retry. If it still fails, contact the repository maintainer. A stale index and a changed archive can both cause a mismatch.
+
+Existing local Helm flows still accept repositories that omit checksums. Prepared installs for Cloud enrollment continue to require one. A checksum checks agreement with the index; it does not prove who published the chart. OCI pulls keep their registry digest handling. If an HTTP index lists an OCI chart URL, Radar also checks its advertised SHA-256 against the downloaded chart archive.

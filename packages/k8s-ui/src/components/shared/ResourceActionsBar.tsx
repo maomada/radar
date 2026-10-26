@@ -21,7 +21,7 @@ import { createTwoFilesPatch } from 'diff'
 import { clsx } from 'clsx'
 import { classifyDiffLine } from './UnifiedDiff'
 import { Tooltip } from '../ui/Tooltip'
-import { ForceDeleteConfirmDialog, type CascadeDependent } from '../ui/ForceDeleteConfirmDialog'
+import { ForceDeleteConfirmDialog, type CascadeDependent, type CascadeDetail } from '../ui/ForceDeleteConfirmDialog'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { AlertBanner } from '../ui/drawer-components'
 import { DialogPortal } from '../ui/DialogPortal'
@@ -32,6 +32,9 @@ import { getDefaultContainerName, getExecContainerNames } from '../resources/res
 import { SetImageDialog, type SetImageOwnership } from './SetImageDialog'
 import { DrainPlanDialog, DEFAULT_DRAIN_DIALOG_OPTIONS, type DrainDialogOptions, type DrainPlan } from './DrainPlanDialog'
 import type { WorkloadImageInventory, WorkloadImageUpdate } from '../../types/core'
+import { getGitOpsTool } from '../gitops/detail-helpers'
+import { apiVersionToGroup } from '../../utils/navigation'
+import { isApiGroup } from '../resources/resource-utils-cnpg'
 import { isArgoRolloutResource } from '../../utils/workload-rollout'
 import { isCoreBatchJob } from '../../utils/api-resources'
 import { formatRelativeAgeTime } from '../../utils/format'
@@ -39,6 +42,8 @@ import { formatRelativeAgeTime } from '../../utils/format'
 // ============================================================================
 // ACTIONS BAR - Interactive buttons that change based on resource kind
 // ============================================================================
+
+const FLUX_ACTION_KINDS = new Set(['gitrepositories', 'ocirepositories', 'helmrepositories', 'kustomizations', 'helmreleases', 'alerts'])
 
 interface ResourceActionsBarProps {
   resource: SelectedResource
@@ -80,6 +85,8 @@ interface ResourceActionsBarProps {
   isDeleting?: boolean
   cascadeDependents?: CascadeDependent[]
   cascadeLoading?: boolean
+  onDeletePreviewOpenChange?: (open: boolean) => void
+  cascadeDetail?: CascadeDetail
   cascadeRootResolved?: boolean
   cascadePreviewFailed?: boolean
 
@@ -163,7 +170,7 @@ export function ResourceActionsBar({
   canExec, canViewLogs, canPortForward,
   onOpenTerminal, onOpenLogs: openLogs, onOpenWorkloadLogs: openWorkloadLogs, onCopyCommand,
   renderPortForward,
-  onDelete, isDeleting, cascadeDependents, cascadeLoading, cascadeRootResolved, cascadePreviewFailed,
+  onDelete, isDeleting, onDeletePreviewOpenChange, cascadeDetail, cascadeDependents, cascadeLoading, cascadeRootResolved, cascadePreviewFailed,
   onRestart, isRestarting,
   onLoadImages, onSetImages, isSettingImages, imageOwnership,
   revisions: revisionsList, revisionsLoading, revisionsError, onRollback, isRollingBack,
@@ -187,6 +194,7 @@ export function ResourceActionsBar({
   onPlanDrain, onPlanDrainReset, drainPlan, isPlanningDrain, drainPlanError, drainPlanUpgrade,
 }: ResourceActionsBarProps) {
   const kind = resource.kind.toLowerCase()
+  const isFluxAction = FLUX_ACTION_KINDS.has(kind) && getGitOpsTool(kind, apiVersionToGroup(data?.apiVersion)) === 'flux'
   const coreBatchJob = isCoreBatchJob(kind, resource.group)
   const supportsWorkloadActions = ['deployments', 'statefulsets', 'daemonsets'].includes(kind) ||
     (kind === 'rollouts' && isArgoRolloutResource(data))
@@ -199,6 +207,7 @@ export function ResourceActionsBar({
 
   // Delete confirmation state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  useEffect(() => { onDeletePreviewOpenChange?.(showDeleteConfirm) }, [showDeleteConfirm, onDeletePreviewOpenChange])
 
   // Node operation confirmation state
   const [showCordonConfirm, setShowCordonConfirm] = useState(false)
@@ -406,7 +415,7 @@ export function ResourceActionsBar({
       )}
 
       {/* Service actions */}
-      {kind === 'services' && !data?.apiVersion?.includes('serving.knative.dev') && canPortForward && resource.namespace && resource.name && renderPortForward && (
+      {kind === 'services' && data?.apiVersion === 'v1' && canPortForward && resource.namespace && resource.name && renderPortForward && (
         renderPortForward({
           type: 'service',
           namespace: resource.namespace,
@@ -516,7 +525,7 @@ export function ResourceActionsBar({
       )}
 
       {/* FluxCD actions */}
-      {['gitrepositories', 'ocirepositories', 'helmrepositories', 'kustomizations', 'helmreleases', 'alerts'].includes(kind) && (
+      {isFluxAction && (
         <FluxActions
           resource={resource}
           data={data}
@@ -532,7 +541,7 @@ export function ResourceActionsBar({
       )}
 
       {/* ArgoCD actions */}
-      {kind === 'applications' && (
+      {kind === 'applications' && isApiGroup(data?.apiVersion, 'argoproj.io') && (
         <ArgoActions
           resource={resource}
           data={data}
@@ -684,9 +693,11 @@ export function ResourceActionsBar({
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteConfirm}
         resourceName={resource.name}
+        resourceData={data}
         resourceKind={displayKindName(resource.kind, data?.kind)}
         namespaceName={resource.namespace}
         isLoading={isDeleting ?? false}
+        cascadeDetail={cascadeDetail}
         cascadeDependents={cascadeDependents}
         cascadeLoading={cascadeLoading}
         cascadeRootResolved={cascadeRootResolved}

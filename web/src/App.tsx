@@ -9,7 +9,7 @@ import { DebugOverlay } from './components/DebugOverlay'
 import { GlobalDiagnoseButton } from './components/diagnose/LocalDiagnoseAction'
 import { investigationWorkspaceSearch, isInvestigationWorkspacePath, useDiagnoseLayout } from './components/diagnose/DiagnoseContext'
 import { DiagnoseSurface } from './components/diagnose/DiagnoseSurface'
-import { TopologyGraph, TopologySearch, TopologyBreadcrumb, TopologyFilterSidebar, TopologyControls, FreshnessControl, gitOpsRouteForKind, gitOpsRouteForResource, ScopePill, PaneLoader } from '@skyhook-io/k8s-ui'
+import { TopologyGraph, TopologySearch, TopologyBreadcrumb, TopologyFilterSidebar, TopologyControls, FreshnessControl, gitOpsRouteForKind, gitOpsRouteForResource, ScopePill, PaneLoader, usePhoneLayout, PHONE_MEDIA_QUERY } from '@skyhook-io/k8s-ui'
 import { resetNavigationMap } from '@skyhook-io/k8s-ui/utils/navigation'
 import { topologyNodeResourceKind } from '@skyhook-io/k8s-ui/utils/topology-neighborhood'
 import { useAPIResources, findAPIResourceForRoute } from './api/apiResources'
@@ -131,6 +131,11 @@ const FLEET_MODE_KINDS = new Set<NodeKind>([
 // Convert API resource name back to topology node ID prefix
 // Extended MainView type that includes traffic and cost
 type ExtendedMainView = MainView | 'traffic' | 'cost' | 'capacity' | 'cnpg' | 'workload' | 'checks' | 'gitops' | 'compare' | 'helmCompare' | 'issues' | 'applications' | 'investigations'
+
+// Views that have been laid out for phone width (640px and below). The rest
+// keep their desktop width on a phone and scroll sideways; add a view here in
+// the PR that gives it a phone layout.
+const PHONE_READY_VIEWS: ReadonlySet<ExtendedMainView> = new Set<ExtendedMainView>(['issues', 'resources', 'helm', 'home', 'topology'])
 
 // Extract view from URL path
 function getViewFromPath(pathname: string): ExtendedMainView {
@@ -598,7 +603,11 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   const [showPolicyEffect, setShowPolicyEffect] = useState(false)
   // Topology filter state
   const [visibleKinds, setVisibleKinds] = useState<Set<NodeKind>>(() => new Set(DEFAULT_VISIBLE_KINDS))
-  const [filterSidebarCollapsed, setFilterSidebarCollapsed] = useState(false)
+  // Phones start with the filters collapsed to their icon rail: expanded, the
+  // panel took two thirds of the width from the graph.
+  const [filterSidebarCollapsed, setFilterSidebarCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(PHONE_MEDIA_QUERY).matches,
+  )
   // Topology node-search → canvas focus request (nonce lets the same node re-focus)
   const [topologyFocus, setTopologyFocus] = useState<{ id: string; nonce: number } | null>(null)
   // The topology pane element — the search overlay portals into it so its
@@ -660,8 +669,11 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   // actually renders) — see further down.
   const drawerExpanded = !!selectedResource && searchParams.get('full') === '1'
 
-  // On mobile there's no room for the side drawer — a resource detail is always full-screen.
-  const isMobile = useMediaQuery('(max-width: 639px)')
+  // On a phone there's no room for the side drawer: a resource detail is always full-screen.
+  const isMobile = usePhoneLayout()
+  // Views with a deliberate phone layout. On a phone every other view keeps
+  // its desktop width and scrolls sideways rather than squeezing.
+  const phoneScroll = isMobile && !PHONE_READY_VIEWS.has(mainView)
 
   // On a history Pop (back/forward) the URL is authoritative. The URL-write
   // effect, running with not-yet-synced state, would otherwise write the stale
@@ -1800,10 +1812,14 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {/* Preserve the ~800px content floor: the rail is a fixed-width sibling, so
         the outer minimum must include it (176px pinned / 56px collapsed) or the
         content column (min-w-0, shrinkable) would fall below the old desktop
-        floor at small windows. Embedded mode has no rail → plain 800. */}
+        floor at small windows. Embedded mode has no rail → plain 800.
+        Phones get a 360px floor instead (the narrowest current phones): the
+        content column clips horizontally, so the 800px floor hid the right half
+        of every view with no way to scroll to it. Views without a phone layout
+        scroll sideways at desktop width instead (see PHONE_READY_VIEWS). */}
     <div
       className={`relative flex bg-theme-base ${navCustomization.embedded ? 'h-full min-h-0' : 'h-screen'}`}
-      style={{ minWidth: 800 + (showNavRail ? (navRailEffectivePinned ? 176 : 56) : 0) }}
+      style={{ minWidth: (isMobile ? 360 : 800) + (showNavRail ? (navRailEffectivePinned ? 176 : 56) : 0) }}
     >
       {showNavRail && (
         <PrimaryNavRail
@@ -2061,7 +2077,10 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
       {/* inert while a fullscreen detail overlay covers the views — keeps the
           retained background list out of the focus order + a11y tree (the visual
           cover already blocks pointer events). */}
-      {(contentReady || shellDuringSync) && <div className="flex-1 flex overflow-hidden" inert={expandedView}>
+      {(contentReady || shellDuringSync) && <div className={phoneScroll ? 'flex-1 flex overflow-x-auto overflow-y-hidden' : 'flex-1 flex overflow-hidden'} inert={expandedView}>
+        {/* A view without a phone layout keeps its desktop width on a phone and
+            scrolls sideways; `contents` leaves every other layout untouched. */}
+        <div className={phoneScroll ? 'flex flex-1 min-h-0 min-w-[800px]' : 'contents'}>
         {/* Search included, not just the path: selection inside a view rides in
             the query (?resource=, ?release=), so a path-only key would still
             strand a crash on the view that produced it. */}
@@ -2170,8 +2189,12 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                 </div>
               </div>
             ) : (
-              <>
-                {/* Filter sidebar */}
+              // On a phone, its own positioned box so the filter overlay below
+              // anchors to the topology area, not the whole content column.
+              <div className={isMobile ? 'relative flex flex-1 min-w-0 min-h-0' : 'contents'}>
+                {/* Filter sidebar. On phones, expanded it overlays the graph
+                    instead of squeezing it. */}
+                <div className={isMobile && !filterSidebarCollapsed ? 'absolute inset-y-0 left-0 z-20 flex shadow-theme-lg' : 'contents'}>
                 <TopologyFilterSidebar
                   nodes={filterSidebarNodes}
                   visibleKinds={visibleKinds}
@@ -2186,6 +2209,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     console.log(`[topology] User requested to show hidden kind: ${kind}`)
                   }}
                 />
+                </div>
 
                 <div ref={setTopologyPane} className="flex-1 relative">
                   <TopologyGraph
@@ -2205,8 +2229,9 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     {/* Overlay row: left column (namespace breadcrumb over search)
                         + controls. items-start pins the controls to the top even
                         when the breadcrumb grows the left column; w-full so
-                        justify-between spans the canvas. */}
-                    <div className="flex w-full items-start justify-between gap-2">
+                        justify-between spans the canvas. Phones: the controls
+                        wrap below the search instead of running off the canvas. */}
+                    <div className="flex w-full items-start justify-between gap-2 phone:flex-wrap">
                       <div className="flex flex-col items-start gap-2">
                         {namespaces.length === 1 && (
                           <TopologyBreadcrumb
@@ -2248,7 +2273,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     </div>
                   </TopologyGraph>
                 </div>
-              </>
+              </div>
             )}
           </>
         )}
@@ -2412,6 +2437,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
         {!viewsSyncGated && mainView === 'compare' && <CompareViewRoute />}
 
         </ErrorBoundary>
+        </div>
       </div>}
       </div>{/* /body frame */}
 
