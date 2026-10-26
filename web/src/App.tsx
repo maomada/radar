@@ -2229,8 +2229,9 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     {/* Overlay row: left column (namespace breadcrumb over search)
                         + controls. items-start pins the controls to the top even
                         when the breadcrumb grows the left column; w-full so
-                        justify-between spans the canvas. */}
-                    <div className="flex w-full items-start justify-between gap-2">
+                        justify-between spans the canvas. Phones: the controls
+                        wrap below the search instead of running off the canvas. */}
+                    <div className="flex w-full items-start justify-between gap-2 phone:flex-wrap">
                       <div className="flex flex-col items-start gap-2">
                         {namespaces.length === 1 && (
                           <TopologyBreadcrumb
