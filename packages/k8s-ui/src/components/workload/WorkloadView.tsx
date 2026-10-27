@@ -930,7 +930,7 @@ export function WorkloadView({
       icon: <Activity className="w-4 h-4" />,
       badge: resourceEvents.length > 0 ? <span className="ml-1 badge-sm bg-theme-elevated">{resourceEvents.length}</span> : undefined,
     },
-    { id: 'logs', label: 'Logs', icon: <Terminal className="w-4 h-4" />, hidden: !logsTabVisible },
+    { id: 'logs', label: 'Logs', icon: <Terminal className="w-4 h-4" />, hidden: !logsTabVisible, phoneCompactHeader: true },
     { id: 'metrics', label: 'Metrics', icon: <BarChart3 className="w-4 h-4" />, hidden: !metricsTabVisible },
     {
       id: 'reachability',

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { clsx } from 'clsx'
 import { usePhoneLayout } from '../../hooks/usePhoneLayout'
 
@@ -12,6 +12,8 @@ export interface DetailShellTab<TId extends string = string> {
   badge?: ReactNode
   /** Omit the tab from the strip without disturbing the others' identity. */
   hidden?: boolean
+  /** On a phone, shrink the header to the identity's title line while this tab is active. */
+  phoneCompactHeader?: boolean
 }
 
 export interface DetailShellProps<TId extends string = string> {
@@ -72,46 +74,32 @@ export function DetailShell<TId extends string = string>({
     }
   }, [activeTab, compact])
 
-  // On a phone the identity header scrolls away and the tab strip stays
-  // pinned, so a tab like Logs can take nearly the whole screen. The content
-  // is sized to the frame minus the pinned strip, which this measures.
+  // A tab that wants the screen (Logs) shrinks the header to the identity's
+  // title line on a phone, so its content gets the rest of the height.
   const isPhone = usePhoneLayout()
-  const tabRowRef = useRef<HTMLDivElement>(null)
-  const [tabRowHeight, setTabRowHeight] = useState(0)
-  useLayoutEffect(() => {
-    const el = tabRowRef.current
-    if (!isPhone || !el) return
-    const measure = () => setTabRowHeight(el.getBoundingClientRect().height)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [isPhone])
+  const phoneCompact = isPhone && !!visibleTabs.find((t) => t.id === activeTab)?.phoneCompactHeader
 
   return (
-    <div
-      className="flex flex-col h-full w-full bg-theme-base phone:overflow-y-auto"
-      style={isPhone ? ({ '--detail-tab-row-h': `${tabRowHeight}px` } as CSSProperties) : undefined}
-    >
+    <div className="flex flex-col h-full w-full bg-theme-base">
       {/* Header */}
-      {!compactHeader && (
-        <div className="shrink-0 bg-theme-base">
-          {breadcrumb && <div className="px-6 pt-2.5 phone:px-4">{breadcrumb}</div>}
-          {/* Phones always wrap: the identity takes the row beside the back
-              button and the actions drop below it. */}
-          <div className={clsx('px-6 flex items-start gap-4 phone:px-4 phone:flex-wrap phone:gap-x-3 phone:gap-y-2', wrapHeader && 'flex-wrap gap-y-2', breadcrumb ? 'pb-3 pt-1.5' : 'py-3')}>
-            {nav}
-            {/* Wrapping on, the identity's basis is its one-line width, so the
-                actions move below whenever the whole title line would not fit
-                beside them — never squeezing the name to keep them up. */}
-            <div className={clsx('min-w-0 phone:basis-[calc(100%-3rem)]', wrapHeader ? 'flex-auto' : 'flex-1')}>{identity}</div>
-            {wrapHeader ? <div className="ml-auto flex shrink-0 items-start gap-4">{headerActions}</div> : headerActions}
-          </div>
-          {subheader && <div className="-mt-1 px-6 pb-3 phone:px-4">{subheader}</div>}
-        </div>
-      )}
+      <div className="shrink-0 border-b border-theme-border bg-theme-base">
+        {!compactHeader && (
+          <>
+            {breadcrumb && !phoneCompact && <div className="px-6 pt-2.5 phone:px-4">{breadcrumb}</div>}
+            {/* Phones always wrap: the identity takes the row beside the back
+                button and the actions drop below it. */}
+            <div className={clsx('px-6 flex items-start gap-4 phone:px-4 phone:flex-wrap phone:gap-x-3 phone:gap-y-2', wrapHeader && 'flex-wrap gap-y-2', breadcrumb ? 'pb-3 pt-1.5' : 'py-3')}>
+              {nav}
+              {/* Wrapping on, the identity's basis is its one-line width, so the
+                  actions move below whenever the whole title line would not fit
+                  beside them — never squeezing the name to keep them up. */}
+              <div className={clsx('min-w-0 phone:basis-[calc(100%-3rem)]', wrapHeader ? 'flex-auto' : 'flex-1', phoneCompact && 'max-h-8 overflow-hidden')}>{identity}</div>
+              {phoneCompact ? null : wrapHeader ? <div className="ml-auto flex shrink-0 items-start gap-4">{headerActions}</div> : headerActions}
+            </div>
+            {subheader && !phoneCompact && <div className="-mt-1 px-6 pb-3 phone:px-4">{subheader}</div>}
+          </>
+        )}
 
-      <div ref={tabRowRef} className="shrink-0 border-b border-theme-border bg-theme-base phone:sticky phone:top-0 phone:z-20">
         {/* Tabs (left) + scope controls / actions (right) */}
         <div className={clsx('flex items-center phone:flex-wrap', compactHeader ? 'px-0' : 'border-t border-theme-border px-6 phone:px-4')}>
           <div ref={stripRef} className={clsx('flex min-w-0 flex-auto overflow-x-auto phone:basis-full', compact ? 'gap-0' : 'gap-1')} role="tablist">
@@ -135,7 +123,7 @@ export function DetailShell<TId extends string = string>({
       {overlay}
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden relative phone:flex-none phone:h-[calc(100%-var(--detail-tab-row-h,0px))]">{children}</div>
+      <div className="flex-1 overflow-hidden relative">{children}</div>
     </div>
   )
 }
