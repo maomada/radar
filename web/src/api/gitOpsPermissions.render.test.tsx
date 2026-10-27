@@ -45,6 +45,7 @@ it('enables controls on initial load, retains allowed results through failed and
   answer = () => new Promise(resolve => { finish = resolve })
   await render()
   expect(element.querySelector('button')!.disabled).toBe(false)
+  expect(query.permissionCheckUnavailable).toBe(false)
   await act(async () => { finish!(Response.json({ actions: { sync: { allowed: true } } })); await new Promise(resolve => setTimeout(resolve, 0)) })
   answer = async () => { throw new Error('background poll failed') }
   await refetch()
@@ -60,6 +61,7 @@ it('enables a failed first probe and disables only a definite denial', async () 
   await render()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(element.querySelector('button')!.disabled).toBe(false)
+  expect(query.permissionCheckUnavailable).toBe(true)
   answer = async () => Response.json({ actions: { sync: { allowed: false, denied: [{ verb: 'patch', resource: 'applications', group: 'argoproj.io', namespace: 'argocd' }] } } })
   await refetch()
   expect(element.querySelector('button')!.disabled).toBe(true)
@@ -79,10 +81,10 @@ it('does not fetch Argo capabilities for a KubeVela Application', async () => {
   expect(fetcher.mock.calls.some(([url]) => String(url).includes('/gitops/capabilities/'))).toBe(false)
 })
 
-it.each(['unknown', 'failed', 'pending'])('expires a denial after two minutes of %s checks', async mode => {
+it.each(['unknown', 'failed', 'pending'].flatMap(mode => ['denied', 'unsupported'].map(state => ({ mode, state }))))('expires a $state result after two minutes of $mode checks', async ({ mode, state }) => {
   vi.useFakeTimers()
   const denial = { allowed: false, denied: [{ verb: 'patch', resource: 'applications', group: 'argoproj.io', namespace: 'argocd' }] }
-  answer = async () => Response.json({ actions: { sync: denial } })
+  answer = async () => Response.json({ actions: { sync: state === 'unsupported' ? { unsupported: true, reason: 'Not supported here.' } : denial } })
   await render()
   await act(async () => { await vi.advanceTimersByTimeAsync(1) })
   expect(element.querySelector('button')!.disabled).toBe(true)
@@ -96,6 +98,8 @@ it.each(['unknown', 'failed', 'pending'])('expires a denial after two minutes of
   await act(async () => { await vi.advanceTimersByTimeAsync(2) })
   expect(query.data?.actions.sync.allowed).toBeUndefined()
   expect(query.permissions?.sync.allowed).toBeUndefined()
+  expect(query.permissions?.sync.unsupported).toBeUndefined()
+  expect(query.permissionCheckUnavailable).toBe(true)
   expect(query.disabledReasons.sync).toBeUndefined()
   expect(element.querySelector('button')!.disabled).toBe(false)
 })
@@ -114,4 +118,15 @@ it('refreshes confirmation times separately for each action', async () => {
   await act(async () => { await query.refetch(); await vi.advanceTimersByTimeAsync(1) })
   expect(query.permissions?.sync.allowed).toBe(true)
   expect(query.disabledReasons.sync).toBeUndefined()
+})
+
+it('marks an unknown first answer as unavailable and clears it after confirmation', async () => {
+  answer = async () => Response.json({ actions: { sync: { reason: 'Review unavailable' } } })
+  await render()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(query.permissionCheckUnavailable).toBe(true)
+  expect(element.querySelector('button')!.disabled).toBe(false)
+  answer = async () => Response.json({ actions: { sync: { allowed: true } } })
+  await refetch()
+  expect(query.permissionCheckUnavailable).toBe(false)
 })

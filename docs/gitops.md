@@ -123,7 +123,7 @@ Radar treats Terminating as a distinct lifecycle phase that dominates other stat
 
 ## Action permissions
 
-`GET /api/gitops/capabilities/{kind}/{namespace}/{name}` reviews named API operations as the caller. Every action needs `patch`; actions with lifecycle preflights also need `get`.
+`GET /api/gitops/capabilities/{kind}/{namespace}/{name}` reviews named API operations at their served API versions as the caller. Every action needs `patch`; actions with lifecycle preflights also need `get`.
 Refresh only needs `patch`, and its capability check does not read the target.
 Flux checks read the target as the caller to resolve any source reference. Flux
 Sync with source also needs `get` and `patch` on every source it reconciles,
@@ -136,9 +136,13 @@ read and still reports a missing `patch`. Sync with source on an object with no 
 (for example, a Kustomization without `sourceRef`)
 reports `unsupported` with a reason, and the action itself answers 400.
 Disabled controls explain the denied permission. Controls stay enabled while the first check loads or fails. Failed refetches
-preserve each action's last confirmed permissions for up to two minutes; after
+preserve each action's last confirmed permissions or unsupported result for up to two minutes; after
 that, the action becomes unknown and permits an attempt. Only a recent confirmed
-denial disables an action. Lifecycle restrictions still apply; Refresh and
+denial or unsupported result disables an action. After a failed first check or
+expiry, the detail page shows “Couldn't check your permissions. You can still try.”
+without disabling the unknown actions; initial loading shows no notice. Compact
+denied actions expose their reason on touch and through an accessible description
+before focus. Lifecycle restrictions still apply; Refresh and
 Terminate remain available during deletion when permitted.
 A connected Radar without the `gitOpsActionCapabilities` feature flag retains
 its existing action controls.

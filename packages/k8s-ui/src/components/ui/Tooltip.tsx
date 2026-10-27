@@ -4,7 +4,7 @@ import { clsx } from 'clsx'
 import { computeTooltipPosition } from './tooltip-position'
 import { isTouchIntent } from '../../utils/touch-intent'
 
-const ENABLED_CONTROL = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [role="button"]:not([aria-disabled="true"])'
+const ENABLED_CONTROL = 'button:not(:disabled):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"]), input:not(:disabled):not([aria-disabled="true"]), select:not(:disabled):not([aria-disabled="true"]), textarea:not(:disabled):not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"])'
 
 // Module-level singleton coordinator: only one Tooltip can be visible
 // at a time across the whole app. Without this, two Tooltip instances

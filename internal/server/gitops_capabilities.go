@@ -28,6 +28,7 @@ const unknownPermissionReason = "Couldn't check your permissions — retrying"
 type gitOpsPermission struct {
 	Verb      string `json:"verb"`
 	Group     string `json:"group"`
+	Version   string `json:"-"`
 	Resource  string `json:"resource"`
 	Namespace string `json:"namespace"`
 	Name      string `json:"name,omitempty"`
@@ -114,7 +115,7 @@ func gitOpsCapabilities(ctx context.Context, client dynamic.Interface, kind, nam
 		entry = entry.Served(k8s.ServedGVR)
 	}
 	on := func(verb string, target gitops.FluxKindEntry, ns, targetName string, source bool) gitOpsPermission {
-		return gitOpsPermission{Verb: verb, Group: target.GVR.Group, Resource: target.GVR.Resource, Namespace: ns, Name: targetName, Kind: target.Kind, Source: source}
+		return gitOpsPermission{Verb: verb, Group: target.GVR.Group, Version: target.GVR.Version, Resource: target.GVR.Resource, Namespace: ns, Name: targetName, Kind: target.Kind, Source: source}
 	}
 	read, patch := on("get", entry, namespace, name, false), on("patch", entry, namespace, name, false)
 
@@ -197,7 +198,7 @@ func gitOpsCapabilities(ctx context.Context, client dynamic.Interface, kind, nam
 		for _, permission := range permissions {
 			result, done := reviewed[permission]
 			if !done {
-				result.allowed, result.err = review(ctx, authv1.ResourceAttributes{Verb: permission.Verb, Group: permission.Group, Resource: permission.Resource, Namespace: permission.Namespace, Name: permission.Name})
+				result.allowed, result.err = review(ctx, authv1.ResourceAttributes{Verb: permission.Verb, Group: permission.Group, Version: permission.Version, Resource: permission.Resource, Namespace: permission.Namespace, Name: permission.Name})
 				reviewed[permission] = result
 			}
 			if result.err != nil {

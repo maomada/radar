@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, useId, type ComponentType } from 'react'
 import { Loader2, MoreVertical } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Tooltip } from './Tooltip'
@@ -27,6 +27,7 @@ interface RowActionMenuProps {
 }
 
 export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true, onOpenChange }: RowActionMenuProps) {
+  const descriptionId = useId()
   const [open, setOpen] = useState(false)
   const { shouldRender, isOpen } = useAnimatedUnmount(open, overlayExitMs('menu'))
   // Flip the menu above the trigger when it would otherwise spill past the
@@ -122,14 +123,16 @@ export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true
           style={overlayTransitionStyle(isOpen, 'menu')}
           onClick={(e) => e.stopPropagation()}
         >
-          {items.map((item) => {
+          {items.map((item, index) => {
             const Icon = item.icon
+            const reasonId = item.disabled && item.disabledReason ? `${descriptionId}-${index}` : undefined
             const content = (
               <button
                 type="button"
                 role="menuitem"
                 disabled={item.pending}
                 aria-disabled={item.disabled || item.pending}
+                aria-describedby={reasonId}
                 onClick={(e) => {
                   e.stopPropagation()
                   if (item.disabled || item.pending) return
@@ -156,6 +159,7 @@ export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true
             )
             return (
               <Fragment key={item.key}>
+                {reasonId && <span id={reasonId} className="sr-only">{item.disabledReason}</span>}
                 {item.divider && <div className="my-1 h-px bg-theme-border" />}
                 {item.disabled && item.disabledReason ? (
                   // wrapperClassName=w-full so the disabled item fills the menu

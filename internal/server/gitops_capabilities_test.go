@@ -20,8 +20,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	fakediscovery "k8s.io/client-go/discovery/fake"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes"
+	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	ktesting "k8s.io/client-go/testing"
 
@@ -42,7 +44,7 @@ func TestGitOpsCapabilitiesArgo(t *testing.T) {
 			calls := 0
 			actions, err := gitOpsCapabilities(context.Background(), client, "applications", "argocd", "demo", func(_ context.Context, a authv1.ResourceAttributes) (bool, error) {
 				calls++
-				if a.Group != "argoproj.io" || a.Resource != "applications" || a.Name != "demo" || a.Namespace != "argocd" || (a.Verb != "patch" && a.Verb != "get") {
+				if a.Version != "v1alpha1" || a.Group != "argoproj.io" || a.Resource != "applications" || a.Name != "demo" || a.Namespace != "argocd" || (a.Verb != "patch" && a.Verb != "get") {
 					t.Fatalf("wrong SAR: %+v", a)
 				}
 				return tc.allowed, tc.err
@@ -86,7 +88,7 @@ func TestGitOpsCapabilitiesFluxPartialAndCrossNamespaceSource(t *testing.T) {
 			actions, err := gitOpsCapabilities(context.Background(), dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj), "kustomizations", "apps", "demo", func(_ context.Context, a authv1.ResourceAttributes) (bool, error) {
 				calls = append(calls, a)
 				if a.Resource == "gitrepositories" {
-					if a.Group != "source.toolkit.fluxcd.io" || a.Name != "repo" || a.Namespace != "sources" {
+					if a.Version != "v1" || a.Group != "source.toolkit.fluxcd.io" || a.Name != "repo" || a.Namespace != "sources" {
 						t.Fatalf("wrong source SAR: %+v", a)
 					}
 					return !slices.Contains(tc.denied, a.Verb), nil
@@ -104,7 +106,7 @@ func TestGitOpsCapabilitiesFluxPartialAndCrossNamespaceSource(t *testing.T) {
 				t.Fatalf("source permission not enforced: %+v, calls=%v", sync, calls)
 			}
 			for i, verb := range tc.denied {
-				want := gitOpsPermission{Verb: verb, Group: "source.toolkit.fluxcd.io", Resource: "gitrepositories", Namespace: "sources", Name: "repo", Kind: "GitRepository", Source: true}
+				want := gitOpsPermission{Verb: verb, Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "gitrepositories", Namespace: "sources", Name: "repo", Kind: "GitRepository", Source: true}
 				if sync.Denied[i] != want {
 					t.Fatalf("denied[%d]=%+v, want %+v", i, sync.Denied[i], want)
 				}
@@ -127,8 +129,8 @@ func TestGitOpsCapabilitiesListsEveryDeniedPermission(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []gitOpsPermission{
-		{Verb: "patch", Group: "kustomize.toolkit.fluxcd.io", Resource: "kustomizations", Namespace: "apps", Name: "demo", Kind: "Kustomization"},
-		{Verb: "patch", Group: "source.toolkit.fluxcd.io", Resource: "gitrepositories", Namespace: "apps", Name: "repo", Kind: "GitRepository", Source: true},
+		{Verb: "patch", Group: "kustomize.toolkit.fluxcd.io", Version: "v1", Resource: "kustomizations", Namespace: "apps", Name: "demo", Kind: "Kustomization"},
+		{Verb: "patch", Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "gitrepositories", Namespace: "apps", Name: "repo", Kind: "GitRepository", Source: true},
 	}
 	if sync := actions["sync-with-source"]; *sync.Allowed || !slices.Equal(sync.Denied, want) {
 		t.Fatalf("sync-with-source=%+v", sync)
@@ -217,14 +219,14 @@ func TestHandleGitOpsCapabilitiesReviewsCaller(t *testing.T) {
 				if !tc.local && (review.Spec.User != "alice" || len(review.Spec.Groups) != 2 || review.Spec.Groups[0] != "radar:viewer" || review.Spec.Groups[1] != "system:authenticated") {
 					t.Errorf("wrong caller identity: %+v", review.Spec)
 				}
-				if a.Name != "demo" || a.Namespace != "argocd" || a.Resource != "applications" || a.Group != "argoproj.io" || (a.Verb != "patch" && a.Verb != "get") {
+				if a.Version != "v1alpha1" || a.Name != "demo" || a.Namespace != "argocd" || a.Resource != "applications" || a.Group != "argoproj.io" || (a.Verb != "patch" && a.Verb != "get") {
 					t.Errorf("wrong caller SAR: %+v", review.Spec)
 				}
 				review.TypeMeta = metav1.TypeMeta{APIVersion: "authorization.k8s.io/v1", Kind: "SubjectAccessReview"}
 				if tc.local {
 					review.Kind = "SelfSubjectAccessReview"
 				}
-				review.Status.Allowed = allowed
+				review.Status.Allowed = allowed && a.Version == "v1alpha1"
 				if allowed {
 					review.Status.EvaluationError = "another authorizer failed"
 				}
@@ -267,7 +269,7 @@ func TestHandleGitOpsCapabilitiesReviewsCaller(t *testing.T) {
 // A Flux target the caller can't read denies every action on the read, and
 // still names a missing patch so the grant guidance is complete.
 func TestGitOpsCapabilitiesForbiddenTarget(t *testing.T) {
-	read := gitOpsPermission{Verb: "get", Group: "kustomize.toolkit.fluxcd.io", Resource: "kustomizations", Namespace: "apps", Name: "demo", Kind: "Kustomization"}
+	read := gitOpsPermission{Verb: "get", Group: "kustomize.toolkit.fluxcd.io", Version: "v1", Resource: "kustomizations", Namespace: "apps", Name: "demo", Kind: "Kustomization"}
 	patch := read
 	patch.Verb = "patch"
 	for _, tc := range []struct {
@@ -453,9 +455,9 @@ func TestGitOpsCapabilitiesHelmSourceChain(t *testing.T) {
 				}
 				want := []gitOpsPermission{}
 				for _, target := range []gitOpsPermission{
-					{Group: "helm.toolkit.fluxcd.io", Resource: "helmreleases", Namespace: "apps", Name: "demo", Kind: "HelmRelease"},
-					{Group: "source.toolkit.fluxcd.io", Resource: "helmcharts", Namespace: "charts", Name: chartName, Kind: "HelmChart", Source: true},
-					{Group: "source.toolkit.fluxcd.io", Resource: "helmrepositories", Namespace: "charts", Name: "repo", Kind: "HelmRepository", Source: true},
+					{Group: "helm.toolkit.fluxcd.io", Version: "v2", Resource: "helmreleases", Namespace: "apps", Name: "demo", Kind: "HelmRelease"},
+					{Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "helmcharts", Namespace: "charts", Name: chartName, Kind: "HelmChart", Source: true},
+					{Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "helmrepositories", Namespace: "charts", Name: "repo", Kind: "HelmRepository", Source: true},
 				} {
 					if deniedResource == "unreadable chart" && target.Resource == "helmrepositories" {
 						continue
@@ -474,7 +476,7 @@ func TestGitOpsCapabilitiesHelmSourceChain(t *testing.T) {
 				}
 				if deniedResource != "unreadable chart" {
 					for _, verb := range []string{"get", "patch"} {
-						attrs := authv1.ResourceAttributes{Verb: verb, Group: "source.toolkit.fluxcd.io", Resource: "helmrepositories", Namespace: "charts", Name: "repo"}
+						attrs := authv1.ResourceAttributes{Verb: verb, Group: "source.toolkit.fluxcd.io", Version: "v1", Resource: "helmrepositories", Namespace: "charts", Name: "repo"}
 						if reviews[attrs] != 1 {
 							t.Fatalf("upstream permission missing: %+v; reviews=%v", attrs, reviews)
 						}
@@ -598,5 +600,44 @@ func TestWriteGitOpsPartialSourceErrorPreservesStatusAndNote(t *testing.T) {
 				t.Fatalf("status=%d body=%v", w.Code, body)
 			}
 		})
+	}
+}
+
+func TestGitOpsCapabilitiesUsesServedFluxVersion(t *testing.T) {
+	discovery := fakeclientset.NewSimpleClientset().Discovery().(*fakediscovery.FakeDiscovery)
+	discovery.Resources = []*metav1.APIResourceList{{
+		GroupVersion: "source.toolkit.fluxcd.io/v1beta2",
+		APIResources: []metav1.APIResource{
+			{Name: "ocirepositories", Kind: "OCIRepository", Namespaced: true, Verbs: metav1.Verbs{"get", "list", "watch", "patch"}},
+		},
+	}}
+	restore, err := k8s.SetTestResourceDiscovery(discovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restore()
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "source.toolkit.fluxcd.io/v1beta2", "kind": "OCIRepository",
+		"metadata": map[string]any{"name": "repo", "namespace": "sources"},
+	}}
+	client := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), obj)
+	calls := 0
+	actions, err := gitOpsCapabilities(context.Background(), client, "ocirepositories", "sources", "repo", func(_ context.Context, attrs authv1.ResourceAttributes) (bool, error) {
+		calls++
+		if attrs.Version != "v1beta2" {
+			t.Errorf("SAR version = %q, want served v1beta2", attrs.Version)
+		}
+		return attrs.Version == "v1beta2", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("review calls = %d, want 1", calls)
+	}
+	for action, capability := range actions {
+		if capability.Allowed == nil || !*capability.Allowed {
+			t.Errorf("%s = %+v", action, capability)
+		}
 	}
 }

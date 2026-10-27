@@ -140,3 +140,9 @@ it('does not duplicate the partial-write note in unstructured errors', () => {
   const raw = `failed to reconcile source: timed out. ${note}`
   expect(new GitOpsActionError({ error: raw, note }, 504).message).toBe(raw)
 })
+
+it.each(['buckets', 'helmcharts'])('probes %s only in its exact Flux API group', kind => {
+  expect(isGitOpsActionTarget(kind, 'source.toolkit.fluxcd.io')).toBe(true)
+  expect(isGitOpsActionTarget(kind, 'vendor.source.toolkit.fluxcd.io')).toBe(false)
+  expect(isGitOpsActionTarget(kind, 'helm.toolkit.fluxcd.io')).toBe(false)
+})

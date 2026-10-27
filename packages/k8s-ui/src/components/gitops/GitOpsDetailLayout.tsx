@@ -168,6 +168,7 @@ export interface GitOpsDetailLayoutProps {
   isFluxWorkload: boolean  // Kustomization | HelmRelease — gates the
                             // "Sync with source" button
   actionDisabledReasons?: Record<string, string | undefined>
+  permissionCheckUnavailable?: boolean
   // Per-action permission results. `denied` lists every operation the caller
   // lacks; `unsupported` actions are disabled through actionDisabledReasons
   // but are not role restrictions.
@@ -418,6 +419,9 @@ export function GitOpsDetailLayout(props: GitOpsDetailLayoutProps) {
                     </div>
                   </Collapse>
                 </div>
+              )}
+              {props.permissionCheckUnavailable && (
+                <p className="mt-2 text-xs text-theme-text-secondary">Couldn't check your permissions. You can still try.</p>
               )}
               {/* Spec/config row */}
               {detail && (

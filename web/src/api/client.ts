@@ -6907,7 +6907,7 @@ export function useGitOpsActionCapabilities(kind: string, group: string | undefi
       const now = Date.now();
       const confirmedAt: Record<string, number> = {};
       for (const [action, capability] of Object.entries(next.actions)) {
-        if (capability.allowed !== undefined) {
+        if (capability.allowed !== undefined || capability.unsupported) {
           confirmedAt[action] = now;
         } else if (!capability.unsupported && previous?.confirmedAt[action] !== undefined && now - previous.confirmedAt[action] < GITOPS_PERMISSION_MAX_AGE) {
           next.actions[action] = previous.actions[action];
@@ -6930,16 +6930,21 @@ export function useGitOpsActionCapabilities(kind: string, group: string | undefi
   }, [nextExpiry]);
   const data: GitOpsActionCapabilities | undefined = query.data && {
     actions: Object.fromEntries(Object.entries(query.data.actions).map(([action, capability]) => [action,
-      capability.allowed !== undefined && now - query.data!.confirmedAt[action] >= GITOPS_PERMISSION_MAX_AGE
+      (capability.allowed !== undefined || capability.unsupported) && now - query.data!.confirmedAt[action] >= GITOPS_PERMISSION_MAX_AGE
         ? { reason: "Couldn't check your permissions — retrying" }
         : capability,
     ])),
   };
   const featureUnsupported = isRadarFeatureUnsupported(query.error, 'gitOpsActionCapabilities');
+  const permissions = active ? gitOpsActionPermissions(support, data, featureUnsupported) : undefined;
+  const permissionCheckUnavailable = active && support !== 'unsupported' && !featureUnsupported && (
+    (!data && query.isError) || Object.values(permissions ?? {}).some(capability => capability.allowed === undefined && !capability.unsupported && !!capability.reason)
+  );
   return {
     ...query,
     data,
-    permissions: active ? gitOpsActionPermissions(support, data, featureUnsupported) : undefined,
+    permissions,
+    permissionCheckUnavailable,
     disabledReasons: active ? gitOpsDisabledReasons(support, data, featureUnsupported) : {},
   };
 }

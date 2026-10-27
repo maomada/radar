@@ -164,6 +164,32 @@ describe('GitOps permission gates on rendered controls', () => {
     expect(text).not.toContain('otherresources')
     expect(text).not.toContain('undefined')
   })
+  it('shows a quiet unavailable-check note with enabled actions, but none during loading', () => {
+    const loading = renderToString(<GitOpsDetailLayout {...base} />)
+    expect(loading).not.toContain("Couldn't check your permissions")
+    const html = renderToString(<GitOpsDetailLayout {...base} permissionCheckUnavailable />)
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const note = [...doc.querySelectorAll('p')].find(p => p.textContent === "Couldn't check your permissions. You can still try.")!
+    expect(note).toBeDefined()
+    expect(note.className).toContain('text-theme-text-secondary')
+    expect(note.closest('[inert], [hidden], [aria-hidden="true"]')).toBeNull()
+    expect(actionButton(html, 'Sync…')).not.toContain('disabled=""')
+    expect(html).not.toContain('restricted for your role')
+  })
+  it.each([['buckets', 'Bucket'], ['helmcharts', 'HelmChart']])('shows denied detail actions for %s', (kind, kindLabel) => {
+    const denied = { verb: 'patch', group: 'source.toolkit.fluxcd.io', resource: kind, kind: kindLabel, namespace: 'sources', name: 'demo' }
+    const html = renderToString(<GitOpsDetailLayout {...base}
+      identity={{ ...base.identity, kind, kindLabel, group: denied.group, namespace: denied.namespace }}
+      isArgoApp={false} isFlux isFluxWorkload={false}
+      flux={{ onReconcile: noop, onSyncWithSource: noop, onSuspend: noop, onResume: noop, reconciling: false, syncingWithSource: false, suspending: false, resuming: false }}
+      actionDisabledReasons={{ reconcile: reason, suspend: reason }}
+      actionPermissions={{ reconcile: { allowed: false, denied: [denied] }, suspend: { allowed: false, denied: [denied] } }}
+    />)
+    expect(html).toContain('Actions restricted for your role')
+    expect(html).toContain(`${kind}.source.toolkit.fluxcd.io`)
+    expect(actionButton(html, 'Reconcile')).toContain('disabled=""')
+    expect(actionButton(html, 'Suspend')).toContain('disabled=""')
+  })
   it('preserves enabled refresh during deletion for an allowed caller', () => {
     const html = renderToString(<GitOpsDetailLayout {...base} terminating />)
     expect(actionButton(html, 'Sync…')).toContain('disabled=""')
@@ -177,6 +203,28 @@ describe('GitOps permission gates on rendered controls', () => {
     />)
     for (const label of ['Sync', 'Refresh', 'Suspend']) {
       expect(actionButton(html, label)).toContain('aria-disabled="true"')
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      const button = [...doc.querySelectorAll('button')].find(button => button.textContent === label)!
+      const description = doc.getElementById(button.getAttribute('aria-describedby')!)!
+      expect(description?.textContent).toBe(reason)
+      expect(description.className).toBe('sr-only')
+      expect(button.disabled).toBe(false)
     }
   })
+})
+
+it.each([false, true])('describes denied compact Flux actions before focus (suspended=%s)', suspended => {
+  const html = renderToString(<ResourceActionsBar
+    resource={{ kind: 'helmreleases', group: 'helm.toolkit.fluxcd.io', namespace: 'apps', name: 'demo' }} data={{ apiVersion: 'helm.toolkit.fluxcd.io/v2', spec: { suspend: suspended } }}
+    onFluxReconcile={noop} onFluxSyncWithSource={noop} onFluxSuspend={noop} onFluxResume={noop}
+    gitOpsActionDisabledReasons={{ reconcile: reason, 'sync-with-source': reason, suspend: reason, resume: reason }}
+  />)
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const buttons = [...doc.querySelectorAll('button[aria-disabled="true"]')]
+  expect(buttons).toHaveLength(3)
+  for (const button of buttons) {
+    const description = doc.getElementById(button.getAttribute('aria-describedby')!)
+    expect(description?.textContent).toBe(reason)
+    expect(description?.className).toBe('sr-only')
+  }
 })

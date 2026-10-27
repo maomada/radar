@@ -16,7 +16,7 @@ export interface GitOpsActionCapabilities {
   actions: Record<string, GitOpsActionCapability>
 }
 
-export const GITOPS_ACTION_KINDS = ['applications', 'gitrepositories', 'ocirepositories', 'helmrepositories', 'kustomizations', 'helmreleases', 'alerts']
+export const GITOPS_ACTION_KINDS = ['applications', 'gitrepositories', 'ocirepositories', 'helmrepositories', 'buckets', 'helmcharts', 'kustomizations', 'helmreleases', 'alerts']
 
 export function isGitOpsActionTarget(kind: string, group: string | undefined): boolean {
   return GITOPS_ACTION_KINDS.includes(kind) && getGitOpsTool(kind, group) !== null
