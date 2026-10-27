@@ -9,6 +9,8 @@ import { GitOpsView } from './GitOpsView'
 
 const harness = vi.hoisted(() => ({
   rollback: vi.fn(),
+  resume: vi.fn(),
+  onResume: undefined as undefined | (() => void),
   showError: vi.fn(),
   multiSource: undefined as boolean | undefined,
   source: undefined as string | undefined,
@@ -35,11 +37,16 @@ vi.mock('@skyhook-io/k8s-ui', async (importOriginal) => {
   return {
     ...actual,
     useToast: () => ({ showError: harness.showError, showSuccess: vi.fn(), showToast: vi.fn() }),
-    GitOpsDetailLayout: (props: { renderTabBody: (ctx: { tab: 'activity'; fullscreen: boolean }) => React.ReactNode; children?: React.ReactNode }) => (
-      <div>{props.renderTabBody({ tab: 'activity', fullscreen: false })}{props.children}</div>
-    ),
-    GitOpsActivityInsightView: (props: { onRollback?: (item: GitOpsHistoryItem) => void; rollbackUpgrade?: unknown }) => (
-      <button type="button" disabled={!!props.rollbackUpgrade} onClick={() => props.onRollback?.({ id: '0', revision: 'aaa111', source: 'guestbook (+1 more)', multiSource: true })}>Rollback</button>
+    GitOpsDetailLayout: (props: { argo?: { onResume: () => void; resumeUpgrade?: unknown; resumeBlockedReason?: string }; renderTabBody: (ctx: { tab: 'activity'; fullscreen: boolean }) => React.ReactNode; children?: React.ReactNode }) => {
+      harness.onResume = props.argo?.onResume
+      return <div>
+        <button disabled={!!props.argo?.resumeUpgrade || !!props.argo?.resumeBlockedReason} onClick={props.argo?.onResume}>Enable auto-sync</button>
+        {props.argo?.resumeBlockedReason}
+        {props.renderTabBody({ tab: 'activity', fullscreen: false })}{props.children}
+      </div>
+    },
+    GitOpsActivityInsightView: (props: { onRollback?: (item: GitOpsHistoryItem) => void; rollbackUpgrade?: unknown; rollbackBlockedReason?: string }) => (
+      <div>{props.rollbackBlockedReason}<button type="button" disabled={!!props.rollbackUpgrade || !!props.rollbackBlockedReason} onClick={() => props.onRollback?.({ id: '0', revision: 'aaa111', source: 'guestbook (+1 more)', multiSource: true })}>Rollback</button></div>
     ),
     RollbackDialog: (props: { open: boolean; source?: string; multiSource?: boolean; onConfirm: (opts: { prune: boolean; dryRun: boolean }) => void }) => {
       if (props.open) {
@@ -61,7 +68,7 @@ vi.mock('../../api/client', async (importOriginal) => {
     useGitOpsInsights: () => ({ data: insight, isLoading: false, error: null }),
     useArgoRollback: () => ({ mutate: harness.rollback, isPending: false }),
     useArgoSync: idle, useArgoResourceValidation: idle, useArgoRefresh: idle, useArgoTerminate: idle,
-    useArgoSuspend: idle, useArgoResume: idle, useApplyResource: idle,
+    useArgoSuspend: idle, useArgoResume: () => ({ mutate: harness.resume, isPending: false }), useApplyResource: idle,
     useFluxReconcile: idle, useFluxSyncWithSource: idle, useFluxSuspend: idle, useFluxResume: idle,
   }
 })
@@ -82,6 +89,9 @@ let host: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
 beforeEach(async () => {
+  app.spec.syncPolicy = {}
+  harness.resume.mockClear()
+  harness.onResume = undefined
   harness.rollback.mockClear()
   harness.showError.mockClear()
   harness.confirm = undefined
@@ -112,6 +122,8 @@ const settle = async () => { await act(async () => { await new Promise((resolve)
 const rollbackButton = () => [...host.querySelectorAll('button')].find((b) => b.textContent === 'Rollback')!
 
 it('does not send a rollback confirmed after capabilities show an older Radar', async () => {
+  await act(async () => { client.setQueryData(['capabilities'], { features: { argoRollbackSync: true } }) })
+  await settle()
   expect(rollbackButton().disabled).toBe(false)
   await act(async () => rollbackButton().click())
   expect(host.querySelector('[role="dialog"]')).not.toBeNull()
@@ -141,4 +153,50 @@ it('passes the selected multi-source history entry to the rollback confirmation'
   await act(async () => rollbackButton().click())
   expect(harness.multiSource).toBe(true)
   expect(harness.source).toBe('guestbook (+1 more)')
+})
+
+it('disables rollback while capabilities are pending with checking copy', () => {
+  expect(rollbackButton().disabled).toBe(true)
+  expect(host.textContent).toContain("Checking this cluster's Radar…")
+  expect(host.textContent).not.toContain('need the latest Radar')
+})
+
+it('does not execute confirmation while capabilities are pending', async () => {
+  await act(async () => { client.setQueryData(['capabilities'], { features: { argoRollbackSync: true } }) })
+  await settle()
+  await act(async () => rollbackButton().click())
+  expect(host.querySelector('[role="dialog"]')).not.toBeNull()
+  await act(async () => { void client.resetQueries({ queryKey: ['capabilities'] }) })
+  await settle()
+  expect(rollbackButton().disabled).toBe(true)
+  await act(async () => harness.confirm!({ prune: false, dryRun: false }))
+  expect(harness.rollback).not.toHaveBeenCalled()
+  expect(harness.showError).toHaveBeenCalledWith('Rollback unavailable', "Checking this cluster's Radar…")
+})
+
+it('keeps rollback disabled with check-unavailable copy when capabilities fail', async () => {
+  await act(async () => {
+    client.getQueryCache().find({ queryKey: ['capabilities'] })!.setState({ status: 'error', error: new Error('offline'), fetchStatus: 'idle' })
+  })
+  await settle()
+  expect(rollbackButton().disabled).toBe(true)
+  expect(host.textContent).toContain("Couldn't check this cluster's Radar support. Refresh to try again.")
+  expect(host.textContent).not.toContain('need the latest Radar')
+})
+
+it('requires affirmative support before enabling an automated block switched off in place', async () => {
+  app.spec.syncPolicy = { automated: { enabled: false } }
+  await act(async () => { client.setQueryData(['capabilities'], { features: { argoRollbackSync: true } }) })
+  await settle()
+  await act(async () => { void client.resetQueries({ queryKey: ['capabilities'] }) })
+  await settle()
+  const enable = () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Enable auto-sync')!
+  expect(enable().disabled).toBe(true)
+  await act(async () => harness.onResume!())
+  expect(harness.resume).not.toHaveBeenCalled()
+  await act(async () => { client.setQueryData(['capabilities'], { features: { argoRollbackSync: true } }) })
+  await settle()
+  expect(enable().disabled).toBe(false)
+  await act(async () => harness.onResume!())
+  expect(harness.resume).toHaveBeenCalledOnce()
 })

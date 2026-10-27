@@ -51,7 +51,7 @@ describe('RollbackDialog confirmation', () => {
     expect(label?.nextElementSibling?.classList.contains('break-words')).toBe(true)
   })
 
-  it.each([true, false])('shows controller compatibility only for multi-source entries (%s)', async (multiSource) => {
+  it.each([true, false])('shows controller compatibility when either the current Application or entry uses multiple sources (%s)', async (multiSource) => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     root = createRoot(host)
@@ -59,8 +59,22 @@ describe('RollbackDialog confirmation', () => {
       <RollbackDialog open appLabel="argocd/demo" revision="aaa111, bbb222" multiSource={multiSource} onCancel={() => {}} onConfirm={() => {}} />,
     ))
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
-    const note = 'Rolling back a multi-source Application needs Argo CD 2.12 or later. A 2.11 controller ignores the history entry’s sources and revisions and syncs the current ones.'
+    const note = 'On Argo CD before 2.12, rolling back across a single-source/multi-source change or to a multi-source entry can deploy the wrong revisions or render nothing; with prune, it can delete resources.'
     expect(dialog.textContent?.includes(note)).toBe(multiSource)
   })
 
+})
+
+it('disables confirmation while support is being checked', async () => {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  root = createRoot(host)
+  const confirm = vi.fn()
+  await act(async () => root?.render(<RollbackDialog open appLabel="argocd/demo" revision="old" blockedReason="Checking this cluster's Radar…" onCancel={() => {}} onConfirm={confirm} />))
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+  expect(dialog.textContent).toContain("Checking this cluster's Radar…")
+  const button = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Roll back')!
+  expect(button.disabled).toBe(true)
+  await act(async () => button.click())
+  expect(confirm).not.toHaveBeenCalled()
 })

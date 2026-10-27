@@ -73,6 +73,7 @@ import {
   RadarFeatureUnsupportedError,
   guardRadarFeature,
   radarControlBlocked,
+  radarControlBlockedReason,
   radarFeatureSupport,
   radarUpgradeRequirement,
   shouldRetryRadarQuery,
@@ -1888,7 +1889,8 @@ export function useVersionCheck() {
  *
  * `upgrade` is set when a control the feature backs must render disabled with
  * RadarUpgradeNote's copy: the Radar is known to be too old, or failed to
- * answer /api/capabilities (see radarControlBlocked).
+ * answer /api/capabilities (see radarControlBlocked). Controls requiring
+ * affirmative support instead get `blockedReason` while checking or unavailable.
  */
 export function useRadarFeature(feature: RadarFeature) {
   const { data: capabilities, isError: capabilitiesFailed } = useCapabilities()
@@ -1903,10 +1905,12 @@ export function useRadarFeature(feature: RadarFeature) {
     [feature, support, currentVersion, latestVersion],
   )
   const gatedKey = useMemo(() => (support === 'unsupported' ? ['radar-feature-unsupported'] : []), [support])
+  const blockedReason = radarControlBlockedReason(feature, support, capabilitiesFailed)
 
   return {
     support,
-    upgrade: radarControlBlocked(support, capabilitiesFailed)
+    blockedReason,
+    upgrade: !blockedReason && radarControlBlocked(support, capabilitiesFailed)
       ? radarUpgradeRequirement(feature, { currentVersion, latestVersion })
       : null,
     gatedKey,

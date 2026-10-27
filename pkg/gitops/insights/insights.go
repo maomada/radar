@@ -48,6 +48,7 @@ type Summary struct {
 	Source              string `json:"source,omitempty"`
 	TargetRevision      string `json:"targetRevision,omitempty"`
 	LastRevision        string `json:"lastRevision,omitempty"`
+	RollbackRevision    string `json:"rollbackRevision,omitempty"`
 	LastReconcile       string `json:"lastReconcile,omitempty"`
 	PartialReason       string `json:"partialReason,omitempty"`
 	// AutoSyncMode is the human-readable syncPolicy chip label, e.g.
@@ -288,7 +289,8 @@ type HistoryItem struct {
 	// RollbackArgoApp accepts it (gitops.ArgoHistoryEntryRollbackable). Nil on
 	// rows it doesn't apply to, such as the current operation and Flux.
 	Rollbackable *bool `json:"rollbackable,omitempty"`
-	MultiSource  bool  `json:"multiSource,omitempty"`
+	// MultiSource warns when either the current spec or this entry uses plural sources.
+	MultiSource bool `json:"multiSource,omitempty"`
 }
 
 type Capabilities struct {
@@ -481,6 +483,9 @@ func buildSummary(root *unstructured.Unstructured, tool string) Summary {
 			}
 		}
 		s.Source = joinNonEmpty(gitops.StringValue(source["repoURL"]), gitops.StringValue(source["path"]), gitops.StringValue(source["chart"]))
+		if !gitops.ArgoAutoSyncEnabled(root) {
+			s.RollbackRevision, _ = gitops.ArgoSuccessfulRollback(root)
+		}
 		s.AutoSyncMode = describeArgoAutoSync(root)
 		s.IgnoredDifferences = summarizeArgoIgnoreDifferences(root)
 		return s
@@ -612,26 +617,8 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			out = append(out, issue)
 		} else if phase == "Running" {
 			out = append(out, Issue{Severity: SeverityInfo, Scope: ScopeOperation, Reason: "Running", Message: "A sync operation is currently running.", Action: "Wait for completion or terminate if it is stuck."})
-		} else if target, applied := gitops.ArgoRollbackRevisionMismatch(root); target != "" {
-			message := "Last rollback deployed different sources or revisions than requested."
-			if target != applied {
-				message = "Last rollback deployed different sources or revisions than requested: " + applied + " instead of " + target + "."
-			}
-			cause := "Argo CD applied different sources or revisions than the rollback requested."
-			action := "Sync the intended revision manually, then check the result."
-			sync, _, _ := unstructured.NestedMap(root.Object, "status", "operationState", "operation", "sync")
-			if sync["revisions"] != nil || sync["sources"] != nil {
-				cause = "Argo CD 2.11 can ignore a multi-source history entry's sources and revisions and sync the current ones."
-				action = "Check the Argo CD controller version, then sync the intended revision manually."
-			}
-			out = append(out, Issue{
-				Severity: SeverityWarning,
-				Scope:    ScopeOperation,
-				Reason:   "RollbackRevisionMismatch",
-				Message:  message,
-				Cause:    cause,
-				Action:   action,
-			})
+		} else if mismatch := DetectArgoRollbackRevisionMismatch(root); mismatch != nil {
+			out = append(out, *mismatch)
 		} else if stuck := detectStuckDriftLoop(root); stuck != nil {
 			// Stuck-drift-loop detector: the user's "this is stuck forever and
 			// nothing tells me why" case. Argo reports the last sync as
@@ -1433,6 +1420,7 @@ func buildPlan(root *unstructured.Unstructured, resourceTree *gitopstree.Resourc
 
 func buildHistory(root *unstructured.Unstructured, tool string) []HistoryItem {
 	if tool == "argocd" {
+		currentSources, _, _ := unstructured.NestedSlice(root.Object, "spec", "sources")
 		raw, _, _ := unstructured.NestedSlice(root.Object, "status", "history")
 		out := make([]HistoryItem, 0, len(raw)+1)
 		for _, item := range raw {
@@ -1470,7 +1458,7 @@ func buildHistory(root *unstructured.Unstructured, tool string) []HistoryItem {
 			rollbackable := gitops.ArgoHistoryEntryRollbackable(m)
 			sources, _, _ := unstructured.NestedSlice(m, "sources")
 			revisions, _, _ := unstructured.NestedStringSlice(m, "revisions")
-			out = append(out, HistoryItem{ID: id, Revision: argoRevisionLabel(m), DeployedAt: gitops.StringValue(m["deployedAt"]), Source: argoSourceLabel(m), InitiatedBy: initiatedBy, Rollbackable: &rollbackable, MultiSource: len(sources) > 0 || len(revisions) > 0})
+			out = append(out, HistoryItem{ID: id, Revision: argoRevisionLabel(m), DeployedAt: gitops.StringValue(m["deployedAt"]), Source: argoSourceLabel(m), InitiatedBy: initiatedBy, Rollbackable: &rollbackable, MultiSource: len(currentSources) > 0 || len(sources) > 0 || len(revisions) > 0})
 		}
 		if op, ok, _ := unstructured.NestedMap(root.Object, "status", "operationState"); ok {
 			initiatedBy := ""
@@ -2088,13 +2076,46 @@ func detectPendingDeletion(root *unstructured.Unstructured, resolver Resolver) *
 	}
 }
 
+// DetectArgoRollbackRevisionMismatch shares the completed rollback outcome and
+// recovery guidance between detail insights and cluster Issues.
+func DetectArgoRollbackRevisionMismatch(root *unstructured.Unstructured) *Issue {
+	target, applied := gitops.ArgoRollbackRevisionMismatch(root)
+	if target == "" {
+		return nil
+	}
+	message := "Last rollback deployed different sources or revisions than requested."
+	cause := "Argo CD applied different sources or revisions than the rollback requested."
+	if applied == "" {
+		message = "Couldn't verify the rollback target " + target + ": Argo CD recorded no applied revisions."
+		cause = "A successful operation phase alone does not prove Argo CD applied the rollback target."
+	} else if target != applied {
+		message = "Last rollback deployed different sources or revisions than requested: " + applied + " instead of " + target + "."
+	}
+	action := "Sync the intended revision manually, then check the result."
+	currentSources, _, _ := unstructured.NestedSlice(root.Object, "spec", "sources")
+	sync, _, _ := unstructured.NestedMap(root.Object, "status", "operationState", "operation", "sync")
+	if len(currentSources) > 0 || sync["revisions"] != nil || sync["sources"] != nil {
+		cause = "On Argo CD before 2.12, rolling back across a single-source/multi-source change or to a multi-source entry can deploy the wrong revisions or render nothing; with prune, it can delete resources."
+		action = "Check the Argo CD controller version, then sync the intended revision manually."
+	}
+	return &Issue{
+		Severity: SeverityWarning,
+		Scope:    ScopeOperation,
+		Reason:   "RollbackRevisionMismatch",
+		Message:  message,
+		Cause:    cause,
+		Action:   action,
+	}
+}
+
 // detectStuckDriftLoop emits a critical issue when an Argo Application is
 // in the "applied successfully but still drifted" state — the case where
 // the user stares at the OutOfSync badge for hours wondering why nothing
-// happens. All four conditions must hold:
+// happens. All conditions must hold:
 //
 //   - sync status is OutOfSync (drift exists)
 //   - last operation phase is Succeeded (the apply itself didn't error)
+//   - applied revisions and sources match the current desired comparison
 //   - auto-sync is enabled (so Argo *would* fix it if it could)
 //   - reconciledAt is recent (controller is actively trying)
 //
@@ -2111,7 +2132,7 @@ func detectStuckDriftLoop(root *unstructured.Unstructured) *Issue {
 		return nil
 	}
 	phase, _, _ := unstructured.NestedString(root.Object, "status", "operationState", "phase")
-	if phase != "Succeeded" {
+	if phase != "Succeeded" || !gitops.ArgoAppliedCurrentComparison(root) {
 		return nil
 	}
 	// Self-heal must be ON for this to be a *loop*: the premise is that Argo

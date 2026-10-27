@@ -1559,7 +1559,7 @@ func TestArgoRollbackRevisionMismatch(t *testing.T) {
 		{name: "failed", phase: "Failed", target: []string{"old"}, result: []string{"new"}},
 		{name: "running", phase: "Running", target: []string{"old"}, result: []string{"new"}},
 		{name: "pending operation", pending: true, target: []string{"old"}, result: []string{"new"}},
-		{name: "no result", target: []string{"old"}},
+		{name: "no result", target: []string{"old"}, wantTarget: "old"},
 		{name: "no target", result: []string{"new"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1667,5 +1667,64 @@ func TestArgoRollbackSourceComparison(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestArgoRollbackRevisionShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name                   string
+		target, result         map[string]any
+		wantTarget, wantResult string
+	}{
+		{"plural target scalar result", map[string]any{"revisions": []any{"old-a", "old-b"}}, map[string]any{"revision": "new"}, "old-a, old-b", "new"},
+		{"scalar target plural result", map[string]any{"revision": "old"}, map[string]any{"revisions": []any{"new-a", "new-b"}}, "old", "new-a, new-b"},
+		{"plural target absent result", map[string]any{"revisions": []any{"old-a", "old-b"}}, map[string]any{}, "old-a, old-b", ""},
+		{"scalar target absent result", map[string]any{"revision": "old"}, map[string]any{}, "old", ""},
+		{"normalized equal", map[string]any{"revision": "old"}, map[string]any{"revisions": []any{"old"}}, "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := argoAppForTest("argocd", "demo", nil)
+			_ = unstructured.SetNestedMap(app.Object, map[string]any{
+				"phase":      "Succeeded",
+				"operation":  map[string]any{"info": []any{map[string]any{"name": argoRollbackInfoName, "value": "true"}}, "sync": tc.target},
+				"syncResult": tc.result,
+			}, "status", "operationState")
+			target, applied := ArgoRollbackRevisionMismatch(app)
+			if target != tc.wantTarget || applied != tc.wantResult {
+				t.Fatalf("mismatch = (%q, %q), want (%q, %q)", target, applied, tc.wantTarget, tc.wantResult)
+			}
+			revision, _ := ArgoSuccessfulRollback(app)
+			if (revision != "") != (tc.wantTarget == "") {
+				t.Fatalf("successful rollback = %q, mismatch = %q", revision, tc.wantTarget)
+			}
+		})
+	}
+}
+
+func TestArgoAppliedCurrentComparison(t *testing.T) {
+	source := map[string]any{"repoURL": "repo", "path": "app", "targetRevision": "main"}
+	other := map[string]any{"repoURL": "repo", "path": "other", "targetRevision": "main"}
+	for _, tc := range []struct {
+		name               string
+		result, comparison map[string]any
+		want               bool
+	}{
+		{"single match", map[string]any{"revision": "a", "source": source}, map[string]any{"revision": "a", "comparedTo": map[string]any{"source": source}}, true},
+		{"revision differs", map[string]any{"revision": "old", "source": source}, map[string]any{"revision": "new", "comparedTo": map[string]any{"source": source}}, false},
+		{"source differs", map[string]any{"revision": "a", "source": source}, map[string]any{"revision": "a", "comparedTo": map[string]any{"source": other}}, false},
+		{"plural match", map[string]any{"revisions": []any{"a", "b"}, "sources": []any{source, other}}, map[string]any{"revisions": []any{"a", "b"}, "comparedTo": map[string]any{"sources": []any{source, other}}}, true},
+		{"plural revision differs", map[string]any{"revisions": []any{"a", "old"}, "sources": []any{source, other}}, map[string]any{"revisions": []any{"a", "new"}, "comparedTo": map[string]any{"sources": []any{source, other}}}, false},
+		{"plural source order differs", map[string]any{"revisions": []any{"a", "b"}, "sources": []any{source, other}}, map[string]any{"revisions": []any{"a", "b"}, "comparedTo": map[string]any{"sources": []any{other, source}}}, false},
+		{"missing applied evidence", map[string]any{}, map[string]any{"revision": "a", "comparedTo": map[string]any{"source": source}}, false},
+		{"missing comparison evidence", map[string]any{"revision": "a", "source": source}, map[string]any{}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := argoAppForTest("argocd", "demo", nil)
+			_ = unstructured.SetNestedMap(app.Object, tc.result, "status", "operationState", "syncResult")
+			_ = unstructured.SetNestedMap(app.Object, tc.comparison, "status", "sync")
+			if got := ArgoAppliedCurrentComparison(app); got != tc.want {
+				t.Fatalf("matches = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

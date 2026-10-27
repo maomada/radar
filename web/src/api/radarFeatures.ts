@@ -26,6 +26,7 @@ export interface RadarFeatureSpec {
    * entries below, whose flags were added after their endpoints.
    */
   flagShippedWithEndpoint?: boolean
+  requireAffirmativeSupport?: boolean
 }
 
 export const RADAR_FEATURES = {
@@ -47,8 +48,8 @@ export const RADAR_FEATURES = {
   trafficRecords: { label: 'Flow records for a graph selection', flag: 'trafficRecords', flagShippedWithEndpoint: true },
   // One flag, two controls. An older Radar's rollback never runs, and its
   // resume reports success while leaving automated.enabled: false in place.
-  argoRollback: { label: 'Argo CD rollbacks', flag: 'argoRollbackSync', flagShippedWithEndpoint: true },
-  argoAutoSyncEnable: { label: 'Auto-sync controls for Applications with automated.enabled: false', flag: 'argoRollbackSync', flagShippedWithEndpoint: true },
+  argoRollback: { label: 'Argo CD rollbacks', flag: 'argoRollbackSync', flagShippedWithEndpoint: true, requireAffirmativeSupport: true },
+  argoAutoSyncEnable: { label: 'Auto-sync controls for Applications with automated.enabled: false', flag: 'argoRollbackSync', flagShippedWithEndpoint: true, requireAffirmativeSupport: true },
   helmSourceIdentity: { label: 'Helm source selection', flag: 'helmSourceIdentity', flagShippedWithEndpoint: true },
 } as const satisfies Record<string, RadarFeatureSpec>
 
@@ -102,6 +103,13 @@ export function radarFeatureSupport(
  */
 export function radarControlBlocked(support: RadarFeatureSupport, capabilitiesFailed: boolean): boolean {
   return support === 'unsupported' || (support === 'unknown' && capabilitiesFailed)
+}
+
+export function radarControlBlockedReason(feature: RadarFeature, support: RadarFeatureSupport, capabilitiesFailed: boolean): string | undefined {
+  const spec: RadarFeatureSpec = RADAR_FEATURES[feature]
+  if (!spec.requireAffirmativeSupport) return undefined
+  if (capabilitiesFailed) return "Couldn't check this cluster's Radar support. Refresh to try again."
+  return support === 'unknown' ? "Checking this cluster's Radar…" : undefined
 }
 
 export function radarUpgradeRequirement(feature: RadarFeature, versions: RadarVersions): RadarUpgradeRequirement {

@@ -87,6 +87,7 @@ export interface ArgoActionHandlers {
   // on (isArgoAutoSyncSwitchedOff): Enable auto-sync renders disabled, with
   // the upgrade note under the header.
   resumeUpgrade?: RadarUpgradeRequirement | null
+  resumeBlockedReason?: string
 }
 
 export interface FluxActionHandlers {
@@ -287,6 +288,7 @@ export function GitOpsDetailLayout(props: GitOpsDetailLayoutProps) {
   const effectiveSuspended = status?.suspended ?? false
   const argoOperationInProgress = argo?.operationInProgress ?? argo?.isRunning ?? false
   const resumeUpgrade = isArgoApp && argo && !argo.autoSyncEnabled ? argo.resumeUpgrade ?? null : null
+  const resumeBlockedReason = isArgoApp && argo && !argo.autoSyncEnabled ? argo.resumeBlockedReason : undefined
   // graphFullscreen hides everything chrome-side; the body region expands.
   // Mirrors the OSS GitOpsDetailView shell behavior so the visual chrome
   // class set carries through.
@@ -372,6 +374,7 @@ export function GitOpsDetailLayout(props: GitOpsDetailLayoutProps) {
                   {detail.autoSyncMode && <AppFact label="Sync mode" value={detail.autoSyncMode} />}
                 </div>
               )}
+              {resumeBlockedReason && <p className="mt-2 text-xs text-theme-text-secondary">{resumeBlockedReason}</p>}
               {resumeUpgrade && <RadarUpgradeNote requirement={resumeUpgrade} className="mt-2" />}
             </div>
             {/* Action buttons */}
@@ -432,13 +435,13 @@ export function GitOpsDetailLayout(props: GitOpsDetailLayoutProps) {
                       description="Re-enable automatic syncing of Git changes to the cluster."
                       icon={Play}
                       loading={argo.resuming}
-                      onClick={argo.onResume}
-                      disabled={terminating || !!resumeUpgrade}
+                      onClick={() => !resumeBlockedReason && !resumeUpgrade && argo.onResume()}
+                      disabled={terminating || !!resumeUpgrade || !!resumeBlockedReason}
                       disabledReason={terminating
                         ? terminatingActionTooltip
-                        : resumeUpgrade
+                        : resumeBlockedReason || (resumeUpgrade
                           ? radarUpgradeNoteText(resumeUpgrade)
-                          : undefined}
+                          : undefined)}
                     />
                   )}
                 </>

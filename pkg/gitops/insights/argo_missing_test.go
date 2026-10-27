@@ -69,40 +69,46 @@ func TestConfirmedAbsenceCreatesIssueDespiteHealthyControllerVerdict(t *testing.
 func TestMissingResourceAdviceAfterRollback(t *testing.T) {
 	ref := gitopstree.ResourceRef{Kind: "ConfigMap", Namespace: "prod", Name: "values"}
 	rollbackNote := "Auto-sync is off after a rollback to old. Syncing deploys the current revision, which can recreate it and undo the rollback."
-	for _, tc := range []struct {
-		name      string
-		automated map[string]any
-		want      bool
-	}{
-		{name: "manual", want: true},
-		{name: "auto-sync disabled in place", automated: map[string]any{"enabled": false}, want: true},
-		// Re-enabling auto-sync before the next operation keeps the rollback
-		// operationState; the advice must follow the current policy.
-		{name: "auto-sync re-enabled", automated: map[string]any{"selfHeal": false}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			app := argoApp(map[string]any{
-				"sync":      map[string]any{"status": "OutOfSync"},
-				"resources": []any{map[string]any{"kind": ref.Kind, "namespace": ref.Namespace, "name": ref.Name, "status": "OutOfSync"}},
-				"operationState": map[string]any{
-					"phase":      "Succeeded",
-					"operation":  map[string]any{"info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}}, "sync": map[string]any{"revision": "old"}},
-					"syncResult": map[string]any{"revision": "old"},
-				},
-			})
-			if tc.automated != nil {
-				_ = unstructured.SetNestedMap(app.Object, tc.automated, "spec", "syncPolicy", "automated")
-			}
-			tree := &gitopstree.ResourceTree{Nodes: []gitopstree.Node{{Ref: ref, Missing: true}}}
-			for _, issue := range buildIssues(app, tree, "argocd", nil) {
-				if issue.Scope == ScopeResource && issue.Reason == "Missing" {
-					if got := issue.Action == rollbackNote; got != tc.want {
-						t.Fatalf("missing-resource advice = %q, want rollback note %v", issue.Action, tc.want)
-					}
-					return
+	for _, syncStatus := range []string{"OutOfSync", "Unknown"} {
+		for _, tc := range []struct {
+			name      string
+			automated map[string]any
+			want      bool
+		}{
+			{name: "manual", want: true},
+			{name: "auto-sync disabled in place", automated: map[string]any{"enabled": false}, want: true},
+			// Re-enabling auto-sync before the next operation keeps the rollback
+			// operationState; the advice must follow the current policy.
+			{name: "auto-sync re-enabled", automated: map[string]any{"selfHeal": false}},
+		} {
+			t.Run(syncStatus+"/"+tc.name, func(t *testing.T) {
+				app := argoApp(map[string]any{
+					"sync":      map[string]any{"status": syncStatus},
+					"resources": []any{map[string]any{"kind": ref.Kind, "namespace": ref.Namespace, "name": ref.Name, "status": "OutOfSync"}},
+					"operationState": map[string]any{
+						"phase":      "Succeeded",
+						"operation":  map[string]any{"info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}}, "sync": map[string]any{"revision": "old"}},
+						"syncResult": map[string]any{"revision": "old"},
+					},
+				})
+				if tc.automated != nil {
+					_ = unstructured.SetNestedMap(app.Object, tc.automated, "spec", "syncPolicy", "automated")
 				}
-			}
-			t.Fatal("no missing-resource issue")
-		})
+				tree := &gitopstree.ResourceTree{Nodes: []gitopstree.Node{{Ref: ref, Missing: true}}}
+				insight := Build(app, tree, nil)
+				if got := insight.Summary.RollbackRevision != ""; got != tc.want {
+					t.Fatalf("rollback context = %q, want %v", insight.Summary.RollbackRevision, tc.want)
+				}
+				for _, issue := range insight.Issues {
+					if issue.Scope == ScopeResource && issue.Reason == "Missing" {
+						if got := issue.Action == rollbackNote; got != tc.want {
+							t.Fatalf("missing-resource advice = %q, want rollback note %v", issue.Action, tc.want)
+						}
+						return
+					}
+				}
+				t.Fatal("no missing-resource issue")
+			})
+		}
 	}
 }

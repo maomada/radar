@@ -142,6 +142,7 @@ interface ResourceActionsBarProps {
   // Set when the connected Radar is too old to turn auto-sync back on for an
   // Application with automated.enabled: false; Enable Auto-Sync renders disabled.
   argoResumeUpgrade?: RadarUpgradeRequirement | null
+  argoResumeBlockedReason?: string
 
   // Node debug shell
   onOpenNodeTerminal?: (params: { nodeName: string }) => void
@@ -191,7 +192,7 @@ export function ResourceActionsBar({
   onArgoSync, isArgoSyncing,
   onArgoRefresh, isArgoRefreshing,
   onArgoSuspend, isArgoSuspending,
-  onArgoResume, isArgoResuming, argoResumeUpgrade,
+  onArgoResume, isArgoResuming, argoResumeUpgrade, argoResumeBlockedReason,
   onOpenNodeTerminal,
   canNodeWrite,
   onCordonNode, isCordoningNode,
@@ -568,6 +569,7 @@ export function ResourceActionsBar({
           onResume={onArgoResume}
           isResuming={isArgoResuming}
           resumeUpgrade={argoResumeUpgrade}
+          resumeBlockedReason={argoResumeBlockedReason}
         />
       )}
 
@@ -887,16 +889,19 @@ function FluxActions({ resource, data, onReconcile, isReconciling, onSyncWithSou
 // ARGO ACTIONS
 // ============================================================================
 
-function ArgoActions({ resource, data, onSync, isSyncing, onRefresh, isRefreshing, onSuspend, isSuspending, onResume, isResuming, resumeUpgrade }: {
+function ArgoActions({ resource, data, onSync, isSyncing, onRefresh, isRefreshing, onSuspend, isSuspending, onResume, isResuming, resumeUpgrade, resumeBlockedReason }: {
   resource: SelectedResource; data: any
   onSync?: (params: { namespace: string; name: string }) => void; isSyncing?: boolean
   onRefresh?: (params: { namespace: string; name: string; hard: boolean }) => void; isRefreshing?: boolean
   onSuspend?: (params: { namespace: string; name: string }) => void; isSuspending?: boolean
   onResume?: (params: { namespace: string; name: string }) => void; isResuming?: boolean
   resumeUpgrade?: RadarUpgradeRequirement | null
+  resumeBlockedReason?: string
 }) {
   const autoSyncEnabled = isArgoAutoSyncEnabled(data)
-  const resumeBlocked = resumeUpgrade && isArgoAutoSyncSwitchedOff(data) ? radarUpgradeNoteText(resumeUpgrade) : undefined
+  const resumeBlocked = isArgoAutoSyncSwitchedOff(data)
+    ? resumeBlockedReason || (resumeUpgrade ? radarUpgradeNoteText(resumeUpgrade) : undefined)
+    : undefined
 
   return (
     <>
@@ -951,7 +956,7 @@ function ArgoActions({ resource, data, onSync, isSyncing, onRefresh, isRefreshin
         onResume && (
           <Tooltip content={resumeBlocked} disabled={!resumeBlocked} delay={150}>
             <button
-              onClick={() => onResume({
+              onClick={() => !resumeBlocked && onResume({
                 namespace: resource.namespace,
                 name: resource.name,
               })}
