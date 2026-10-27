@@ -206,6 +206,7 @@ func applyOwner(rel *Relationships, v *ownership.View, fetched ownership.Observa
 			cov.OwnerReason = string(owner.Resolution.Gap.Reason)
 		}
 	}
+	rel.ControllerChain = ChainOf(v.ControllerChain(fetched.Ref))
 	return cov, owner, true
 }
 
@@ -292,6 +293,7 @@ func OwnershipUnavailable(rel *Relationships, reason string) {
 
 func clearOwnership(rel *Relationships) *OwnershipCoverage {
 	rel.Owner, rel.Owners, rel.Deployment, rel.Children, rel.OlderRevisions, rel.Managers, rel.Manages = nil, nil, nil, nil, nil, nil, nil
+	rel.ControllerChain = nil
 	rel.Ownership = &OwnershipCoverage{}
 	return rel.Ownership
 }
@@ -360,4 +362,84 @@ func managerEvidence(e ownership.ManagerEvidence) ManagerEvidence {
 		out.Claims = append(out.Claims, ManagerClaim{Manager: refOf(c.Manager), Source: string(c.Source), Check: string(c.Check), Copied: c.Copied, Weak: c.Weak})
 	}
 	return out
+}
+
+// ControllerChain is how far up its controller references the caller reads a
+// resource.
+type ControllerChain struct {
+	// Refs are the objects the walk read, the resource first.
+	Refs []ResourceRef
+	// Stop is why the walk ended before an object without a controller
+	// reference: "unknown" when Radar couldn't check the next owner (its kind
+	// isn't watched or still loading, or discovery can't resolve it) or the
+	// references loop or run too long, "withheld" when the caller may not
+	// read it. Empty when the walk reached the top, or the next owner is gone,
+	// replaced, unresolvable or an Event.
+	Stop string
+}
+
+// ChainOf projects a controller walk the caller made; nil when the caller
+// didn't read the resource.
+func ChainOf(a ownership.ControllerChainAnswer) *ControllerChain {
+	if !a.Subject.Present() {
+		return nil
+	}
+	c := &ControllerChain{}
+	for _, r := range a.Chain {
+		c.Refs = append(c.Refs, refOf(r))
+	}
+	switch u := a.UnfollowedReference; {
+	case u != nil && (u.State == ownership.OwnerUnknown || u.State == ownership.OwnerWithheld):
+		c.Stop = u.State.String()
+	case a.Cycle, a.Truncated:
+		c.Stop = ownership.OwnerUnknown.String()
+	}
+	return c
+}
+
+// Readable is c cut below the first object above the resource that readable
+// refuses, as withheld, so a host whose reference checks are stricter than
+// the walk's access never names past what it may show.
+func (c *ControllerChain) Readable(readable func(ResourceRef) bool) *ControllerChain {
+	if c == nil || readable == nil {
+		return c
+	}
+	for i := 1; i < len(c.Refs); i++ {
+		if !readable(c.Refs[i]) {
+			return &ControllerChain{Refs: c.Refs[:i], Stop: "withheld"}
+		}
+	}
+	return c
+}
+
+// Top is the highest object the walk read above the resource, nil when the
+// resource has no controller the caller reads.
+func (c *ControllerChain) Top() *ResourceRef {
+	if c == nil || len(c.Refs) < 2 {
+		return nil
+	}
+	return &c.Refs[len(c.Refs)-1]
+}
+
+// TopmostOwner is managedBy, a pointer the graph or the resource's metadata
+// gave, raised to the top of chain when it is empty or names an object on
+// chain: the graph has no node for a custom resource that nothing owns, so
+// its walk stops at the workload such a resource controls. A pointer off the
+// chain, such as a GitOps manager its metadata names, stands.
+func TopmostOwner(managedBy []ResourceRef, chain *ControllerChain) []ResourceRef {
+	top := chain.Top()
+	if top == nil {
+		return managedBy
+	}
+	if len(managedBy) == 0 || slices.ContainsFunc(chain.Refs, func(r ResourceRef) bool { return sameRef(r, managedBy[0]) }) {
+		return []ResourceRef{*top}
+	}
+	return managedBy
+}
+
+// sameRef compares a chain object with a pointer whose group may be unset,
+// as a graph node's is for a kind whose group it didn't record.
+func sameRef(chain, pointer ResourceRef) bool {
+	return chain.Kind == pointer.Kind && chain.Namespace == pointer.Namespace && chain.Name == pointer.Name &&
+		(pointer.Group == "" || chain.Group == pointer.Group)
 }

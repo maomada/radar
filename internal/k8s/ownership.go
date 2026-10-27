@@ -157,3 +157,50 @@ func OwnershipObservation(obj any) (ownership.Observation, bool) {
 	ref := resourceid.Ref{Group: gvk.Group, Kind: gvk.Kind, Namespace: m.GetNamespace(), Name: m.GetName()}
 	return ownership.Observe(ref, m), true
 }
+
+// ControllerChains reads controller chains for one caller from one session,
+// so the rows of one list share their owners' reads. Not safe for concurrent
+// use.
+type ControllerChains struct {
+	source ownership.Source
+	access func(*ownership.Catalog) ownership.Access
+	view   *ownership.View
+	// session is nil until the first read; failed once it couldn't begin or
+	// its caches were replaced, after which nothing is answered.
+	session ownership.ReadSession
+	failed  bool
+}
+
+// NewControllerChains reads for the caller access describes once the
+// session's catalog is known.
+func NewControllerChains(access func(*ownership.Catalog) ownership.Access) *ControllerChains {
+	return &ControllerChains{source: ownershipSource, access: access}
+}
+
+// Of is the controller chain of obj, read from the caches as ref, as the
+// caller reads it; nil when it can't be answered. obj is never modified: the
+// caches share it.
+func (c *ControllerChains) Of(obj metav1.Object, ref resourceid.Ref) *topology.ControllerChain {
+	if obj == nil || ref.Kind == "" || c.failed {
+		return nil
+	}
+	fetched := ownership.Observe(ref, obj)
+	if c.session == nil {
+		session, err := c.source.Begin()
+		if err != nil || len(session.Catalog().DependentKinds()) == 0 {
+			c.failed = true
+			return nil
+		}
+		c.session, c.view = session, ownership.NewView(session, c.access(session.Catalog()))
+	}
+	c.view.Seed(fetched)
+	chain := c.view.ControllerChain(fetched.Ref)
+	if c.session.ValidateCaches() != nil {
+		c.failed = true
+		return nil
+	}
+	if !chain.Subject.Present() || chain.Subject.Read.Object.UID != fetched.UID {
+		return nil
+	}
+	return topology.ChainOf(chain)
+}

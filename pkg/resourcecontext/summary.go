@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/skyhook-io/radar/pkg/resourceid"
 )
 
 // SummaryOptions configures the compact per-result enrichment produced by
@@ -81,12 +82,16 @@ func ManagedByFromOwner(ownerKind, ownerGroup, ownerNamespace, ownerName string)
 	if ownerKind == "" || ownerName == "" {
 		return nil
 	}
-	return &ManagedByRef{
+	ref := &ManagedByRef{
 		Kind:      ownerKind,
 		Source:    sourceForOwner(ownerKind, ownerGroup),
 		Name:      ownerName,
 		Namespace: ownerNamespace,
 	}
+	if b, builtin := resourceid.BuiltinForKind(ownerKind); ref.Source == "native" && (!builtin || b.Group != ownerGroup) {
+		ref.Group = ownerGroup
+	}
+	return ref
 }
 
 func sourceForOwner(ownerKind, group string) string {

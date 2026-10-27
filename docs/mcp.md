@@ -1321,6 +1321,20 @@ With `manager` present, `resourceContext.managedBy` names only managers it doesn
 another managing controller (a cert-manager Certificate for its Secret), never a second Argo CD, Flux or Helm answer.
 A manager you can't read is left out without a note.
 
+### `managedBy` — the top controller
+
+`resourceContext.managedBy` and the list and search `summaryContext.managedBy` name the top of the resource's
+controller chain (owner references with `controller: true`) as you can read it: a Pod's Deployment, or the operator's
+custom resource that controls a StatefulSet (`{kind: TidbCluster, group: pingcap.com, source: native}` for a TiDB Pod).
+That object holds the spec the rest is generated from, so a fix belongs there. A GitOps or Helm manager the resource's
+own metadata names, or another managing controller, is named instead, as before; in `resourceContext`, with `manager`
+present, the top controller takes its place. A summary's `group` is set only for a kind that isn't built in.
+
+The walk stops where it can't read on. In `resourceContext`, `omitted` then says why an owner may sit above the one
+named: `managedBy: unavailable` when Radar couldn't check it (its kind isn't watched yet, discovery can't resolve it,
+or the references loop), `managedBy: rbac_denied` when you may not read it. A summary has no such note: its `managedBy` is the highest
+object you can read, so open it with `get_resource` to see its own `owner`.
+
 ### Node placement context
 
 For a core Kubernetes Node, `get_resource` includes `resourceContext.referencedBy`

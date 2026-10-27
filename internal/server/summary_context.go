@@ -13,7 +13,9 @@ import (
 	"net/http"
 
 	"github.com/skyhook-io/radar/internal/issues"
+	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/internal/summarycontext"
+	"github.com/skyhook-io/radar/pkg/ownership"
 )
 
 // newResourceSummaryContextBuilder assembles the per-request closure for the
@@ -35,7 +37,7 @@ func (s *Server) newResourceSummaryContextBuilder(r *http.Request, namespaces []
 		return nil
 	}
 	idx := summarycontext.BuildIssueIndex(provider, issues.Filters{Namespaces: namespaces, CanReadClusterScoped: s.issueClusterScopedAccess(r), CanReadRelated: s.issueRelatedResourceAccess(r), CanReadSubject: s.issueSubjectAccess(r), CanReadEvidence: s.issueEvidenceAccess(r)})
-	return summarycontext.BuilderFromIndexes(s.broadcaster.GetCachedTopology(), idx, idx, s.summaryRefReader(r))
+	return summarycontext.BuilderFromIndexes(s.broadcaster.GetCachedTopology(), idx, idx, s.summaryRefReader(r), s.summaryControllerChains(r))
 }
 
 // newSearchSummaryContextBuilder is the search-specific variant. Search
@@ -68,7 +70,7 @@ func (s *Server) newSearchSummaryContextBuilder(r *http.Request, scanNamespaces 
 	if scanNamespaces != nil {
 		clusterIdx = summarycontext.BuildIssueIndex(provider, issues.Filters{Namespaces: nil, CanReadClusterScoped: s.issueClusterScopedAccess(r), CanReadRelated: s.issueRelatedResourceAccess(r), CanReadSubject: s.issueSubjectAccess(r), CanReadEvidence: s.issueEvidenceAccess(r)})
 	}
-	return summarycontext.BuilderFromIndexes(s.broadcaster.GetCachedTopology(), namespacedIdx, clusterIdx, s.summaryRefReader(r))
+	return summarycontext.BuilderFromIndexes(s.broadcaster.GetCachedTopology(), namespacedIdx, clusterIdx, s.summaryRefReader(r), s.summaryControllerChains(r))
 }
 
 // summaryRefReader is the caller's access to a reference a summary names, as
@@ -76,4 +78,10 @@ func (s *Server) newSearchSummaryContextBuilder(r *http.Request, scanNamespaces 
 func (s *Server) summaryRefReader(r *http.Request) func(group, kind, namespace string) bool {
 	checker := s.newRequestScopedChecker(r)
 	return func(group, kind, namespace string) bool { return checker.CanRead(r.Context(), group, kind, namespace) }
+}
+
+// summaryControllerChains reads each row's controller chain as the request's
+// user, with the access the resource context's owner answer reads with.
+func (s *Server) summaryControllerChains(r *http.Request) *k8s.ControllerChains {
+	return k8s.NewControllerChains(func(c *ownership.Catalog) ownership.Access { return s.ownershipAccess(r, c) })
 }

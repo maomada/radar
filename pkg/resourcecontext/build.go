@@ -241,15 +241,34 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 	if answered && rel.Ownership != nil && rel.Ownership.Manager != nil {
 		rc.Manager = managerContext(rel.Ownership.Manager)
 	}
-	// With a manager answer, the GitOps and Helm managers are its to name:
-	// managedBy keeps the rest (a controller, cert-manager), not a second,
-	// metadata-only answer to the same question.
-	if rc.Manager != nil {
-		managedBy = slices.DeleteFunc(slices.Clone(managedBy), answeredManager)
+	var chain *topology.ControllerChain
+	if answered {
+		chain = rel.ControllerChain.Readable(func(r topology.ResourceRef) bool {
+			ref := toContextRef(r)
+			return checkRef(ctx, opts.AccessChecker, &ref)
+		})
 	}
-	// Unlike the other references, a managedBy the caller can't read leaves no
-	// omission note: the note would say a hidden manager links to this object.
-	// The manager answer's narrowed says the caller sees only part.
+	managedBy = topology.TopmostOwner(managedBy, chain)
+	// With a manager answer, the GitOps and Helm managers are its to name:
+	// managedBy keeps the rest (the top controller, cert-manager), not a
+	// second, metadata-only answer to the same question.
+	if rc.Manager != nil {
+		managedBy = topology.TopmostOwner(slices.DeleteFunc(slices.Clone(managedBy), answeredManager), chain)
+	}
+	// An owner above the top the walk reached is noted (the direct owner's
+	// own note covers a walk that reached none): the caller reads the owner
+	// reference that names it, so the note reveals nothing.
+	if top := chain.Top(); top != nil && chain.Stop != "" && len(managedBy) > 0 && managedBy[0] == *top {
+		reason := OmittedUnavailable
+		if chain.Stop == "withheld" {
+			reason = OmittedRBACDenied
+		}
+		omitted.add("managedBy", reason)
+	}
+	// Unlike the other references, a GitOps manager or other managedBy the
+	// caller can't read leaves no omission note: the note would say a hidden
+	// manager links to this object. The manager answer's narrowed says the
+	// caller sees only part.
 	if len(managedBy) > 0 {
 		rc.ManagedBy = filterRefs(ctx, opts.AccessChecker,
 			toContextRefs(managedBy),

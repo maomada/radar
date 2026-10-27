@@ -16,6 +16,7 @@ import (
 	"github.com/skyhook-io/radar/internal/issues"
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/internal/summarycontext"
+	"github.com/skyhook-io/radar/pkg/ownership"
 	"github.com/skyhook-io/radar/pkg/topology"
 )
 
@@ -37,7 +38,7 @@ func newResourceSummaryContextBuilder(ctx context.Context, namespaces []string) 
 		return nil
 	}
 	idx := summarycontext.BuildIssueIndex(provider, issues.Filters{Namespaces: namespaces, CanReadClusterScoped: issueClusterScopedAccess(ctx), CanReadRelated: issueRelatedResourceAccess(ctx), CanReadSubject: issueSubjectAccess(ctx), CanReadEvidence: issueEvidenceAccess(ctx)})
-	return summarycontext.BuilderFromIndexes(buildSummaryContextTopology(namespaces), idx, idx, summaryRefReader(ctx))
+	return summarycontext.BuilderFromIndexes(buildSummaryContextTopology(namespaces), idx, idx, summaryRefReader(ctx), summaryControllerChains(ctx))
 }
 
 // newSearchSummaryContextBuilder is the MCP search variant. Mirrors
@@ -57,7 +58,7 @@ func newSearchSummaryContextBuilder(ctx context.Context, scanNamespaces []string
 	if scanNamespaces != nil {
 		clusterIdx = summarycontext.BuildIssueIndex(provider, issues.Filters{Namespaces: nil, CanReadClusterScoped: issueClusterScopedAccess(ctx), CanReadRelated: issueRelatedResourceAccess(ctx), CanReadSubject: issueSubjectAccess(ctx), CanReadEvidence: issueEvidenceAccess(ctx)})
 	}
-	return summarycontext.BuilderFromIndexes(buildSummaryContextTopology(scanNamespaces), namespacedIdx, clusterIdx, summaryRefReader(ctx))
+	return summarycontext.BuilderFromIndexes(buildSummaryContextTopology(scanNamespaces), namespacedIdx, clusterIdx, summaryRefReader(ctx), summaryControllerChains(ctx))
 }
 
 // summaryCtxTopoMemo caches topology builds for the list_resources and search
@@ -102,4 +103,10 @@ func buildSummaryContextTopology(namespaces []string) *topology.Topology {
 func summaryRefReader(ctx context.Context) func(group, kind, namespace string) bool {
 	checker := newMCPRequestScopedChecker(ctx)
 	return func(group, kind, namespace string) bool { return checker.CanRead(ctx, group, kind, namespace) }
+}
+
+// summaryControllerChains reads each row's controller chain as the caller,
+// with the access get_resource's owner answer reads with.
+func summaryControllerChains(ctx context.Context) *k8s.ControllerChains {
+	return k8s.NewControllerChains(func(c *ownership.Catalog) ownership.Access { return ownershipAccess(ctx, c) })
 }

@@ -39,10 +39,12 @@ type ResourceContext struct {
 	Reflection *ReflectionContext `json:"reflection,omitempty"`
 	Tier       ContextTier        `json:"tier"`
 	Owner      *ContextRef        `json:"owner,omitempty"`
-	// ManagedBy is the topmost owner or managing controller the relationship
-	// graph links. With Manager set it names only what Manager doesn't weigh
-	// (Argo CD, Flux and Helm are Manager's), and one the caller can't read is
-	// dropped without an omission note.
+	// ManagedBy is the top of the controller chain the caller reads, or a
+	// managing controller off that chain the relationship graph links. With
+	// Manager set it names only what Manager doesn't weigh (Argo CD, Flux and
+	// Helm are Manager's). A manager off the chain the caller can't read is
+	// dropped without an omission note; a chain the walk couldn't read to its
+	// top is noted.
 	ManagedBy []ContextRef `json:"managedBy,omitempty"`
 	// Manager is what manages the resource, weighed from GitOps managers'
 	// status lists and the resource's own tracking metadata, or its
@@ -193,10 +195,12 @@ type ManagerClaimContext struct {
 // ManagedByRef is the compact form of a "managed-by" pointer used in
 // ResourceSummaryContext (list/search rows). Carries Kind alongside Source so
 // consumers can distinguish e.g. a Flux Kustomization from a Flux
-// HelmRelease without re-parsing the Source string. Intentionally lacks
-// Group to keep per-row bytes minimal.
+// HelmRelease without re-parsing the Source string. Group is set only for a
+// "native" kind that isn't built in, such as an operator's custom resource,
+// to keep per-row bytes minimal where the kind alone names it.
 type ManagedByRef struct {
-	Kind      string `json:"kind"`   // "Application" | "Kustomization" | "HelmRelease" | "Deployment" | "DaemonSet" | "StatefulSet" | "Rollout" | …
+	Kind      string `json:"kind"` // "Application" | "Kustomization" | "HelmRelease" | "Deployment" | "DaemonSet" | "StatefulSet" | "Rollout" | …
+	Group     string `json:"group,omitempty"`
 	Source    string `json:"source"` // "argocd" | "flux" | "helm" | "native"
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,omitempty"`

@@ -485,6 +485,10 @@ type Relationships struct {
 	Manages  []ResourceRef `json:"manages,omitempty"`
 	// Ownership says how complete the owner-reference answers are.
 	Ownership *OwnershipCoverage `json:"ownership,omitempty"`
+	// ControllerChain is the resource's controller chain as the caller
+	// reads it, for the resource contexts' top owner. Set only with
+	// Ownership; not on the wire.
+	ControllerChain *ControllerChain `json:"-"`
 	// manageSources and manageTargets are the resources this one's manages
 	// edges come from and go to, which ApplyOwnership sorts into ownership,
 	// management and display shortcuts.

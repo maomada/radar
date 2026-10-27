@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/skyhook-io/radar/internal/k8s"
 	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
 	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/skyhook-io/radar/pkg/resourceid"
 	"github.com/skyhook-io/radar/pkg/topology"
 )
 
@@ -110,7 +112,11 @@ func Within[T any](budget time.Duration, build func() T) T {
 // The topology is shared by every user, so a manager it links may be one
 // the caller can't read: that pointer is dropped, without a note, rather
 // than naming a manager the caller can't see.
-func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx IssueIndex, canRead func(group, kind, namespace string) bool) Builder {
+//
+// chains reads each row's controller chain as the caller (nil reads none),
+// so a pointer the graph stops short, as at the StatefulSet an operator's
+// custom resource controls, reaches the chain's top.
+func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx IssueIndex, canRead func(group, kind, namespace string) bool, chains *k8s.ControllerChains) Builder {
 	resourceProvider := k8s.NewTopologyResourceProvider(k8s.GetResourceCache())
 	dynamicProvider := k8s.NewTopologyDynamicProvider(k8s.GetDynamicResourceCache(), k8s.GetResourceDiscovery())
 
@@ -127,7 +133,7 @@ func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx Issue
 		var scanned *resourcecontext.ScannedRef
 		if u != nil && group == aicontext.TrivyGroup {
 			managedBy, scanned = trivyScanTarget(k8s.GetResourceCache(), u, canRead)
-		} else if topo != nil {
+		} else {
 			// Pass the fetched object when available so synthesis is
 			// group-aware (avoids kind/plural collisions like Knative
 			// Service vs corev1 Service). Falls back to (kind, ns, name)
@@ -139,8 +145,26 @@ func BuilderFromIndexes(topo *topology.Topology, namespacedIdx, clusterIdx Issue
 			case u != nil:
 				rawObj = u
 			}
-			rel := topology.GetRelationshipsWithObject(kind, namespace, name, rawObj, topo, resourceProvider, dynamicProvider, relIdx)
-			managedBy = ManagedByFromRelationships(readableRelationships(rel, canRead))
+			var rel *topology.Relationships
+			if topo != nil {
+				rel = topology.GetRelationshipsWithObject(kind, namespace, name, rawObj, topo, resourceProvider, dynamicProvider, relIdx)
+			} else if m, ok := rawObj.(metav1.Object); ok {
+				// Without a graph, the managers the row's own metadata names
+				// still take precedence over its controllers.
+				if ref := topology.ManagedByFromMeta(m); ref != nil {
+					rel = &topology.Relationships{ManagedBy: []topology.ResourceRef{*ref}}
+				}
+			}
+			var chain *topology.ControllerChain
+			if m, ok := rawObj.(metav1.Object); ok && chains != nil {
+				// The chain reads as the caller's ownership access, which in
+				// REST decides by namespace; the pointer is checked as every
+				// other reference a summary names.
+				chain = chains.Of(m, resourceid.Ref{Group: group, Kind: kind, Namespace: namespace, Name: name}).Readable(func(r topology.ResourceRef) bool {
+					return canRead == nil || canRead(r.Group, r.Kind, r.Namespace)
+				})
+			}
+			managedBy = ManagedByFromRelationships(readableRelationships(rel, canRead), chain)
 		}
 		var source runtime.Object = obj
 		if source == nil && u != nil {
@@ -290,7 +314,8 @@ func BuildIssueIndex(p issues.Provider, filters issues.Filters) IssueIndex {
 }
 
 // ManagedByFromRelationships extracts a compact ManagedByRef from
-// computed topology relationships. Preference order:
+// computed topology relationships and the caller's controller chain.
+// Preference order:
 //  1. Relationships.ManagedBy[0] — the server-synthesized topmost
 //     manager (ArgoCD Application > Flux Kustomization/HelmRelease >
 //     Helm release > topmost K8s owner). Walks the owner chain past
@@ -299,19 +324,23 @@ func BuildIssueIndex(p issues.Provider, filters issues.Filters) IssueIndex {
 //     (e.g. cluster-scoped roots where the topmost manager is the
 //     resource itself).
 //
-// Returns nil when topology has no relationship for the resource.
-func ManagedByFromRelationships(rel *topology.Relationships) *resourcecontext.ManagedByRef {
-	if rel == nil {
+// Either is raised to the top of chain when it is on it, or stands in when
+// neither is set (topology.TopmostOwner). Returns nil when nothing names one.
+func ManagedByFromRelationships(rel *topology.Relationships, chain *topology.ControllerChain) *resourcecontext.ManagedByRef {
+	var pointer []topology.ResourceRef
+	switch {
+	case rel == nil:
+	case len(rel.ManagedBy) > 0:
+		pointer = rel.ManagedBy[:1]
+	case rel.Owner != nil:
+		pointer = []topology.ResourceRef{*rel.Owner}
+	}
+	pointer = topology.TopmostOwner(pointer, chain)
+	if len(pointer) == 0 {
 		return nil
 	}
-	if len(rel.ManagedBy) > 0 {
-		ref := rel.ManagedBy[0]
-		return resourcecontext.ManagedByFromOwner(ref.Kind, ref.Group, ref.Namespace, ref.Name)
-	}
-	if rel.Owner != nil {
-		return resourcecontext.ManagedByFromOwner(rel.Owner.Kind, rel.Owner.Group, rel.Owner.Namespace, rel.Owner.Name)
-	}
-	return nil
+	ref := pointer[0]
+	return resourcecontext.ManagedByFromOwner(ref.Kind, ref.Group, ref.Namespace, ref.Name)
 }
 
 // readableRelationships is rel with the managedBy and owner references the

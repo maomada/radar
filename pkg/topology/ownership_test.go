@@ -732,3 +732,108 @@ func TestApplyOwnershipKeepsTheEdgeOfAManagerBehindAHiddenGap(t *testing.T) {
 		t.Errorf("managers %v, want %v from its edge", got, app.Ref)
 	}
 }
+
+// A resource context's top owner is the last object up the controller chain
+// the caller reads, and says why the walk stopped short of the top when it
+// may have.
+func TestApplyOwnerReadsTheControllerChainToItsTop(t *testing.T) {
+	b := ownershiptest.NewBuilder()
+	cluster := b.Add("example.io", "Widget", "db", "basic")
+	sts := b.Add("apps", "Deployment", "db", "basic-tidb", cluster.OwnerRef(true))
+	pod := b.Add("", "Pod", "db", "basic-tidb-0", sts.OwnerRef(true))
+	loose := b.Add("", "Pod", "db", "loose")
+	w := b.World()
+	unserved := b.World()
+	unserved.Partial = true
+	unserved.Resources = slices.DeleteFunc(slices.Clone(unserved.Resources), func(r ownership.ServedResource) bool { return r.Group == "example.io" })
+
+	for name, tc := range map[string]struct {
+		w        ownershiptest.World
+		access   ownership.Access
+		subject  resourceid.Ref
+		wantTop  *resourceid.Ref
+		wantStop string
+	}{
+		"to the custom resource":           {w, ownership.Unrestricted(), pod.Ref, &cluster.Ref, ""},
+		"the workload's own":               {w, ownership.Unrestricted(), sts.Ref, &cluster.Ref, ""},
+		"no controller":                    {w, ownership.Unrestricted(), loose.Ref, nil, ""},
+		"an owner Radar can't check":       {unserved, ownership.Unrestricted(), pod.Ref, &sts.Ref, "unknown"},
+		"an owner the caller may not read": {w, denyKind{resourceid.GroupKind{Group: "example.io", Kind: "Widget"}}, pod.Ref, &sts.Ref, "withheld"},
+	} {
+		rel := &Relationships{}
+		ApplyOwner(rel, ownershipView(t, tc.w, tc.access), fetched(t, tc.w, tc.subject))
+		c := rel.ControllerChain
+		if c == nil {
+			t.Fatalf("%s: no chain", name)
+		}
+		top := c.Top()
+		switch {
+		case (top == nil) != (tc.wantTop == nil), top != nil && refIdentity(*top) != *tc.wantTop:
+			t.Errorf("%s: top %v, want %v", name, top, tc.wantTop)
+		case c.Stop != tc.wantStop:
+			t.Errorf("%s: stop %q, want %q", name, c.Stop, tc.wantStop)
+		}
+	}
+}
+
+func TestTopmostOwner(t *testing.T) {
+	rs := ResourceRef{Group: "apps", Kind: "ReplicaSet", Namespace: "db", Name: "x-1"}
+	dep := ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "db", Name: "x"}
+	cr := ResourceRef{Group: "example.io", Kind: "Widget", Namespace: "db", Name: "x"}
+	pod := ResourceRef{Kind: "Pod", Namespace: "db", Name: "x-1-a"}
+	app := ResourceRef{Group: "argoproj.io", Kind: "Application", Namespace: "argocd", Name: "x"}
+	chain := &ControllerChain{Refs: []ResourceRef{pod, rs, dep, cr}}
+	for name, tc := range map[string]struct {
+		pointer []ResourceRef
+		chain   *ControllerChain
+		want    []ResourceRef
+	}{
+		"no pointer":                         {nil, chain, []ResourceRef{cr}},
+		"a pointer the chain passes":         {[]ResourceRef{dep}, chain, []ResourceRef{cr}},
+		"a pointer without its group":        {[]ResourceRef{{Kind: "Deployment", Namespace: "db", Name: "x"}}, chain, []ResourceRef{cr}},
+		"a GitOps manager stands":            {[]ResourceRef{app}, chain, []ResourceRef{app}},
+		"a same-named kind of another group": {[]ResourceRef{{Group: "other.io", Kind: "Deployment", Namespace: "db", Name: "x"}}, chain, []ResourceRef{{Group: "other.io", Kind: "Deployment", Namespace: "db", Name: "x"}}},
+		"no chain":                           {[]ResourceRef{dep}, nil, []ResourceRef{dep}},
+		"no controller":                      {nil, &ControllerChain{Refs: []ResourceRef{pod}}, nil},
+	} {
+		if got := TopmostOwner(tc.pointer, tc.chain); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: %v, want %v", name, refsText(got), refsText(tc.want))
+		}
+	}
+}
+
+// A host whose reference checks are stricter than the walk's access cuts the
+// chain below the first object it may not show.
+func TestControllerChainReadable(t *testing.T) {
+	pod := ResourceRef{Kind: "Pod", Namespace: "db", Name: "p"}
+	sts := ResourceRef{Group: "apps", Kind: "StatefulSet", Namespace: "db", Name: "s"}
+	cr := ResourceRef{Group: "example.io", Kind: "Widget", Namespace: "db", Name: "w"}
+	c := &ControllerChain{Refs: []ResourceRef{pod, sts, cr}}
+	cut := c.Readable(func(r ResourceRef) bool { return r.Kind != "Widget" })
+	if top := cut.Top(); top == nil || *top != sts || cut.Stop != "withheld" {
+		t.Errorf("cut %+v, want the StatefulSet, withheld", cut)
+	}
+	if got := c.Readable(func(ResourceRef) bool { return true }); got != c {
+		t.Errorf("all readable: %+v, want the chain itself", got)
+	}
+	if got := (*ControllerChain)(nil).Readable(func(ResourceRef) bool { return false }); got != nil {
+		t.Errorf("nil chain: %+v", got)
+	}
+}
+
+// A walk that loops ends short of a top Radar could establish.
+func TestChainOfALoop(t *testing.T) {
+	b := ownershiptest.NewBuilder()
+	a := b.Add("example.io", "Widget", "db", "a")
+	bb := b.Add("example.io", "Gadget", "db", "b", a.OwnerRef(true))
+	w := b.World()
+	for i, o := range w.Objects {
+		if o.Ref == a.Ref {
+			w.Objects[i].OwnerReferences = []metav1.OwnerReference{bb.OwnerRef(true)}
+		}
+	}
+	c := ChainOf(ownershipView(t, w, ownership.Unrestricted()).ControllerChain(bb.Ref))
+	if c == nil || c.Stop != "unknown" {
+		t.Errorf("loop: %+v, want stop unknown", c)
+	}
+}
