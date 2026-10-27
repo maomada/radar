@@ -256,8 +256,8 @@ func TestRollbackDeploymentRestoresAnnotationsLikeKubectl(t *testing.T) {
 }
 
 func TestRollbackDeploymentToCurrentTemplateIsRefused(t *testing.T) {
-	// The live template carries a leaked hash from an older rollback; it still
-	// counts as the same template.
+	// A pod-template-hash label in the live template does not make it a
+	// different template.
 	client := newAppsClient(
 		deploymentObject(withHash(podTemplateV1(), "h1"), nil, nil),
 		deploymentReplicaSet("web-h1", "1", "h1", podTemplateV1(), nil),

@@ -394,10 +394,9 @@ func TestExecPodRefusesOldDeploymentRevision(t *testing.T) {
 	}
 }
 
-// Older Radar rollbacks copied a ReplicaSet's pod-template-hash label into the
-// Deployment template. The controller ignores that label when it matches
-// ReplicaSets to the template, so exec must too, or it can never find the
-// current revision.
+// A Deployment template can carry a pod-template-hash label copied from a
+// ReplicaSet. The controller ignores that label when it matches ReplicaSets to
+// the template, so exec must too, or it can never find the current revision.
 func TestExecPodMatchesDeploymentTemplateWithLeakedHash(t *testing.T) {
 	defer k8s.ResetTestState()
 	controller := true

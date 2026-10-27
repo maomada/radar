@@ -493,8 +493,8 @@ func currentExecPods(ctx context.Context, client kubernetes.Interface, dyn dynam
 		}
 		// Strip the hash from both sides, as the Deployment controller does: a
 		// Deployment template can carry a pod-template-hash label copied in from
-		// a ReplicaSet (older rollbacks did this), and the controller still
-		// treats the matching ReplicaSet as current.
+		// a ReplicaSet, and the controller still treats the matching ReplicaSet
+		// as current.
 		desired := dep.Spec.Template.DeepCopy()
 		delete(desired.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
 		var rs []*appsv1.ReplicaSet
