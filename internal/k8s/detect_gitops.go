@@ -310,6 +310,7 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 		}
 		if mismatch := gitopsinsights.DetectArgoRollbackRevisionMismatch(app); mismatch != nil {
 			d := gitopsProblem(now, "Application", argoGroup, ns, name, "warning", mismatch.Reason, mismatch.Message, createdAt)
+			d.Fingerprint = "argo:rollback-revision-mismatch"
 			d.Cause, d.Action = mismatch.Cause, mismatch.Action
 			if transitionAt, ok := argoOperationIssueTime(app, now); ok {
 				setDetectionOnset(&d, now, transitionAt)
