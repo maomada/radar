@@ -30,6 +30,15 @@ describe('confirmed missing resources', () => {
     expect(isArgoResourceSyncEligible(item, true)).toBe(true)
   })
 
+  it('defers creation advice to the sync hazard while preserving stale Synced refresh advice', () => {
+    for (const sync of ['OutOfSync', 'Unknown', undefined]) {
+      expect(missingResourceMessage(sync, 'Resolve shared ownership before syncing.')).toBe(
+        'Not present in the cluster. See the sync warning above before syncing this Application.',
+      )
+    }
+    expect(missingResourceMessage('Synced', 'A pruning sync could delete everything.')).toContain('Refresh')
+  })
+
   it('asks for a refresh when Argo still reports Synced', () => {
     expect(missingResourceMessage('Synced')).toContain('Refresh')
     expect(missingResourceMessage('Synced')).not.toContain('Sync the application')

@@ -133,10 +133,10 @@ func ParseArgoOperationError(msg string) ParsedFailure {
 		out.Reason = ReasonAutoSyncBlockedEmpty
 		out.Summary = "Auto-sync blocked: the render includes none of the managed resources"
 		out.Cause = "Argo CD blocked auto-sync because the render includes none of the resources this Application manages."
-		out.ActionPrimary = "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first."
+		out.ActionPrimary = "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first."
 		out.ActionSecondaryTitle = "If removing all managed resources is intended"
 		out.ActionSecondary = []string{
-			"If this Application should go away: remove it from the ApplicationSet generator if generated; while the generator still emits it, the ApplicationSet recreates it. For a plain Application, delete the Application (its resources finalizer decides whether managed resources are pruned).",
+			"If this Application should go away: remove it from the ApplicationSet generator if generated; while the generator still emits it, the ApplicationSet recreates it. For a plain Application, delete the Application. Cleanup follows the cascade/resources finalizer choice and Delete=false / Delete=confirm, not Prune options.",
 			"If it should render empty: set syncPolicy.automated.allowEmpty: true in the Application or its ApplicationSet template. This turns off the empty-render guard for all future syncs.",
 		}
 		out.Action = out.ActionPrimary + " " + strings.Join(out.ActionSecondary, " ")
@@ -300,14 +300,14 @@ func ArgoConditionAction(condType, appName string, messages []string) string {
 // ArgoSyncHazardAction replaces "review the diff, then sync" advice when a sync
 // would do more than reconcile drift: prune every managed resource, or take
 // resources over from another Application. Empty when neither applies. When
-// the latest comparison failed, the pruning flags are the previous
-// comparison's, so the advice says so instead of describing the current render.
+// the latest comparison reported an error, the resource list does not establish
+// the current render, so the advice asks for a successful comparison first.
 func ArgoSyncHazardAction(prunesEverything, comparisonFailed bool, sharedResourceMessages []string) string {
 	if prunesEverything && comparisonFailed {
-		return "Argo CD's previous comparison marked every resource this Application manages for pruning, and its latest comparison failed. Fix the comparison error and refresh before syncing: if the render still includes none of them, a sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."
+		return "Argo CD's last reported resource list marks every listed resource for pruning, and its latest comparison reported an error. Fix the comparison error and refresh before syncing: if the render still includes none of them, a sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options."
 	}
 	if prunesEverything {
-		return "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first."
+		return "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first."
 	}
 	if len(sharedResourceMessages) == 0 {
 		return ""
@@ -320,9 +320,10 @@ func ArgoSyncHazardAction(prunesEverything, comparisonFailed bool, sharedResourc
 }
 
 // Pause the current tracker so it cannot take tracking back before its source
-// drops the resource and then prune it.
+// drops the resource and then prune it. Stopping an operation cannot undo a
+// deletion already submitted, and a template edit may not update a live child.
 func sharedResourceAdvice(owner string) string {
-	return "To leave it with " + owner + ", remove it from this Application's source. To move it here, first note whether " + owner + " has auto-sync on, and turn it off if so. Do not sync it manually during the move. For an ApplicationSet or parent-managed Application, disable auto-sync in the template or Git so it stays off. Finish or terminate any running or retrying operation on " + owner + "; turning off auto-sync does not stop it. Then sync this Application, confirm Argo CD lists this Application as the resource's tracker, remove it from the source of " + owner + ", then restore " + owner + "'s previous auto-sync setting."
+	return "To leave it with " + owner + ", remove it from this Application's source. To move it here, first note whether " + owner + " has auto-sync on, and turn it off if so. Do not sync it manually during the move. For an ApplicationSet or parent-managed Application, disable auto-sync in the template or Git so it stays off. For a generated child, confirm its live auto-sync is off. Its ApplicationSet sync policy may prevent a template change from reaching it. Finish or terminate any running or retrying operation on " + owner + ". Turning off auto-sync does not stop it. Before syncing this Application, confirm no operation is running or retrying on " + owner + ". Check that " + owner + " and the resource are not being deleted. If deletion has started, stop. Then sync this Application. Confirm Argo CD lists this Application as the resource's tracker. Remove it from the source of " + owner + ". Then restore " + owner + "'s previous auto-sync setting."
 }
 
 func orphanedResourceAction(cliHint string) string {

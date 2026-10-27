@@ -47,7 +47,10 @@ export function changeHealth(change: GitOpsChange): GitOpsHealthStatus {
   return normalizeHealthStatus(change.health)
 }
 
-export function missingResourceMessage(sync?: string): string {
+export function missingResourceMessage(sync?: string, syncHazard?: string): string {
+  if (syncHazard && sync !== 'Synced') {
+    return 'Not present in the cluster. See the sync warning above before syncing this Application.'
+  }
   return sync === 'Synced'
     ? 'Argo reports this resource as synced, but it is not present in the cluster. Refresh the application to check its status.'
     : 'Not present in the cluster. Sync the application to create it.'

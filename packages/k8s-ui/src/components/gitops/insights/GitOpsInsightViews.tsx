@@ -889,6 +889,7 @@ export function GitOpsChangesView({ insight, error, onOpenResource, onSyncResour
   // honest about what it's NOT checking. Neutral note, not an alarm.
   const ignoredDiffs = insight.summary.ignoredDifferences
   const isArgoRoot = insight.summary.tool === 'argocd' && insight.summary.kind === 'Application'
+  const syncHazard = insight.issues?.find((issue) => issue.hazard)?.hazard
   // Full-diff affordance is offered only when the backend reports the Argo CD
   // integration is connected for this app AND the host wired the loader.
   const argoDiffAvailable = isArgoRoot && !!insight.capabilities?.argoDiffAvailable && !!renderResourceDiff
@@ -1122,9 +1123,9 @@ export function GitOpsChangesView({ insight, error, onOpenResource, onSyncResour
                 const rowKey = refKey(change.ref)
                 const focused = focusKey === rowKey
                 const explanation = change.missing
-                  ? missingResourceMessage(change.sync)
+                  ? missingResourceMessage(change.sync, syncHazard)
                   : !change.syncError && !change.message
-                    ? explainChangeStatus(change.sync, change.health, insight.summary)
+                    ? explainChangeStatus(change.sync, change.health, insight.summary, syncHazard)
                     : ''
                 const hasInlineDetail = !!(
                   (change.drift && change.drift.entries.length > 0) ||
@@ -1299,7 +1300,11 @@ function explainChangeStatus(
   sync: string | undefined,
   health: string | undefined,
   summary: GitOpsInsight['summary'],
+  syncHazard?: string,
 ): string {
+  if (syncHazard && (sync === 'OutOfSync' || health === 'Missing')) {
+    return 'See the sync warning above before syncing this Application.'
+  }
   const isAuto = (summary.autoSyncMode ?? '').toLowerCase().startsWith('auto')
   const phase = (summary.operationPhase ?? '').toLowerCase()
   const inFlight = phase === 'running'

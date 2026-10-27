@@ -128,9 +128,9 @@ export interface GitOpsIssue {
   actionPrimary?: string
   actionSecondaryTitle?: string
   actionSecondary?: string[]
-  // Set on a failed operation when syncing again would prune every managed
+  // Set when syncing would prune every managed
   // resource or take resources over from another Application. Shown as a
-  // warning ahead of the cause, whose own advice may assume a sync is safe.
+  // warning ahead of a failed operation's cause; resource rows defer sync advice to it.
   hazard?: string
   // Plain-English root cause when the message matched a recognized error
   // pattern. Empty for unrecognized messages — UI falls back to the raw message.

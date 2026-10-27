@@ -11,7 +11,7 @@ const guard: GitOpsIssue = {
   message: 'Auto-sync blocked: the render includes none of the managed resources',
   rawMessage: 'Skipping sync attempt to [8088f4c]: auto-sync will wipe out all resources',
   cause: 'Argo CD blocked auto-sync because the render includes none of the resources this Application manages.',
-  action: 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation.',
+  action: 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options.',
 }
 
 // The band's top row is the most severe issue. Its next step must be visible
@@ -54,7 +54,7 @@ const failedSync: GitOpsIssue = {
   action: 'Open Activity for operation details.',
 }
 const causeAdvice = 'so Argo creates it on sync'
-const emptyRenderHazard = 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first.'
+const emptyRenderHazard = 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first.'
 const emptyRenderReference = 'See the empty-render guard below before syncing.'
 
 describe('GitOpsIssuesBand failure card', () => {

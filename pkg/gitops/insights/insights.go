@@ -178,12 +178,12 @@ type Issue struct {
 	ActionPrimary        string   `json:"actionPrimary,omitempty"`
 	ActionSecondaryTitle string   `json:"actionSecondaryTitle,omitempty"`
 	ActionSecondary      []string `json:"actionSecondary,omitempty"`
-	// Hazard, set on a failed operation, warns that syncing again is unsafe: it
-	// would prune every managed resource or take resources over from another
-	// Application. It is kept apart from Action because the failure's Cause can
+	// Hazard warns that syncing could prune every managed resource or take
+	// resources over from another Application. It is kept apart from Action because the failure's Cause can
 	// end in its own sync advice ("create it … so Argo creates it on sync"),
 	// which the warning has to precede. Rows whose next step is itself a sync
-	// carry the hazard as their Action instead.
+	// also carry the hazard as their Action. Resource rows use Hazard to defer
+	// generic sync advice to the warning.
 	Hazard string `json:"hazard,omitempty"`
 	// Remediation, when set, exposes a structured one-click fix for this
 	// Issue. Frontend renders a contextual button on the failure card.
@@ -567,6 +567,7 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 	// message; an empty-render guard can describe a different revision.
 	operationFailed := false
 	if tool == "argocd" {
+		syncHazard := argoSyncHazardAction(root)
 		opMessage, _, _ := unstructured.NestedString(root.Object, "status", "operationState", "message")
 		if phase, _, _ := unstructured.NestedString(root.Object, "status", "operationState", "phase"); phase == "Failed" || phase == "Error" {
 			operationFailed = true
@@ -596,8 +597,8 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			}
 			// The one-click fix retries the sync, which would now prune
 			// everything or take over shared resources.
-			if hazard := argoSyncHazardAction(root); hazard != "" {
-				issue.Hazard = hazard
+			if syncHazard != "" {
+				issue.Hazard = syncHazard
 				issue.Remediation = nil
 			}
 			if parsed.AffectedKind != "" && parsed.AffectedName != "" {
@@ -632,14 +633,14 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			// another operator). Without this issue, the only signal is the
 			// OutOfSync badge — which the user has been staring at for hours.
 			out = append(out, *stuck)
-		} else if drift := detectManualDriftWithoutAutoSync(root); drift != nil {
+		} else if drift := detectManualDriftWithoutAutoSync(root, syncHazard); drift != nil {
 			// Manual drift without auto-sync: app is OutOfSync but auto-sync
 			// is off, so nothing will reconcile until a human clicks Sync.
 			// Common operator confusion: "I see drift, why isn't anything
 			// happening?" Answer: nothing is *supposed* to happen
 			// automatically.
 			out = append(out, *drift)
-		} else if drift := detectAutoDriftSelfHealOff(root); drift != nil {
+		} else if drift := detectAutoDriftSelfHealOff(root, syncHazard); drift != nil {
 			// Auto-sync on but self-heal off: Argo deploys new Git revisions
 			// yet won't correct live drift, so an OutOfSync app sits drifted
 			// with nothing to reconcile it. Same "why isn't this fixing
@@ -651,7 +652,7 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 		// (ComparisonError, InvalidSpecError, OrphanedResourceWarning, …) —
 		// the answers to "why is this app broken" when no operation has run.
 		// Only the failed-attempt SyncError duplicates the operation failure card.
-		for _, ci := range argoApplicationConditions(root) {
+		for _, ci := range argoApplicationConditions(root, syncHazard) {
 			if operationFailed && ci.Reason == argoSyncErrorConditionType && diagnose.IsArgoFailedAttemptCondition(ci.Message, opMessage) {
 				continue
 			}
@@ -675,8 +676,9 @@ func buildIssues(root *unstructured.Unstructured, resourceTree *gitopstree.Resou
 			}
 			if change.Missing {
 				issue := resourceHealthIssue(change, nil)
-				if hazard := argoSyncHazardAction(root); hazard != "" && change.Sync != "Synced" {
-					issue.Action = hazard
+				if syncHazard != "" && change.Sync != "Synced" {
+					issue.Action = syncHazard
+					issue.Hazard = syncHazard
 				}
 				out = append(out, issue)
 			} else if change.Health == "Degraded" || change.Health == "Missing" {
@@ -2104,7 +2106,7 @@ func detectStuckDriftLoop(root *unstructured.Unstructured) *Issue {
 // the top of the page so the next-step is obvious.
 //
 // Returns nil when conditions don't match — caller appends only on hit.
-func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured) *Issue {
+func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured, syncHazard string) *Issue {
 	sync, _, _ := unstructured.NestedString(root.Object, "status", "sync", "status")
 	if sync != "OutOfSync" {
 		return nil
@@ -2122,9 +2124,10 @@ func detectManualDriftWithoutAutoSync(root *unstructured.Unstructured) *Issue {
 		Message:  "Application is OutOfSync and auto-sync is disabled — nothing will reconcile until you click Sync.",
 		Action:   "Open Changes to review the per-resource diff, then click Sync to apply. Enable auto-sync if you want this to fix itself going forward.",
 	}
-	if hazard := argoSyncHazardAction(root); hazard != "" {
+	if syncHazard != "" {
 		issue.Message = "Application is OutOfSync and auto-sync is disabled, so nothing reconciles it automatically."
-		issue.Action = hazard
+		issue.Action = syncHazard
+		issue.Hazard = syncHazard
 	}
 	return issue
 }
@@ -2173,7 +2176,7 @@ func argoAutoSync(root *unstructured.Unstructured) (automated, selfHeal bool) {
 // self-heal on is owned by detectStuckDriftLoop (or reconciles on its own).
 //
 // Returns nil when conditions don't match — caller appends only on hit.
-func detectAutoDriftSelfHealOff(root *unstructured.Unstructured) *Issue {
+func detectAutoDriftSelfHealOff(root *unstructured.Unstructured, syncHazard string) *Issue {
 	sync, _, _ := unstructured.NestedString(root.Object, "status", "sync", "status")
 	if sync != "OutOfSync" {
 		return nil
@@ -2189,9 +2192,10 @@ func detectAutoDriftSelfHealOff(root *unstructured.Unstructured) *Issue {
 		Message:  "Application is OutOfSync and self-heal is disabled — auto-sync deploys new Git revisions but won't correct drift in the live cluster, so it will stay OutOfSync until you sync.",
 		Action:   "Open Changes to review the per-resource diff, then click Sync. Enable self-heal on the sync policy if you want Argo to auto-correct drift going forward.",
 	}
-	if hazard := argoSyncHazardAction(root); hazard != "" {
+	if syncHazard != "" {
 		issue.Message = "Application is OutOfSync and self-heal is disabled — auto-sync deploys new Git revisions but won't correct drift in the live cluster."
-		issue.Action = hazard
+		issue.Action = syncHazard
+		issue.Hazard = syncHazard
 	}
 	return issue
 }
@@ -2210,7 +2214,7 @@ const argoSyncErrorConditionType = "SyncError"
 // in "Error" are critical; "Warning" types are warning; everything else is
 // info. We elide condition types we don't recognize when the message is
 // also empty — they're often controller-internal noise.
-func argoApplicationConditions(root *unstructured.Unstructured) []Issue {
+func argoApplicationConditions(root *unstructured.Unstructured, syncHazard string) []Issue {
 	raw, _, _ := unstructured.NestedSlice(root.Object, "status", "conditions")
 	if len(raw) == 0 {
 		return nil
@@ -2233,7 +2237,10 @@ func argoApplicationConditions(root *unstructured.Unstructured) []Issue {
 		case "warning":
 			severity = SeverityWarning
 		}
-		cause := ""
+		cause, hazard := "", ""
+		if typ == "SharedResourceWarning" {
+			hazard = syncHazard
+		}
 		actionPrimary, actionSecondaryTitle := "", ""
 		var actionSecondary []string
 		var remediation *Remediation
@@ -2257,6 +2264,7 @@ func argoApplicationConditions(root *unstructured.Unstructured) []Issue {
 					action = remoteAction
 				}
 			}
+			hazard = syncHazard
 			cause = parsed.Cause
 			actionPrimary, actionSecondaryTitle, actionSecondary = parsed.ActionPrimary, parsed.ActionSecondaryTitle, parsed.ActionSecondary
 			remediation = remediationFromParsed(parsed)
@@ -2264,8 +2272,8 @@ func argoApplicationConditions(root *unstructured.Unstructured) []Issue {
 				action = parsed.Action
 			}
 			// A failed sync's advice is to retry, and its one-click fix syncs.
-			if hazard := argoSyncHazardAction(root); hazard != "" && parsed.Reason != diagnose.ReasonAutoSyncBlockedEmpty {
-				action = hazard
+			if syncHazard != "" && parsed.Reason != diagnose.ReasonAutoSyncBlockedEmpty {
+				action = syncHazard
 				remediation = nil
 			}
 		}
@@ -2274,6 +2282,7 @@ func argoApplicationConditions(root *unstructured.Unstructured) []Issue {
 			Severity:             severity,
 			Scope:                ScopeCondition,
 			Cause:                cause,
+			Hazard:               hazard,
 			Reason:               fallback(typ, "Condition"),
 			Message:              fallback(msg, typ),
 			RawMessage:           rawMsg,

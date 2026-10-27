@@ -657,7 +657,8 @@ func TestDetectAutoDriftSelfHealOff(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := detectAutoDriftSelfHealOff(stuckLoopApp(t, tc.mut))
+			root := stuckLoopApp(t, tc.mut)
+			got := detectAutoDriftSelfHealOff(root, argoSyncHazardAction(root))
 			if (got != nil) != tc.wantFire {
 				t.Errorf("fire = %v, want %v; issue=%+v", got != nil, tc.wantFire, got)
 			}
@@ -719,7 +720,8 @@ func TestDetectManualDriftWithoutAutoSync(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := detectManualDriftWithoutAutoSync(stuckLoopApp(t, tc.mut))
+			root := stuckLoopApp(t, tc.mut)
+			got := detectManualDriftWithoutAutoSync(root, argoSyncHazardAction(root))
 			if (got != nil) != tc.wantFire {
 				t.Errorf("fire = %v, want %v; issue=%+v", got != nil, tc.wantFire, got)
 			}
@@ -739,7 +741,7 @@ func TestArgoApplicationConditions_MapsTypesToSeverity(t *testing.T) {
 			map[string]any{"type": "", "message": ""}, // skipped
 		},
 	})
-	got := argoApplicationConditions(root)
+	got := argoApplicationConditions(root, argoSyncHazardAction(root))
 	if len(got) != 3 {
 		t.Fatalf("expected 3 conditions (one filtered), got %d: %+v", len(got), got)
 	}
@@ -1970,7 +1972,7 @@ func TestBuildIssuesArgoDriftAdviceRespectsSyncHazards(t *testing.T) {
 	}{
 		{"manual, shared", "ManualDrift", "also tracked by Application payments", nil, map[string]any{"conditions": shared}},
 		{"self-heal off, shared", "SelfHealDisabled", "also tracked by Application payments", map[string]any{"prune": true}, map[string]any{"conditions": shared}},
-		{"manual, empty render", "ManualDrift", "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation.", nil, map[string]any{"resources": prunedResources()}},
+		{"manual, empty render", "ManualDrift", "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options.", nil, map[string]any{"resources": prunedResources()}},
 		{"manual, plain drift", "ManualDrift", "click Sync", nil, map[string]any{}},
 	} {
 		status := map[string]any{"sync": map[string]any{"status": "OutOfSync"}}
@@ -1993,9 +1995,46 @@ func TestBuildIssuesArgoDriftAdviceRespectsSyncHazards(t *testing.T) {
 		if !strings.Contains(drift.Action, tc.wantAction) {
 			t.Errorf("%s: action %q, want %q", tc.name, drift.Action, tc.wantAction)
 		}
+		if tc.wantAction == "click Sync" {
+			if drift.Hazard != "" {
+				t.Errorf("%s: plain drift must not carry a hazard: %+v", tc.name, drift)
+			}
+		} else if drift.Hazard != drift.Action {
+			t.Errorf("%s: resource rows need the same hazard as the drift advice: %+v", tc.name, drift)
+		}
 		if tc.wantAction != "click Sync" && (strings.Contains(drift.Action, "click Sync") || strings.Contains(drift.Message, "click Sync") || strings.Contains(drift.Message, "until you sync")) {
 			t.Errorf("%s: sync advice despite the hazard: %+v", tc.name, drift)
 		}
+	}
+}
+
+func TestBuildIssuesCarriesConditionSyncHazardWithoutFailedOperation(t *testing.T) {
+	for _, tc := range []struct {
+		condition, message, reason string
+	}{
+		{"SyncError", "Skipping sync attempt to [abc]: auto-sync will wipe out all resources", "AutoSyncBlockedEmpty"},
+		{"SharedResourceWarning", "ConfigMap/settings is part of applications argocd/billing and payments", "SharedResourceWarning"},
+	} {
+		t.Run(tc.reason, func(t *testing.T) {
+			root := argoApp(map[string]any{
+				"sync":       map[string]any{"status": "OutOfSync"},
+				"resources":  prunedResources(),
+				"conditions": []any{map[string]any{"type": tc.condition, "message": tc.message}},
+			})
+			_ = unstructured.SetNestedMap(root.Object, map[string]any{"prune": true}, "spec", "syncPolicy", "automated")
+			if tc.condition == "SharedResourceWarning" {
+				unstructured.RemoveNestedField(root.Object, "status", "resources")
+			}
+			for _, issue := range buildIssues(root, nil, "argocd", nil) {
+				if issue.Reason == tc.reason {
+					if want := argoSyncHazardAction(root); want == "" || issue.Hazard != want {
+						t.Fatalf("condition must carry the hazard for resource rows: %+v, want %q", issue, want)
+					}
+					return
+				}
+			}
+			t.Fatal("missing condition issue")
+		})
 	}
 }
 
@@ -2004,7 +2043,7 @@ func TestArgoApplicationConditionsNameWhatTheWarningCannot(t *testing.T) {
 		map[string]any{"type": "SharedResourceWarning", "message": "Deployment/web is part of applications argocd/billing and payments"},
 		map[string]any{"type": "OrphanedResourceWarning", "message": "Application has 3 orphaned resources"},
 	}})
-	for _, issue := range argoApplicationConditions(root) {
+	for _, issue := range argoApplicationConditions(root, argoSyncHazardAction(root)) {
 		switch issue.Reason {
 		case "SharedResourceWarning":
 			if !strings.HasPrefix(issue.Action, "Also tracked by Application payments. ") || strings.Contains(issue.Action, "These resources") {
@@ -2068,11 +2107,11 @@ func TestBuildIssuesArgoSyncHazardDisarmsRetryAdvice(t *testing.T) {
 			"sync": map[string]any{"status": "OutOfSync"}, "resources": prunedResources(),
 			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},
 			"conditions":     []any{guard},
-		}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
+		}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options."},
 		{"failed namespace sync, everything else extraneous", map[string]any{
 			"sync": map[string]any{"status": "Synced"}, "resources": prunedResources(),
 			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},
-		}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
+		}, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options."},
 		{"failed namespace sync with shared resources", map[string]any{
 			"sync":           map[string]any{"status": "OutOfSync"},
 			"operationState": map[string]any{"phase": "Failed", "message": `namespaces "demo" not found`},
@@ -2107,8 +2146,8 @@ func TestBuildIssuesArgoSyncHazardDisarmsRetryAdvice(t *testing.T) {
 					if issue.Action == "" || strings.Contains(issue.Action, tc.want) {
 						t.Errorf("%s: next step %q must be present and not repeat the hazard", issue.Reason, issue.Action)
 					}
-				} else if issue.Hazard != "" {
-					t.Errorf("%s: hazard belongs in the action of a non-operation row: %+v", issue.Reason, issue)
+				} else if issue.Hazard != issue.Action {
+					t.Errorf("%s: resource rows need the same hazard as the action: %+v", issue.Reason, issue)
 				}
 				if !strings.Contains(warning, tc.want) || strings.Contains(issue.Action, "retry") {
 					t.Errorf("%s warning %q, action %q, want %q and no retry", issue.Reason, warning, issue.Action, tc.want)

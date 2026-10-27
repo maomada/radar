@@ -317,7 +317,7 @@ func TestParseArgoOperationError_EmptyAutoSync(t *testing.T) {
 	if got.ActionSecondaryTitle != "If removing all managed resources is intended" || len(got.ActionSecondary) != 2 || got.Action != got.ActionPrimary+" "+strings.Join(got.ActionSecondary, " ") {
 		t.Fatalf("must retain complete guidance plus its presentation: %+v", got)
 	}
-	if !strings.Contains(got.ActionSecondary[0], "resources finalizer decides") || !strings.Contains(got.ActionSecondary[0], "ApplicationSet generator") || !strings.Contains(got.ActionSecondary[1], "syncPolicy.automated.allowEmpty: true") || !strings.Contains(got.ActionSecondary[1], "all future syncs") {
+	if !strings.Contains(got.ActionSecondary[0], "cascade/resources finalizer choice") || !strings.Contains(got.ActionSecondary[0], "ApplicationSet generator") || !strings.Contains(got.ActionSecondary[1], "syncPolicy.automated.allowEmpty: true") || !strings.Contains(got.ActionSecondary[1], "all future syncs") {
 		t.Fatalf("missing intended-render paths: %+v", got)
 	}
 	if got.RemediationKind != "" {
@@ -348,7 +348,7 @@ func TestEmptyAutoSyncAdviceOrderAndSafety(t *testing.T) {
 	if source < 0 || generator <= source || recreation <= generator || removal <= recreation || allow <= removal {
 		t.Fatalf("expected source checks, generator removal and recreation warning, plain Application deletion, then allowEmpty: %s", action)
 	}
-	for _, required := range []string{"A sync with Prune enabled could delete all of them", "Prune=false", "Prune=confirm", "targetRevision", "Helm values", "include/exclude", "resources finalizer", "remove it from the ApplicationSet generator", "all future syncs", "If it should render empty"} {
+	for _, required := range []string{"A sync with Prune enabled could delete all of them", "Prune=false blocks direct Argo pruning", "Prune=confirm requires confirmation", "Pruning a rendered Namespace deletes its contents, regardless of their Prune options", "Delete=false / Delete=confirm, not Prune options", "targetRevision", "Helm values", "include/exclude", "resources finalizer", "remove it from the ApplicationSet generator", "all future syncs", "If it should render empty"} {
 		if !strings.Contains(action, required) {
 			t.Errorf("missing %q: %s", required, action)
 		}
@@ -400,11 +400,16 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	for _, step := range []string{
 		"first note whether Application live-shared-a has auto-sync on, and turn it off if so",
 		"disable auto-sync in the template or Git so it stays off",
+		"For a generated child, confirm its live auto-sync is off",
+		"Its ApplicationSet sync policy may prevent a template change from reaching it",
 		"Finish or terminate any running or retrying operation on Application live-shared-a",
-		"turning off auto-sync does not stop it",
+		"Turning off auto-sync does not stop it",
+		"Before syncing this Application, confirm no operation is running or retrying on Application live-shared-a",
+		"Check that Application live-shared-a and the resource are not being deleted",
+		"If deletion has started, stop",
 		"Then sync this Application",
-		"confirm Argo CD lists this Application as the resource's tracker",
-		"remove it from the source of Application live-shared-a",
+		"Confirm Argo CD lists this Application as the resource's tracker",
+		"Remove it from the source of Application live-shared-a",
 		"restore Application live-shared-a's previous auto-sync setting",
 	} {
 		at := strings.Index(one, step)
@@ -464,9 +469,9 @@ func TestArgoSyncHazardAction(t *testing.T) {
 		contains string
 	}{
 		{"plain drift", false, false, nil, ""},
-		{"previous comparison only", true, true, nil, "its latest comparison failed. Fix the comparison error and refresh before syncing"},
-		{"empty render", true, false, nil, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
-		{"empty render outranks shared", true, false, shared, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."},
+		{"comparison error", true, true, nil, "Argo CD's last reported resource list marks every listed resource for pruning, and its latest comparison reported an error. Fix the comparison error and refresh before syncing: if the render still includes none of them, a sync with Prune enabled could delete all of them"},
+		{"empty render", true, false, nil, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options."},
+		{"empty render outranks shared", true, false, shared, "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options."},
 		{"shared", false, false, shared, "also tracked by Application live-shared-a"},
 		{"shared, owner unknown", false, false, []string{"unparseable"}, "also tracked by another Application"},
 	} {

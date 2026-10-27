@@ -71,14 +71,14 @@ func TestGitOpsEmptyRenderHazardRemainsSelfContainedInMCP(t *testing.T) {
 			if issue.ActionPrimary == "" || issue.ActionSecondaryTitle != "If removing all managed resources is intended" || len(issue.ActionSecondary) != 2 || issue.Action != issue.ActionPrimary+" "+strings.Join(issue.ActionSecondary, " ") {
 				t.Fatalf("MCP must retain split and complete guard guidance: %+v", issue)
 			}
-			if !strings.Contains(issue.Action, "ApplicationSet generator") || !strings.Contains(issue.Action, "resources finalizer decides") || !strings.Contains(issue.Action, "syncPolicy.automated.allowEmpty: true") || !strings.Contains(issue.Action, "all future syncs") {
+			if !strings.Contains(issue.Action, "ApplicationSet generator") || !strings.Contains(issue.Action, "cascade/resources finalizer choice") || !strings.Contains(issue.Action, "syncPolicy.automated.allowEmpty: true") || !strings.Contains(issue.Action, "all future syncs") {
 				t.Fatalf("MCP must retain both intended-render paths: %+v", issue)
 			}
 		}
 		if issue.Reason != "OperationFailed" {
 			continue
 		}
-		const hazard = "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them, except resources marked Prune=false; Prune=confirm ones wait for confirmation."
+		const hazard = "The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options."
 		if !strings.Contains(issue.Action, hazard) || !strings.Contains(issue.Action, "Check the source path") || issue.RemediationKind != "" {
 			t.Fatalf("MCP issue lost self-contained hazard guidance: %+v", issue)
 		}
