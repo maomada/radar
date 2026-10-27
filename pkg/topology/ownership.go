@@ -438,8 +438,11 @@ func TopmostOwner(managedBy []ResourceRef, chain *ControllerChain) []ResourceRef
 }
 
 // sameRef compares a chain object with a pointer whose group may be unset,
-// as a graph node's is for a kind whose group it didn't record.
+// as a graph node's is for a kind whose group it didn't record. A groupless
+// HelmRelease is a native Helm install, never an object on a chain.
 func sameRef(chain, pointer ResourceRef) bool {
-	return chain.Kind == pointer.Kind && chain.Namespace == pointer.Namespace && chain.Name == pointer.Name &&
-		(pointer.Group == "" || chain.Group == pointer.Group)
+	if chain.Kind != pointer.Kind || chain.Namespace != pointer.Namespace || chain.Name != pointer.Name {
+		return false
+	}
+	return chain.Group == pointer.Group || pointer.Group == "" && pointer.Kind != "HelmRelease"
 }

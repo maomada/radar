@@ -229,6 +229,7 @@ func TestBuildManagedByReachesTheTopController(t *testing.T) {
 		{"no pointer", nil, nil, chain, "TidbCluster", ""},
 		{"a GitOps manager without an answer", []topology.ResourceRef{app}, nil, chain, "Application", ""},
 		{"a GitOps manager the answer takes", []topology.ResourceRef{app}, answer, chain, "TidbCluster", ""},
+		{"a GitOps manager at the chain's top stays the answer's", nil, answer, &topology.ControllerChain{Refs: []topology.ResourceRef{{Kind: "Pod", Namespace: "db", Name: "basic-tidb-0"}, sts, app}}, "", ""},
 		{"another managing controller", []topology.ResourceRef{cert}, nil, chain, "Certificate", ""},
 		{"an owner Radar couldn't check", []topology.ResourceRef{sts}, nil, &topology.ControllerChain{Refs: chain.Refs[:2], Stop: "unknown"}, "StatefulSet", OmittedUnavailable},
 		{"an owner the caller may not read", nil, nil, &topology.ControllerChain{Refs: chain.Refs[:2], Stop: "withheld"}, "StatefulSet", OmittedRBACDenied},
@@ -240,7 +241,7 @@ func TestBuildManagedByReachesTheTopController(t *testing.T) {
 				rel.Ownership = &topology.OwnershipCoverage{Manager: tc.manager}
 				rel.ControllerChain = tc.chain
 			}})
-			if len(rc.ManagedBy) != 1 || rc.ManagedBy[0].Kind != tc.want {
+			if tc.want == "" && len(rc.ManagedBy) != 0 || tc.want != "" && (len(rc.ManagedBy) != 1 || rc.ManagedBy[0].Kind != tc.want) {
 				t.Fatalf("managedBy %+v, want %s", rc.ManagedBy, tc.want)
 			}
 			var note OmittedReason

@@ -253,7 +253,7 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 	// managedBy keeps the rest (the top controller, cert-manager), not a
 	// second, metadata-only answer to the same question.
 	if rc.Manager != nil {
-		managedBy = topology.TopmostOwner(slices.DeleteFunc(slices.Clone(managedBy), answeredManager), chain)
+		managedBy = slices.DeleteFunc(topology.TopmostOwner(slices.DeleteFunc(slices.Clone(managedBy), answeredManager), chain), answeredManager)
 	}
 	// An owner above the top the walk reached is noted (the direct owner's
 	// own note covers a walk that reached none): the caller reads the owner
