@@ -52,8 +52,15 @@ export function getCollectorPipelines(data: any): CollectorPipelines {
   if (!config || typeof config !== 'object' || Array.isArray(config)) {
     return { pipelines: [], connectors: [], error: 'No structured pipeline configuration is available. Inspect YAML.' }
   }
-  const declared = config.service?.pipelines
+  const service = config.service
+  if (service !== undefined && (!service || typeof service !== 'object' || Array.isArray(service))) {
+    return { pipelines: [], connectors: [], error: 'Pipeline configuration could not be read. Inspect YAML.' }
+  }
+  const declared = service?.pipelines
   if (declared != null && (typeof declared !== 'object' || Array.isArray(declared))) {
+    return { pipelines: [], connectors: [], error: 'Pipeline configuration could not be read. Inspect YAML.' }
+  }
+  if (Object.values(declared ?? {}).some(pipeline => !pipeline || typeof pipeline !== 'object' || Array.isArray(pipeline))) {
     return { pipelines: [], connectors: [], error: 'Pipeline configuration could not be read. Inspect YAML.' }
   }
   const names = (value: unknown): string[] => Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []

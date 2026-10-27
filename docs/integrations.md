@@ -35,6 +35,9 @@ Collector summaries include reconciliation state, mode, version and image; the
 reconciliation-time Pod count is confined to the labeled UI. Instrumentation summaries distinguish configuration from blocked upgrades.
 No new MCP tool or response field is introduced. Existing generic ownership remains;
 no endpoint-derived topology edges, telemetry queries, or new Issues source are added.
+Existing condition Issues surface managed reconciliation failures and status-read
+errors with the operator's message; unmanaged and stale observations are suppressed.
+A status-read warning does not establish a Collector Pod failure.
 
 | Resource | Group | Topology | Detail View | AI Summary |
 |---|---|---|---|---|

@@ -30,18 +30,39 @@ describe('Collector pipeline declarations', () => {
     expect(getCollectorPipelines({ apiVersion: 'opentelemetry.io/v1alpha1', spec: { config: '[broken' } }).error).toContain('Inspect YAML')
     expect(getCollectorPipelines({ apiVersion: 'opentelemetry.io/v1beta1', spec: { config: 'service: {}' } }).error).toBeTruthy()
     expect(getCollectorPipelines({ spec: { config: { service: { pipelines: [] } } } }).error).toBeTruthy()
+    for (const service of ['invalid', 1, false, null, []]) {
+      expect(getCollectorPipelines({ spec: { config: { service } } }).error).toContain('Inspect YAML')
+    }
+    expect(getCollectorPipelines({ apiVersion: 'opentelemetry.io/v1alpha1', spec: { config: 'service: invalid' } }).error).toContain('Inspect YAML')
+    for (const pipeline of ['invalid', 1, false, null, []]) {
+      expect(getCollectorPipelines({ spec: { config: { service: { pipelines: { traces: pipeline } } } } }).error).toContain('Inspect YAML')
+    }
     expect(getCollectorPipelines({ spec: { config: {} } }).error).toBeUndefined()
   })
+  it('bounds alpha YAML size and alias expansion before previewing pipelines', () => {
+    expect(getCollectorPipelines({ apiVersion: 'opentelemetry.io/v1alpha1', spec: { config: ' '.repeat(1_000_001) } }).error).toContain('too large')
+    const aliases = 'base: &a [otlp, otlp, otlp, otlp, otlp, otlp, otlp, otlp, otlp, otlp]\nlevel1: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]\nlevel2: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]\nservice:\n  pipelines:\n    traces:\n      receivers: *c\n'
+    expect(getCollectorPipelines({ apiVersion: 'opentelemetry.io/v1alpha1', spec: { config: aliases } }).error).toContain('Inspect YAML')
+  })
+
 })
 
 describe('OpenTelemetry drawer identity and meaning', () => {
-  function render(apiVersion: string, kind: string, spec = {}) {
-    return renderToString(<ResourceRendererDispatch resource={{ kind: kind === 'Instrumentation' ? 'instrumentations' : 'opentelemetrycollectors', namespace: 'test', name: 'test' }} data={{ apiVersion, kind, metadata: { name: 'test', namespace: 'test' }, spec }} onCopy={() => {}} copied={null} showCommonSections={false} />)
+  function render(apiVersion: string, kind: string, spec = {}, status = {}) {
+    return renderToString(<ResourceRendererDispatch resource={{ kind: kind === 'Instrumentation' ? 'instrumentations' : 'opentelemetrycollectors', namespace: 'test', name: 'test' }} data={{ apiVersion, kind, metadata: { name: 'test', namespace: 'test' }, spec, status }} onCopy={() => {}} copied={null} showCommonSections={false} />)
   }
   it('renders native reconciliation/pipeline context only for the exact group', () => {
     expect(render('opentelemetry.io/v1beta1', 'OpenTelemetryCollector')).toContain('Reconciliation')
     expect(render('other.example/v1', 'OpenTelemetryCollector')).not.toContain('Configured Pipelines')
     expect(render('other.example/v1', 'OpenTelemetryCollector', { custom: 'generic-visible' })).toContain('generic-visible')
+  })
+  it('retains an unmanaged condition without presenting it as a current failure', () => {
+    const status = { conditions: [{ type: 'Ready', status: 'False', reason: 'ReconcileError' }] }
+    const managed = render('opentelemetry.io/v1beta1', 'OpenTelemetryCollector', { managementState: 'managed' }, status)
+    expect(managed).toContain('1 failing')
+    const unmanaged = render('opentelemetry.io/v1beta1', 'OpenTelemetryCollector', { managementState: 'unmanaged' }, status)
+    expect(unmanaged).toContain('ReconcileError')
+    expect(unmanaged).not.toContain('1 failing')
   })
   it('does not claim instrumentation readiness or dump arbitrary env values', () => {
     const html = render('opentelemetry.io/v1alpha1', 'Instrumentation', { env: [{ name: 'TOKEN', value: 'do-not-surface' }] })

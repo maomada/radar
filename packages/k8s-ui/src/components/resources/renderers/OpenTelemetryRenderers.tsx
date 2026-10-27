@@ -40,7 +40,7 @@ export function OpenTelemetryCollectorRenderer({ data }: { data: any }) {
         <p className="mt-2 text-xs text-theme-text-tertiary">Declared component names, not observed data flow. Connectors pass data between pipelines within the collector.</p>
       </>}
     </Section>
-    <ConditionsSection conditions={data.status?.conditions} getConditionTone={condition => state.text === 'Status stale' ? 'unknown' : condition.type === 'Ready' && condition.status === 'False' ? condition.reason === 'StatusUpdateFailed' ? 'unknown' : 'fail' : 'neutral'} />
+    <ConditionsSection conditions={data.status?.conditions} getConditionTone={condition => ['Status stale', 'Unmanaged'].includes(state.text) ? 'unknown' : condition.type === 'Ready' && condition.status === 'False' ? condition.reason === 'StatusUpdateFailed' ? 'unknown' : 'fail' : 'neutral'} />
   </>
 }
 
