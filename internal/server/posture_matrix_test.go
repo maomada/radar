@@ -216,6 +216,12 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 		}
 	}
 
+	for _, authMode := range matrixAuthModes {
+		run(postureEnv{}, func() {
+			record("pprofCmdline", key("auth", authMode), strconv.FormatBool(matrixServer("0.0.0.0", authMode, false).pprofCmdlineAllowed()))
+		})
+	}
+
 	// Cloud Connect driver lane, and the shared-listener acknowledgement.
 	for _, hostedCloud := range matrixBools {
 		for _, kubeMode := range matrixKubeModes {

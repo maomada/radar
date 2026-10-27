@@ -1416,6 +1416,10 @@
     "hostedCloud=true RADAR_PPROF=unset auth=proxy listen=192.168.1.5": "false",
     "hostedCloud=true RADAR_PPROF=unset auth=proxy listen=::1": "false"
   },
+  "pprofCmdline": {
+    "auth=none": "true",
+    "auth=proxy": "false"
+  },
   "unauthenticatedListenerWarning/start": {
     "hostedCloud=false auth=none listen=\"\"": "true",
     "hostedCloud=false auth=none listen=0.0.0.0": "true",
