@@ -123,8 +123,8 @@ func (s *Server) pprofEnabled() bool {
 	return p.auth || p.listener != listenerShared
 }
 
-// pprofCmdlineAllowed: process arguments can hold session keys, OIDC client
-// secrets or authorization headers, which signed-in users must not read.
+// pprofCmdlineAllowed refuses /debug/pprof/cmdline once users sign in: process
+// arguments can hold session keys, OIDC client secrets or authorization headers.
 func (s *Server) pprofCmdlineAllowed() bool {
 	return !s.posture().auth
 }
