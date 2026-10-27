@@ -1164,10 +1164,25 @@ export function WorkloadView({
   }
 
   // ── Expanded (full) mode ─────────────────────────────────────────────────
+    const nameAndCopy = (
+      <>
+        <h1 className="text-lg font-semibold text-theme-text-primary truncate">{name}</h1>
+        <Tooltip content="Copy name" delay={150}>
+          <button
+            onClick={() => copyToClipboard(name, 'name')}
+            className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded shrink-0"
+            aria-label="Copy name"
+          >
+            {copied === 'name' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </Tooltip>
+      </>
+    )
   return (
     <OperationalIssuesShownContext.Provider value={!!hasOperationalIssues || !!operationalIssuesPending}>
     <DetailShell
       breadcrumb={breadcrumb}
+      compactIdentity={<div className="flex min-w-0 items-center gap-2">{nameAndCopy}</div>}
       wrapHeader={inlineBadges}
       subheader={resourceGone ? undefined : subheader}
       nav={
@@ -1184,20 +1199,6 @@ export function WorkloadView({
         )
       }
       identity={(() => {
-        const nameAndCopy = (
-          <>
-            <h1 className="text-lg font-semibold text-theme-text-primary truncate">{name}</h1>
-            <Tooltip content="Copy name" delay={150}>
-              <button
-                onClick={() => copyToClipboard(name, 'name')}
-                className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded shrink-0"
-                aria-label="Copy name"
-              >
-                {copied === 'name' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-            </Tooltip>
-          </>
-        )
         const kindAndStatus = (
           <>
             {!hideKindBadge && (
