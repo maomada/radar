@@ -55,7 +55,7 @@ export function FilterRailPanel({
         {clear}
       </div>
       <Collapse open={open} id={panelId}>
-        <div className="max-h-64 overflow-y-auto border-t border-theme-border">{children}</div>
+        <div className="max-h-56 overflow-y-auto border-t border-theme-border">{children}</div>
       </Collapse>
     </>
   )
