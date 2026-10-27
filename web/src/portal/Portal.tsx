@@ -179,7 +179,7 @@ export function Portal() {
       </section>
       <section aria-label="集群目录">
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="relative min-w-48 flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-3 text-theme-text-tertiary" /><input aria-label="搜索集群" className="portal-control w-full pl-10" placeholder="搜索名称、集群 ID、区域或地址…" value={query} onChange={event => setQuery(event.target.value)} /></div>
+          <div className="relative min-w-48 flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-3 text-theme-text-tertiary" /><input aria-label="搜索集群" className="portal-control portal-search w-full" placeholder="搜索名称、集群 ID、区域或地址…" value={query} onChange={event => setQuery(event.target.value)} /></div>
           <select aria-label="按环境筛选" className="portal-control" value={environment} onChange={event => setEnvironment(event.target.value)}><option value="">所有环境</option>{environments.map(value => <option key={value} value={value}>{value}</option>)}</select>
           <select aria-label="按心跳状态筛选" className="portal-control" value={status} onChange={event => setStatus(event.target.value)}><option value="">所有心跳状态</option><option value="online">心跳在线</option><option value="stale">心跳过期</option></select>
           <button className="portal-control inline-flex items-center gap-2" onClick={() => setRefresh(value => value + 1)} disabled={loading}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />刷新</button>

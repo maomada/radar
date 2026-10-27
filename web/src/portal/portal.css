@@ -24,6 +24,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: 14px;
 }
 .portal-control:hover { background: var(--bg-hover); }
+.portal-search { padding-left: 2.5rem; }
 .portal-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
