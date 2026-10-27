@@ -428,7 +428,6 @@ function SchedulingBarRowView({ row }: { row: SchedulingBarRow }) {
 
   return (
     <div role="group" aria-label={ariaLabel}>
-      {/* Phones put the label on its own line so the bar gets the full width. */}
       <div className="flex items-center gap-3 phone:flex-wrap phone:gap-y-1">
         <span className="flex w-44 shrink-0 items-center gap-1.5 phone:w-full">
           <span className="truncate font-mono text-xs text-theme-text-primary">
