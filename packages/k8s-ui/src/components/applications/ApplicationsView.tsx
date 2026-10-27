@@ -338,7 +338,7 @@ export function ApplicationsView({ entries: allEntries, variant, onSelect, title
   // showSystem lives in the Filters rail, so Clear resets it too (and its
   // non-default ON state counts as an active filter that surfaces the button).
   const anyFilterActive = filters.isActive
-  const activeFilterCount = fHealth.size + fClass.size + fType.size + fEnv.size + fSource.size + (showSystem ? 1 : 0)
+  const activeFilterCount = fHealth.size + fClass.size + fType.size + fEnv.size + fSource.size + (systemCount > 0 && showSystem ? 1 : 0)
   const clearAllFilters = () => {
     filters.clearAll()
   }
