@@ -82,9 +82,9 @@ var (
 	// ErrHistoryEntryNotRollbackable: the history entry records no source to
 	// sync back to, so Argo CD itself refuses to roll back to it. HTTP 400.
 	ErrHistoryEntryNotRollbackable = errors.New("history entry records no source")
-	// ErrAutoSyncEnabled: a rollback was refused because the Application's
-	// automated sync is on. Argo CD refuses the same request: the controller
-	// would sync straight back to the target revision. HTTP 409.
+	// ErrAutoSyncEnabled: a revision override or rollback was refused because
+	// the Application's automated sync is on. Argo CD refuses the same request:
+	// the controller would sync straight back to the target revision. HTTP 409.
 	ErrAutoSyncEnabled = errors.New("auto-sync is enabled")
 	// ErrResourceTerminating: the target resource has metadata.deletionTimestamp
 	// set, so any mutating operation against it is futile — the resource is
@@ -450,6 +450,15 @@ func syncArgoApp(ctx context.Context, dynClient dynamic.Interface, namespace, na
 		}
 		if sources, _, _ := unstructured.NestedSlice(app.Object, "spec", "sources"); len(sources) > 0 && opts.Revision != "" {
 			return nil, fmt.Errorf("cannot override revision for multi-source Application %s/%s; omit revision to use each source's targetRevision: %w", namespace, name, ErrInvalidRevision)
+		}
+		if opts.Revision != "" && !dryRun && ArgoAutoSyncEnabled(app) {
+			targetRevision, _, _ := unstructured.NestedString(app.Object, "spec", "source", "targetRevision")
+			if targetRevision == "" {
+				targetRevision = "HEAD"
+			}
+			if opts.Revision != targetRevision {
+				return nil, fmt.Errorf("cannot sync %s/%s to %s: %w with target revision %s; disable auto-sync first", namespace, name, opts.Revision, ErrAutoSyncEnabled, targetRevision)
+			}
 		}
 		patch := argoOperationPatch(app, argoSyncOperation(ctx, app, opts, validationID))
 		if !dryRun {

@@ -224,3 +224,31 @@ func TestManageGitOpsResumeNeverAutomatedLeavesPruneOff(t *testing.T) {
 		t.Fatalf("automated = %#v, want prune off and selfHeal on", automated)
 	}
 }
+
+func TestManageGitOpsSyncAutoSyncRevisionGuidance(t *testing.T) {
+	gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
+	setupMCPDynamicResource(t, gvr, "ApplicationList", k8s.APIResource{
+		Group: "argoproj.io", Version: "v1alpha1", Kind: "Application",
+		Name: "applications", Namespaced: true, Verbs: []string{"get", "patch"},
+	}, &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Application",
+		"metadata":   map[string]any{"name": "demo", "namespace": "argocd"},
+		"spec": map[string]any{
+			"source":     map[string]any{"targetRevision": "main"},
+			"syncPolicy": map[string]any{"automated": map[string]any{}},
+		},
+	}})
+	_, _, err := handleManageGitOps(context.Background(), nil, manageGitOpsInput{
+		Action: "sync", Tool: "argocd", Namespace: "argocd", Name: "demo", Revision: "old-sha",
+	})
+	if !errors.Is(err, gitops.ErrAutoSyncEnabled) || !strings.Contains(err.Error(), "(MCP: manage_gitops with tool=argocd and action=suspend)") {
+		t.Fatalf("error = %v, want ErrAutoSyncEnabled with MCP suspend guidance", err)
+	}
+	res, callErr := connectTestServer(t).CallTool(context.Background(), &mcpsdk.CallToolParams{Name: "manage_gitops", Arguments: map[string]any{
+		"action": "sync", "tool": "argocd", "namespace": "argocd", "name": "demo", "revision": "old-sha",
+	}})
+	if callErr != nil || !res.IsError || !strings.Contains(renderContent(res.Content), "action=suspend") {
+		t.Fatalf("CallTool: err=%v result=%v, want tool error with suspend guidance", callErr, res)
+	}
+}

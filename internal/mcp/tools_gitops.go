@@ -115,7 +115,7 @@ func handleManageGitOps(ctx context.Context, req *mcp.CallToolRequest, input man
 	}
 
 	if err != nil {
-		if tool == "argocd" && action == "rollback" && errors.Is(err, gitops.ErrAutoSyncEnabled) {
+		if tool == "argocd" && errors.Is(err, gitops.ErrAutoSyncEnabled) {
 			return nil, nil, fmt.Errorf("%w (MCP: manage_gitops with tool=argocd and action=suspend)", err)
 		}
 		return nil, nil, err

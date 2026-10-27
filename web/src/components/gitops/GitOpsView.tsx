@@ -146,7 +146,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
   const fluxResume = useFluxResume()
   const { upgrade: argoResumeUpgrade, blockedReason: argoResumeBlockedReason } = useRadarFeature('argoAutoSyncEnable')
 
-  const [syncDialogRow, setSyncDialogRow] = useState<GitOpsRow | null>(null)
+  const [syncDialogRowId, setSyncDialogRowId] = useState<string | null>(null)
   const [pendingActions, setPendingActions] = useState<Map<string, Set<GitOpsRowAction>>>(new Map())
 
   // Mark an action as in-flight (or done) for a given row. Cloning the
@@ -243,6 +243,11 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
     refetchInterval: GITOPS_ROWS_REFRESH_INTERVAL_MS,
   })
 
+  const syncDialogRow = rowsQuery.data?.rows.find((row) => row.id === syncDialogRowId)
+  useEffect(() => {
+    if (syncDialogRowId && !syncDialogRow) setSyncDialogRowId(null)
+  }, [syncDialogRowId, syncDialogRow])
+
   // Row mutations invalidate granular keys (['resource', …], ['gitops-tree', …])
   // that don't match the table's aggregate gitops-rows-main / counts queries,
   // so refetch those explicitly — otherwise a row keeps showing the pre-action
@@ -293,7 +298,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
         // detail page uses. The mutation fires from onConfirm; clear the
         // in-flight flag here since the dialog now owns the lifecycle.
         markAction(id, action, false)
-        setSyncDialogRow(row)
+        setSyncDialogRowId(id)
         return
       case 'refresh':
         argoRefresh.mutate({ namespace, name, hard: false }, settle)
@@ -362,8 +367,9 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
         appLabel={syncDialogRow ? `${syncDialogRow.namespace}/${syncDialogRow.name}` : ''}
         multiSource={Array.isArray(syncDialogRow?.raw?.spec?.sources) && syncDialogRow.raw.spec.sources.length > 0}
         applicationSyncOptions={argoApplicationSyncOptions(syncDialogRow?.raw)}
+        autoSyncEnabled={!!syncDialogRow && isArgoAutoSyncEnabled(syncDialogRow.raw)}
         pending={argoSync.isPending}
-        onCancel={() => setSyncDialogRow(null)}
+        onCancel={() => setSyncDialogRowId(null)}
         onConfirm={(opts) => {
           if (!syncDialogRow) return
           const { namespace, name } = syncDialogRow
@@ -372,7 +378,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
             // onSettled so the dialog closes on both success and error —
             // otherwise the error toast surfaces behind the still-open
             // modal and the user can't read it.
-            { onSuccess: refetchTableAfterMutation, onSettled: () => setSyncDialogRow(null) },
+            { onSuccess: refetchTableAfterMutation, onSettled: () => setSyncDialogRowId(null) },
           )
         }}
       />

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { normalizeArgoApplication } from '@skyhook-io/k8s-ui'
 import type { ArgoActionHandlers, GitOpsInsight, GitOpsInsightRef, GitOpsRow, GitOpsRowAction } from '@skyhook-io/k8s-ui'
 import { GitOpsView } from './GitOpsView'
 
@@ -29,8 +30,8 @@ vi.mock('@skyhook-io/k8s-ui', async (importOriginal) => {
   return {
     ...actual,
     useToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showToast: vi.fn() }),
-    GitOpsTableView: (props: { onRowAction: (row: GitOpsRow, action: GitOpsRowAction) => void }) => (
-      <button type="button" onClick={() => props.onRowAction(actual.normalizeArgoApplication(app), 'sync')}>Open sync</button>
+    GitOpsTableView: (props: { rows: GitOpsRow[]; onRowAction: (row: GitOpsRow, action: GitOpsRowAction) => void }) => (
+      <button type="button" onClick={() => props.onRowAction(props.rows[0], 'sync')}>Open sync</button>
     ),
     GitOpsDetailLayout: (props: { argo?: ArgoActionHandlers; renderTabBody: (ctx: { tab: 'changes'; fullscreen: boolean }) => React.ReactNode; children?: React.ReactNode }) => (
       <div>
@@ -104,6 +105,9 @@ afterEach(async () => {
 })
 
 async function renderView(path: string) {
+  if (path === '/gitops') {
+    client.setQueryData(['gitops-rows-main', [], 0], { coverageStatus: 'complete', rows: [normalizeArgoApplication(app)] })
+  }
   await act(async () => root.render(
     <MemoryRouter key={path} initialEntries={[path]}>
       <QueryClientProvider client={client}><GitOpsView namespaces={[]} onOpenResource={() => {}} /></QueryClientProvider>
@@ -199,4 +203,65 @@ it.each([
   await click(button('Sync now'))
   expect(requests).toHaveLength(1)
   expect(requests[0].body).not.toHaveProperty('revision')
+})
+
+const STALE_OPTIONS_NOTICE = "The Application's sync options changed while this dialog was open. This sync uses the options shown here. Cancel and reopen to load the latest."
+
+async function replaceTableApplication(syncOptions: string[], automated = false) {
+  const replacement = {
+    ...app,
+    spec: { ...app.spec, syncPolicy: { syncOptions, ...(automated ? { automated: {} } : {}) } },
+  }
+  await act(async () => {
+    client.setQueryData(['gitops-rows-main', [], 0], { coverageStatus: 'complete', rows: [normalizeArgoApplication(replacement)] })
+  })
+  await settle()
+}
+
+it('uses replacement table rows for untouched sync policy and request context after refetch', async () => {
+  await advertise({ argoRollbackSync: true })
+  await renderView('/gitops')
+  await click(button('Open sync'))
+  await replaceTableApplication(['Replace=true', 'FailOnSharedResource=true'])
+  expect(toggle('Replace').checked).toBe(true)
+  expect(toggle('Server-side apply').checked).toBe(false)
+  expect(document.body.textContent).not.toContain(STALE_OPTIONS_NOTICE)
+  await click(button('Sync now'))
+  expect(requests[0].body.syncOptions).toEqual(['Replace=true', 'FailOnSharedResource=true'])
+})
+
+it('shows the stale-options notice for edited sync options after replacement-row refetch', async () => {
+  await advertise({ argoRollbackSync: true, argoSyncInheritance: true })
+  await renderView('/gitops')
+  await click(button('Open sync'))
+  await click(toggle('Replace'))
+  await replaceTableApplication(['PruneLast=true'])
+  expect(document.body.textContent).toContain(STALE_OPTIONS_NOTICE)
+  expect(toggle('Server-side apply').checked).toBe(true)
+  await click(button('Sync now'))
+  expect(requests[0].body.syncOptions).toEqual(['CreateNamespace=true', 'Replace=true', 'ServerSideApply=true'])
+})
+
+it('closes the table sync dialog when its selected row disappears and keeps it closed if the row returns', async () => {
+  await renderView('/gitops')
+  await click(button('Open sync'))
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+  await act(async () => {
+    client.setQueryData(['gitops-rows-main', [], 0], { coverageStatus: 'complete', rows: [] })
+  })
+  await settle()
+  await replaceTableApplication(APP_OPTIONS)
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 250)) })
+  expect(document.querySelector('[role="dialog"]')).toBeNull()
+  expect(requests).toHaveLength(0)
+})
+
+it('refreshes auto-sync status in the table sync dialog', async () => {
+  await renderView('/gitops')
+  await click(button('Open sync'))
+  const revision = document.querySelector('input:not([type="checkbox"])') as HTMLInputElement
+  expect(revision.disabled).toBe(false)
+  await replaceTableApplication(APP_OPTIONS, true)
+  expect(revision.disabled).toBe(true)
+  expect(document.body.textContent).toContain('Disable auto-sync to deploy another revision')
 })

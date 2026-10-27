@@ -247,3 +247,35 @@ it('shows the stale-options notice even when the snapshot has no other options',
   await click(button('Sync now'))
   expect(confirmed[0].syncOptions).toEqual(['Replace=true'])
 })
+
+it('allows revision previews with auto-sync enabled and omits the override for a real sync', async () => {
+  await render({ autoSyncEnabled: true })
+  const revision = document.querySelector('input:not([type="checkbox"])') as HTMLInputElement
+  expect(revision.disabled).toBe(true)
+  expect(document.body.textContent).toContain('Disable auto-sync to deploy another revision; dry runs can preview one.')
+  await click(toggle('Dry run'))
+  expect(revision.disabled).toBe(false)
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(revision, 'old-sha')
+    revision.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await click(button('Run dry-run'))
+  expect(confirmed[0]).toMatchObject({ revision: 'old-sha', dryRun: true })
+  await click(toggle('Dry run'))
+  expect(revision.disabled).toBe(true)
+  await click(button('Sync now'))
+  expect(confirmed[1].revision).toBeUndefined()
+})
+
+it('omits a previously entered revision when auto-sync becomes enabled while open', async () => {
+  await render()
+  const revision = document.querySelector('input:not([type="checkbox"])') as HTMLInputElement
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(revision, 'old-sha')
+    revision.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await render({ autoSyncEnabled: true })
+  expect(revision.disabled).toBe(true)
+  await click(button('Sync now'))
+  expect(confirmed[0].revision).toBeUndefined()
+})

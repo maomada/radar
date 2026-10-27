@@ -1719,6 +1719,72 @@ func TestSyncArgoAppRevision(t *testing.T) {
 	}
 }
 
+func TestSyncArgoAppAutoSyncRevision(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		target      string
+		revision    string
+		dryRun      bool
+		enabled     any
+		wantRefusal bool
+	}{
+		{name: "different revision", target: "main", revision: "old-sha", wantRefusal: true},
+		{name: "explicitly enabled", target: "main", revision: "old-sha", enabled: true, wantRefusal: true},
+		{name: "same target", target: "main", revision: "main"},
+		{name: "empty revision", target: "main"},
+		{name: "default HEAD", revision: "HEAD"},
+		{name: "different from default HEAD", revision: "old-sha", wantRefusal: true},
+		{name: "dry run", target: "main", revision: "old-sha", dryRun: true},
+		{name: "explicitly disabled", target: "main", revision: "old-sha", enabled: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := argoAppForTest("argocd", "demo", func(obj map[string]any) {
+				automated := map[string]any{}
+				if tc.enabled != nil {
+					automated["enabled"] = tc.enabled
+				}
+				spec := obj["spec"].(map[string]any)
+				spec["source"] = map[string]any{"targetRevision": tc.target}
+				spec["syncPolicy"] = map[string]any{"automated": automated}
+			})
+			client := newFakeArgo(app)
+			_, err := SyncArgoApp(context.Background(), client, "argocd", "demo", ArgoSyncOptions{Revision: tc.revision, DryRun: &tc.dryRun})
+			if tc.wantRefusal {
+				if !errors.Is(err, ErrAutoSyncEnabled) || !strings.Contains(err.Error(), "disable auto-sync first") {
+					t.Fatalf("error = %v, want ErrAutoSyncEnabled and suspend guidance", err)
+				}
+				for _, action := range client.Actions() {
+					if action.GetVerb() != "get" {
+						t.Fatalf("refused sync wrote: %v", action)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("SyncArgoApp: %v", err)
+			}
+			if got := nestedMap(captureLastPatch(t, client), "operation", "sync")["revision"]; got != tc.revision {
+				t.Fatalf("revision = %v, want %q", got, tc.revision)
+			}
+		})
+	}
+}
+
+func TestSyncArgoAppRechecksAutoSyncRevisionAfterConflict(t *testing.T) {
+	client := newFakeArgo(argoAppForTest("argocd", "demo", func(obj map[string]any) {
+		obj["spec"].(map[string]any)["source"] = map[string]any{"targetRevision": "main"}
+	}))
+	patches := conflictOnce(t, client, func(app *unstructured.Unstructured) {
+		if err := unstructured.SetNestedMap(app.Object, map[string]any{}, "spec", "syncPolicy", "automated"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	_, err := SyncArgoApp(context.Background(), client, "argocd", "demo", ArgoSyncOptions{Revision: "old-sha"})
+	if !errors.Is(err, ErrAutoSyncEnabled) || *patches != 1 {
+		t.Fatalf("error = %v, patches = %d; want ErrAutoSyncEnabled without a second patch", err, *patches)
+	}
+}
+
 // The sync fixes the Application's source(s) when it is requested, as
 // argocd-server does, so a sync waiting behind a window deploys what was
 // there when it was asked for.

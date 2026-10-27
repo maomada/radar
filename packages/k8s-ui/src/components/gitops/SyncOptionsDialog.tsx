@@ -96,6 +96,7 @@ export function SyncOptionsDialog({ open, appLabel, multiSource, resource, appli
   const richResourceValidation = !!resource && !!onValidate
   const busy = !!pending || !!validationPending
   const optionsDisabled = busy || !!operationInProgress
+  const revisionDisabled = !!autoSyncEnabled && !dryRun
 
   function startFromApplicationOptions(options: string[]) {
     setAppOptions(options)
@@ -136,7 +137,7 @@ export function SyncOptionsDialog({ open, appLabel, multiSource, resource, appli
     : { replace, serverSideApply, applicationSyncOptions: appOptions, keepApplicationSyncOptions, sendUnchanged: appOptions.join('\n') !== liveAppOptionsKey }
 
   function submit() {
-    onConfirm(buildArgoSyncOpts({ resourceMode: !!resource, revision: multiSource ? '' : revision, prune, dryRun: richResourceValidation ? false : dryRun, force, applyOnly, ...optionEdits }))
+    onConfirm(buildArgoSyncOpts({ resourceMode: !!resource, revision: multiSource || revisionDisabled ? '' : revision, prune, dryRun: richResourceValidation ? false : dryRun, force, applyOnly, ...optionEdits }))
   }
 
   function validate() {
@@ -187,11 +188,13 @@ export function SyncOptionsDialog({ open, appLabel, multiSource, resource, appli
               value={revision}
               onChange={(e) => setRevision(e.target.value)}
               placeholder="HEAD"
-              disabled={optionsDisabled}
+              disabled={optionsDisabled || revisionDisabled}
               className="mt-1 w-full rounded-md border border-theme-border bg-theme-base px-2 py-1.5 font-mono text-xs text-theme-text-primary outline-none placeholder:text-theme-text-tertiary focus:border-sky-500"
             />
             <span className="mt-0.5 block text-[11px] text-theme-text-tertiary">
-              Branch, tag, or commit SHA. Leave empty to use the Application's targetRevision.
+              {autoSyncEnabled
+                ? "Auto-sync is enabled. Sync uses the Application's targetRevision. Disable auto-sync to deploy another revision; dry runs can preview one."
+                : "Branch, tag, or commit SHA. Leave empty to use the Application's targetRevision."}
             </span>
           </label>
         )}
