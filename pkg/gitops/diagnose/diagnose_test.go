@@ -343,10 +343,12 @@ func TestEmptyAutoSyncAdviceOrderAndSafety(t *testing.T) {
 	source := strings.Index(action, "source path")
 	generator := strings.Index(action, "remove it from the ApplicationSet generator")
 	recreation := strings.Index(action, "while the generator still emits it, the ApplicationSet recreates it")
+	survivor := strings.Index(action, "Check whether the generated Application survives; its ApplicationSet sync policy may keep it")
+	deleteSurvivor := strings.Index(action, "If it survives, delete it explicitly with the intended cascade choice")
 	removal := strings.Index(action, "delete the Application")
 	allow := strings.Index(action, "allowEmpty: true")
-	if source < 0 || generator <= source || recreation <= generator || removal <= recreation || allow <= removal {
-		t.Fatalf("expected source checks, generator removal and recreation warning, plain Application deletion, then allowEmpty: %s", action)
+	if source < 0 || generator <= source || recreation <= generator || survivor <= recreation || deleteSurvivor <= survivor || removal <= deleteSurvivor || allow <= removal {
+		t.Fatalf("expected source checks, generator removal and recreation warning, surviving child check and explicit deletion with cascade choice, plain Application deletion, then allowEmpty: %s", action)
 	}
 	for _, required := range []string{"A sync with Prune enabled could delete all of them", "Prune=false blocks direct Argo pruning", "Prune=confirm requires confirmation", "Pruning a rendered Namespace deletes its contents, regardless of their Prune options", "Delete=false / Delete=confirm, not Prune options", "targetRevision", "Helm values", "include/exclude", "resources finalizer", "remove it from the ApplicationSet generator", "all future syncs", "If it should render empty"} {
 		if !strings.Contains(action, required) {
@@ -389,7 +391,7 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	}
 	for _, want := range []string{
 		"To leave it with Application live-shared-a, remove it from this Application's source.",
-		"To move it here, first note whether Application live-shared-a has auto-sync on, and turn it off if so. Do not sync it manually during the move.",
+		"To move it here, first note the resource's live UID. Note whether Application live-shared-a has auto-sync on, and turn it off if so. Do not sync it manually during the move.",
 		"For an ApplicationSet or parent-managed Application, disable auto-sync in the template or Git so it stays off.",
 	} {
 		if !strings.Contains(one, want) {
@@ -398,7 +400,8 @@ func TestSharedResourceWarningAction(t *testing.T) {
 	}
 	last := -1
 	for _, step := range []string{
-		"first note whether Application live-shared-a has auto-sync on, and turn it off if so",
+		"first note the resource's live UID",
+		"Note whether Application live-shared-a has auto-sync on, and turn it off if so",
 		"disable auto-sync in the template or Git so it stays off",
 		"For a generated child, confirm its live auto-sync is off",
 		"Its ApplicationSet sync policy may prevent a template change from reaching it",
@@ -406,9 +409,11 @@ func TestSharedResourceWarningAction(t *testing.T) {
 		"Turning off auto-sync does not stop it",
 		"Before syncing this Application, confirm no operation is running or retrying on Application live-shared-a",
 		"Check that Application live-shared-a and the resource are not being deleted",
-		"If deletion has started, stop",
+		"If deletion has started, stop the move and recover",
 		"Then sync this Application",
-		"Confirm Argo CD lists this Application as the resource's tracker",
+		"Confirm the live resource's tracking metadata names this Application",
+		"Confirm its UID is unchanged and it is not being deleted",
+		"If it is deleting, was deleted, or was replaced, stop the move and recover",
 		"Remove it from the source of Application live-shared-a",
 		"restore Application live-shared-a's previous auto-sync setting",
 	} {
@@ -417,6 +422,9 @@ func TestSharedResourceWarningAction(t *testing.T) {
 			t.Fatalf("missing or misordered move step %q: %q", step, one)
 		}
 		last = at
+	}
+	if strings.ContainsAny(one, "\r\n") {
+		t.Fatalf("ownership advice must remain one paragraph: %q", one)
 	}
 	if strings.Contains(one, "remove it from the others") {
 		t.Fatalf("advice must not leave the side to remove it from ambiguous: %q", one)

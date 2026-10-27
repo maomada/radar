@@ -12,7 +12,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const primary = 'The render includes none of the resources this Application manages. A sync with Prune enabled could delete all of them. Prune=false blocks direct Argo pruning; Prune=confirm requires confirmation. Pruning a rendered Namespace deletes its contents, regardless of their Prune options. Check the source path, targetRevision, Helm values, and Kustomize or directory include/exclude settings first.'
 const secondary = [
-  'If this Application should go away: remove it from the ApplicationSet generator if generated; while the generator still emits it, the ApplicationSet recreates it. For a plain Application, delete the Application (its cascade/resources finalizer choice whether managed resources are pruned).',
+  'If this Application should go away: remove it from the ApplicationSet generator if generated; while the generator still emits it, the ApplicationSet recreates it. Check whether the generated Application survives; its ApplicationSet sync policy may keep it. If it survives, delete it explicitly with the intended cascade choice. For a plain Application, delete the Application. Cleanup follows the cascade/resources finalizer choice and Delete=false / Delete=confirm, not Prune options.',
   'If it should render empty: set syncPolicy.automated.allowEmpty: true in the Application or its ApplicationSet template. This turns off the empty-render guard for all future syncs.',
 ]
 const title = 'If removing all managed resources is intended'
