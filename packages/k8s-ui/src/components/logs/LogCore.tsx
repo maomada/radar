@@ -988,8 +988,9 @@ export function LogCore({
       </div>
 
       {/* Search bar */}
+      {/* Phones: the query takes the first line and the search options wrap under it. */}
       {search.isOpen && (
-        <div className={`@container/logsearch flex items-center gap-2 px-3 py-2 border-b ${palette.border} ${palette.toolbarBgMuted}`}>
+        <div className={`@container/logsearch flex items-center gap-2 phone:flex-wrap phone:gap-y-1.5 px-3 py-2 border-b ${palette.border} ${palette.toolbarBgMuted}`}>
           <Search className={`w-4 h-4 ${palette.textSecondary} shrink-0`} />
           <Input
             value={search.query}
@@ -1006,7 +1007,7 @@ export function LogCore({
               }
             }}
             placeholder="Search logs..."
-            className={`flex-1 bg-transparent ${palette.textPrimary} text-sm ${palette.placeholder} focus:outline-none min-w-0`}
+            className={`flex-1 phone:basis-[calc(100%-1.5rem)] bg-transparent ${palette.textPrimary} text-sm ${palette.placeholder} focus:outline-none min-w-0`}
             autoFocus
           />
 
