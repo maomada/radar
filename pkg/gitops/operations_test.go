@@ -1721,12 +1721,14 @@ func TestSyncArgoAppRevision(t *testing.T) {
 
 func TestSyncArgoAppAutoSyncRevision(t *testing.T) {
 	for _, tc := range []struct {
-		name        string
-		target      string
-		revision    string
-		dryRun      bool
-		enabled     any
-		wantRefusal bool
+		name         string
+		target       string
+		hydrated     bool
+		scalarTarget string
+		revision     string
+		dryRun       bool
+		enabled      any
+		wantRefusal  bool
 	}{
 		{name: "different revision", target: "main", revision: "old-sha", wantRefusal: true},
 		{name: "explicitly enabled", target: "main", revision: "old-sha", enabled: true, wantRefusal: true},
@@ -1736,6 +1738,19 @@ func TestSyncArgoAppAutoSyncRevision(t *testing.T) {
 		{name: "different from default HEAD", revision: "old-sha", wantRefusal: true},
 		{name: "dry run", target: "main", revision: "old-sha", dryRun: true},
 		{name: "explicitly disabled", target: "main", revision: "old-sha", enabled: false},
+		{name: "hydrated same target", hydrated: true, target: "environments/prod", revision: "environments/prod"},
+		{name: "hydrated different revision", hydrated: true, target: "environments/prod", revision: "old-sha", wantRefusal: true},
+		{name: "hydrated HEAD differs", hydrated: true, target: "environments/prod", revision: "HEAD", wantRefusal: true},
+		{name: "hydrated explicit HEAD target", hydrated: true, target: "HEAD", revision: "HEAD"},
+		{name: "hydrated empty revision", hydrated: true, target: "environments/prod"},
+		{name: "hydrated dry run", hydrated: true, target: "environments/prod", revision: "old-sha", dryRun: true},
+		{name: "hydrated explicitly disabled", hydrated: true, target: "environments/prod", revision: "old-sha", enabled: false},
+		{name: "hydrated target takes precedence", hydrated: true, target: "environments/prod", scalarTarget: "main", revision: "environments/prod"},
+		{name: "hydrated scalar target refused", hydrated: true, target: "environments/prod", scalarTarget: "main", revision: "main", wantRefusal: true},
+		{name: "hydrated missing target refuses HEAD", hydrated: true, revision: "HEAD", wantRefusal: true},
+		{name: "hydrated missing target ignores scalar target", hydrated: true, scalarTarget: "main", revision: "main", wantRefusal: true},
+		{name: "hydrated missing target empty revision", hydrated: true},
+		{name: "hydrated missing target dry run", hydrated: true, revision: "HEAD", dryRun: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			app := argoAppForTest("argocd", "demo", func(obj map[string]any) {
@@ -1744,7 +1759,17 @@ func TestSyncArgoAppAutoSyncRevision(t *testing.T) {
 					automated["enabled"] = tc.enabled
 				}
 				spec := obj["spec"].(map[string]any)
-				spec["source"] = map[string]any{"targetRevision": tc.target}
+				if tc.hydrated {
+					spec["sourceHydrator"] = map[string]any{
+						"drySource":  map[string]any{"repoURL": "https://example.com/repo", "path": "app", "targetRevision": "main"},
+						"syncSource": map[string]any{"targetBranch": tc.target, "path": "rendered"},
+					}
+					if tc.scalarTarget != "" {
+						spec["source"] = map[string]any{"targetRevision": tc.scalarTarget}
+					}
+				} else {
+					spec["source"] = map[string]any{"targetRevision": tc.target}
+				}
 				spec["syncPolicy"] = map[string]any{"automated": automated}
 			})
 			client := newFakeArgo(app)
@@ -1752,6 +1777,9 @@ func TestSyncArgoAppAutoSyncRevision(t *testing.T) {
 			if tc.wantRefusal {
 				if !errors.Is(err, ErrAutoSyncEnabled) || !strings.Contains(err.Error(), "disable auto-sync first") {
 					t.Fatalf("error = %v, want ErrAutoSyncEnabled and suspend guidance", err)
+				}
+				if tc.hydrated && tc.target == "" && !strings.Contains(err.Error(), "hydrated sync target branch is not configured") {
+					t.Fatalf("error = %v, want missing hydrated target guidance", err)
 				}
 				for _, action := range client.Actions() {
 					if action.GetVerb() != "get" {

@@ -453,7 +453,12 @@ func syncArgoApp(ctx context.Context, dynClient dynamic.Interface, namespace, na
 		}
 		if opts.Revision != "" && !dryRun && ArgoAutoSyncEnabled(app) {
 			targetRevision, _, _ := unstructured.NestedString(app.Object, "spec", "source", "targetRevision")
-			if targetRevision == "" {
+			if _, hydrated, _ := unstructured.NestedMap(app.Object, "spec", "sourceHydrator"); hydrated {
+				targetRevision, _, _ = unstructured.NestedString(app.Object, "spec", "sourceHydrator", "syncSource", "targetBranch")
+				if targetRevision == "" {
+					return nil, fmt.Errorf("cannot sync %s/%s to %s: %w and the hydrated sync target branch is not configured; omit revision or disable auto-sync first", namespace, name, opts.Revision, ErrAutoSyncEnabled)
+				}
+			} else if targetRevision == "" {
 				targetRevision = "HEAD"
 			}
 			if opts.Revision != targetRevision {
