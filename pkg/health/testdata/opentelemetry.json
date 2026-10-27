@@ -272,7 +272,7 @@
         }
       }
     },
-    "level": "degraded",
+    "level": "neutral",
     "text": "Upgrade blocked"
   },
   {

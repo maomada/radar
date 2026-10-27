@@ -8,16 +8,16 @@ export function OpenTelemetryCollectorRenderer({ data }: { data: any }) {
   const preview = useMemo(() => getCollectorPipelines(data), [data])
   const [showAll, setShowAll] = useState(false)
   const ready = data.status?.conditions?.find((c: any) => c.type === 'Ready')
-  const components = (names: string[], separator = ', ') => names.map(name => `${name}${preview.connectors.includes(name) ? ' (connector)' : ''}`).join(separator) || 'None'
+  const components = (names: string[], separator = ', ') => names.slice(0, 10).map(name => `${name}${preview.connectors.includes(name) ? ' (connector)' : ''}`).join(separator) + (names.length > 10 ? `; ${names.length - 10} more in YAML` : '') || 'None'
   return <>
     <Section title="Collector" defaultExpanded>
       <PropertyList>
         <Property label="Reconciliation" value={<Badge colorClass={state.color}>{state.text}</Badge>} />
         <Property label="Mode" value={data.spec?.mode} />
         <Property label="Management" value={data.spec?.managementState} />
-        <Property label="Reported ready / observed Pods" value={data.status?.scale?.statusReplicas} />
+        <Property label={data.spec?.mode === 'daemonset' ? 'Reported ready / scheduled Pods' : 'Reported ready / observed Pods'} value={data.status?.scale?.statusReplicas} />
         <Property label="Version" value={data.status?.version} />
-        <Property label="Image" value={<span className="break-all">{data.status?.image}</span>} />
+        {data.status?.image && <Property label="Image" value={<span className="break-all">{data.status.image}</span>} />}
       </PropertyList>
       <p className="mt-2 text-xs text-theme-text-tertiary">Reconciled means the operator applied its configuration. Pod counts are its last reported snapshot. Inspect owned workloads for current readiness; neither proves telemetry delivery.</p>
       {state.text === 'Status stale' && <p className="mt-2 text-sm text-theme-text-secondary">The reported reconciliation describes an earlier configuration generation.</p>}
@@ -39,7 +39,7 @@ export function OpenTelemetryCollectorRenderer({ data }: { data: any }) {
         <p className="mt-2 text-xs text-theme-text-tertiary">Declared component names, not observed data flow. Connectors pass data between pipelines within the collector.</p>
       </>}
     </Section>
-    <ConditionsSection conditions={data.status?.conditions} getConditionTone={condition => state.text === 'Status stale' ? 'unknown' : condition.type === 'Ready' && condition.status === 'False' ? 'fail' : 'neutral'} />
+    <ConditionsSection conditions={data.status?.conditions} getConditionTone={condition => state.text === 'Status stale' ? 'unknown' : condition.type === 'Ready' && condition.status === 'False' ? condition.reason === 'StatusUpdateFailed' ? 'unknown' : 'fail' : 'neutral'} />
   </>
 }
 
@@ -52,7 +52,7 @@ export function OpenTelemetryInstrumentationRenderer({ data }: { data: any }) {
     <Section title="Auto-instrumentation Configuration" defaultExpanded>
       <PropertyList>
         <Property label="Configuration" value={<Badge colorClass={state.color}>{state.text}</Badge>} />
-        <Property label="OTLP endpoint" value={<span className="break-all">{spec.exporter?.endpoint}</span>} />
+        {spec.exporter?.endpoint && <Property label="OTLP endpoint" value={<span className="break-all">{spec.exporter.endpoint}</span>} />}
         <Property label="Propagators" value={spec.propagators?.join(', ')} />
         <Property label="Sampler" value={spec.sampler?.type} />
         <Property label="Sampler argument" value={spec.sampler?.argument} />
@@ -61,6 +61,9 @@ export function OpenTelemetryInstrumentationRenderer({ data }: { data: any }) {
       <p className="mt-2 text-xs text-theme-text-tertiary">These settings configure injection into annotated workloads. This resource does not report which Pods were injected or whether telemetry reaches the endpoint.</p>
       {blocked.length > 0 && <p className="mt-2 text-sm text-theme-text-secondary">The operator could not automatically upgrade the listed runtime images. Inspect status in YAML and the operator logs before choosing a supported image.</p>}
     </Section>
+    {blocked.length > 0 && <Section title="Blocked Image Upgrades" defaultExpanded>
+      <PropertyList>{blocked.map(language => <Property key={language} label={language} value={<span className="whitespace-pre-wrap break-words">{String(data.status.upgradeBlockedVersions[language]).slice(0, 1000)}{String(data.status.upgradeBlockedVersions[language]).length > 1000 ? '… Inspect YAML for the full explanation.' : ''}</span>} />)}</PropertyList>
+    </Section>}
     {runtimeImages.length > 0 && <Section title="Runtime Images" defaultExpanded={false}><PropertyList>
       {runtimeImages.map(language => <Property key={language} label={language} value={<span className="break-all">{spec[language].image}</span>} />)}
     </PropertyList></Section>}

@@ -1,3 +1,4 @@
+import { isApiGroup } from './resource-utils-cnpg'
 import { parseDocument } from 'yaml'
 import type { StatusBadge } from './resource-utils'
 import { healthColors } from './resource-utils'
@@ -5,7 +6,7 @@ import { healthColors } from './resource-utils'
 // Ready describes reconciliation only. In the operator, Ready=True can coexist
 // with 0/1 ready Pods. Never derive runtime health from this condition or scale.
 export function getOpenTelemetryCollectorStatus(data: any): StatusBadge {
-  const badge = (text: string, level: StatusBadge['level']): StatusBadge => ({ text, level, color: healthColors[level!] })
+  const badge = (text: string, level: StatusBadge['level']): StatusBadge => ({ text, level, color: healthColors[level] })
   if (data.spec?.managementState === 'unmanaged') return badge('Unmanaged', 'neutral')
   const ready = data.status?.conditions?.find((c: any) => c.type === 'Ready')
   if (!ready) return badge('Not reported', 'unknown')
@@ -18,7 +19,7 @@ export function getOpenTelemetryCollectorStatus(data: any): StatusBadge {
 
 export function getOpenTelemetryInstrumentationStatus(data: any): StatusBadge {
   const blocked = Object.keys(data.status?.upgradeBlockedVersions ?? {}).length > 0
-  const level = blocked ? 'degraded' : 'neutral'
+  const level = 'neutral'
   return { text: blocked ? 'Upgrade blocked' : 'Configured', level, color: healthColors[level] }
 }
 
@@ -62,4 +63,28 @@ export function getCollectorPipelines(data: any): CollectorPipelines {
     })),
     connectors: Object.keys(config.connectors ?? {}),
   }
+}
+
+// A single reader backs native cells, their filters and sorting.
+export function getOpenTelemetryColumnValue(data: any, column: string): string | undefined {
+  if (!isApiGroup(data?.apiVersion, 'opentelemetry.io')) return undefined
+  if (data.kind === 'OpenTelemetryCollector') {
+    switch (column) {
+      case 'status': return getOpenTelemetryCollectorStatus(data).text
+      case 'mode': return data.spec?.mode ?? ''
+      case 'reportedPods': return data.status?.scale?.statusReplicas ?? ''
+      case 'version': return data.status?.version ?? ''
+      case 'image': return data.status?.image ?? ''
+      case 'management': return data.spec?.managementState ?? ''
+    }
+  }
+  if (data.kind === 'Instrumentation') {
+    switch (column) {
+      case 'status': return getOpenTelemetryInstrumentationStatus(data).text
+      case 'endpoint': return data.spec?.exporter?.endpoint ?? ''
+      case 'sampler': return data.spec?.sampler?.type ?? ''
+      case 'samplerArgument': return data.spec?.sampler?.argument ?? ''
+    }
+  }
+  return undefined
 }

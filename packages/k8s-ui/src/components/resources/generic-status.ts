@@ -93,7 +93,7 @@ export function getGenericResourceStatus(resource: any): GenericStatus | null {
   if (isApiGroup(resource?.apiVersion, 'opentelemetry.io')) {
     const native = resource.kind === 'OpenTelemetryCollector' ? getOpenTelemetryCollectorStatus(resource)
       : resource.kind === 'Instrumentation' ? getOpenTelemetryInstrumentationStatus(resource) : null
-    if (native) return { text: native.text, tone: native.level! }
+    if (native) return { text: native.text, tone: native.level }
   }
   const status = resource?.status
   if (!status || typeof status !== 'object') return null
