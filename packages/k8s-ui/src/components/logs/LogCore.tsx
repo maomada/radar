@@ -776,15 +776,14 @@ export function LogCore({
           <Tooltip content={showTimestamps ? 'Hide timestamps' : 'Show timestamps'} delay={TIP_DELAY} position="bottom">
             <button
               onClick={toggleTimestamps}
-              className={`p-1.5 rounded-l phone:rounded transition-colors ${
+              className={`p-1.5 rounded-l transition-colors ${
                 showTimestamps ? palette.toolbarActive : iconBtnInactive
               }`}
             >
               <Clock className="w-4 h-4" />
             </button>
           </Tooltip>
-          {/* Phones keep the timestamp toggle and drop the format picker. */}
-          <div className="relative phone:hidden" ref={tsMenuRef}>
+          <div className="relative" ref={tsMenuRef}>
             <Tooltip content={`Timestamp format: ${TIMESTAMP_FORMAT_LABELS[tsFormat]}`} delay={TIP_DELAY} position="bottom">
               <button
                 onClick={() => setShowTsMenu(prev => !prev)}

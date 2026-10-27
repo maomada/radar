@@ -1182,7 +1182,16 @@ export function WorkloadView({
     <OperationalIssuesShownContext.Provider value={!!hasOperationalIssues || !!operationalIssuesPending}>
     <DetailShell
       breadcrumb={breadcrumb}
-      compactIdentity={<div className="flex min-w-0 items-center gap-2">{nameAndCopy}</div>}
+      compactIdentity={
+        // The namespace stays: Restart and the other actions sit right below.
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex min-w-0 max-w-full items-center gap-2">{nameAndCopy}</div>
+          {namespace && namespace !== '_' && (
+            <span className="whitespace-nowrap text-sm text-theme-text-secondary">Namespace: <span className="text-theme-text-primary">{namespace}</span></span>
+          )}
+          {namespace && namespace !== '_' && namespaceNote}
+        </div>
+      }
       wrapHeader={inlineBadges}
       subheader={resourceGone ? undefined : subheader}
       nav={
