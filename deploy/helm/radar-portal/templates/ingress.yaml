@@ -1,0 +1,48 @@
+{{- if .Values.ingress.enabled -}}
+{{- if empty .Values.ingress.tls -}}
+{{- fail "ingress.tls is required when ingress.enabled=true; terminate TLS before exposing Portal credentials" -}}
+{{- end }}
+{{- range $host := .Values.ingress.hosts }}
+{{- range $path := $host.paths }}
+{{- if ne $path.path "/" }}
+{{- fail "radar-portal must be hosted at the root path / on a dedicated hostname" }}
+{{- end }}
+{{- if ne $path.pathType "Prefix" }}
+{{- fail "radar-portal ingress pathType must be Prefix at /" }}
+{{- end }}
+{{- end }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "radar-portal.fullname" . }}
+  labels:
+    {{- include "radar-portal.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "radar-portal.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

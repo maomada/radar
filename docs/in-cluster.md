@@ -2,6 +2,9 @@
 
 Deploy Radar to your Kubernetes cluster for shared team access.
 
+For an optional independent registry of in-cluster and opted-in local
+CLI/Desktop Radar instances, see the [self-hosted Radar Portal guide](portal.md).
+
 > **Note:** This guide covers deploying Radar as a pod in your cluster. If you're running Radar locally but need to understand cluster connection behavior (e.g., using `KUBECONFIG` to override in-cluster detection), see the [Configuration Guide](configuration.md).
 
 Choose the path that matches what you are trying to do:

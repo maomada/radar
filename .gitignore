@@ -1,5 +1,6 @@
 # Binaries
 /radar
+/radar-portal
 /radar-desktop
 /explorer
 /desktop
@@ -26,6 +27,10 @@ Thumbs.db
 
 # Build artifacts
 *.log
+!internal/portalui/
+!internal/portalui/dist/
+internal/portalui/dist/*
+!internal/portalui/dist/.gitkeep
 internal/static/dist/*
 !internal/static/dist/.gitkeep
 /build/bin/
@@ -38,6 +43,8 @@ web/package.json.md5
 .env
 .env.local
 dist/
+!internal/portalui/dist/
+!internal/portalui/dist/.gitkeep
 
 # Visual-test + scratch artifacts
 .playwright-mcp/

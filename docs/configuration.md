@@ -954,4 +954,5 @@ Deciding whether to connect is a separate question from the requests above.
 
 - [CLI reference](https://radarhq.io/docs/configuration/cli) — Commands and operator-facing flags
 - [In-Cluster Deployment](in-cluster.md) — Deploy Radar inside your cluster with Helm
+- [Self-hosted Radar Portal](portal.md) — Optional registry for in-cluster and local Radar instances
 - [Authentication & Authorization](authentication.md) — Proxy and OIDC auth for shared deployments

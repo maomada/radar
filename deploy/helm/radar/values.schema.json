@@ -366,6 +366,24 @@
         "caBundle": { "type": "string" }
       }
     },
+    "portalRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "url": { "type": "string", "pattern": "^$|^https?://[^?#]+$" },
+        "clusterId": { "type": "string", "pattern": "^$|^[a-z0-9][a-z0-9-]{0,62}$" },
+        "clusterName": { "type": "string" },
+        "description": { "type": "string" },
+        "environment": { "type": "string" },
+        "region": { "type": "string" },
+        "radarUrl": { "type": "string", "pattern": "^$|^https?://[^?#]+$" },
+        "mcpBaseUrl": { "type": "string", "pattern": "^$|^https?://[^?#]+$" },
+        "allowHTTP": { "type": "boolean" },
+        "existingSecret": { "type": "string" },
+        "tokenKey": { "type": "string" }
+      }
+    },
     "usageReporting": {
       "type": "object",
       "additionalProperties": false,

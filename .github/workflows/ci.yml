@@ -211,6 +211,9 @@ jobs:
       - name: Build
         run: go build -o explorer ./cmd/explorer
 
+      - name: Build standalone portal
+        run: go build -o radar-portal ./cmd/radar-portal
+
   backend-server:
     name: Backend (internal/server)
     needs: changes
@@ -291,6 +294,10 @@ jobs:
         run: npm run build
         working-directory: web
 
+      - name: Build standalone portal UI
+        run: npx vite build --config vite.portal.config.ts
+        working-directory: web
+
   settings-browser:
     name: Settings browser journeys
     needs: changes
@@ -363,6 +370,9 @@ jobs:
 
       - name: Lint
         run: helm lint deploy/helm/radar
+
+      - name: Lint Portal chart
+        run: helm lint deploy/helm/radar-portal --set image.repository=example.test/radar-portal --set existingSecret=portal-auth
 
       - name: Render default values
         run: helm template radar deploy/helm/radar > /dev/null

@@ -1,0 +1,101 @@
+{{- if ne (int .Values.replicaCount) 1 }}
+{{- fail "radar-portal is a single-writer registry and requires replicaCount=1" }}
+{{- end }}
+{{- if empty .Values.image.repository }}
+{{- fail "image.repository is required; build and supply a user-controlled Portal image" }}
+{{- end }}
+{{- if empty .Values.existingSecret }}
+{{- fail "existingSecret is required and must contain keys tokens, username, and password" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radar-portal.fullname" . }}
+  labels:
+    {{- include "radar-portal.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "radar-portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "radar-portal.selectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: radar-portal
+          image: {{ include "radar-portal.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --listen=0.0.0.0:9290
+            - --data-file=/var/lib/radar-portal/registry.json
+          ports:
+            - name: http
+              containerPort: 9290
+              protocol: TCP
+          env:
+            - name: RADAR_PORTAL_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: tokens
+            - name: RADAR_PORTAL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: username
+            - name: RADAR_PORTAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: password
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: registry
+              mountPath: /var/lib/radar-portal
+      volumes:
+        - name: registry
+          persistentVolumeClaim:
+            claimName: {{ include "radar-portal.fullname" . }}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -274,6 +275,10 @@ func main() {
 		}
 	}()
 	<-ready
+
+	reporterCtx, cancelReporter := context.WithCancel(context.Background())
+	defer cancelReporter()
+	app.StartPortalReporter(reporterCtx, cfg)
 
 	// Write port file so MCP clients can discover the running server
 	app.WriteMCPPortFile(srv.ActualAddr(), srv.BasePath())

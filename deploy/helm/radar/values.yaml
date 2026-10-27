@@ -721,6 +721,22 @@ argocd:
   # interception on the path to argocd-server.
   insecureTls: false
 
+# Optional outbound registration in a self-hosted Radar Portal. Disabled by
+# default; configured local and in-cluster OSS Radar instances may opt in.
+portalRegistration:
+  enabled: false
+  url: ""
+  clusterId: ""
+  clusterName: ""
+  description: ""
+  environment: ""
+  region: ""
+  radarUrl: ""
+  mcpBaseUrl: ""
+  allowHTTP: false
+  existingSecret: ""
+  tokenKey: token
+
 # Persistence for SQLite timeline storage
 # Required when timeline.storage is "sqlite" (readOnlyRootFilesystem prevents local writes)
 persistence:
