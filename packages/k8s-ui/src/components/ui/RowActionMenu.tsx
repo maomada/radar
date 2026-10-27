@@ -21,12 +21,13 @@ export interface RowActionItem {
 interface RowActionMenuProps {
   onOpenChange?: (open: boolean) => void
   items: RowActionItem[]
+  note?: string
   ariaLabel?: string
   /** Compact button variant (default: true) — sized for table-row anchoring. */
   compact?: boolean
 }
 
-export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true, onOpenChange }: RowActionMenuProps) {
+export function RowActionMenu({ items, note, ariaLabel = 'Row actions', compact = true, onOpenChange }: RowActionMenuProps) {
   const descriptionId = useId()
   const [open, setOpen] = useState(false)
   const { shouldRender, isOpen } = useAnimatedUnmount(open, overlayExitMs('menu'))
@@ -34,7 +35,7 @@ export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true
   // viewport bottom. The GitOps table's bottom rows sit at the end of a scroll
   // container with the app's fixed overlay buttons below them, so a
   // downward-opening menu there clips its lowest items with no way to scroll
-  // them into view. Measured once the menu is mounted (useLayoutEffect,
+  // them into view. Measured on mount and when its note changes (useLayoutEffect,
   // pre-paint, no flicker). The last placement is kept through the exit
   // transition — resetting at logical close would snap the menu to the other
   // side mid-fade — and re-measured on the next open.
@@ -51,7 +52,7 @@ export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true
     // Flip up only when there's not enough room below AND enough room above,
     // so a tall menu near the top doesn't get clipped at the other end.
     setOpenUp(menuH + 8 > spaceBelow && trigger.top > menuH + 8)
-  }, [open, shouldRender])
+  }, [open, shouldRender, note])
 
   useEffect(() => {
     if (!open) return
@@ -123,6 +124,7 @@ export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true
           style={overlayTransitionStyle(isOpen, 'menu')}
           onClick={(e) => e.stopPropagation()}
         >
+          {note && <p className="max-w-56 px-3 py-1.5 text-left text-xs whitespace-normal text-theme-text-secondary">{note}</p>}
           {items.map((item, index) => {
             const Icon = item.icon
             const reasonId = item.disabled && item.disabledReason ? `${descriptionId}-${index}` : undefined

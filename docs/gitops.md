@@ -139,8 +139,8 @@ Disabled controls explain the denied permission. Controls stay enabled while the
 preserve each action's last confirmed permissions or unsupported result for up to two minutes; after
 that, the action becomes unknown and permits an attempt. Only a recent confirmed
 denial or unsupported result disables an action. After a failed first check or
-expiry, the detail page shows “Couldn't check your permissions. You can still try.”
-without disabling the unknown actions; initial loading shows no notice. Compact
+expiry, the detail page and open row action menu show “Couldn't check your permissions. You can still try.”
+without disabling the unknown actions; initial loading and closed rows show no notice. Compact
 denied actions expose their reason on touch and through an accessible description
 before focus. Lifecycle restrictions still apply; Refresh and
 Terminate remain available during deletion when permitted.
