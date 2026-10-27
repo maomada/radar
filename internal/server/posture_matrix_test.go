@@ -149,8 +149,8 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 		})
 	}
 
-	// Host check: what the middleware does with a request, per listener, auth,
-	// --allowed-hosts='*' and request channel.
+	// The Host check runs through the real middleware with a sentinel handler,
+	// so a row records whether the request reached the handler, not just a status.
 	for _, listen := range matrixListeners {
 		for _, authMode := range matrixAuthModes {
 			for _, anyHost := range matrixBools {
@@ -174,7 +174,6 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 		}
 	}
 
-	// Host local terminal.
 	for _, forceNoTerm := range matrixBools {
 		for _, authMode := range matrixAuthModes {
 			for _, kubeMode := range matrixKubeModes {
@@ -198,7 +197,6 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 		}
 	}
 
-	// Profiling routes mounted.
 	for _, hostedCloud := range matrixBools {
 		for _, override := range matrixPprof {
 			for _, authMode := range matrixAuthModes {
@@ -222,7 +220,6 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 		})
 	}
 
-	// Cloud Connect driver lane, and the shared-listener acknowledgement.
 	for _, hostedCloud := range matrixBools {
 		for _, kubeMode := range matrixKubeModes {
 			for _, authMode := range matrixAuthModes {
@@ -241,7 +238,6 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 		})
 	}
 
-	// Decisions that read config ownership.
 	for _, hostedCloud := range matrixBools {
 		for _, tunnel := range matrixBools {
 			for _, authMode := range matrixAuthModes {
