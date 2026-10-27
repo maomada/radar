@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-//
-// A phone reads YAML but doesn't start an edit or a duplicate.
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
