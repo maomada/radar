@@ -1355,7 +1355,6 @@ function LogLine({
   }
 
   return (
-    // Phones put the message on its own full-width line under the timestamp and source.
     <div className={`flex phone:flex-wrap ${palette.hoverSurface} group leading-5 px-2 ${isCurrentMatch ? palette.currentMatchBg : ''}`}>
       {leadSlot}
       {showTimestamp && entry.timestamp && (
@@ -1374,10 +1373,10 @@ function LogLine({
           [{entry.sourceLabel || entry.pod.split('-').slice(-2).join('-')}]
         </span>
       )}
-      <span className="flex-1 min-w-0 phone:basis-full">{contentElement}</span>
+      <span className="flex-1 min-w-0 phone:order-last phone:basis-full">{contentElement}</span>
       <button
         onClick={handleCopy}
-        className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 ml-1 p-0.5 rounded ${palette.textTertiary} ${palette.hoverText} shrink-0 transition-opacity phone:hidden`}
+        className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 ml-1 p-0.5 rounded ${palette.textTertiary} ${palette.hoverText} shrink-0 transition-opacity phone:ml-auto phone:opacity-100`}
         title="Copy line"
       >
         <Copy className="w-3 h-3" />
