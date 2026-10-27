@@ -248,6 +248,10 @@ func Build(ctx context.Context, obj runtime.Object, opts Options) *ResourceConte
 			return checkRef(ctx, opts.AccessChecker, &ref)
 		})
 	}
+	managedBy = slices.DeleteFunc(slices.Clone(managedBy), func(r topology.ResourceRef) bool {
+		ref := toContextRef(r)
+		return !checkRef(ctx, opts.AccessChecker, &ref)
+	})
 	managedBy = topology.TopmostOwner(managedBy, chain)
 	// With a manager answer, the GitOps and Helm managers are its to name:
 	// managedBy keeps the rest (the top controller, cert-manager), not a

@@ -296,6 +296,10 @@ func TestControllerChainsReadRowsInOneSession(t *testing.T) {
 	unrestricted := func(*ownership.Catalog) ownership.Access { return ownership.Unrestricted() }
 	counted := &countingSource{Source: source}
 	chains := &ControllerChains{source: counted, access: unrestricted}
+	ownerless := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "shop", Name: "standalone"}}
+	if c := chains.Of(ownerless, podRef("standalone")); c != nil || counted.begun != 0 {
+		t.Fatalf("ownerless row opened a session or returned a chain: %+v, sessions %d", c, counted.begun)
+	}
 	for _, name := range []string{"web-3-a", "web-3-b"} {
 		top := chains.Of(historyPod(name, "web-3"), podRef(name)).Top()
 		if top == nil || *top != (topology.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "shop", Name: "web"}) {
@@ -320,9 +324,13 @@ func TestControllerChainsReadRowsInOneSession(t *testing.T) {
 	}
 
 	replaced := &ControllerChains{source: &scriptedSource{t: t, validate: []error{ownership.ErrCachesReplaced}}, access: unrestricted}
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "alpha", Name: "web-1-a"}}
+	pod := historyPod("web-1-a", "web-1")
+	pod.Namespace = "alpha"
 	if c := replaced.Of(pod, resourceid.Ref{Kind: "Pod", Namespace: "alpha", Name: "web-1-a"}); c != nil {
 		t.Errorf("replaced caches answered %+v", c)
+	}
+	if !replaced.failed {
+		t.Error("replaced caches did not invalidate the chain reader")
 	}
 }
 

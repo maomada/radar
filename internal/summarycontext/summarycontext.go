@@ -105,8 +105,8 @@ func Within[T any](budget time.Duration, build func() T) T {
 //
 // topo is the topology snapshot the caller has already obtained from
 // its preferred source (REST: broadcaster cache; MCP: short-TTL
-// memoizer). nil topo is fine — managedBy is omitted but issueCount
-// still resolves.
+// memoizer). With nil topo, managedBy uses the row's metadata and controller
+// chain; issueCount still resolves.
 //
 // canRead is the caller's access to a reference (nil allows everything).
 // The topology is shared by every user, so a manager it links may be one

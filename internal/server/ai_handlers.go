@@ -351,6 +351,10 @@ func (s *Server) aiListDynamic(w http.ResponseWriter, r *http.Request, cache *k8
 			summarycontext.AttachToUnstructuredList(results, allItems, builder)
 		}
 	}
+	if readCache() != cache {
+		s.writeReadFailure(w, kind, errReadHandlesChanged, &target)
+		return
+	}
 
 	s.writeJSON(w, results)
 }

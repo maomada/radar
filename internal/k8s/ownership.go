@@ -181,7 +181,7 @@ func NewControllerChains(access func(*ownership.Catalog) ownership.Access) *Cont
 // caller reads it; nil when it can't be answered. obj is never modified: the
 // caches share it.
 func (c *ControllerChains) Of(obj metav1.Object, ref resourceid.Ref) *topology.ControllerChain {
-	if obj == nil || ref.Kind == "" || c.failed {
+	if obj == nil || ref.Kind == "" || c.failed || metav1.GetControllerOf(obj) == nil {
 		return nil
 	}
 	fetched := ownership.Observe(ref, obj)

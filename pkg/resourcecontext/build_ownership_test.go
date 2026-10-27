@@ -295,7 +295,7 @@ func TestBuildManagedByStopsBelowAnOwnerTheHostMayNotShow(t *testing.T) {
 	sts := topology.ResourceRef{Group: "apps", Kind: "StatefulSet", Namespace: "db", Name: "basic-tidb"}
 	cr := topology.ResourceRef{Group: "pingcap.com", Kind: "TidbCluster", Namespace: "db", Name: "basic"}
 	rc := Build(context.Background(), pod, Options{AccessChecker: denyChecker{group: "pingcap.com", kind: "TidbCluster", namespace: "db"}, Ownership: func(rel *topology.Relationships, _ ownership.Observation) {
-		rel.ManagedBy = []topology.ResourceRef{sts}
+		rel.ManagedBy = []topology.ResourceRef{cr}
 		rel.Ownership = &topology.OwnershipCoverage{}
 		rel.ControllerChain = &topology.ControllerChain{Refs: []topology.ResourceRef{{Kind: "Pod", Namespace: "db", Name: "basic-tidb-0"}, sts, cr}}
 	}})
