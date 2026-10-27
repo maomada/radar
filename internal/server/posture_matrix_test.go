@@ -231,7 +231,7 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 	}
 	for _, listen := range matrixListeners {
 		run(postureEnv{}, func() {
-			record("cloudConnectSharedListenerAck", key("listen", listenLabel(listen)), strconv.FormatBool(matrixServer(listen, "none", false).sharedListener()))
+			record("cloudConnectSharedListenerAck", key("listen", listenLabel(listen)), strconv.FormatBool(matrixServer(listen, "none", false).cloudConnectNeedsSharedAck()))
 		})
 	}
 
@@ -274,12 +274,12 @@ func buildPostureMatrix(t *testing.T) map[string]map[string]string {
 				run(postureEnv{hostedCloud: hostedCloud}, func() {
 					k := key("hostedCloud", hostedCloud, "auth", authMode, "listen", listenLabel(listen))
 					s := matrixServer(listen, authMode, false)
-					record("unauthenticatedListenerWarning/start", k, strconv.FormatBool(shouldWarnUnauthenticatedListener(listen, s.authConfig.Enabled()) && !cloud.Mode()))
+					record("unauthenticatedListenerWarning/start", k, strconv.FormatBool(unauthenticatedListenerWarning(listen, s.authConfig.Enabled(), cloud.Mode())))
 					mode := s.authConfig.Mode
 					lines := formatStartupLogSummary(startupLogSummary{listenAddress: listen, authMode: mode, cloudMode: cloud.Mode()}, false)
 					record("unauthenticatedListenerWarning/summary", k, strconv.FormatBool(strings.Contains(strings.Join(lines, "\n"), "Remote clients can access Radar without authentication")))
 					for _, anyHost := range matrixBools {
-						record("allowAnyHostWarning", k+" "+key("allowAnyHost", anyHost), strconv.FormatBool(allowAnyHostWarning(anyHost, s.authConfig, listen)))
+						record("allowAnyHostWarning", k+" "+key("allowAnyHost", anyHost), strconv.FormatBool(allowAnyHostWarning(anyHost, s.authConfig.Enabled(), listen)))
 					}
 				})
 			}
