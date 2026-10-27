@@ -26,7 +26,7 @@ export interface DetailShellProps<TId extends string = string> {
   /** Inline leading control on the identity row — a back button in standalone Radar. */
   nav?: ReactNode
   identity: ReactNode
-  /** The header's only content on a phone while a `phoneCompactHeader` tab is active (e.g. the name). */
+  /** Replaces the identity on a phone while a `phoneCompactHeader` tab is active (e.g. the name). The breadcrumb and nav stay. */
   compactIdentity?: ReactNode
   headerActions?: ReactNode
   /** A line under the identity row, above the tabs — e.g. a status summary that holds on every tab. */
@@ -88,7 +88,7 @@ export function DetailShell<TId extends string = string>({
       <div className="shrink-0 border-b border-theme-border bg-theme-base">
         {!compactHeader && (
           <>
-            {breadcrumb && !phoneCompact && <div className="px-6 pt-2.5 phone:px-4">{breadcrumb}</div>}
+            {breadcrumb && <div className="px-6 pt-2.5 phone:px-4">{breadcrumb}</div>}
             {/* Phones always wrap: the identity takes the row beside the back
                 button and the actions drop below it. */}
             <div className={clsx('px-6 flex items-start gap-4 phone:px-4 phone:flex-wrap phone:gap-x-3 phone:gap-y-2', wrapHeader && 'flex-wrap gap-y-2', breadcrumb ? 'pb-3 pt-1.5' : 'py-3')}>

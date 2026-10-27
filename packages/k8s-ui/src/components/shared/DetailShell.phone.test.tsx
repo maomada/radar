@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 //
 // On a phone, a tab that opts into a compact header shows the host's compact
-// identity alone; the full identity and its links aren't rendered at all.
+// identity in place of the full one (whose links aren't rendered at all);
+// the breadcrumb stays, since some hosts navigate through it.
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -16,6 +17,7 @@ function render({ phone, activeTab }: { phone: boolean; activeTab: 'overview' | 
   const host = document.createElement('div'); const root = createRoot(host)
   act(() => root.render(
     <DetailShell
+      breadcrumb={<nav>Workspace crumb</nav>}
       identity={<div>web <a href="#owner">Owner link</a></div>}
       compactIdentity={<span>web (compact)</span>}
       headerActions={<button type="button">Investigate</button>}
@@ -35,6 +37,7 @@ function render({ phone, activeTab }: { phone: boolean; activeTab: 'overview' | 
 it('shows only the compact identity on a phone while the tab opts in', () => {
   const text = render({ phone: true, activeTab: 'logs' })
   expect(text).toContain('web (compact)')
+  expect(text).toContain('Workspace crumb')
   expect(text).not.toContain('Owner link')
   expect(text).not.toContain('Investigate')
   expect(text).not.toContain('Status summary')

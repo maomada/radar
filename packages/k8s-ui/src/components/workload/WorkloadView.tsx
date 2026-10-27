@@ -1185,6 +1185,7 @@ export function WorkloadView({
       compactIdentity={
         // The namespace stays: Restart and the other actions sit right below.
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          {titlePrefix}
           <div className="flex min-w-0 max-w-full items-center gap-2">{nameAndCopy}</div>
           {namespace && namespace !== '_' && (
             <span className="whitespace-nowrap text-sm text-theme-text-secondary">Namespace: <span className="text-theme-text-primary">{namespace}</span></span>
