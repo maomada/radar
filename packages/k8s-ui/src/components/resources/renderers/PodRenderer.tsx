@@ -29,6 +29,7 @@ import { MetricsChart } from '../../ui/MetricsChart'
 import { Badge } from '../../ui/Badge'
 import { MetricsUnavailableNotice } from './MetricsUnavailableNotice'
 import { ContainerEnvironmentSection } from './ContainerEnvironmentSection'
+import { usePhoneLayout } from '../../../hooks/usePhoneLayout'
 import { formatRelativeAgeTime } from '../../../utils/format'
 
 function parseValidDate(dateStr: string): Date | null {
@@ -307,6 +308,8 @@ export function PodRenderer({
   policyError,
   namespaceLimitRangeNames,
 }: PodRendererProps) {
+  // Phones show container ports without the port-forward control.
+  const isPhone = usePhoneLayout()
   const containerStatuses = data.status?.containerStatuses || []
   const containers = data.spec?.containers || []
   const initContainers = data.spec?.initContainers || []
@@ -802,7 +805,7 @@ export function PodRenderer({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span>Ports:</span>
                       {container.ports.map((p: any) => (
-                        canPortForward && renderPortAction ? (
+                        canPortForward && renderPortAction && !isPhone ? (
                           <span key={`${p.name || ''}-${p.containerPort}-${p.protocol || 'TCP'}`} className="inline-flex items-center gap-1">
                             {p.name && <span className="text-theme-text-tertiary">{p.name}:</span>}
                             {renderPortAction({

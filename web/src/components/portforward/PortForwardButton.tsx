@@ -7,7 +7,7 @@ import { useStartPortForward } from './PortForwardManager'
 import { useIsLocalDeployment } from '../../contexts/CapabilitiesContext'
 import { validatePort } from '@skyhook-io/k8s-ui/utils/validators'
 import { Tooltip } from '../ui/Tooltip'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input, usePhoneLayout } from '@skyhook-io/k8s-ui'
 
 interface PortForwardButtonProps {
   type: 'pod' | 'service'
@@ -172,7 +172,13 @@ function KubectlCommandDialog({
   )
 }
 
-export function PortForwardButton({
+// No port forwarding on a phone: the tunnel ends on the device, where nothing
+// can use it. The wrappers skip the body, so its port lookups don't run either.
+export function PortForwardButton(props: PortForwardButtonProps) {
+  return usePhoneLayout() ? null : <PortForwardButtonBody {...props} />
+}
+
+function PortForwardButtonBody({
   type,
   namespace,
   name,
@@ -372,7 +378,11 @@ interface PortForwardInlineButtonProps {
   disabled?: boolean
 }
 
-export function PortForwardInlineButton({
+export function PortForwardInlineButton(props: PortForwardInlineButtonProps) {
+  return usePhoneLayout() ? null : <PortForwardInlineButtonBody {...props} />
+}
+
+function PortForwardInlineButtonBody({
   namespace,
   podName,
   serviceName,
