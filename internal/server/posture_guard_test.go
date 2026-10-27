@@ -40,17 +40,34 @@ func posturePrimitiveUses(fset *token.FileSet, path string, f *ast.File) []strin
 		}
 		cloudNames[name] = true
 	}
+	// Each function body, and each package-level initializer under its
+	// variable's name (no variable is an allowed reader).
+	type scope struct {
+		name string
+		node ast.Node
+	}
+	var scopes []scope
 	for _, decl := range f.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			if d.Body != nil {
+				scopes = append(scopes, scope{d.Name.Name, d.Body})
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				if vs, ok := spec.(*ast.ValueSpec); ok && len(vs.Values) > 0 {
+					scopes = append(scopes, scope{vs.Names[0].Name, vs})
+				}
+			}
 		}
-		ast.Inspect(fn.Body, func(n ast.Node) bool {
+	}
+	for _, sc := range scopes {
+		ast.Inspect(sc.node, func(n ast.Node) bool {
 			switch n := n.(type) {
 			case *ast.SelectorExpr:
 				if n.Sel.Name == "listenAddress" {
-					if _, ok := postureListenAddressReaders[path][fn.Name.Name]; !ok {
-						out = append(out, fmt.Sprintf("%s: %s reads a listenAddress field; decide in posture.go (exposureOf / posture) instead", fset.Position(n.Pos()), fn.Name.Name))
+					if _, ok := postureListenAddressReaders[path][sc.name]; !ok {
+						out = append(out, fmt.Sprintf("%s: %s reads a listenAddress field; decide in posture.go (exposureOf / posture) instead", fset.Position(n.Pos()), sc.name))
 					}
 				}
 			case *ast.CallExpr:
@@ -63,7 +80,7 @@ func posturePrimitiveUses(fset *token.FileSet, path string, f *ast.File) []strin
 					return true
 				}
 				if allowed, restricted := postureRestrictedCloudCalls[sel.Sel.Name]; restricted && !allowed[path] {
-					out = append(out, fmt.Sprintf("%s: %s calls cloud.%s; use posture.go (viaTunnel / exposureOf) instead", fset.Position(n.Pos()), fn.Name.Name, sel.Sel.Name))
+					out = append(out, fmt.Sprintf("%s: %s calls cloud.%s; use posture.go (viaTunnel / exposureOf) instead", fset.Position(n.Pos()), sc.name, sel.Sel.Name))
 				}
 			}
 			return true
@@ -105,16 +122,20 @@ import cl "github.com/skyhook-io/radar/internal/cloud"
 func (srv *Server) probe(r *http.Request) bool {
 	return srv.listenAddress == "0.0.0.0" || cl.IsAuthenticatedTunnelRequest(r.Context()) || cl.IsLoopbackHostname(srv.listenAddress)
 }
+
+var onSharedListener = func(srv *Server) bool {
+	return !cl.IsLoopbackHostname(srv.listenAddress)
+}
 `
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "handlers.go", src, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := posturePrimitiveUses(fset, "handlers.go", f); len(got) != 4 {
-		t.Fatalf("got %d findings, want 4 (two listenAddress reads, two aliased cloud calls):\n%s", len(got), strings.Join(got, "\n"))
+	if got := posturePrimitiveUses(fset, "handlers.go", f); len(got) != 6 {
+		t.Fatalf("got %d findings, want 6 (listenAddress reads and aliased cloud calls, in a method and a package-level initializer):\n%s", len(got), strings.Join(got, "\n"))
 	}
-	if got := posturePrimitiveUses(fset, "posture.go", f); len(got) != 2 {
-		t.Fatalf("in posture.go the cloud calls are allowed but probe is not an allowed reader; got %d findings, want 2:\n%s", len(got), strings.Join(got, "\n"))
+	if got := posturePrimitiveUses(fset, "posture.go", f); len(got) != 3 {
+		t.Fatalf("in posture.go the cloud calls are allowed but neither probe nor onSharedListener reads the listener there; got %d findings, want 3:\n%s", len(got), strings.Join(got, "\n"))
 	}
 }
