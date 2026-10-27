@@ -167,7 +167,9 @@ export function HelmReleaseDrawer({ release, onClose, onNavigateToResource, isOp
   const [selectedSourceUpgrade, setSelectedSourceUpgrade] = useState<SourceUpgradeSelection | null>(null)
   const selectedSourceRef = useRef<SourceUpgradeSelection | null>(null)
   const [adjustValues, setAdjustValues] = useState(false)
-  // Phones upgrade with the existing values; editing them is a desktop task.
+  // Phones upgrade with the existing values and don't compare revisions. An
+  // adjustment already open when a phone rotates to portrait stays visible,
+  // since its edits would otherwise apply unseen.
   const isPhone = usePhoneLayout()
   const [editedUpgradeYaml, setEditedUpgradeYaml] = useState('')
   const [upgradeYamlError, setUpgradeYamlError] = useState<string | null>(null)
@@ -820,7 +822,7 @@ export function HelmReleaseDrawer({ release, onClose, onNavigateToResource, isOp
               releaseNamespace={releaseDetail.namespace}
               managedByFluxHelmRelease={releaseDetail.managedByFluxHelmRelease}
               hookDiagnostics={releaseDetail.hookDiagnostics}
-              onCompare={handleCompareRevisions}
+              onCompare={isPhone ? undefined : handleCompareRevisions}
               onNavigateToResource={onNavigateToResource}
             />
             {activeTab === 'overview' && (
@@ -832,7 +834,7 @@ export function HelmReleaseDrawer({ release, onClose, onNavigateToResource, isOp
                 currentRevision={releaseDetail.revision}
                 operations={mergeHelmOperations(releaseDetail.operations, releaseDetail.lastOperation)}
                 onViewRevision={handleViewRevision}
-                onCompare={handleCompareRevisions}
+                onCompare={isPhone ? undefined : handleCompareRevisions}
                 onRollback={canHelmWrite ? handleRollbackRequest : undefined}
               />
             )}
@@ -1008,7 +1010,7 @@ export function HelmReleaseDrawer({ release, onClose, onNavigateToResource, isOp
             )}
           </div>
         )}
-        {upgradeProgress.length === 0 && canHelmWrite && !isPhone && (
+        {upgradeProgress.length === 0 && canHelmWrite && (!isPhone || adjustValues) && (
           <div className="mt-3 border-t border-theme-border pt-3">
             <Tooltip content="Edit the user-supplied Helm values that Radar will pass to this upgrade.">
               <button
