@@ -7,7 +7,6 @@ import (
 
 	"github.com/skyhook-io/radar/internal/argocd"
 	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/cloud"
 	"github.com/skyhook-io/radar/internal/config"
 	"github.com/skyhook-io/radar/internal/k8s"
 	"github.com/skyhook-io/radar/internal/opencost"
@@ -25,7 +24,7 @@ func ConfigurationManagement(authConfig auth.Config, cloudTunnel bool, listenAdd
 		return "cloud"
 	}
 	// A shared Pod can use kubeconfig; a loopback CLI in a dev workspace is still local.
-	if authConfig.Enabled() || k8s.GetKubeconfigSummary().Mode == "in-cluster" || (os.Getenv("KUBERNETES_SERVICE_HOST") != "" && !cloud.IsLoopbackHostname(listenAddress)) || settings.OperatorConfigured() {
+	if authConfig.Enabled() || k8s.GetKubeconfigSummary().Mode == "in-cluster" || (os.Getenv("KUBERNETES_SERVICE_HOST") != "" && exposureOf(listenAddress) != listenerLoopback) || settings.OperatorConfigured() {
 		return "operator"
 	}
 	return "local"
