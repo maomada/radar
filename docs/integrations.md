@@ -38,7 +38,7 @@ no endpoint-derived topology edges, telemetry queries, or new Issues source are 
 
 | Resource | Group | Topology | Detail View | AI Summary |
 |---|---|---|---|---|
-| OpenTelemetryCollector | opentelemetry.io | Existing observed ownership to managed resources; no endpoint-derived edges | Reconciliation, reported Pods and pipeline components | Reconciliation, mode, version and image |
+| OpenTelemetryCollector | opentelemetry.io | No dedicated nodes or edges; owned-workload navigation is in Related Resources | Reconciliation, reported Pods and pipeline components | Reconciliation, mode, version and image |
 | Instrumentation | opentelemetry.io | No inferred injected-workload edges | Injection settings and blocked upgrades | Configuration and upgrade state |
 
 **Permissions:** the Helm chart already collects `opentelemetry.io` resources when
