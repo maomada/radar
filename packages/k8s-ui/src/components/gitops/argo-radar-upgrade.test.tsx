@@ -208,3 +208,21 @@ describe("the drawer's one-click Sync", () => {
     host.remove()
   })
 })
+
+describe('auto-sync support pending or unavailable', () => {
+  it.each(["Checking this cluster's Radar…", "Couldn't check this cluster's Radar support. Refresh to try again."])('disables each affected control with its reason: %s', reason => {
+    const markup = html(layout(argo({ resumeBlockedReason: reason })))
+    expect(enableAutoSync(markup)).toMatch(/\sdisabled=""/)
+    expect(markup).toContain(reason.replace(/'/g, '&#x27;'))
+    const raw = app({ enabled: false }, { 'radarhq.io/suspended-prune': 'true' })
+    const onAction = vi.fn()
+    const item = buildRowActionItems(normalizeArgoApplication(raw), onAction, undefined, null, reason).find(i => i.key === 'resume')!
+    expect(item).toMatchObject({ disabled: true, disabledReason: reason })
+    item.onClick()
+    expect(onAction).not.toHaveBeenCalled()
+    const bar = html(<ResourceActionsBar resource={{ kind: 'applications', group: 'argoproj.io', namespace: 'argocd', name: 'guestbook' }} data={raw} onArgoResume={() => {}} argoResumeBlockedReason={reason} />)
+    expect(buttonAttrs(bar, 'Enable Auto-Sync')).toMatch(/\sdisabled=""/)
+    const ordinary = buildRowActionItems(normalizeArgoApplication(app(undefined, { 'radarhq.io/suspended-prune': 'true' })), onAction, undefined, null, reason).find(i => i.key === 'resume')!
+    expect(ordinary.disabled).toBe(false)
+  })
+})

@@ -999,12 +999,13 @@ func ArgoSuccessfulRollback(app *unstructured.Unstructured) (revision, username 
 }
 
 // ArgoRollbackRevisionMismatch returns the requested and applied revisions when
-// a completed, marked rollback deployed different sources or revisions. The
-// returned revisions can be equal when only sources differ. A successful
-// operation phase alone does not prove the controller honored the target.
+// a completed, marked rollback deployed different sources or revisions, or
+// recorded no applied revisions. The returned revisions can be equal when
+// only sources differ. A successful operation phase alone does not prove the
+// controller honored the target.
 func ArgoRollbackRevisionMismatch(app *unstructured.Unstructured) (target, applied string) {
 	targets, revisions, _, sourcesMismatch := argoCompletedRollbackRevisions(app)
-	if len(targets) == 0 || len(revisions) == 0 || (slices.Equal(targets, revisions) && !sourcesMismatch) {
+	if len(targets) == 0 || (slices.Equal(targets, revisions) && !sourcesMismatch) {
 		return "", ""
 	}
 	return strings.Join(targets, ", "), strings.Join(revisions, ", ")
@@ -1023,21 +1024,38 @@ func argoCompletedRollbackRevisions(app *unstructured.Unstructured) (targets, re
 	if dryRun {
 		return nil, nil, "", false
 	}
-	targets, _, _ = unstructured.NestedStringSlice(operation, "sync", "revisions")
-	revisions, _, _ = unstructured.NestedStringSlice(app.Object, "status", "operationState", "syncResult", "revisions")
-	if len(targets) == 0 && len(revisions) == 0 {
-		target, _, _ := unstructured.NestedString(operation, "sync", "revision")
-		revision, _, _ := unstructured.NestedString(app.Object, "status", "operationState", "syncResult", "revision")
-		if target != "" && revision != "" {
-			targets, revisions = []string{target}, []string{revision}
-		}
-	}
 	username, _, _ = unstructured.NestedString(operation, "initiatedBy", "username")
 	sync, _, _ := unstructured.NestedMap(operation, "sync")
 	result, _, _ := unstructured.NestedMap(app.Object, "status", "operationState", "syncResult")
+	targets, revisions = argoSyncRevisions(sync), argoSyncRevisions(result)
 	targetSources, resultSources := argoSyncSources(sync), argoSyncSources(result)
 	sourcesMismatch = len(targetSources) > 0 && len(resultSources) > 0 && !reflect.DeepEqual(targetSources, resultSources)
 	return targets, revisions, username, sourcesMismatch
+}
+
+func argoSyncRevisions(sync map[string]any) []string {
+	if revisions, _, _ := unstructured.NestedStringSlice(sync, "revisions"); len(revisions) > 0 {
+		return revisions
+	}
+	if revision, _ := sync["revision"].(string); revision != "" {
+		return []string{revision}
+	}
+	return nil
+}
+
+// ArgoAppliedCurrentComparison reports whether the last apply used the current
+// comparison's revisions and sources. A recent comparison alone does not prove
+// Argo has applied its desired state, for example while a sync window is closed.
+func ArgoAppliedCurrentComparison(app *unstructured.Unstructured) bool {
+	result, _, _ := unstructured.NestedMap(app.Object, "status", "operationState", "syncResult")
+	comparison, _, _ := unstructured.NestedMap(app.Object, "status", "sync")
+	applied, desired := argoSyncRevisions(result), argoSyncRevisions(comparison)
+	if len(applied) == 0 || !slices.Equal(applied, desired) {
+		return false
+	}
+	comparedTo, _, _ := unstructured.NestedMap(comparison, "comparedTo")
+	appliedSources, desiredSources := argoSyncSources(result), argoSyncSources(comparedTo)
+	return len(appliedSources) > 0 && reflect.DeepEqual(appliedSources, desiredSources)
 }
 
 func argoSyncSources(sync map[string]any) []any {

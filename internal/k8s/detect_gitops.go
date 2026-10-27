@@ -11,6 +11,7 @@ import (
 	"github.com/skyhook-io/radar/pkg/conditions"
 	"github.com/skyhook-io/radar/pkg/gitops"
 	"github.com/skyhook-io/radar/pkg/gitops/diagnose"
+	gitopsinsights "github.com/skyhook-io/radar/pkg/gitops/insights"
 	"github.com/skyhook-io/radar/pkg/timeutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -208,8 +209,8 @@ func gitopsProblem(now time.Time, kind, group, ns, name, severity, reason, messa
 // apps; flag Degraded regardless of policy (critical — live resources are
 // unhealthy); then flag a ComparisonError/InvalidSpecError/SyncError condition
 // (the sync=Unknown app-path-not-found case the generic path can't see); flag
-// Missing/OutOfSync only for auto-synced apps. One row per app, most-severe
-// cause first.
+// Missing/OutOfSync only for auto-synced apps. The latest rollback outcome
+// is independent of the current health/drift row.
 func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDriftTracker, now time.Time) []Detection {
 	var out []Detection
 	for _, app := range apps {
@@ -306,6 +307,14 @@ func detectArgoAppProblems(apps []*unstructured.Unstructured, tracker *argoDrift
 			}
 			out = append(out, d)
 			continue
+		}
+		if mismatch := gitopsinsights.DetectArgoRollbackRevisionMismatch(app); mismatch != nil {
+			d := gitopsProblem(now, "Application", argoGroup, ns, name, "warning", mismatch.Reason, mismatch.Message, createdAt)
+			d.Cause, d.Action = mismatch.Cause, mismatch.Action
+			if transitionAt, ok := argoOperationIssueTime(app, now); ok {
+				setDetectionOnset(&d, now, transitionAt)
+			}
+			out = append(out, d)
 		}
 		if strings.EqualFold(health, "Suspended") || strings.EqualFold(health, "Progressing") {
 			continue
@@ -438,7 +447,7 @@ func durationFromTimestamp(now time.Time, ts string) (time.Duration, bool) {
 // shouldn't-happen guard, not a swallowed error.
 func isArgoStuckDriftLoop(app *unstructured.Unstructured, now time.Time) bool {
 	phase, _, _ := unstructured.NestedString(app.Object, "status", "operationState", "phase")
-	if !strings.EqualFold(phase, "Succeeded") {
+	if !strings.EqualFold(phase, "Succeeded") || !gitops.ArgoAppliedCurrentComparison(app) {
 		return false
 	}
 	reconciledAt, _, _ := unstructured.NestedString(app.Object, "status", "reconciledAt")

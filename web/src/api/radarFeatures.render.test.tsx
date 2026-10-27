@@ -285,8 +285,8 @@ it('asks again once capabilities confirm workload history after a probe hit an o
 })
 
 function ArgoRollbackGate() {
-  const { upgrade } = useRadarFeature('argoRollback')
-  return <span>{upgrade ? `${upgrade.feature} @ ${upgrade.currentVersion}` : 'enabled'}</span>
+  const { upgrade, blockedReason } = useRadarFeature('argoRollback')
+  return <span>{blockedReason || (upgrade ? `${upgrade.feature} @ ${upgrade.currentVersion}` : 'enabled')}</span>
 }
 
 it('hands a control the upgrade requirement once capabilities omit its flag', async () => {
@@ -295,7 +295,7 @@ it('hands a control the upgrade requirement once capabilities omit its flag', as
   expect(element.textContent).toBe('Argo CD rollbacks @ v1.7.2')
 })
 
-it('disables a control when /api/capabilities fails', async () => {
+it('reports that support could not be checked when /api/capabilities fails', async () => {
   const answer = vi.mocked(fetch).getMockImplementation()!
   vi.mocked(fetch).mockImplementation((input, init) =>
     String(input).endsWith('/capabilities')
@@ -304,12 +304,12 @@ it('disables a control when /api/capabilities fails', async () => {
   )
   await render(<ArgoRollbackGate />)
   await settle()
-  expect(element.textContent).toBe('Argo CD rollbacks @ v1.7.2')
+  expect(element.textContent).toBe("Couldn't check this cluster's Radar support. Refresh to try again.")
 })
 
-it('leaves a control enabled while capabilities load, and once they carry its flag', async () => {
+it('keeps a control checking until capabilities carry its flag', async () => {
   await render(<ArgoRollbackGate />)
-  expect(element.textContent).toBe('enabled')
+  expect(element.textContent).toBe("Checking this cluster's Radar…")
 
   await act(async () => { client.setQueryData(['capabilities'], { features: { argoRollbackSync: true } }) })
   await settle()

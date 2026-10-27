@@ -570,11 +570,12 @@ func stuckLoopApp(t *testing.T, opts ...func(*unstructured.Unstructured)) *unstr
 			},
 		},
 		"status": map[string]any{
-			"sync":   map[string]any{"status": "OutOfSync"},
+			"sync":   map[string]any{"status": "OutOfSync", "revision": "current", "comparedTo": map[string]any{"source": map[string]any{"repoURL": "repo", "path": "app"}}},
 			"health": map[string]any{"status": "Progressing"},
 			"operationState": map[string]any{
-				"phase":   "Succeeded",
-				"message": "successfully synced (all tasks run)",
+				"phase":      "Succeeded",
+				"message":    "successfully synced (all tasks run)",
+				"syncResult": map[string]any{"revision": "current", "source": map[string]any{"repoURL": "repo", "path": "app"}},
 			},
 			"reconciledAt": time.Now().UTC().Format(time.RFC3339),
 		},
@@ -862,7 +863,8 @@ func TestBuildIssuesArgoRollbackState(t *testing.T) {
 			},
 		},
 		{
-			name: "no applied revision does not invent one", reason: "ManualDrift",
+			name: "no applied revision warns without inventing one", reason: "RollbackRevisionMismatch",
+			message: "Couldn't verify the rollback target rev-old: Argo CD recorded no applied revisions.",
 			mutate: func(u *unstructured.Unstructured) {
 				unstructured.RemoveNestedField(u.Object, "status", "operationState", "syncResult")
 			},
@@ -1418,7 +1420,7 @@ func TestBuildIssues_DriftLoopDoesNotHideDegradedFallback(t *testing.T) {
 		"health":         map[string]any{"status": "Degraded"},
 		"sync":           map[string]any{"status": "OutOfSync"},
 		"reconciledAt":   time.Now().UTC().Format(time.RFC3339),
-		"operationState": map[string]any{"phase": "Succeeded", "finishedAt": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)},
+		"operationState": map[string]any{"phase": "Succeeded", "finishedAt": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), "syncResult": map[string]any{"revision": "current", "source": map[string]any{"path": "app"}}},
 		"resources": []any{
 			map[string]any{"group": "apps", "kind": "Deployment", "namespace": "prod", "name": "web", "status": "OutOfSync"},
 		},
@@ -1427,6 +1429,8 @@ func TestBuildIssues_DriftLoopDoesNotHideDegradedFallback(t *testing.T) {
 		"destination": map[string]any{"server": "https://kubernetes.default.svc"},
 		"syncPolicy":  map[string]any{"automated": map[string]any{"selfHeal": true}},
 	}
+	_ = unstructured.SetNestedField(root.Object, "current", "status", "sync", "revision")
+	_ = unstructured.SetNestedMap(root.Object, map[string]any{"source": map[string]any{"path": "app"}}, "status", "sync", "comparedTo")
 	r := &fakeResolver{events: map[string][]EventSummary{"web": {{Type: "Warning", Reason: "BackOff", Message: "restarting", Count: 3}}}}
 	issues := buildIssues(root, &gitopstree.ResourceTree{Summary: gitopstree.Summary{Degraded: 1}}, "argocd", r)
 	var drift, lead, summary bool
@@ -2274,7 +2278,7 @@ func TestBuildIssuesArgoRollbackRevisionMismatch(t *testing.T) {
 				if issue.Reason != "RollbackRevisionMismatch" || issue.Severity != SeverityWarning || issue.Scope != ScopeOperation || issue.Message != "Last rollback deployed different sources or revisions than requested: new-a, new-b instead of old-a, old-b." {
 					t.Fatalf("unexpected mismatch warning: %+v", issue)
 				}
-				if issue.Cause != "Argo CD 2.11 can ignore a multi-source history entry's sources and revisions and sync the current ones." || issue.Action != "Check the Argo CD controller version, then sync the intended revision manually." {
+				if issue.Cause != "On Argo CD before 2.12, rolling back across a single-source/multi-source change or to a multi-source entry can deploy the wrong revisions or render nothing; with prune, it can delete resources." || issue.Action != "Check the Argo CD controller version, then sync the intended revision manually." {
 					t.Fatalf("unexpected recovery advice: %+v", issue)
 				}
 			})
@@ -2305,10 +2309,12 @@ func TestBuildIssuesArgoSingleSourceRollbackMismatchDoesNotBlameMultiSource(t *t
 
 func TestBuildHistoryArgoMultiSourceWarning(t *testing.T) {
 	for _, tc := range []struct {
-		name  string
-		entry map[string]any
-		want  bool
+		name         string
+		entry        map[string]any
+		currentMulti bool
+		want         bool
 	}{
+		{name: "current multi-source with singular history", currentMulti: true, entry: map[string]any{"revision": "a", "source": map[string]any{"path": "app"}}, want: true},
 		{name: "singular source", entry: map[string]any{"revision": "a,b", "source": map[string]any{"path": "app"}}},
 		{name: "sources array with one source", entry: map[string]any{"sources": []any{map[string]any{"path": "app"}}}, want: true},
 		{name: "revisions array with one revision", entry: map[string]any{"revisions": []any{"a"}}, want: true},
@@ -2316,6 +2322,9 @@ func TestBuildHistoryArgoMultiSourceWarning(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.entry["id"] = int64(0)
 			root := argoApp(map[string]any{"history": []any{tc.entry}})
+			if tc.currentMulti {
+				_ = unstructured.SetNestedSlice(root.Object, []any{map[string]any{"path": "current"}}, "spec", "sources")
+			}
 			history := BuildHistory(root)
 			if len(history) != 1 || history[0].MultiSource != tc.want {
 				t.Fatalf("history = %+v, want multiSource=%v", history, tc.want)
@@ -2400,5 +2409,43 @@ func TestArgoConfigurationKindsDoNotOfferApplicationOperations(t *testing.T) {
 				t.Fatalf("capabilities = %+v, want %+v", out.Capabilities, want)
 			}
 		})
+	}
+}
+
+func TestDetectStuckDriftLoopRequiresCurrentComparison(t *testing.T) {
+	for _, field := range []string{"revision", "source", "missing result"} {
+		t.Run(field, func(t *testing.T) {
+			root := stuckLoopApp(t)
+			switch field {
+			case "revision":
+				_ = unstructured.SetNestedField(root.Object, "old", "status", "operationState", "syncResult", "revision")
+			case "source":
+				_ = unstructured.SetNestedField(root.Object, "other", "status", "operationState", "syncResult", "source", "path")
+			case "missing result":
+				unstructured.RemoveNestedField(root.Object, "status", "operationState", "syncResult")
+			}
+			result, _, _ := unstructured.NestedMap(root.Object, "status", "operationState", "syncResult")
+			_ = unstructured.SetNestedMap(root.Object, map[string]any{"sync": result, "info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}}}, "status", "operationState", "operation")
+			if got := detectStuckDriftLoop(root); got != nil {
+				t.Fatalf("old apply treated as loop: %+v", got)
+			}
+			for _, issue := range buildIssues(root, nil, "argocd", nil) {
+				if issue.Reason == "StuckDriftLoop" {
+					t.Fatalf("build emitted loop: %+v", issue)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildIssuesRollbackWithoutAppliedRevisions(t *testing.T) {
+	root := argoApp(map[string]any{"operationState": map[string]any{
+		"phase":      "Succeeded",
+		"operation":  map[string]any{"info": []any{map[string]any{"name": "radarhq.io/rollback", "value": "true"}}, "sync": map[string]any{"revision": "old"}},
+		"syncResult": map[string]any{},
+	}})
+	issues := buildIssues(root, nil, "argocd", nil)
+	if len(issues) != 1 || issues[0].Reason != "RollbackRevisionMismatch" || issues[0].Message != "Couldn't verify the rollback target old: Argo CD recorded no applied revisions." {
+		t.Fatalf("missing verification warning: %+v", issues)
 	}
 }

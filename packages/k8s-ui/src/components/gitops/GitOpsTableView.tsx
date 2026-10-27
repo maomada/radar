@@ -292,6 +292,7 @@ export interface GitOpsTableViewProps {
   // Set when the connected Radar is too old to turn auto-sync back on for an
   // Application with automated.enabled: false; its Resume renders disabled.
   argoResumeUpgrade?: RadarUpgradeRequirement | null
+  argoResumeBlockedReason?: string
 }
 
 // ----- Main component --------------------------------------------------------
@@ -335,6 +336,7 @@ export function GitOpsTableView({
   onRowAction,
   pendingRowActions,
   argoResumeUpgrade,
+  argoResumeBlockedReason,
   filtersSide = 'left',
 }: GitOpsTableViewProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -864,6 +866,7 @@ export function GitOpsTableView({
               onRowAction={onRowAction}
               pendingRowActions={pendingRowActions}
               argoResumeUpgrade={argoResumeUpgrade}
+              argoResumeBlockedReason={argoResumeBlockedReason}
             />
           )}
         </div>
@@ -1295,6 +1298,7 @@ function GitOpsTable({
   onRowAction,
   pendingRowActions,
   argoResumeUpgrade,
+  argoResumeBlockedReason,
 }: {
   rows: GitOpsRow[]
   sort: { key: SortKey; dir: SortDir } | null
@@ -1307,6 +1311,7 @@ function GitOpsTable({
   onRowAction?: (row: GitOpsRow, action: GitOpsRowAction) => void
   pendingRowActions?: Map<string, Set<GitOpsRowAction>>
   argoResumeUpgrade?: RadarUpgradeRequirement | null
+  argoResumeBlockedReason?: string
 }) {
   const showActions = !!onRowAction
   return (
@@ -1413,7 +1418,7 @@ function GitOpsTable({
                   className="overflow-visible border-b border-theme-border px-2 py-2 text-right align-middle"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <RowActionMenu items={buildRowActionItems(row, onRowAction, pendingRowActions, argoResumeUpgrade)} />
+                  <RowActionMenu items={buildRowActionItems(row, onRowAction, pendingRowActions, argoResumeUpgrade, argoResumeBlockedReason)} />
                 </td>
               )}
             </tr>
@@ -1433,6 +1438,7 @@ export function buildRowActionItems(
   onAction: (row: GitOpsRow, action: GitOpsRowAction) => void,
   pending?: Map<string, Set<GitOpsRowAction>>,
   argoResumeUpgrade?: RadarUpgradeRequirement | null,
+  argoResumeBlockedReason?: string,
 ): RowActionItem[] {
   const inFlight = pending?.get(row.id)
   const isPending = (action: GitOpsRowAction) => inFlight?.has(action) ?? false
@@ -1485,14 +1491,16 @@ export function buildRowActionItems(
       pending: isPending('hard-refresh'),
     })
     if (suspended) {
-      const resumeUpgrade = argoResumeUpgrade && isArgoAutoSyncSwitchedOff(row.raw) ? argoResumeUpgrade : null
+      const resumeBlockedReason = isArgoAutoSyncSwitchedOff(row.raw)
+        ? argoResumeBlockedReason || (argoResumeUpgrade ? radarUpgradeNoteText(argoResumeUpgrade) : undefined)
+        : undefined
       items.push({
         key: 'resume',
         label: 'Resume',
         icon: Play,
-        onClick: () => onAction(row, 'resume'),
-        disabled: terminating || !!resumeUpgrade,
-        disabledReason: terminating ? terminatingReason : resumeUpgrade ? radarUpgradeNoteText(resumeUpgrade) : undefined,
+        onClick: () => !resumeBlockedReason && onAction(row, 'resume'),
+        disabled: terminating || !!resumeBlockedReason,
+        disabledReason: terminating ? terminatingReason : resumeBlockedReason,
         pending: isPending('resume'),
         divider: true,
       })

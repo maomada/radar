@@ -144,7 +144,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
   const fluxSyncWithSource = useFluxSyncWithSource()
   const fluxSuspend = useFluxSuspend()
   const fluxResume = useFluxResume()
-  const { upgrade: argoResumeUpgrade } = useRadarFeature('argoAutoSyncEnable')
+  const { upgrade: argoResumeUpgrade, blockedReason: argoResumeBlockedReason } = useRadarFeature('argoAutoSyncEnable')
 
   const [syncDialogRow, setSyncDialogRow] = useState<GitOpsRow | null>(null)
   const [pendingActions, setPendingActions] = useState<Map<string, Set<GitOpsRowAction>>>(new Map())
@@ -309,6 +309,10 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
         else fluxSuspend.mutate({ kind, namespace, name }, settle)
         return
       case 'resume':
+        if (row.tool === 'argo' && isArgoAutoSyncSwitchedOff(row.raw) && (argoResumeUpgrade || argoResumeBlockedReason)) {
+          markAction(id, action, false)
+          return
+        }
         if (row.tool === 'argo') argoResume.mutate({ namespace, name }, settle)
         else fluxResume.mutate({ kind, namespace, name }, settle)
         return
@@ -348,6 +352,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
         onRowAction={handleRowAction}
         pendingRowActions={pendingActions}
         argoResumeUpgrade={argoResumeUpgrade}
+        argoResumeBlockedReason={argoResumeBlockedReason}
         searchHotkey
         globalNamespaces={namespaces}
         onClearNamespaces={onClearNamespaces}
@@ -468,8 +473,8 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   const argoSuspend = useArgoSuspend()
   const argoResume = useArgoResume()
   const argoRollback = useArgoRollback()
-  const { upgrade: argoRollbackUpgrade } = useRadarFeature('argoRollback')
-  const { upgrade: argoResumeUpgrade } = useRadarFeature('argoAutoSyncEnable')
+  const { upgrade: argoRollbackUpgrade, blockedReason: argoRollbackBlockedReason } = useRadarFeature('argoRollback')
+  const { upgrade: argoResumeUpgrade, blockedReason: argoResumeBlockedReason } = useRadarFeature('argoAutoSyncEnable')
   const { support: argoInheritanceSupport } = useRadarFeature('argoSyncInheritance')
   const applyResource = useApplyResource()
   const fluxReconcile = useFluxReconcile()
@@ -671,7 +676,10 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
     },
     onTerminate: () => argoTerminate.mutate({ namespace, name }),
     onSuspend: () => argoSuspend.mutate({ namespace, name }),
-    onResume: () => argoResume.mutate({ namespace, name }),
+    onResume: () => {
+      if (isArgoAutoSyncSwitchedOff(resourceQ.data) && (argoResumeUpgrade || argoResumeBlockedReason)) return
+      argoResume.mutate({ namespace, name })
+    },
     syncing: argoSync.isPending,
     refreshing: argoRefresh.isPending,
     refreshingKind: refreshKind,
@@ -683,6 +691,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
     operationInProgress,
     resumeUpgrade: isArgoAutoSyncSwitchedOff(resourceQ.data) ? argoResumeUpgrade : null,
     resumeSettings: argoResumeSettings(resourceQ.data, argoInheritanceSupport === 'unknown' ? undefined : argoInheritanceSupport === 'supported'),
+    resumeBlockedReason: isArgoAutoSyncSwitchedOff(resourceQ.data) ? argoResumeBlockedReason : undefined,
   } : undefined
 
   const fluxHandlers: FluxActionHandlers | undefined = isFlux ? {
@@ -829,10 +838,11 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
               insight={insightsQ.data}
               error={insightsQ.error as Error | null}
               onRollback={isArgoApp && !operationInProgress ? (item) => {
-                if (parseArgoRollbackID(item.id) == null) return
+                if (argoRollbackUpgrade || argoRollbackBlockedReason || parseArgoRollbackID(item.id) == null) return
                 setRollbackTarget(item)
               } : undefined}
               rollbackUpgrade={argoRollbackUpgrade}
+              rollbackBlockedReason={argoRollbackBlockedReason}
             />
           )
         }
@@ -940,11 +950,11 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
             source={rollbackTarget?.source}
             multiSource={rollbackTarget?.multiSource}
             pending={argoRollback.isPending}
+            blockedReason={argoRollbackBlockedReason || (argoRollbackUpgrade ? radarUpgradeNoteText(argoRollbackUpgrade) : undefined)}
             onCancel={() => setRollbackTarget(null)}
             onConfirm={(opts) => {
-              // The dialog may have opened before /api/capabilities answered.
-              if (argoRollbackUpgrade) {
-                showError('Rollback unavailable', radarUpgradeNoteText(argoRollbackUpgrade))
+              if (argoRollbackUpgrade || argoRollbackBlockedReason) {
+                showError('Rollback unavailable', argoRollbackBlockedReason || radarUpgradeNoteText(argoRollbackUpgrade!))
                 setRollbackTarget(null)
                 return
               }

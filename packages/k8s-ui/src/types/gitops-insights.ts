@@ -56,6 +56,8 @@ export interface GitOpsInsightSummary {
   source?: string
   targetRevision?: string
   lastRevision?: string
+  // Latest successful rollback revision(s), while auto-sync is off.
+  rollbackRevision?: string
   lastReconcile?: string
   partialReason?: string
   // Human-readable sync mode for the chip in the status strip.
@@ -238,6 +240,7 @@ export interface GitOpsHistoryItem {
   // (false when it records no source). Absent on the current-operation row,
   // and on every row from a Radar that predates the field.
   rollbackable?: boolean
+  // Compatibility warning: the current Application or history entry uses plural sources.
   multiSource?: boolean
 }
 

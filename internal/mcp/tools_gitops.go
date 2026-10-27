@@ -30,7 +30,7 @@ type manageGitOpsInput struct {
 	SyncOptions []string `json:"sync_options,omitempty" jsonschema:"sync only — Argo SyncOption strings, e.g. Replace=true, ServerSideApply=true. Omit to use the Application's own syncPolicy.syncOptions; a list replaces them ([] = none). Include existing options you want to keep (e.g. CreateNamespace=true)."`
 
 	// ArgoCD rollback options (rollback only).
-	HistoryID *int64 `json:"history_id,omitempty" jsonschema:"rollback only — status.history[].id from get_resource Application (first is 0); auto-sync must be off; multi-source needs Argo CD 2.12+ (2.11 syncs current sources)."`
+	HistoryID *int64 `json:"history_id,omitempty" jsonschema:"rollback only — status.history[].id from get_resource Application (first is 0); auto-sync must be off; before Argo CD 2.12, rollback across a single-source/multi-source change or of a multi-source entry can deploy wrong revisions or render nothing; prune can delete resources."`
 }
 
 // GitOps tool handler

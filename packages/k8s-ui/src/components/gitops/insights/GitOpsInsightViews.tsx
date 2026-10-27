@@ -885,7 +885,7 @@ export function GitOpsChangesView({ insight, error, onOpenResource, onSyncResour
   // to a muted placeholder and explain the cause once. Health stays — it's a
   // live signal that's still knowable and still worth reading.
   const syncUnavailable = isArgoRoot && (insight.summary.sync ?? '').toLowerCase() === 'unknown'
-  const rolledBack = !!insight.issues?.some(issue => issue.reason === 'RolledBack')
+  const rolledBack = !!insight.summary.rollbackRevision
   const toggleFacet = (facet: ResourceStatusFacet) => {
     setStatusFilters((prev) => {
       const next = new Set(prev)
@@ -1622,9 +1622,10 @@ interface GitOpsActivityInsightViewProps {
   // Set when the connected Radar is too old to roll back: every Rollback
   // renders disabled, with the upgrade note above the history.
   rollbackUpgrade?: RadarUpgradeRequirement | null
+  rollbackBlockedReason?: string
 }
 
-export function GitOpsActivityInsightView({ insight, error, onRollback, rollbackUpgrade }: GitOpsActivityInsightViewProps) {
+export function GitOpsActivityInsightView({ insight, error, onRollback, rollbackUpgrade, rollbackBlockedReason }: GitOpsActivityInsightViewProps) {
   if (error && !insight) return <InsightErrorState error={error} />
   if (!insight) return <PaneLoader label="Loading GitOps activity…" className="h-full" />
   const canRollback = !!insight.capabilities?.rollback && !!onRollback
@@ -1642,17 +1643,18 @@ export function GitOpsActivityInsightView({ insight, error, onRollback, rollback
         <SectionHeader
           icon={Clock3}
           title="History"
-          hint={canRollback && !upgrade ? 'Each revision can be rolled back to.' : undefined}
+          hint={canRollback && !upgrade && !rollbackBlockedReason ? 'Each revision can be rolled back to.' : undefined}
         />
         {upgrade && <RadarUpgradeNote requirement={upgrade} className="border-b border-theme-border px-4 py-2.5" />}
+        {canRollback && rollbackBlockedReason && <p className="border-b border-theme-border px-4 py-2.5 text-xs text-theme-text-secondary">{rollbackBlockedReason}</p>}
         <HistoryRows
           items={insight.history ?? []}
           canRollback={canRollback}
-          rollbackBlockedReason={upgrade
+          rollbackBlockedReason={rollbackBlockedReason || (upgrade
             ? radarUpgradeNoteText(upgrade)
             : autoSyncBlocksRollback
               ? 'Auto-sync is enabled. Disable it to enable rollback — otherwise the controller will sync forward to HEAD again.'
-              : undefined}
+              : undefined)}
           onRollback={onRollback}
         />
       </section>
