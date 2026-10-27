@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Badge } from '../../ui/Badge'
+import { healthToSeverity } from '../../../utils/badge-colors'
 import { Section, PropertyList, Property, ConditionsSection } from '../../ui/drawer-components'
 import { getCollectorPipelines, getOpenTelemetryCollectorStatus, getOpenTelemetryInstrumentationStatus } from '../resource-utils-opentelemetry'
 
@@ -12,7 +13,7 @@ export function OpenTelemetryCollectorRenderer({ data }: { data: any }) {
   return <>
     <Section title="Collector" defaultExpanded>
       <PropertyList>
-        <Property label="Reconciliation" value={<Badge colorClass={state.color}>{state.text}</Badge>} />
+        <Property label="Reconciliation" value={<Badge severity={healthToSeverity(state.level)}>{state.text}</Badge>} />
         <Property label="Mode" value={data.spec?.mode} />
         <Property label="Management" value={data.spec?.managementState} />
         <Property label={data.spec?.mode === 'daemonset' ? 'Reported ready / scheduled Pods' : 'Reported ready / observed Pods'} value={data.status?.scale?.statusReplicas} />
@@ -51,7 +52,7 @@ export function OpenTelemetryInstrumentationRenderer({ data }: { data: any }) {
   return <>
     <Section title="Auto-instrumentation Configuration" defaultExpanded>
       <PropertyList>
-        <Property label="Configuration" value={<Badge colorClass={state.color}>{state.text}</Badge>} />
+        <Property label="Configuration" value={<Badge severity={healthToSeverity(state.level)}>{state.text}</Badge>} />
         {spec.exporter?.endpoint && <Property label="OTLP endpoint" value={<span className="break-all">{spec.exporter.endpoint}</span>} />}
         <Property label="Propagators" value={spec.propagators?.join(', ')} />
         <Property label="Sampler" value={spec.sampler?.type} />
@@ -64,6 +65,7 @@ export function OpenTelemetryInstrumentationRenderer({ data }: { data: any }) {
     {blocked.length > 0 && <Section title="Blocked Image Upgrades" defaultExpanded>
       <PropertyList>{blocked.map(language => <Property key={language} label={language} value={<span className="whitespace-pre-wrap break-words">{String(data.status.upgradeBlockedVersions[language]).slice(0, 1000)}{String(data.status.upgradeBlockedVersions[language]).length > 1000 ? '… Inspect YAML for the full explanation.' : ''}</span>} />)}</PropertyList>
     </Section>}
+    {/* Runtime image defaults are secondary to endpoint/sampler and upgrade failures. */}
     {runtimeImages.length > 0 && <Section title="Runtime Images" defaultExpanded={false}><PropertyList>
       {runtimeImages.map(language => <Property key={language} label={language} value={<span className="break-all">{spec[language].image}</span>} />)}
     </PropertyList></Section>}
