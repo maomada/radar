@@ -310,7 +310,7 @@ func New(cfg Config) *Server {
 			}
 		}
 	}
-	if s.allowAnyHost && !cfg.AuthConfig.Enabled() && !cloud.IsLoopbackHostname(cfg.ListenAddress) {
+	if allowAnyHostWarning(s.allowAnyHost, cfg.AuthConfig, cfg.ListenAddress) {
 		log.Printf("WARNING: --allowed-hosts=* turns off Host validation; any web page that rebinds its hostname to this address can use Radar")
 	}
 	opencost.PublishCurrencyResolver(s.openCostCurrency)
@@ -1295,6 +1295,10 @@ func listenPreferringPort(listenAddress string, port int, fallback bool) (net.Li
 	}
 	log.Printf("Port %d is unavailable (%v); using an OS-assigned port", port, err)
 	return net.Listen("tcp", socketAddress(listenAddress, 0))
+}
+
+func allowAnyHostWarning(allowAnyHost bool, authConfig auth.Config, listenAddress string) bool {
+	return allowAnyHost && !authConfig.Enabled() && !cloud.IsLoopbackHostname(listenAddress)
 }
 
 func shouldWarnUnauthenticatedListener(listenAddress string, authEnabled bool) bool {
