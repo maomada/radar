@@ -39,7 +39,6 @@ import { isApiGroup } from '../resources/resource-utils-cnpg'
 import { isArgoRolloutResource } from '../../utils/workload-rollout'
 import { isCoreBatchJob } from '../../utils/api-resources'
 import { formatRelativeAgeTime } from '../../utils/format'
-import { usePhoneLayout } from '../../hooks/usePhoneLayout'
 
 // ============================================================================
 // ACTIONS BAR - Interactive buttons that change based on resource kind
@@ -167,11 +166,11 @@ interface ResourceActionsBarProps {
 
 export function ResourceActionsBar({
   resource, data, leadingActions, onClose, hideLogs, showYaml, onToggleYaml,
-  onCompareTo: onCompareToProp,
-  onCompareAcrossClusters: onCompareAcrossClustersProp,
+  onCompareTo,
+  onCompareAcrossClusters,
   canExec, canViewLogs, canPortForward,
   onOpenTerminal, onOpenLogs: openLogs, onOpenWorkloadLogs: openWorkloadLogs, onCopyCommand,
-  renderPortForward: renderPortForwardProp,
+  renderPortForward,
   onDelete, isDeleting, onDeletePreviewOpenChange, cascadeDetail, cascadeDependents, cascadeLoading, cascadeRootResolved, cascadePreviewFailed,
   onRestart, isRestarting,
   onLoadImages, onSetImages, isSettingImages, imageOwnership,
@@ -195,12 +194,6 @@ export function ResourceActionsBar({
   onDrainNode, isDrainingNode,
   onPlanDrain, onPlanDrainReset, drainPlan, isPlanningDrain, drainPlanError, drainPlanUpgrade,
 }: ResourceActionsBarProps) {
-  // Phones keep the triage actions and drop Compare and Port Forward: a
-  // side-by-side diff and a local tunnel don't fit a phone.
-  const isPhone = usePhoneLayout()
-  const onCompareTo = isPhone ? undefined : onCompareToProp
-  const onCompareAcrossClusters = isPhone ? undefined : onCompareAcrossClustersProp
-  const renderPortForward = isPhone ? undefined : renderPortForwardProp
   const kind = resource.kind.toLowerCase()
   const isFluxAction = FLUX_ACTION_KINDS.has(kind) && getGitOpsTool(kind, apiVersionToGroup(data?.apiVersion)) === 'flux'
   const coreBatchJob = isCoreBatchJob(kind, resource.group)

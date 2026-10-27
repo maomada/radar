@@ -12,8 +12,7 @@ interface RevisionHistoryProps {
   currentRevision: number
   operations?: HelmOperation[]
   onViewRevision: (revision: number) => void
-  /** Omitted where comparing isn't offered (phones). */
-  onCompare?: (rev1: number, rev2: number) => void
+  onCompare: (rev1: number, rev2: number) => void
   onRollback?: (revision: number) => void
 }
 
@@ -29,7 +28,7 @@ export function RevisionHistory({ history, currentRevision, operations = [], onV
       // Compare the two revisions (older first)
       const rev1 = Math.min(selectedForCompare, revision)
       const rev2 = Math.max(selectedForCompare, revision)
-      onCompare?.(rev1, rev2)
+      onCompare(rev1, rev2)
       setSelectedForCompare(null)
     }
   }
@@ -135,29 +134,27 @@ export function RevisionHistory({ history, currentRevision, operations = [], onV
                       <Eye className="w-3.5 h-3.5" />
                       View Manifest
                     </button>
-                    {onCompare && (
-                      <button
-                        onClick={() => handleCompareClick(revision.revision)}
-                        className={clsx(
-                          'flex items-center gap-1 px-2 py-1 text-xs rounded',
-                          isSelectedForCompare
-                            ? 'bg-blue-500 text-theme-text-primary'
-                            : 'text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated'
-                        )}
-                      >
-                        {isSelectedForCompare ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            Selected
-                          </>
-                        ) : (
-                          <>
-                            <GitCompare className="w-3.5 h-3.5" />
-                            Compare
-                          </>
-                        )}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleCompareClick(revision.revision)}
+                      className={clsx(
+                        'flex items-center gap-1 px-2 py-1 text-xs rounded',
+                        isSelectedForCompare
+                          ? 'bg-blue-500 text-theme-text-primary'
+                          : 'text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated'
+                      )}
+                    >
+                      {isSelectedForCompare ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          Selected
+                        </>
+                      ) : (
+                        <>
+                          <GitCompare className="w-3.5 h-3.5" />
+                          Compare
+                        </>
+                      )}
+                    </button>
                     {!isCurrent && onRollback && (
                       <button
                         onClick={() => onRollback(revision.revision)}

@@ -4383,9 +4383,7 @@ export function ResourcesView({
   // path qualifies: onNavigate for the default same-cluster `/compare?...`
   // URL, or onCompareSubmit for hosts that build their own URL (e.g.
   // Radar Hub's `/fleet/compare` with cluster IDs).
-  // Phones keep triage and drop the power tools: compare, bulk selection,
-  // create and the column picker (see the toolbar).
-  const compareEnabled = (!!onNavigate || !!onCompareSubmit) && !isPhone
+  const compareEnabled = !!onNavigate || !!onCompareSubmit
   const [compareMode, setCompareMode] = useState(false)
   const [comparePicks, setComparePicks] = useState<CompareTrayPick[]>([])
 
@@ -4400,10 +4398,6 @@ export function ResourcesView({
     setCompareMode(false)
     setComparePicks([])
   }, [])
-  // Rotating into phone layout mid-compare leaves no control to exit it.
-  useEffect(() => {
-    if (!compareEnabled) exitCompareMode()
-  }, [compareEnabled, exitCompareMode])
 
   const toggleComparePick = useCallback((resource: any) => {
     if (!resource?.metadata?.name) return
@@ -5849,6 +5843,8 @@ export function ResourcesView({
   const selectedKindName = selectedKind.name.toLowerCase()
   const canBulkRestartSelectedKind = onBulkRestart != null && BULK_RESTART_WORKLOAD_KINDS.has(selectedKindName)
   const canBulkScaleSelectedKind = onBulkScale != null && BULK_SCALE_WORKLOAD_KINDS.has(selectedKindName)
+  // Phones skip bulk selection and create (see the toolbar): phone triage
+  // is one resource at a time.
   const canBulkSelect = !isPhone && (onBulkDelete != null || canBulkRestartSelectedKind || canBulkScaleSelectedKind)
   const isBulkMutating = isBulkDeleting || isBulkRestarting || isBulkScaling
 
@@ -6487,9 +6483,8 @@ export function ResourcesView({
             </Tooltip>
           )}
 
-          {/* Column picker (not on phones: fiddly by touch, and it changes the
-              saved columns a wider layout in the same browser reads) */}
-          <div className="relative flex phone:hidden" ref={columnPickerRef}>
+          {/* Column picker */}
+          <div className="relative flex" ref={columnPickerRef}>
             <Tooltip content="Configure columns">
             <button
               onClick={() => setShowColumnPicker(prev => !prev)}
