@@ -357,7 +357,7 @@ export function ApplicationsView({ entries: allEntries, variant, onSelect, title
           actions={
             <>
               {headerActions}
-              <SummaryTile label={total === 1 ? 'application' : 'applications'} value={total} loading={initialLoading} />
+              <SummaryTile label={total === 1 ? 'application' : 'applications'} phoneLabel={total === 1 ? 'app' : 'apps'} value={total} loading={initialLoading} />
               {healthTile('unhealthy', 'error')}
               {healthTile('degraded', 'warning')}
               {healthTile('healthy', 'success')}
