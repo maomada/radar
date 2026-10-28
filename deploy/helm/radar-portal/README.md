@@ -14,10 +14,10 @@ see [the Portal deployment guide](../../../docs/portal.md).
 - A locally built Portal image in a registry accessible to the cluster
 
 The `tokens` Secret key contains a JSON object mapping cluster IDs to unique
-registration tokens. `username` and `password` are the separate viewer Basic
-Authentication credentials. Each token must be at least 32 characters; the
-username must be non-empty and contain no colon or control characters, and the
-password must be at least 16 characters. The server rejects duplicate
+registration tokens. `username` and `password` are the separate viewer login
+credentials. Each token must be at least 32 characters; the username must be
+1–256 bytes and contain no colon or control characters, and the password must
+be 16–4096 bytes. The server rejects duplicate
 registration tokens.
 
 Create and rotate these values through your approved secret manager or
@@ -59,9 +59,16 @@ The Service is cluster-internal by default. If exposing it with an Ingress,
 configure TLS termination at the ingress or another trusted reverse proxy.
 The Portal UI, API, and assets are root-hosted: use a dedicated hostname with
 path `/` and `pathType: Prefix`; subpath hosting is not supported.
-The Portal's listener itself speaks HTTP; never expose viewer Basic
-Authentication or bearer registration traffic over an untrusted plaintext
+The Portal's listener itself speaks HTTP; never expose viewer login
+credentials or bearer registration traffic over an untrusted plaintext
 network.
+
+Visitors first see `/login`; successful login opens the protected overview.
+The Portal issues `HttpOnly`, `Secure`, `SameSite=Strict` cookies, so viewer
+access requires HTTPS via the ingress or trusted TLS proxy. Sessions expire
+after eight hours or a Portal restart. The overview includes a logout action
+that revokes the current session. Login credentials remain in the existing
+Secret; no additional session secret or chart setting is required.
 
 The PVC is the sole durable registry copy. Back it up using the storage
 platform's supported process. The server is deliberately single-replica and

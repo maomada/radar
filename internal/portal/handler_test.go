@@ -80,7 +80,7 @@ func TestRegistrationAuthIsIDScopedAndViewerCannotRegister(t *testing.T) {
 		t.Fatalf("bearer read status = %d, want 401", readResponse.Code)
 	}
 	read = httptest.NewRequest(http.MethodGet, "/api/clusters", nil)
-	read.SetBasicAuth(testUsername, testPassword)
+	read.AddCookie(loginForTest(t, handler))
 	readResponse = httptest.NewRecorder()
 	handler.ServeHTTP(readResponse, read)
 	if readResponse.Code != http.StatusOK {
@@ -240,11 +240,10 @@ func TestViewerUsernameValidationAndEmbeddedAssetServing(t *testing.T) {
 	}
 	handler, err := NewHandler(registry, credentials, static)
 	if err != nil {
-		t.Fatalf("short valid Basic username rejected: %v", err)
+		t.Fatalf("short valid username rejected: %v", err)
 	}
-	for _, path := range []string{"/", "/assets/app.js"} {
+	for _, path := range []string{"/login", "/assets/app.js"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
-		request.SetBasicAuth(credentials.Username, credentials.Password)
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		if response.Code != http.StatusOK {
@@ -254,14 +253,14 @@ func TestViewerUsernameValidationAndEmbeddedAssetServing(t *testing.T) {
 	for _, username := range []string{"", "user:name", "user\nname"} {
 		credentials.Username = username
 		if _, err := NewHandler(registry, credentials, nil); err == nil {
-			t.Errorf("invalid Basic username %q accepted", username)
+			t.Errorf("invalid username %q accepted", username)
 		}
 	}
 }
 
 func TestViewerAuthAndHealthSeparation(t *testing.T) {
 	handler, _ := testHandler(t, filepath.Join(t.TempDir(), "registry.json"))
-	for _, path := range []string{"/", "/assets/app.js"} {
+	for _, path := range []string{"/api/clusters", "/api/auth/session"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)

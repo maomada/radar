@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowUpRight, BookOpen, Check, Copy, ExternalLink, Globe, Layers, Moon, Plug, Radar, RefreshCw, Search, Server, ShieldCheck, Sun } from 'lucide-react'
+import { Activity, ArrowUpRight, BookOpen, Check, Copy, ExternalLink, Globe, Layers, LogOut, Plug, Radar, RefreshCw, Search, Server, ShieldCheck } from 'lucide-react'
 import { Badge } from '@skyhook-io/k8s-ui/components/ui/Badge'
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../api/config'
 import { filterClusters, mcpClientConfig, safeExternalURL } from './model'
 import type { PortalCluster, PortalDirectory } from './model'
+import { ThemeToggle } from './ThemeToggle'
 
 const connectionLabels = { connected: '已连接', connecting: '连接中', disconnected: '未连接' }
 const authLabels = { none: '未启用认证', proxy: '代理认证', oidc: 'OIDC 登录' }
@@ -116,15 +117,23 @@ export function Portal() {
   const [query, setQuery] = useState('')
   const [environment, setEnvironment] = useState('')
   const [status, setStatus] = useState('')
-  const [dark, setDark] = useState(() => {
-    try { return localStorage.getItem('radar-portal-theme') === 'dark' }
-    catch { return false }
-  })
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
-    try { localStorage.setItem('radar-portal-theme', dark ? 'dark' : 'light') } catch { /* Storage may be disabled. */ }
-  }, [dark])
+  const [loggingOut, setLoggingOut] = useState(false)
+  async function logout() {
+    setLoggingOut(true)
+    setError('')
+    try {
+      const response = await fetch(apiUrl('/auth/logout'), {
+        method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        credentials: getCredentialsMode(), body: '{}', signal: AbortSignal.timeout(10000),
+      })
+      if (!response.ok) throw new Error('logout failed')
+      setDirectory(undefined)
+      window.location.replace('/login')
+    } catch {
+      setError('退出登录失败，会话可能仍然有效。请检查网络后重试。')
+      setLoggingOut(false)
+    }
+  }
   useEffect(() => {
     let disposed = false
     let timer: number | undefined
@@ -134,7 +143,11 @@ export function Portal() {
       const timeout = window.setTimeout(() => controller.abort(), 10000)
       try {
         const response = await fetch(apiUrl('/clusters'), { headers: getAuthHeaders(), credentials: getCredentialsMode(), signal: controller.signal, cache: 'no-store' })
-        if (!response.ok) throw new Error(response.status === 401 ? '门户登录已失效，请重新加载页面并登录。' : `读取目录失败（HTTP ${response.status}）`)
+        if (response.status === 401) {
+          if (!disposed) { setDirectory(undefined); window.location.replace('/login?expired=1') }
+          return
+        }
+        if (!response.ok) throw new Error(`读取目录失败（HTTP ${response.status}）`)
         const data: PortalDirectory = await response.json()
         if (!Array.isArray(data.clusters) || !data.serverTime || !data.staleAfterSeconds) throw new Error('门户返回了无效的集群目录。')
         if (!disposed) { setDirectory(data); setError('') }
@@ -166,7 +179,7 @@ export function Portal() {
     <header className="border-b border-theme-border bg-theme-surface">
       <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-4 lg:px-10">
         <a href="/" className="flex items-center gap-3" aria-label="Radar 集群门户首页"><Radar size={29} className="text-accent-text" /><span className="text-xl font-semibold">Radar</span><span className="border-l border-theme-border pl-3 text-sm text-theme-text-secondary">集群门户</span></a>
-        <div className="flex items-center gap-3"><span className="hidden items-center gap-1.5 text-xs text-theme-text-tertiary sm:flex"><ShieldCheck size={14} />独立部署 · 凭据隔离</span><button className="portal-control" onClick={() => setDark(value => !value)} aria-label={dark ? '切换浅色主题' : '切换深色主题'}>{dark ? <Sun size={17} /> : <Moon size={17} />}</button></div>
+        <div className="flex items-center gap-3"><span className="hidden items-center gap-1.5 text-xs text-theme-text-tertiary sm:flex"><ShieldCheck size={14} />独立部署 · 凭据隔离</span><ThemeToggle /><button type="button" className="portal-control inline-flex items-center gap-2" onClick={logout} disabled={loggingOut}><LogOut size={16} />{loggingOut ? '正在退出…' : '退出登录'}</button></div>
       </div>
     </header>
     <main className="mx-auto max-w-[1800px] px-5 py-8 lg:px-10">

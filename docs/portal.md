@@ -65,9 +65,9 @@ Secret mechanism. It must contain:
 - `tokens`: a JSON object mapping each authorized cluster ID to a unique,
   randomly generated token of at least 32 characters. Example shape only:
   `{"prod-east":"<random-token>","staging-west":"<random-token>"}`
-- `username`: a non-empty Basic Authentication username without a colon or
-  control characters
-- `password`: the separate Portal viewer password (at least 16 characters)
+- `username`: a non-empty Portal login username without a colon or control
+  characters (at most 256 bytes)
+- `password`: the separate Portal viewer password (16–4096 bytes)
 
 Use different, high-entropy registration tokens per cluster. Do not use these
 placeholders as credentials. Do not store actual credentials in Helm values,
@@ -97,7 +97,7 @@ The container listener is HTTP and defaults to `127.0.0.1:9290` outside the
 chart. For a cluster Deployment, the chart binds it to `0.0.0.0:9290` inside
 the Pod and creates a ClusterIP Service. Configure TLS termination at an
 Ingress or trusted reverse proxy before exposing it beyond a protected
-network. Do not send Basic credentials or bearer tokens over untrusted
+network. Do not send login credentials or bearer tokens over untrusted
 plaintext connections.
 
 The Portal UI, API, and embedded assets are served at the host root. Use a
@@ -198,9 +198,40 @@ Portal reporter is intentionally disabled for Radar Cloud mode.
 
 ## Access, rotation, and revocation
 
-The Portal provides `GET /healthz` without authentication. The UI and
-`GET /api/clusters` require HTTP Basic Authentication using the viewer
-credentials. Registrations use `PUT /api/registrations/{id}` and require a
+The Portal provides `GET /healthz`, `/login`, and its static assets without
+authentication. Unauthenticated visits to `/` redirect to the standalone login
+page; no cluster data is embedded in that page. After login, the browser opens
+the overview at `/`. The overview and `GET /api/clusters` require a viewer
+session, not HTTP Basic Authentication. Existing viewer username/password
+environment variables and Secret keys are unchanged.
+
+`POST /api/auth/login` accepts a JSON `username` and `password` and returns a
+host-only, `HttpOnly`, `Secure`, `SameSite=Strict` session cookie. Passwords are
+not stored in browser storage or the registry. Sessions expire after eight
+hours (not sliding), are held only in process memory, and are invalidated by
+server restart. `GET /api/auth/session` checks the session; the overview returns
+to the login page when its directory request receives 401. `POST /api/auth/logout`
+revokes the current session server-side and clears its cookie. Login and logout
+require JSON and reject cross-origin browser requests. Login attempts are
+limited to 20 per minute across the Portal, and active sessions are capped at
+1024. Use ingress/network controls for additional abuse protection.
+
+Secure cookies are enabled by default, including behind a TLS-terminating
+proxy; the server does not trust forwarded headers to disable this protection.
+For local HTTP development only, after securely provisioning the existing
+`RADAR_PORTAL_USERNAME`, `RADAR_PORTAL_PASSWORD`, and `RADAR_PORTAL_TOKENS`
+environment variables, run:
+
+```bash
+make portal
+./radar-portal --listen 127.0.0.1:9290 --insecure-cookie
+```
+
+The `--insecure-cookie` option is rejected for non-loopback listen addresses.
+Do not use it behind an externally accessible proxy or in production; the
+Helm chart keeps the secure default and needs HTTPS at the ingress.
+
+Registrations use `PUT /api/registrations/{id}` and require a
 Bearer token bound to that same ID. The list is restricted to IDs currently
 present in the Portal token map, and is sorted by ID. No delete API is
 provided.
@@ -214,6 +245,6 @@ persisted record. Re-adding the ID makes it visible again. Viewer credentials
 can be rotated by updating the Secret and restarting the Portal.
 
 Use HTTPS for viewer access and registration traffic. The Portal itself does
-not terminate TLS or create browser sessions. Keep it behind a trusted TLS
+not terminate TLS. Keep it behind a trusted TLS
 terminator, restrict network access as appropriate, and do not disable
 certificate verification in the Radar reporter.

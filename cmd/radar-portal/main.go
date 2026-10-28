@@ -26,11 +26,19 @@ const maxTokenMapBytes = 1 << 20
 func main() {
 	listen := flag.String("listen", "127.0.0.1:9290", "HTTP listen address")
 	dataFile := flag.String("data-file", "./portal-data/registry.json", "Persistent registry JSON file")
+	insecureCookie := flag.Bool("insecure-cookie", false, "Allow non-Secure viewer cookies for loopback HTTP development only")
 	flag.Parse()
 
 	credentials, err := loadCredentials()
 	if err != nil {
 		log.Fatal(err)
+	}
+	credentials.AllowInsecureCookies = *insecureCookie
+	if *insecureCookie {
+		host, _, err := net.SplitHostPort(*listen)
+		if err != nil || (host != "localhost" && !net.ParseIP(host).IsLoopback()) {
+			log.Fatal("--insecure-cookie requires a loopback listen address")
+		}
 	}
 	registry, err := portal.OpenRegistry(*dataFile)
 	if err != nil {

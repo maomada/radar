@@ -17,26 +17,29 @@ import (
 const maxStaticAssetBytes = 8 << 20
 
 type Credentials struct {
-	Tokens   map[string]string
-	Username string
-	Password string
+	Tokens               map[string]string
+	Username             string
+	Password             string
+	AllowInsecureCookies bool
 }
 
 type Handler struct {
-	registry   *Registry
-	static     fs.FS
-	tokens     map[string][32]byte
-	authorized map[string]struct{}
-	username   [32]byte
-	password   [32]byte
+	registry      *Registry
+	static        fs.FS
+	tokens        map[string][32]byte
+	authorized    map[string]struct{}
+	username      [32]byte
+	password      [32]byte
+	sessions      *viewerSessions
+	secureCookies bool
 }
 
 func NewHandler(registry *Registry, credentials Credentials, static fs.FS) (*Handler, error) {
 	if registry == nil {
 		return nil, errors.New("portal registry is required")
 	}
-	if !validBasicUsername(credentials.Username) || len(credentials.Password) < 16 {
-		return nil, errors.New("portal viewer username must be a valid Basic username and password must contain at least 16 characters")
+	if !validUsername(credentials.Username) || len(credentials.Username) > 256 || len(credentials.Password) < 16 || len(credentials.Password) > 4096 {
+		return nil, errors.New("portal viewer username must be valid (1-256 bytes) and password must contain 16-4096 bytes")
 	}
 	tokens := make(map[string][32]byte, len(credentials.Tokens))
 	authorized := make(map[string]struct{}, len(credentials.Tokens))
@@ -57,6 +60,7 @@ func NewHandler(registry *Registry, credentials Credentials, static fs.FS) (*Han
 		registry: registry, static: static, tokens: tokens, authorized: authorized,
 		username: sha256.Sum256([]byte(credentials.Username)),
 		password: sha256.Sum256([]byte(credentials.Password)),
+		sessions: newViewerSessions(), secureCookies: !credentials.AllowInsecureCookies,
 	}, nil
 }
 
@@ -72,6 +76,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch {
+	case r.URL.Path == "/api/auth/login":
+		h.login(w, r)
+	case r.URL.Path == "/api/auth/logout":
+		h.logout(w, r)
+	case r.URL.Path == "/api/auth/session":
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if h.requireViewer(w, r) {
+			w.WriteHeader(http.StatusNoContent)
+		}
 	case r.URL.Path == "/api/clusters":
 		if !h.requireViewer(w, r) {
 			return
@@ -96,19 +112,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.register(w, r)
-	case r.URL.Path == "/":
-		if !h.requireViewer(w, r) {
-			return
-		}
+	case r.URL.Path == "/" || r.URL.Path == "/login":
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		h.serveFile(w, r, "portal.html")
-	case strings.HasPrefix(r.URL.Path, "/assets/"):
-		if !h.requireViewer(w, r) {
+		loggedIn := h.hasViewerSession(r)
+		if r.URL.Path == "/" && !loggedIn {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
+		if r.URL.Path == "/login" && loggedIn {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		h.serveFile(w, r, "portal.html")
+	case strings.HasPrefix(r.URL.Path, "/assets/"):
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -207,13 +226,7 @@ func mimeType(name string) string {
 }
 
 func (h *Handler) requireViewer(w http.ResponseWriter, r *http.Request) bool {
-	username, password, ok := r.BasicAuth()
-	usernameHash := sha256.Sum256([]byte(username))
-	passwordHash := sha256.Sum256([]byte(password))
-	matched := subtle.ConstantTimeCompare(usernameHash[:], h.username[:]) &
-		subtle.ConstantTimeCompare(passwordHash[:], h.password[:])
-	if !ok || matched != 1 {
-		w.Header().Set("WWW-Authenticate", `Basic realm="Radar Portal", charset="UTF-8"`)
+	if !h.hasViewerSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}
@@ -229,7 +242,7 @@ func authorizedBearer(r *http.Request, expected [32]byte) bool {
 	return subtle.ConstantTimeCompare(actual[:], expected[:]) == 1
 }
 
-func validBasicUsername(value string) bool {
+func validUsername(value string) bool {
 	if value == "" || strings.Contains(value, ":") {
 		return false
 	}
