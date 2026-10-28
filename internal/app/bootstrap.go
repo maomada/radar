@@ -21,6 +21,7 @@ import (
 	"github.com/skyhook-io/radar/internal/connectionruntime"
 	"github.com/skyhook-io/radar/internal/connections"
 	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/skyhook-io/radar/internal/fleet"
 	"github.com/skyhook-io/radar/internal/helm"
 	"github.com/skyhook-io/radar/internal/investigationrefs"
 	"github.com/skyhook-io/radar/internal/k8s"
@@ -40,6 +41,7 @@ var clusterConnectionProbe = k8s.TestClusterConnection
 
 // AppConfig holds all parsed configuration for the Radar application.
 type AppConfig struct {
+	FleetManager   *fleet.Manager
 	Kubeconfig     string
 	KubeconfigDirs []string
 	// Zero value is the deliberate one: an entrypoint that never sets this
@@ -581,7 +583,11 @@ func CreateServer(cfg AppConfig) *server.Server {
 		}
 		serverCfg.MCPReadOnlyHandler = mcppkg.NewReadOnlyHandler()
 		serverCfg.MCPInvestigationHandler = mcppkg.NewInvestigationHandler(evidenceRefs)
+		if cfg.FleetManager != nil {
+			serverCfg.FleetMCPHandler = mcppkg.NewFleetHandler(cfg.FleetManager, cfg.AuthConfig.Enabled())
+		}
 	}
+	serverCfg.FleetManager = cfg.FleetManager
 
 	srv := server.New(serverCfg)
 	if cfg.MCPEnabled {

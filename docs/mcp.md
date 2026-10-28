@@ -1,5 +1,9 @@
 # AI Integration (MCP)
 
+For the opt-in, multi-cluster read-only `/mcp-fleet` endpoint, see
+[Fleet Manager](fleet.md). The existing endpoints below keep their single-cluster
+Context behavior.
+
 Radar includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents inspect, investigate, and operate your Kubernetes cluster.
 
 ## Node drain timeouts

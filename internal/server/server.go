@@ -49,6 +49,7 @@ import (
 	"github.com/skyhook-io/radar/internal/config"
 	"github.com/skyhook-io/radar/internal/connectionruntime"
 	"github.com/skyhook-io/radar/internal/connections"
+	"github.com/skyhook-io/radar/internal/fleet"
 	"github.com/skyhook-io/radar/internal/helm"
 	"github.com/skyhook-io/radar/internal/images"
 	"github.com/skyhook-io/radar/internal/investigationrefs"
@@ -80,6 +81,8 @@ import (
 
 // Server is the Explorer HTTP server
 type Server struct {
+	fleetMCPHandler         http.Handler
+	fleetManager            *fleet.Manager
 	router                  *chi.Mux
 	broadcaster             *SSEBroadcaster
 	vitalsMetrics           vitalsMetricsMemo
@@ -205,6 +208,8 @@ type Server struct {
 
 // Config holds server configuration
 type Config struct {
+	FleetMCPHandler         http.Handler
+	FleetManager            *fleet.Manager
 	Port                    int
 	PortFallback            bool // Port is a preference: when it's taken, bind an OS-assigned port instead of failing
 	ListenAddress           string
@@ -250,6 +255,8 @@ func New(cfg Config) *Server {
 		cfg.CloudConnect.HubAppURL = "https://app.radarhq.io"
 	}
 	s := &Server{
+		fleetMCPHandler:         cfg.FleetMCPHandler,
+		fleetManager:            cfg.FleetManager,
 		router:                  chi.NewRouter(),
 		broadcaster:             NewSSEBroadcaster(),
 		port:                    cfg.Port,
@@ -1015,10 +1022,16 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 	r.Handle("/.well-known/*", http.NotFoundHandler())
 	r.Handle("/mcp/.well-known/*", http.NotFoundHandler())
 	r.Handle("/mcp-readonly/.well-known/*", http.NotFoundHandler())
+	r.Handle("/mcp-fleet/.well-known/*", http.NotFoundHandler())
 	r.Handle("/mcp-apply/.well-known/*", http.NotFoundHandler())
 	r.Handle("/mcp-investigation/.well-known/*", http.NotFoundHandler())
 
 	// MCP server (Model Context Protocol for AI tools)
+	if s.fleetMCPHandler != nil {
+		r.Mount("/mcp-fleet", s.fleetMCPHandler)
+	} else {
+		r.Mount("/mcp-fleet", http.NotFoundHandler())
+	}
 	if s.mcpHandler != nil {
 		r.Mount("/mcp", s.mcpHandler)
 	} else {
@@ -1373,6 +1386,11 @@ func (s *Server) Handler() http.Handler {
 
 // Stop gracefully stops the server and releases the listening port.
 func (s *Server) Stop() {
+	if s.fleetManager != nil {
+		if err := s.fleetManager.Close(); err != nil {
+			log.Printf("[fleet] could not close catalog cleanly")
+		}
+	}
 	prometheuspkg.RightsizingScans().Invalidate()
 	StopAllLocalTermSessions()
 	if runs := s.aiRunManager(); runs != nil {
