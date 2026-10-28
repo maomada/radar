@@ -87,6 +87,8 @@ func main() {
 	// Parse flags (defaults come from config file, falling back to hardcoded values)
 	kubeconfig := flag.String("kubeconfig", fileCfg.Kubeconfig, "Path to primary kubeconfig file (default: ~/.kube/config)")
 	kubeconfigDir := flag.String("kubeconfig-dir", fileCfg.KubeconfigDirsFlag(), "Comma-separated directories containing additional kubeconfig files")
+	fleetConfig := flag.String("fleet-config", "", "Opt-in Fleet connection configuration JSON; enables the read-only /mcp-fleet endpoint")
+	fleetState := flag.String("fleet-state", "", "Persistent Fleet identity catalog path (default ~/.radar/fleet-state.json)")
 	namespace := flag.String("namespace", fileCfg.Namespace, "Initial namespace filter (empty = all namespaces)")
 	namespaces := flag.String("namespaces", fileCfg.NamespacesFlag(), "Initial namespace filters as a comma-separated list (e.g. ns1,ns2,ns3). Use this when you can list resources in specific namespaces but cannot list namespaces cluster-wide.")
 	port := flag.Int("port", fileCfg.PortOr(9280), "Server port")
@@ -499,6 +501,10 @@ func main() {
 		},
 	}
 
+	if err := configureFleet(&cfg, *fleetConfig, *fleetState, *mcpCatalogOnly || *mcpCatalogStdio); err != nil {
+		log.Fatalf("Invalid Fleet configuration: %v", err)
+	}
+
 	// Set global flags
 	app.SetGlobals(cfg)
 
@@ -573,6 +579,11 @@ func main() {
 
 	rootCtx, rootCancel := startServer(srv, startupStart)
 	defer rootCancel()
+	if cfg.FleetManager != nil {
+		if err := cfg.FleetManager.Start(rootCtx); err != nil {
+			log.Fatal("Fleet runtime startup failed")
+		}
+	}
 
 	// Open browser — server is confirmed ready to accept connections
 	if !cfg.NoBrowser {
