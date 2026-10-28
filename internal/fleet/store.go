@@ -64,11 +64,12 @@ type storedMembership struct {
 }
 
 type Registry struct {
-	mu     sync.RWMutex
-	path   string
-	lock   *flock.Flock
-	state  storedState
-	closed bool
+	mu      sync.RWMutex
+	path    string
+	lock    *flock.Flock
+	state   storedState
+	syncDir func(string) error
+	closed  bool
 }
 
 func OpenRegistry(path string) (*Registry, error) {
@@ -93,9 +94,10 @@ func OpenRegistry(path string) (*Registry, error) {
 		return nil, errors.New("fleet state lock is unavailable")
 	}
 	registry := &Registry{
-		path:  absolute,
-		lock:  lock,
-		state: emptyState(),
+		path:    absolute,
+		lock:    lock,
+		state:   emptyState(),
+		syncDir: syncParentDirectory,
 	}
 	if _, err := os.Stat(absolute); err == nil {
 		data, readErr := readBoundedFile(absolute, maxStateSize)
@@ -242,10 +244,9 @@ func (r *Registry) SyncConfig(config Config) (map[string]string, error) {
 	if err := validateStoredState(next); err != nil {
 		return nil, errors.New("fleet state is invalid")
 	}
-	if err := r.writeStateLocked(next); err != nil {
-		return nil, errors.New("fleet state could not be persisted")
+	if err := r.persistStateLocked(next); err != nil {
+		return nil, err
 	}
-	r.state = next
 	return clusterByConnection, nil
 }
 
@@ -275,20 +276,15 @@ func (r *Registry) RecordIdentity(clusterID, uid string, observedAt time.Time) e
 	}
 	if cluster.IdentityUID != "" && cluster.IdentityUID != uid {
 		cluster.Identity = IdentityConflict
-		if err := r.writeStateLocked(next); err != nil {
-			return errors.New("fleet state could not be persisted")
+		if err := r.persistStateLocked(next); err != nil {
+			return err
 		}
-		r.state = next
 		return errIdentityConflict
 	}
 	cluster.IdentityUID = uid
 	cluster.Identity = IdentityVerified
 	cluster.IdentityObservedAt = observedAt.UTC()
-	if err := r.writeStateLocked(next); err != nil {
-		return errors.New("fleet state could not be persisted")
-	}
-	r.state = next
-	return nil
+	return r.persistStateLocked(next)
 }
 
 func (r *Registry) UpsertFleet(id, name string, clusterIDs []string) error {
@@ -460,22 +456,29 @@ func (r *Registry) commitLocked(next storedState) error {
 	if err := validateStoredState(next); err != nil {
 		return errors.New("fleet state is invalid")
 	}
-	if err := r.writeStateLocked(next); err != nil {
+	return r.persistStateLocked(next)
+}
+
+func (r *Registry) persistStateLocked(next storedState) error {
+	committed, err := r.writeStateLocked(next)
+	if committed {
+		r.state = next
+	}
+	if err != nil {
 		return errors.New("fleet state could not be persisted")
 	}
-	r.state = next
 	return nil
 }
 
-func (r *Registry) writeStateLocked(state storedState) error {
+func (r *Registry) writeStateLocked(state storedState) (bool, error) {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		return err
+		return false, err
 	}
 	dir := filepath.Dir(r.path)
 	temp, err := os.CreateTemp(dir, ".fleet-state-*")
 	if err != nil {
-		return err
+		return false, err
 	}
 	tempName := temp.Name()
 	cleanup := func() {
@@ -484,34 +487,29 @@ func (r *Registry) writeStateLocked(state storedState) error {
 	}
 	if err := temp.Chmod(0o600); err != nil {
 		cleanup()
-		return err
+		return false, err
 	}
 	if _, err := temp.Write(append(data, '\n')); err != nil {
 		cleanup()
-		return err
+		return false, err
 	}
 	if err := temp.Sync(); err != nil {
 		cleanup()
-		return err
+		return false, err
 	}
 	if err := temp.Close(); err != nil {
 		_ = os.Remove(tempName)
-		return err
+		return false, err
 	}
 	if err := os.Rename(tempName, r.path); err != nil {
 		_ = os.Remove(tempName)
-		return err
+		return false, err
 	}
-	dirFile, err := os.Open(dir)
-	if err != nil {
-		return err
+	// Rename commits the write; a directory-sync error leaves durability uncertain, not rollbackable.
+	if err := r.syncDir(dir); err != nil {
+		return true, err
 	}
-	syncErr := dirFile.Sync()
-	closeErr := dirFile.Close()
-	if syncErr != nil {
-		return syncErr
-	}
-	return closeErr
+	return true, nil
 }
 
 func decodeState(data []byte) (storedState, error) {
@@ -543,6 +541,7 @@ func validateStoredState(state storedState) error {
 		return errors.New("state exceeds configured limits")
 	}
 	clusterIDs := make(map[string]struct{}, len(state.Clusters))
+	clusterByID := make(map[string]storedCluster, len(state.Clusters))
 	for _, cluster := range state.Clusters {
 		if !validStableID(cluster.ID) || cluster.ConnectionID == "" {
 			return errors.New("invalid cluster record")
@@ -551,6 +550,7 @@ func validateStoredState(state storedState) error {
 			return errors.New("duplicate cluster ID")
 		}
 		clusterIDs[cluster.ID] = struct{}{}
+		clusterByID[cluster.ID] = cluster
 		if cluster.Identity != IdentityUnresolved && cluster.Identity != IdentityVerified && cluster.Identity != IdentityConflict {
 			return errors.New("invalid cluster identity state")
 		}
@@ -563,6 +563,7 @@ func validateStoredState(state storedState) error {
 	}
 	connectionIDs := make(map[string]struct{}, len(state.Connections))
 	clusterByConnection := make(map[string]string, len(state.Connections))
+	connectionByCluster := make(map[string]storedConnection, len(state.Connections))
 	for _, connection := range state.Connections {
 		if err := validateIdentifier("connection ID", connection.ID); err != nil {
 			return err
@@ -583,10 +584,20 @@ func validateStoredState(state storedState) error {
 		if _, exists := clusterIDs[connection.ClusterID]; !exists {
 			return errors.New("connection references unknown cluster")
 		}
+		if _, exists := connectionByCluster[connection.ClusterID]; exists {
+			return errors.New("multiple connections reference one cluster")
+		}
+		cluster := clusterByID[connection.ClusterID]
+		if cluster.ConnectionID != connection.ID || cluster.Active != connection.Active {
+			return errors.New("connection cluster relationship is invalid")
+		}
 		clusterByConnection[connection.ID] = connection.ClusterID
+		connectionByCluster[connection.ClusterID] = connection
 	}
 	for _, cluster := range state.Clusters {
-		if clusterID := clusterByConnection[cluster.ConnectionID]; clusterID != cluster.ID {
+		connection, exists := connectionByCluster[cluster.ID]
+		if !exists || clusterByConnection[cluster.ConnectionID] != cluster.ID ||
+			connection.ID != cluster.ConnectionID || connection.Active != cluster.Active {
 			return errors.New("cluster connection relationship is invalid")
 		}
 	}
@@ -618,6 +629,19 @@ func validateStoredState(state storedState) error {
 		membershipKeys[key] = struct{}{}
 	}
 	return nil
+}
+
+func syncParentDirectory(dir string) error {
+	dirFile, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	syncErr := dirFile.Sync()
+	closeErr := dirFile.Close()
+	if syncErr != nil {
+		return syncErr
+	}
+	return closeErr
 }
 
 func emptyState() storedState {

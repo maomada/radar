@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -170,6 +172,50 @@ func TestRegistryPersistenceFailureRollsBackMemory(t *testing.T) {
 	if after.Connections[0].Name != before.Connections[0].Name {
 		t.Fatalf("failed persistence changed memory: before=%#v after=%#v", before, after)
 	}
+	persisted, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	persistedState, err := decodeState(persisted)
+	if err != nil || persistedState.Connections[0].Name != before.Connections[0].Name {
+		t.Fatalf("pre-rename failure changed persisted state: %#v, %v", persistedState, err)
+	}
+}
+
+func TestRegistryDirectorySyncFailureKeepsRenamedStateInMemory(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	registry, err := OpenRegistry(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.SyncConfig(testConfig(ConnectionSpec{
+		ID: "prod", Name: "Original", Source: SourceSpec{Type: SourceInCluster},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	registry.syncDir = func(string) error {
+		return errors.New("synthetic directory sync failure")
+	}
+	config := testConfig(ConnectionSpec{
+		ID: "prod", Name: "Renamed", Source: SourceSpec{Type: SourceInCluster},
+	})
+	if _, err := registry.SyncConfig(config); err == nil {
+		t.Fatal("sync succeeded despite the post-rename directory sync failure")
+	}
+	if got := registry.Snapshot().Connections[0].Name; got != "Renamed" {
+		t.Fatalf("memory state = %q, want renamed state", got)
+	}
+	if err := registry.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := OpenRegistry(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if got := reopened.Snapshot().Connections[0].Name; got != "Renamed" {
+		t.Fatalf("disk state = %q, want renamed state", got)
+	}
 }
 
 func TestIdentityPersistenceFailureDoesNotCommitEvidence(t *testing.T) {
@@ -212,6 +258,58 @@ func TestOpenRegistryRejectsCorruptState(t *testing.T) {
 			_ = registry.Close()
 			t.Fatalf("OpenRegistry accepted corrupt state %q", contents)
 		}
+	}
+}
+
+func TestOpenRegistryRejectsAliasedConnectionsAndActiveMismatch(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	registry, err := OpenRegistry(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.SyncConfig(testConfig(ConnectionSpec{
+		ID: "prod", Name: "Production", Source: SourceSpec{Type: SourceInCluster},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := decodeState(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := map[string]func(*storedState){
+		"aliased cluster": func(state *storedState) {
+			alias := state.Connections[0]
+			alias.ID = "alias"
+			alias.Name = "Alias"
+			state.Connections = append(state.Connections, alias)
+		},
+		"active-state mismatch": func(state *storedState) {
+			state.Clusters[0].Active = !state.Connections[0].Active
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			state := cloneStoredState(original)
+			mutate(&state)
+			corrupt, err := json.Marshal(state)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(statePath, corrupt, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if registry, err := OpenRegistry(statePath); err == nil {
+				_ = registry.Close()
+				t.Fatal("OpenRegistry accepted an invalid connection-cluster relationship")
+			}
+		})
 	}
 }
 

@@ -147,8 +147,9 @@ type collectionKind struct {
 }
 
 type probeOutcome struct {
-	status     ProbeStatus
-	namespaces []string
+	status          ProbeStatus
+	namespaces      []string
+	namespaceProbes []NamespaceProbe
 }
 
 func startClusterRuntime(
@@ -177,6 +178,10 @@ func startClusterRuntime(
 		status.State = StateUnavailable
 		return startupResult{status: status}
 	}
+	if ctx.Err() != nil {
+		status.State = StateUnavailable
+		return startupResult{status: status}
+	}
 	if clients.Config != nil {
 		clients.Config = rest.CopyConfig(clients.Config)
 	}
@@ -194,6 +199,11 @@ func startClusterRuntime(
 	probeCtx, cancelProbe := context.WithTimeout(ctx, options.probeTimeout)
 	uid, identityErr := options.identityProbe(probeCtx, clients.Typed)
 	cancelProbe()
+	if ctx.Err() != nil {
+		status.State = StateUnavailable
+		status.IdentityObservedAt = stored.IdentityObservedAt
+		return startupResult{status: status}
+	}
 	switch {
 	case identityErr == nil && uid != "":
 		if err := registry.RecordIdentity(clusterID, uid, now); err != nil {
@@ -227,6 +237,10 @@ func startClusterRuntime(
 	coverage, scopes, scopeNamespaces := probeCollectionAccess(probeCtx, clients.Typed, spec.Namespaces)
 	cancelProbe()
 	status.Kinds = coverage
+	if ctx.Err() != nil {
+		status.State = StateUnavailable
+		return startupResult{status: status}
+	}
 	enabled := false
 	for _, kind := range coverage {
 		if kind.Probe == ProbeAllowed {
@@ -249,6 +263,11 @@ func startClusterRuntime(
 		if cache != nil {
 			cache.Stop()
 		}
+		status.State = StateUnavailable
+		return startupResult{status: status}
+	}
+	if ctx.Err() != nil {
+		cache.Stop()
 		status.State = StateUnavailable
 		return startupResult{status: status}
 	}
@@ -276,6 +295,11 @@ func startClusterRuntime(
 		<-runtimeCtx.Done()
 		runtime.Close()
 	}()
+	if ctx.Err() != nil {
+		runtime.Close()
+		status.State = StateUnavailable
+		return startupResult{status: status}
+	}
 	return startupResult{runtime: runtime, status: status}
 }
 
@@ -372,11 +396,12 @@ func probeCollectionAccess(ctx context.Context, client kubernetes.Interface, nam
 			scopeNamespaces[kind.key] = append([]string(nil), outcome.namespaces...)
 		}
 		coverage = append(coverage, KindCoverage{
-			Kind:       kind.key,
-			Probe:      outcome.status,
-			Scope:      scopeFor(outcome, kind.namespaced),
-			Namespaces: append([]string(nil), outcome.namespaces...),
-			Readiness:  "unavailable",
+			Kind:            kind.key,
+			Probe:           outcome.status,
+			Scope:           scopeFor(outcome, kind.namespaced),
+			Namespaces:      append([]string(nil), outcome.namespaces...),
+			NamespaceProbes: append([]NamespaceProbe(nil), outcome.namespaceProbes...),
+			Readiness:       "unavailable",
 		})
 	}
 	return coverage, scopes, scopeNamespaces
@@ -388,6 +413,10 @@ func probeNamespaced(ctx context.Context, client kubernetes.Interface, kind coll
 	sawUnauthenticated := false
 	for _, namespace := range namespaces {
 		status := classifyProbeError(kind.list(ctx, client, namespace))
+		outcome.namespaceProbes = append(outcome.namespaceProbes, NamespaceProbe{
+			Namespace: namespace,
+			Outcome:   status,
+		})
 		if status == ProbeAllowed {
 			outcome.namespaces = append(outcome.namespaces, namespace)
 			continue
@@ -442,7 +471,7 @@ func statusState(status ConnectionStatus) ConnectionState {
 			continue
 		}
 		allowed++
-		if kind.Readiness == readinessString(k8score.KindReady) {
+		if kind.Readiness == readinessString(k8score.KindReady) && namespaceCoverageComplete(kind.NamespaceProbes) {
 			ready++
 		}
 	}
@@ -456,6 +485,15 @@ func statusState(status ConnectionStatus) ConnectionState {
 		return StatePartial
 	}
 	return StateReady
+}
+
+func namespaceCoverageComplete(probes []NamespaceProbe) bool {
+	for _, probe := range probes {
+		if probe.Outcome != ProbeAllowed {
+			return false
+		}
+	}
+	return true
 }
 
 func readinessString(readiness k8score.KindReadiness) string {
@@ -478,6 +516,7 @@ func cloneConnectionStatus(status ConnectionStatus) ConnectionStatus {
 	for i, kind := range status.Kinds {
 		clone.Kinds[i] = kind
 		clone.Kinds[i].Namespaces = append([]string(nil), kind.Namespaces...)
+		clone.Kinds[i].NamespaceProbes = append([]NamespaceProbe(nil), kind.NamespaceProbes...)
 	}
 	return clone
 }

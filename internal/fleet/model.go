@@ -30,12 +30,18 @@ const (
 	ProbeNotProbed       ProbeStatus = "not_probed"
 )
 
+type NamespaceProbe struct {
+	Namespace string      `json:"namespace"`
+	Outcome   ProbeStatus `json:"outcome"`
+}
+
 type KindCoverage struct {
-	Kind       string      `json:"kind"`
-	Probe      ProbeStatus `json:"probe"`
-	Scope      string      `json:"scope,omitempty"`
-	Namespaces []string    `json:"namespaces,omitempty"`
-	Readiness  string      `json:"readiness"`
+	Kind            string           `json:"kind"`
+	Probe           ProbeStatus      `json:"probe"`
+	Scope           string           `json:"scope,omitempty"`
+	Namespaces      []string         `json:"namespaces,omitempty"`
+	NamespaceProbes []NamespaceProbe `json:"namespaceProbes,omitempty"`
+	Readiness       string           `json:"readiness"`
 }
 
 type ConnectionStatus struct {

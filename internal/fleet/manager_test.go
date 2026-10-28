@@ -198,6 +198,98 @@ func TestManagerRefreshReplacesOnlySelectedRuntime(t *testing.T) {
 	}
 }
 
+func TestPartialExplicitNamespaceCoverageRemainsVisibleAndClamped(t *testing.T) {
+	config := testConfig(ConnectionSpec{
+		ID: "prod", Name: "Production", Source: SourceSpec{Type: SourceInCluster},
+		Namespaces: []string{"allowed", "denied"},
+	})
+	bundle := testRuntimeClients("verified-uid")
+	client := bundle.Typed.(*kubernetesfake.Clientset)
+	for _, resource := range []string{"pods", "deployments", "services"} {
+		client.PrependReactor("list", resource, func(action k8stesting.Action) (bool, k8sruntime.Object, error) {
+			if action.(k8stesting.ListAction).GetNamespace() == "denied" {
+				return true, nil, apierrors.NewForbidden(corev1.Resource(resource), "denied", errors.New("synthetic denied"))
+			}
+			return false, nil, nil
+		})
+	}
+	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return bundle, nil
+		}),
+		WithCacheSyncTimeout(2*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	clusterID := manager.clusterIDs["prod"]
+	status := waitForStatus(t, manager, clusterID)
+	if status.Identity != IdentityVerified || status.State != StatePartial {
+		t.Fatalf("status = %#v, want verified identity and partial coverage", status)
+	}
+	for _, resource := range []string{"pods", "deployments", "services"} {
+		var coverage *KindCoverage
+		for i := range status.Kinds {
+			if status.Kinds[i].Kind == resource {
+				coverage = &status.Kinds[i]
+				break
+			}
+		}
+		if coverage == nil || coverage.Probe != ProbeAllowed || coverage.Scope != "namespaces" ||
+			len(coverage.Namespaces) != 1 || coverage.Namespaces[0] != "allowed" ||
+			len(coverage.NamespaceProbes) != 2 ||
+			coverage.NamespaceProbes[0] != (NamespaceProbe{Namespace: "allowed", Outcome: ProbeAllowed}) ||
+			coverage.NamespaceProbes[1] != (NamespaceProbe{Namespace: "denied", Outcome: ProbeDenied}) {
+			t.Fatalf("%s coverage = %#v", resource, coverage)
+		}
+	}
+	statuses := manager.Statuses()
+	for i := range statuses {
+		if statuses[i].ClusterID == clusterID {
+			for kind := range statuses[i].Kinds {
+				if statuses[i].Kinds[kind].Kind == "pods" {
+					statuses[i].Kinds[kind].NamespaceProbes[0].Namespace = "mutated"
+				}
+			}
+		}
+	}
+	fresh, err := manager.Status(clusterID)
+	var podCoverage *KindCoverage
+	for i := range fresh.Kinds {
+		if fresh.Kinds[i].Kind == "pods" {
+			podCoverage = &fresh.Kinds[i]
+			break
+		}
+	}
+	if err != nil || podCoverage == nil || podCoverage.NamespaceProbes[0].Namespace != "allowed" {
+		t.Fatalf("namespace probe status was not copied defensively: %#v, %v", fresh, err)
+	}
+	for _, resource := range []string{"pods", "deployments", "services"} {
+		allowedLists := 0
+		deniedLists := 0
+		for _, action := range client.Actions() {
+			if action.GetVerb() != "list" || action.GetResource().Resource != resource {
+				continue
+			}
+			namespace := action.(k8stesting.ListAction).GetNamespace()
+			switch namespace {
+			case "allowed":
+				allowedLists++
+			case "denied":
+				deniedLists++
+			default:
+				t.Fatalf("%s cache/probe escaped namespace clamp to %q", resource, namespace)
+			}
+		}
+		if allowedLists < 2 || deniedLists != 1 {
+			t.Fatalf("%s list actions: allowed=%d denied=%d, want probe plus allowed-only cache", resource, allowedLists, deniedLists)
+		}
+	}
+}
+
 func TestCollectionProbeHardClampsExplicitNamespaces(t *testing.T) {
 	client := kubernetesfake.NewSimpleClientset()
 	client.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, k8sruntime.Object, error) {
@@ -376,26 +468,73 @@ func TestManagerStartConcurrencyIsBounded(t *testing.T) {
 func TestManagerCancellationDoesNotPublishLateRuntime(t *testing.T) {
 	config := testConfig(ConnectionSpec{ID: "slow", Name: "Slow", Source: SourceSpec{Type: SourceInCluster}})
 	started := make(chan struct{})
-	factory := func(ctx context.Context, _ ConnectionSpec) (RuntimeClients, error) {
+	release := make(chan struct{})
+	factory := func(context.Context, ConnectionSpec) (RuntimeClients, error) {
 		close(started)
-		<-ctx.Done()
-		return RuntimeClients{}, ctx.Err()
+		<-release
+		return testRuntimeClients("uid"), nil
 	}
-	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"), WithRuntimeFactory(factory))
+	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(factory),
+		WithIdentityProbe(func(context.Context, kubernetes.Interface) (string, error) {
+			return "uid", nil
+		}))
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer manager.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := manager.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
 	<-started
 	cancel()
-	if err := manager.Close(); err != nil {
+	close(release)
+	clusterID := manager.clusterIDs["slow"]
+	if status := waitForStatus(t, manager, clusterID); status.State != StateUnavailable {
+		t.Fatalf("canceled factory status = %#v", status)
+	}
+	if _, err := manager.Runtime(clusterID); err == nil {
+		t.Fatal("runtime published after cancellation and close")
+	}
+	if cluster := manager.Catalog().Clusters[0]; cluster.Identity != IdentityUnresolved {
+		t.Fatalf("canceled startup recorded identity evidence: %#v", cluster)
+	}
+}
+
+func TestManagerCancellationDuringIdentityProbeDoesNotCommitEvidence(t *testing.T) {
+	config := testConfig(ConnectionSpec{ID: "slow", Name: "Slow", Source: SourceSpec{Type: SourceInCluster}})
+	probeStarted := make(chan struct{})
+	release := make(chan struct{})
+	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return testRuntimeClients("uid"), nil
+		}),
+		WithIdentityProbe(func(context.Context, kubernetes.Interface) (string, error) {
+			close(probeStarted)
+			<-release
+			return "uid", nil
+		}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Runtime(manager.clusterIDs["slow"]); err == nil {
-		t.Fatal("runtime published after cancellation and close")
+	defer manager.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	<-probeStarted
+	cancel()
+	close(release)
+	clusterID := manager.clusterIDs["slow"]
+	if status := waitForStatus(t, manager, clusterID); status.State != StateUnavailable {
+		t.Fatalf("canceled probe status = %#v", status)
+	}
+	if _, err := manager.Runtime(clusterID); err == nil {
+		t.Fatal("runtime published after the identity probe was canceled")
+	}
+	if cluster := manager.Catalog().Clusters[0]; cluster.Identity != IdentityUnresolved {
+		t.Fatalf("canceled probe committed identity evidence: %#v", cluster)
 	}
 }
 

@@ -392,6 +392,13 @@ func (m *Manager) startEntry(ctx context.Context, generation uint64, entry start
 	}
 	defer func() { <-m.startSem }()
 	result := startClusterRuntime(ctx, entry.spec, entry.clusterID, m.registry, m.options)
+	if ctx.Err() != nil {
+		if result.runtime != nil {
+			result.runtime.Close()
+		}
+		result.runtime = nil
+		result.status.State = StateUnavailable
+	}
 	m.publishStatus(generation, entry.clusterID, result.status, result.runtime)
 }
 
