@@ -389,6 +389,7 @@ func (t fleetTools) getFleetLogs(ctx context.Context, _ *mcpsdk.CallToolRequest,
 }
 
 func truncateFleetText(text string, limit int) (string, bool) {
+	text = strings.ToValidUTF8(text, "\ufffd")
 	if len(text) <= limit {
 		return text, false
 	}

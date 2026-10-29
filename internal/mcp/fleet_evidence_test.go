@@ -686,6 +686,12 @@ func TestFleetLogsFinalRedactionCap(t *testing.T) {
 	if !truncated || len(text) != 64*1024 {
 		t.Fatalf("final log cap = len %d truncated=%v", len(text), truncated)
 	}
+	text, truncated = truncateFleetText(strings.Repeat("x\xff", 32*1024), 64*1024)
+	encoded, err := json.Marshal(text)
+	var decoded string
+	if err != nil || json.Unmarshal(encoded, &decoded) != nil || !truncated || len(decoded) > 64*1024 || decoded != text {
+		t.Fatalf("invalid UTF-8 expanded beyond log cap: text=%d decoded=%d truncated=%v err=%v", len(text), len(decoded), truncated, err)
+	}
 }
 
 func TestFleetOverviewFindingsHaveDeterministicResourceEvidence(t *testing.T) {
