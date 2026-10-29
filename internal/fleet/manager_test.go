@@ -99,6 +99,104 @@ func TestManagerSameUIDConnectionsRemainSeparateDuplicateCandidates(t *testing.T
 	}
 }
 
+func TestManagerVerifiedRuntimeRevalidatesIdentity(t *testing.T) {
+	config := testConfig(ConnectionSpec{ID: "prod", Name: "Production", Source: SourceSpec{Type: SourceInCluster}})
+	var mu sync.RWMutex
+	uid := "uid-one"
+	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return testRuntimeClients("uid-one"), nil
+		}),
+		WithIdentityProbe(func(context.Context, kubernetes.Interface) (string, error) {
+			mu.RLock()
+			defer mu.RUnlock()
+			return uid, nil
+		}),
+		WithCacheSyncTimeout(2*time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	clusterID := manager.clusterIDs["prod"]
+	waitForStatus(t, manager, clusterID)
+	runtime, err := manager.Runtime(clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	uid = "uid-changed"
+	mu.Unlock()
+	called := false
+	err = manager.WithVerifiedRuntime(context.Background(), clusterID, runtime, func(context.Context, *ClusterRuntime) error {
+		called = true
+		return nil
+	})
+	if err == nil || called {
+		t.Fatalf("changed identity accepted: callback=%t err=%v", called, err)
+	}
+}
+
+func TestManagerVerifiedRuntimePinBlocksRefreshAndInvalidatesOldPointer(t *testing.T) {
+	config := testConfig(ConnectionSpec{ID: "prod", Name: "Production", Source: SourceSpec{Type: SourceInCluster}})
+	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return testRuntimeClients("uid-one"), nil
+		}),
+		WithCacheSyncTimeout(2*time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	clusterID := manager.clusterIDs["prod"]
+	waitForStatus(t, manager, clusterID)
+	oldRuntime, err := manager.Runtime(clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	pinDone := make(chan error, 1)
+	go func() {
+		pinDone <- manager.WithVerifiedRuntime(context.Background(), clusterID, oldRuntime, func(context.Context, *ClusterRuntime) error {
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+	<-entered
+	refreshDone := make(chan error, 1)
+	go func() { refreshDone <- manager.Refresh(context.Background(), clusterID) }()
+	select {
+	case err := <-refreshDone:
+		t.Fatalf("refresh passed an active runtime pin: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(release)
+	if err := <-pinDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-refreshDone; err != nil {
+		t.Fatal(err)
+	}
+	newStatus := waitForStatus(t, manager, clusterID)
+	if newStatus.State != StateReady {
+		t.Fatalf("refreshed status = %+v", newStatus)
+	}
+	if err := manager.WithVerifiedRuntime(context.Background(), clusterID, oldRuntime, func(context.Context, *ClusterRuntime) error {
+		return nil
+	}); err == nil {
+		t.Fatal("old runtime pointer remained valid after refresh")
+	}
+}
+
 func TestManagerUIDConflictFailsClosed(t *testing.T) {
 	config := testConfig(ConnectionSpec{ID: "prod", Name: "Production", Source: SourceSpec{Type: SourceInCluster}})
 	var mu sync.RWMutex

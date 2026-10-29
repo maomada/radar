@@ -56,6 +56,9 @@ func TestFleetAPIManagementAuthorizationAndInventoryContract(t *testing.T) {
 		capabilities["canManage"] != false || capabilities["localConnections"] != false || capabilities["writesEnabled"] != false {
 		t.Fatalf("capabilities contract = %d %v", response.Code, capabilities)
 	}
+	if response := callFleetAPI(t, api, http.MethodPost, "/query/prepare_fleet_operation", `{}`, "alice"); response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "disabled") {
+		t.Fatalf("disabled Fleet operation status=%d body=%s", response.Code, response.Body.String())
+	}
 	if response := callFleetAPI(t, api, http.MethodPut, "/fleets/new", `{"name":"New","clusterIds":[]}`, "alice-other"); response.Code != http.StatusForbidden {
 		t.Fatalf("non-admin metadata write status=%d", response.Code)
 	}

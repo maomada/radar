@@ -119,7 +119,10 @@ manage local connections; Kubernetes read permission alone is not sufficient.
 The allowlist is empty by default. Without authentication, these operations are
 available only on the loopback-enforced listener. Live Fleet reads still perform
 per-user Kubernetes authorization on each target cluster, and Cloud/user-token
-mode is not forwarded to Fleet targets. See [Fleet Manager](fleet.md#http-inventory-and-management-api).
+mode is not forwarded to Fleet targets. Optional Fleet Kubernetes writes are
+separately default-off (`--fleet-writes`) and require the actual caller's
+Kubernetes RBAC on the selected target; the Fleet admin allowlist does not grant
+that access. See [Fleet Manager](fleet.md#http-inventory-and-management-api).
 
 ## Auth Modes
 

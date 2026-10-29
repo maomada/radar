@@ -198,6 +198,7 @@ func TestFleetEvidenceMCPCatalogAndIsolation(t *testing.T) {
 		"list_clusters": true, "get_fleet_overview": true, "search_fleet_resources": true,
 		"get_fleet_resource": true, "get_fleet_events": true, "get_fleet_logs": true,
 		"diagnose_fleet_resource": true, "get_fleet_relationships": true, "get_fleet_topology": true,
+		"get_fleet_audit": true,
 	}
 	if err != nil || len(listed.Tools) != len(expectedTools) {
 		t.Fatalf("catalog = %+v, %v", listed, err)

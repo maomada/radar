@@ -19,6 +19,7 @@ type FleetOptions struct {
 	RequireAuth      bool
 	AdminUsers       []string
 	LocalConnections bool
+	WritesEnabled    bool
 	Candidates       fleet.CandidateProvider
 }
 
@@ -41,7 +42,10 @@ func NewFleetEndpoints(manager *fleet.Manager, options FleetOptions) (http.Handl
 	}
 	service := &fleetService{
 		manager: manager, options: options, admins: admins,
-		tools: fleetTools{source: manager, requireAuth: options.RequireAuth},
+		tools: fleetTools{
+			source: manager, requireAuth: options.RequireAuth, writesEnabled: options.WritesEnabled,
+			admins: admins, operations: newFleetOperationStore(),
+		},
 	}
 	return handlerForServer(newFleetServer(service.tools)), service
 }
@@ -112,7 +116,7 @@ func (s *fleetService) capabilities(w http.ResponseWriter, r *http.Request) {
 	}
 	writeFleetJSON(w, http.StatusOK, map[string]any{
 		"enabled": true, "canManage": canManage,
-		"localConnections": s.options.LocalConnections, "writesEnabled": false,
+		"localConnections": s.options.LocalConnections, "writesEnabled": s.options.WritesEnabled,
 	})
 }
 
@@ -177,6 +181,32 @@ func (s *fleetService) query(w http.ResponseWriter, r *http.Request, name string
 		err = decodeFleetJSON(r, &input)
 		if err == nil {
 			_, output, err = s.tools.getFleetTopology(r.Context(), nil, input)
+		}
+	case "get_fleet_audit":
+		var input fleetAuditInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.getFleetAudit(r.Context(), nil, input)
+		}
+	case "prepare_fleet_operation":
+		if !s.options.WritesEnabled {
+			err = errors.New("Fleet writes are disabled")
+			break
+		}
+		var input fleetOperationInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.prepareFleetOperation(r.Context(), nil, input)
+		}
+	case "execute_fleet_operation":
+		if !s.options.WritesEnabled {
+			err = errors.New("Fleet writes are disabled")
+			break
+		}
+		var input fleetExecuteOperationInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.executeFleetOperation(r.Context(), nil, input)
 		}
 	default:
 		err = errors.New("unsupported Fleet query tool")

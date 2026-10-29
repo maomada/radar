@@ -53,7 +53,9 @@ Kubernetes read access does not grant Fleet administration. With Radar auth
 disabled, management is available only on the loopback listener.
 `--fleet-local-connections` (default false) additionally enables trusted local
 kubeconfig admission and removal; it is forbidden in-cluster. These controls do
-not enable Kubernetes writes.
+not enable Kubernetes writes. `--fleet-writes` (default false) separately
+enables Fleet prepare/execute operations; it is rejected without Fleet
+configuration or when MCP is configured read-only.
 
 The protected registry persists stable cluster IDs and managed kubeconfig source
 references, never kubeconfig contents or credentials. Candidate IDs are resolved
@@ -183,8 +185,8 @@ selected runtimes and enforce the caller's access on each target cluster.
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/fleet/capabilities` | Returns `{"enabled":true,"canManage":false,"localConnections":false,"writesEnabled":false}` with caller-specific `canManage` and configured `localConnections` values. Kubernetes writes remain disabled. |
-| `POST /api/fleet/query/{tool}` | Runs the nine read tools listed above with the same bounded JSON inputs and structured results as MCP. |
+| `GET /api/fleet/capabilities` | Returns `enabled`, caller-specific `canManage`, configured `localConnections`, and the `writesEnabled` feature flag. This flag does not grant target-cluster RBAC. |
+| `POST /api/fleet/query/{tool}` | Runs the ten read tools, plus prepare/execute only when `--fleet-writes` is enabled, with the same bounded inputs and structured results as MCP. |
 | `GET /api/fleet/candidates` | Lists current trusted server-side context candidates; source paths and credentials are not returned. |
 | `POST /api/fleet/connections` | Adds `{ "id": "...", "name": "...", "candidateId": "..." }` when local connections are enabled and the caller may manage Fleet. Returns `{ "ok": true, "clusterId": "..." }`. |
 | `DELETE /api/fleet/connections/{id}` | Removes only a locally managed connection. Declarative connections are immutable. |
@@ -192,6 +194,27 @@ selected runtimes and enforce the caller's access on each target cluster.
 | `DELETE /api/fleet/fleets/{id}` | Deletes a locally managed Fleet. Declarative Fleets return `409`; edit the Fleet configuration instead. |
 | `POST /api/fleet/clusters/{clusterId}/refresh` | Refreshes only that cluster's runtime. |
 | `POST /api/fleet/duplicates` | Persists `{ "clusterId": "...", "otherClusterId": "...", "decision": "keep_separate" }` only for active, verified duplicate candidates. |
+| `POST /api/fleet/query/prepare_fleet_operation` | With writes enabled, server-dry-runs one explicit restart, scale, or allowlisted apply and returns a bounded summary plus a five-minute one-shot confirmation. |
+| `POST /api/fleet/query/execute_fleet_operation` | Consumes the confirmation once, rechecks the exact target and runtime, durably records intent, then dispatches one caller-authorized mutation. |
+| `POST /api/fleet/query/get_fleet_audit` | Reads up to 100 latest durable records; authenticated non-admins see only their own records. Audit remains readable when writes are disabled. |
+
+Operations target exactly one namespace/name on one explicit cluster ID.
+Restart supports Deployments, StatefulSets and DaemonSets; scale supports
+Deployments and StatefulSets with 0–10000 replicas. Apply accepts one strict
+YAML/JSON object for Pods, Services, ReplicaSets, Deployments, StatefulSets or
+DaemonSets. Secrets, RBAC, CRDs, cluster-scoped objects, force ownership and
+multi-document manifests are unsupported. Preview and execution use the
+caller-specific Kubernetes identity and configured namespace clamp; the Fleet
+admin allowlist is not Kubernetes authorization. User-token forwarding is
+unsupported. Runtime replacement, identity change, or UID/resourceVersion
+change invalidates a preview. Timeouts after dispatch are outcome-unknown and
+must not be automatically retried. `applied` means only that the API
+acknowledged the mutation, not that rollout converged.
+
+Durable audit is stored beside the registry at `<fleet-state>.audit.jsonl`,
+requires a regular 0600 file and is capped at 16 MiB. Intents are synced before
+mutation and results after; full, insecure, torn or malformed history fails
+closed. Preserve the file; rotate it only while Radar is stopped after archive.
 
 Successful metadata mutations return `{ "ok": true }`, except connection
 admission, which also returns the stable `clusterId`. `list_clusters` and API
@@ -245,10 +268,10 @@ Restart after external ConfigMap/Secret changes. The extension points do not add
 an automatic checksum for those external objects. Do not enable Cloud tunneling
 for this Fleet deployment.
 
-## Deliberate limits of this increment
+## Deliberate limits
 
-There is no Fleet UI yet. Resource application, restart and scaling tools are not
-included. Duplicate candidates cannot be merged.
-Fleet remains a read-only Kubernetes surface; metadata management does not
-create or change Kubernetes resources. Tests using fake clients or HTTP fixtures
-are not real-cluster deployment evidence.
+Fleet operations are explicit one-cluster requests and do not wait for rollout
+convergence. Server-side dry-run is validation evidence, not a guarantee that a
+later request succeeds. Evidence has separately documented redaction and
+coverage limitations. Fake-client and HTTP-fixture tests are not real-cluster
+deployment evidence.

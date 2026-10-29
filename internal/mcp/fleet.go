@@ -31,8 +31,11 @@ type fleetSource interface {
 }
 
 type fleetTools struct {
-	source      fleetSource
-	requireAuth bool
+	source        fleetSource
+	requireAuth   bool
+	writesEnabled bool
+	admins        map[string]struct{}
+	operations    *fleetOperationStore
 }
 
 type fleetClientBundle struct {
@@ -47,6 +50,13 @@ func (t fleetTools) clientBundle(ctx context.Context, clusterID string) (fleetCl
 	runtime, err := t.source.Runtime(clusterID)
 	if err != nil {
 		return fleetClientBundle{}, errors.New("cluster is not connected or identity is conflicting")
+	}
+	return t.clientBundleForRuntime(ctx, runtime)
+}
+
+func (t fleetTools) clientBundleForRuntime(ctx context.Context, runtime *fleet.ClusterRuntime) (fleetClientBundle, error) {
+	if runtime == nil {
+		return fleetClientBundle{}, errors.New("target client unavailable")
 	}
 	bundle := fleetClientBundle{Status: runtime.Status(), Runtime: runtime, Namespaces: runtime.Namespaces()}
 	if user := pkgauth.UserFromContext(ctx); user != nil {
@@ -181,8 +191,14 @@ func NewFleetHandler(manager *fleet.Manager, requireAuth bool) http.Handler {
 }
 
 func newFleetServer(tools fleetTools) *mcpsdk.Server {
+	instructions := "Bounded multi-cluster Radar. Available tools are exactly list_clusters, get_fleet_overview, search_fleet_resources, get_fleet_resource, get_fleet_events, get_fleet_logs, diagnose_fleet_resource, get_fleet_relationships, get_fleet_topology, and get_fleet_audit. Cluster IDs are explicit stable targets, never the UI's current Context. Connection readiness is not cluster health. Counts cover only the caller's accessible configured scope; partial counts are lower bounds. Unavailable or denied is not zero. Duplicate candidates may represent the same cluster: do not sum them as distinct physical clusters. Evidence and diagnosis are scoped observations, not whole-cluster health or ownership proof. Fleet operations require an explicit target, a reviewed dry-run preview, and one-shot confirmation; API RBAC remains authoritative."
+	if tools.writesEnabled {
+		instructions += " prepare_fleet_operation and execute_fleet_operation are enabled for one-cluster restart, scale, and allowlisted apply operations."
+	} else {
+		instructions += " Fleet writes are disabled."
+	}
 	server := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "radar-fleet", Version: version.Current}, &mcpsdk.ServerOptions{
-		Instructions: "Read-only multi-cluster Radar. Available tools are exactly list_clusters, get_fleet_overview, search_fleet_resources, get_fleet_resource, get_fleet_events, get_fleet_logs, diagnose_fleet_resource, get_fleet_relationships, and get_fleet_topology. Cluster IDs are explicit stable targets, never the UI's current Context. Connection readiness is not cluster health. Counts cover only the caller's accessible configured scope; partial counts are lower bounds. Unavailable or denied is not zero. Duplicate candidates may represent the same cluster: do not sum them as distinct physical clusters. Evidence and diagnosis are scoped observations, not whole-cluster health or ownership proof.",
+		Instructions: instructions,
 		SetCacheable: privateCacheScope,
 	})
 	closedWorld := false
@@ -196,7 +212,18 @@ func newFleetServer(tools fleetTools) *mcpsdk.Server {
 	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "diagnose_fleet_resource", Description: "Classify scoped observations for one allowlisted Fleet resource using Radar's canonical health policy; it does not assert a root cause or whole-cluster health.", Annotations: annotations}, tools.diagnoseFleetResource)
 	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_relationships", Description: "Return conservative, evidence-backed Karmada identity and distribution relationships with explicit coverage and unresolved ambiguity.", Annotations: annotations}, tools.getFleetRelationships)
 	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_topology", Description: "Return typed, bounded Fleet nodes and evidence-backed edges. Every edge references returned nodes.", Annotations: annotations}, tools.getFleetTopology)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_audit", Description: "Read the latest bounded, durable Fleet operation audit records. Non-admin callers see only their own records.", Annotations: annotations}, tools.getFleetAudit)
+	if tools.writesEnabled {
+		prepareAnnotations := &mcpsdk.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: new(bool), OpenWorldHint: &closedWorld}
+		executeAnnotations := &mcpsdk.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: boolValue(true), OpenWorldHint: &closedWorld}
+		mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "prepare_fleet_operation", Description: "Prepare one explicit Fleet restart, scale or allowlisted apply using caller-authorized server-side dry-run. Review the returned target and summary before execute_fleet_operation.", Annotations: prepareAnnotations}, tools.prepareFleetOperation)
+		mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "execute_fleet_operation", Description: "Consume a one-shot confirmation for exactly one reviewed Fleet operation. This does not assert rollout convergence; never automatically retry.", Annotations: executeAnnotations}, tools.executeFleetOperation)
+	}
 	return server
+}
+
+func boolValue(value bool) *bool {
+	return &value
 }
 
 func (t fleetTools) authorize(ctx context.Context) error {
