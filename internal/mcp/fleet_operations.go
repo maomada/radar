@@ -320,6 +320,7 @@ func (t fleetTools) prepareOperation(ctx context.Context, input fleetOperationIn
 			return errors.New("Kubernetes API denied or rejected the operation dry-run")
 		}
 		plan.summary = safeOperationSummary(plan, dryRunObject)
+		plan.beforeObject = nil
 		if err := t.operations.add(confirmation, plan); err != nil {
 			return err
 		}
@@ -823,7 +824,7 @@ func safeOperationSummary(plan fleetPendingOperation, dryRun *unstructured.Unstr
 
 func safeManifestPaths(manifest map[string]any, kind string) []string {
 	paths := []string{}
-	for _, path := range []string{"metadata.labels", "metadata.annotations"} {
+	for _, path := range []string{"metadata.labels", "metadata.annotations", "metadata.ownerReferences", "metadata.finalizers", "spec"} {
 		if _, found, _ := unstructured.NestedFieldNoCopy(manifest, strings.Split(path, ".")...); found {
 			paths = append(paths, path)
 		}
@@ -839,7 +840,7 @@ func safeManifestPaths(manifest map[string]any, kind string) []string {
 
 func changedManifestPaths(before, after map[string]any, kind string) []string {
 	paths := []string{}
-	for _, path := range append([]string{"metadata.labels", "metadata.annotations"}, safeSpecPaths(kind)...) {
+	for _, path := range append([]string{"metadata.labels", "metadata.annotations", "metadata.ownerReferences", "metadata.finalizers", "spec"}, safeSpecPaths(kind)...) {
 		beforeValue, beforeFound, _ := unstructured.NestedFieldNoCopy(before, strings.Split(path, ".")...)
 		afterValue, afterFound, _ := unstructured.NestedFieldNoCopy(after, strings.Split(path, ".")...)
 		if beforeFound != afterFound || !reflect.DeepEqual(beforeValue, afterValue) {

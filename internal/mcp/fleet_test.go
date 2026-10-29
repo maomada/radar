@@ -29,6 +29,11 @@ import (
 
 func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 	t.Helper()
+	return fleetTestManagerWithEndpoints(t, map[string]string{"a": endpoint, "b": endpoint}, filepath.Join(t.TempDir(), "state.json"))
+}
+
+func fleetTestManagerWithEndpoints(t *testing.T, endpoints map[string]string, statePath string) *fleet.Manager {
+	t.Helper()
 	config := fleet.Config{Version: 1, Connections: []fleet.ConnectionSpec{
 		{ID: "a", Name: "A", Source: fleet.SourceSpec{Type: fleet.SourceInCluster}, Namespaces: []string{"team"}},
 		{ID: "b", Name: "B", Source: fleet.SourceSpec{Type: fleet.SourceInCluster}, Namespaces: []string{"team"}},
@@ -50,7 +55,7 @@ func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 			{Group: "work.karmada.io", Version: "v1alpha2", Resource: "clusterresourcebindings"}: "ClusterResourceBindingList",
 		}, pod)
 		var cfg *rest.Config
-		if endpoint != "" {
+		if endpoint := endpoints[spec.ID]; endpoint != "" {
 			cfg = &rest.Config{Host: endpoint, Timeout: time.Second}
 			var err error
 			client, err = dynamic.NewForConfig(cfg)
@@ -60,7 +65,7 @@ func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 		}
 		return fleet.RuntimeClients{Typed: typed, Dynamic: client, Discovery: &discoveryfake.FakeDiscovery{Fake: &k8stesting.Fake{}}, Config: cfg}, nil
 	}
-	manager, err := fleet.New(config, filepath.Join(t.TempDir(), "state.json"), fleet.WithRuntimeFactory(factory), fleet.WithCacheSyncTimeout(time.Second))
+	manager, err := fleet.New(config, statePath, fleet.WithRuntimeFactory(factory), fleet.WithCacheSyncTimeout(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}

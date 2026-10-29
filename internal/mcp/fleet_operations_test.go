@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/skyhook-io/radar/internal/fleet"
 	pkgauth "github.com/skyhook-io/radar/pkg/auth"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -88,6 +91,27 @@ func TestFleetApplyPreviewReportsOnlyChangedStructuralPaths(t *testing.T) {
 	unchanged := safeOperationSummary(plan, &unstructured.Unstructured{Object: plan.beforeObject})
 	if !strings.Contains(strings.Join(unchanged, " "), "No desired-field differences") {
 		t.Fatalf("no-change summary = %v", unchanged)
+	}
+}
+
+func TestFleetApplyPreviewCoversFieldsOutsideDetailedAllowlist(t *testing.T) {
+	for _, test := range []struct {
+		resource string
+		before   map[string]any
+		after    map[string]any
+		path     string
+	}{
+		{"statefulsets", map[string]any{"spec": map[string]any{"updateStrategy": map[string]any{"type": "OnDelete"}}}, map[string]any{"spec": map[string]any{"updateStrategy": map[string]any{"type": "RollingUpdate"}}}, "spec"},
+		{"services", map[string]any{"spec": map[string]any{"externalName": "old.example"}}, map[string]any{"spec": map[string]any{"externalName": "private.example"}}, "spec"},
+		{"pods", map[string]any{"metadata": map[string]any{"finalizers": []any{"old"}}}, map[string]any{"metadata": map[string]any{"finalizers": []any{"private-finalizer"}}}, "metadata.finalizers"},
+	} {
+		t.Run(test.resource, func(t *testing.T) {
+			plan := fleetPendingOperation{action: "apply", kind: evidenceKinds[test.resource], beforeObject: test.before}
+			summary := strings.Join(safeOperationSummary(plan, &unstructured.Unstructured{Object: test.after}), " ")
+			if strings.Contains(summary, "No desired-field differences") || !strings.Contains(summary, test.path) || strings.Contains(summary, "private") {
+				t.Fatalf("incomplete or unsafe summary: %s", summary)
+			}
+		})
 	}
 }
 
@@ -335,6 +359,129 @@ func TestFleetOperationConfirmationIsOneShotAndActorBound(t *testing.T) {
 	}
 	if _, err := store.consume("east", confirmation, "user:alice", []string{"ops"}, time.Now()); err == nil {
 		t.Fatal("replayed confirmation accepted")
+	}
+}
+
+func TestFleetOperationAuditPersistenceFailures(t *testing.T) {
+	for _, failBeforeMutation := range []bool{true, false} {
+		t.Run(fmt.Sprintf("intent_failure=%t", failBeforeMutation), func(t *testing.T) {
+			statePath := filepath.Join(t.TempDir(), "state.json")
+			auditPath := statePath + ".audit.jsonl"
+			var mutations atomic.Int32
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == http.MethodPatch && r.URL.Query().Get("dryRun") == "" {
+					mutations.Add(1)
+					data, err := os.ReadFile(auditPath)
+					var intent fleet.AuditRecord
+					if err != nil || json.Unmarshal(data, &intent) != nil || intent.Stage != "intent" || intent.OperationID == "" {
+						t.Errorf("mutation dispatched without persisted intent: %s, %v", data, err)
+					}
+					if err := os.Chmod(auditPath, 0644); err != nil {
+						t.Errorf("cannot inject result audit failure: %v", err)
+					}
+				}
+				_, _ = w.Write([]byte(`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"web","namespace":"team","uid":"stable","resourceVersion":"42"},"spec":{"template":{"metadata":{}}}}`))
+			}))
+			defer api.Close()
+			manager := fleetTestManagerWithEndpoints(t, map[string]string{"a": api.URL, "b": api.URL}, statePath)
+			clusterID := manager.Statuses()[0].ClusterID
+			tools := fleetTools{source: manager, writesEnabled: true, operations: newFleetOperationStore()}
+			preview, err := tools.prepareOperation(context.Background(), fleetOperationInput{ClusterID: clusterID, Action: "restart", Resource: "deployments", Namespace: "team", Name: "web"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if failBeforeMutation {
+				if err := os.WriteFile(auditPath, []byte("torn audit fixture\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			input := fleetExecuteOperationInput{ClusterID: clusterID, Confirmation: preview.Confirmation}
+			result, err := tools.executeOperation(context.Background(), input)
+			if failBeforeMutation {
+				if err == nil || mutations.Load() != 0 {
+					t.Fatalf("failed intent allowed mutation: count=%d result=%+v err=%v", mutations.Load(), result, err)
+				}
+			} else if err != nil || result.State != "outcome_unknown" || mutations.Load() != 1 {
+				t.Fatalf("failed result persistence hid uncertainty: count=%d result=%+v err=%v", mutations.Load(), result, err)
+			}
+			count := mutations.Load()
+			if _, err := tools.executeOperation(context.Background(), input); err == nil || mutations.Load() != count {
+				t.Fatal("failed audit permitted confirmation replay")
+			}
+		})
+	}
+}
+
+func TestFleetOperationsIsolateTwoEndpointsAndReauthorizeAdmin(t *testing.T) {
+	type observed struct {
+		gets, dryRuns, mutations atomic.Int32
+		deny                     atomic.Bool
+	}
+	endpoints := map[string]string{}
+	counts := map[string]*observed{"a": {}, "b": {}}
+	for _, connection := range []string{"a", "b"} {
+		counter := counts[connection]
+		api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path != "/apis/apps/v1/namespaces/team/deployments/web" ||
+				r.Header.Get("Impersonate-User") != "alice" || r.Header.Get("Impersonate-Group") != "operators" {
+				t.Errorf("wrong caller or target on %s: %s, %q, %q", connection, r.URL.Path, r.Header.Get("Impersonate-User"), r.Header.Get("Impersonate-Group"))
+			}
+			if counter.deny.Load() {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"apiVersion":"v1","kind":"Status","status":"Failure","reason":"Forbidden","code":403,"message":"private-upstream-fixture"}`))
+				return
+			}
+			switch {
+			case r.Method == http.MethodGet:
+				counter.gets.Add(1)
+			case r.Method == http.MethodPatch && r.URL.Query().Get("dryRun") == "All":
+				counter.dryRuns.Add(1)
+			case r.Method == http.MethodPatch:
+				counter.mutations.Add(1)
+			default:
+				t.Errorf("unexpected method: %s", r.Method)
+			}
+			_, _ = fmt.Fprintf(w, `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"web","namespace":"team","uid":"uid-%s","resourceVersion":"42"},"spec":{"template":{"metadata":{}}}}`, connection)
+		}))
+		t.Cleanup(api.Close)
+		endpoints[connection] = api.URL
+	}
+	manager := fleetTestManagerWithEndpoints(t, endpoints, filepath.Join(t.TempDir(), "state.json"))
+	ids := map[string]string{}
+	for _, status := range manager.Statuses() {
+		ids[status.ConnectionID] = status.ClusterID
+	}
+	tools := fleetTools{source: manager, writesEnabled: true, requireAuth: true, operations: newFleetOperationStore(), admins: map[string]struct{}{"alice": {}}}
+	ctx := pkgauth.ContextWithUser(context.Background(), &pkgauth.User{Username: "alice", Groups: []string{"operators"}})
+	for _, connection := range []string{"a", "b"} {
+		other := "a"
+		if connection == "a" {
+			other = "b"
+		}
+		otherGets, otherDryRuns, otherMutations := counts[other].gets.Load(), counts[other].dryRuns.Load(), counts[other].mutations.Load()
+		preview, err := tools.prepareOperation(ctx, fleetOperationInput{ClusterID: ids[connection], Action: "restart", Resource: "deployments", Namespace: "team", Name: "web"})
+		if err != nil || preview.ConnectionID != connection || preview.Target.UID != "uid-"+connection {
+			t.Fatalf("%s preview misrouted: %+v, %v", connection, preview, err)
+		}
+		if _, err := tools.executeOperation(ctx, fleetExecuteOperationInput{ClusterID: ids[other], Confirmation: preview.Confirmation}); err == nil {
+			t.Fatal("wrong-cluster confirmation accepted")
+		}
+		result, err := tools.executeOperation(ctx, fleetExecuteOperationInput{ClusterID: ids[connection], Confirmation: preview.Confirmation})
+		if err != nil || result.State != "applied" || counts[connection].gets.Load() != 2 || counts[connection].dryRuns.Load() != 1 || counts[connection].mutations.Load() != 1 {
+			t.Fatalf("%s execution failed: %+v, %v", connection, result, err)
+		}
+		if counts[other].gets.Load() != otherGets || counts[other].dryRuns.Load() != otherDryRuns || counts[other].mutations.Load() != otherMutations {
+			t.Fatal("operation crossed into the other endpoint")
+		}
+	}
+	counts["b"].deny.Store(true)
+	if _, err := tools.prepareOperation(ctx, fleetOperationInput{ClusterID: ids["b"], Action: "restart", Resource: "deployments", Namespace: "team", Name: "web"}); err == nil || strings.Contains(err.Error(), "private-upstream") {
+		t.Fatalf("Fleet admin bypassed target denial or received raw upstream detail: %v", err)
+	}
+	if counts["b"].mutations.Load() != 1 {
+		t.Fatal("denied admin caused another mutation")
 	}
 }
 
