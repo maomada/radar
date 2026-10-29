@@ -137,6 +137,148 @@ func TestManagerUIDConflictFailsClosed(t *testing.T) {
 	}
 }
 
+func TestManagerManagedAddIsRejectedDuringStartup(t *testing.T) {
+	config := testConfig(ConnectionSpec{ID: "slow", Name: "Slow", Source: SourceSpec{Type: SourceInCluster}})
+	started := make(chan struct{})
+	release := make(chan struct{})
+	source := "/trusted/config"
+	candidate := ConnectionCandidate{
+		ID: CandidateID(source, "prod"), SourceFile: source, RawContext: "prod",
+	}
+	manager, err := New(config, filepath.Join(t.TempDir(), "state.json"),
+		WithCandidateProvider(func() ([]ConnectionCandidate, error) {
+			return []ConnectionCandidate{candidate}, nil
+		}),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			close(started)
+			<-release
+			return testRuntimeClients("uid"), nil
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	defer close(release)
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if _, err := manager.AddManagedConnection("managed", "Managed", candidate.ID); err == nil || err.Error() != "fleet runtime startup is in progress" {
+		t.Fatalf("managed add during startup error = %v", err)
+	}
+	if len(manager.Catalog().Connections) != 1 {
+		t.Fatalf("startup-rejected add changed the catalog: %+v", manager.Catalog().Connections)
+	}
+}
+
+func TestManagerRemovalStaysUnroutableAfterDurabilityError(t *testing.T) {
+	source := "/trusted/config"
+	candidate := ConnectionCandidate{
+		ID: CandidateID(source, "prod"), SourceFile: source, RawContext: "prod",
+	}
+	manager, err := New(testConfig(ConnectionSpec{
+		ID: "declared", Name: "Declared", Source: SourceSpec{Type: SourceInCluster},
+	}), filepath.Join(t.TempDir(), "state.json"),
+		WithCandidateProvider(func() ([]ConnectionCandidate, error) {
+			return []ConnectionCandidate{candidate}, nil
+		}),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return testRuntimeClients("uid"), nil
+		}),
+		WithCacheSyncTimeout(2*time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	waitForStatus(t, manager, manager.clusterIDs["declared"])
+	waitForStartup(t, manager)
+	managedID, err := manager.AddManagedConnection("managed", "Managed", candidate.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status := waitForStatus(t, manager, managedID); status.State != StateReady {
+		t.Fatalf("managed status = %#v", status)
+	}
+	manager.registry.syncDir = func(string) error {
+		return errors.New("synthetic directory sync failure")
+	}
+	if err := manager.RemoveManagedConnection("managed"); err == nil {
+		t.Fatal("removal hid the post-rename durability error")
+	}
+	if _, err := manager.Runtime(managedID); err == nil {
+		t.Fatal("removed runtime remained routable after durability error")
+	}
+	for _, connection := range manager.Catalog().Connections {
+		if connection.ID == "managed" && connection.Active {
+			t.Fatal("removed record remained active after durability error")
+		}
+	}
+	if _, err := manager.Runtime(manager.clusterIDs["declared"]); err != nil {
+		t.Fatalf("removal affected the declarative peer: %v", err)
+	}
+}
+
+func TestManagerAdditionStaysVisibleAfterDurabilityError(t *testing.T) {
+	source := "/trusted/config"
+	candidate := ConnectionCandidate{
+		ID: CandidateID(source, "prod"), SourceFile: source, RawContext: "prod",
+	}
+	manager, err := New(testConfig(ConnectionSpec{
+		ID: "declared", Name: "Declared", Source: SourceSpec{Type: SourceInCluster},
+	}), filepath.Join(t.TempDir(), "state.json"),
+		WithCandidateProvider(func() ([]ConnectionCandidate, error) {
+			return []ConnectionCandidate{candidate}, nil
+		}),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return testRuntimeClients("uid"), nil
+		}),
+		WithCacheSyncTimeout(2*time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	waitForStatus(t, manager, manager.clusterIDs["declared"])
+	waitForStartup(t, manager)
+	manager.registry.syncDir = func(string) error {
+		return errors.New("synthetic directory sync failure")
+	}
+	managedID, err := manager.AddManagedConnection("managed", "Managed", candidate.ID)
+	if err == nil || managedID == "" {
+		t.Fatalf("post-rename addition result = (%q, %v), want durable-write error and stable ID", managedID, err)
+	}
+	if _, err := manager.Runtime(managedID); err == nil {
+		t.Fatal("runtime became routable after a post-rename durability error")
+	}
+	status, err := manager.Status(managedID)
+	if err != nil || status.State != StateUnavailable {
+		t.Fatalf("post-rename addition status = %#v, %v", status, err)
+	}
+	found := false
+	for _, connection := range manager.Catalog().Connections {
+		if connection.ID == "managed" && connection.Managed && connection.Active {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("committed managed connection was not represented in the manager catalog")
+	}
+	if err := manager.RemoveManagedConnection("managed"); err == nil {
+		t.Fatal("removal hid its post-rename durability error")
+	}
+	if _, err := manager.Runtime(managedID); err == nil {
+		t.Fatal("removed post-rename record remained routable")
+	}
+}
+
 func TestManagerRefreshReplacesOnlySelectedRuntime(t *testing.T) {
 	config := testConfig(
 		ConnectionSpec{ID: "one", Name: "One", Source: SourceSpec{Type: SourceInCluster}},
@@ -580,6 +722,87 @@ func TestManagerConcurrentLookupAndShutdown(t *testing.T) {
 	closes.Wait()
 	if _, err := manager.Runtime(clusterID); err == nil {
 		t.Fatal("runtime became available after concurrent shutdown")
+	}
+}
+
+func TestManagerCloseCancelsManagedConnectionStartup(t *testing.T) {
+	source := "/trusted/config"
+	candidate := ConnectionCandidate{
+		ID: CandidateID(source, "prod"), SourceFile: source, RawContext: "prod",
+	}
+	started := make(chan struct{})
+	factory := func(ctx context.Context, spec ConnectionSpec) (RuntimeClients, error) {
+		if spec.ID == "managed" {
+			close(started)
+			<-ctx.Done()
+			return RuntimeClients{}, ctx.Err()
+		}
+		return testRuntimeClients("uid"), nil
+	}
+	manager, err := New(testConfig(ConnectionSpec{
+		ID: "declared", Name: "Declared", Source: SourceSpec{Type: SourceInCluster},
+	}), filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(factory),
+		WithCandidateProvider(func() ([]ConnectionCandidate, error) {
+			return []ConnectionCandidate{candidate}, nil
+		}),
+		WithCacheSyncTimeout(2*time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	waitForStatus(t, manager, manager.clusterIDs["declared"])
+	waitForStartup(t, manager)
+	if _, err := manager.AddManagedConnection("managed", "Managed", candidate.ID); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	closed := make(chan struct{})
+	go func() {
+		_ = manager.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("manager close did not cancel managed connection startup")
+	}
+}
+
+func TestManagerDuplicateDecisionExpiresWithIdentityConflict(t *testing.T) {
+	manager, err := New(testConfig(
+		ConnectionSpec{ID: "a", Name: "A", Source: SourceSpec{Type: SourceInCluster}},
+		ConnectionSpec{ID: "b", Name: "B", Source: SourceSpec{Type: SourceInCluster}},
+	), filepath.Join(t.TempDir(), "state.json"),
+		WithRuntimeFactory(func(context.Context, ConnectionSpec) (RuntimeClients, error) {
+			return testRuntimeClients("shared-uid"), nil
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	waitForStatus(t, manager, manager.clusterIDs["a"])
+	waitForStartup(t, manager)
+	left, right := manager.clusterIDs["a"], manager.clusterIDs["b"]
+	if err := manager.SetDuplicateDecision(left, right, "keep_separate"); err != nil {
+		t.Fatal(err)
+	}
+	if len(manager.Catalog().DuplicateDecisions) != 1 {
+		t.Fatal("verified duplicate decision was not persisted")
+	}
+	if err := manager.registry.RecordIdentity(left, "changed-uid", time.Now()); !errors.Is(err, errIdentityConflict) {
+		t.Fatalf("conflicting identity update error = %v, want identity conflict", err)
+	}
+	catalog := manager.Catalog()
+	if len(catalog.DuplicateDecisions) != 0 {
+		t.Fatalf("identity-conflicted cluster retained duplicate decision: %+v", catalog.DuplicateDecisions)
 	}
 }
 

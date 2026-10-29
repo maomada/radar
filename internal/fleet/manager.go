@@ -26,6 +26,24 @@ func WithIdentityProbe(probe IdentityProbe) ManagerOption {
 	}
 }
 
+func WithCandidateProvider(provider CandidateProvider) ManagerOption {
+	return func(options *runtimeOptions) {
+		options.candidates = provider
+	}
+}
+
+func WithManagedNamespaces(namespaces []string) ManagerOption {
+	return func(options *runtimeOptions) {
+		options.managedNamespaces = append([]string(nil), namespaces...)
+	}
+}
+
+func WithManagedNamespaceProvider(provider func() []string) ManagerOption {
+	return func(options *runtimeOptions) {
+		options.managedNamespaceProvider = provider
+	}
+}
+
 func WithProbeTimeout(timeout time.Duration) ManagerOption {
 	return func(options *runtimeOptions) {
 		if timeout > 0 {
@@ -43,22 +61,24 @@ func WithCacheSyncTimeout(timeout time.Duration) ManagerOption {
 }
 
 type Manager struct {
-	mu          sync.RWMutex
-	registry    *Registry
-	config      Config
-	clusterIDs  map[string]string
-	specs       map[string]ConnectionSpec
-	statuses    map[string]ConnectionStatus
-	runtimes    map[string]*ClusterRuntime
-	options     runtimeOptions
-	startSem    chan struct{}
-	startCancel context.CancelFunc
-	startWG     sync.WaitGroup
-	generation  uint64
-	starting    bool
-	closed      bool
-	closeDone   chan struct{}
-	closeErr    error
+	mu                sync.RWMutex
+	registry          *Registry
+	config            Config
+	clusterIDs        map[string]string
+	specs             map[string]ConnectionSpec
+	statuses          map[string]ConnectionStatus
+	runtimes          map[string]*ClusterRuntime
+	options           runtimeOptions
+	startSem          chan struct{}
+	startCancel       context.CancelFunc
+	startWG           sync.WaitGroup
+	generation        uint64
+	starting          bool
+	closed            bool
+	clusterGeneration map[string]uint64
+	runtimeCancels    map[string]context.CancelFunc
+	closeDone         chan struct{}
+	closeErr          error
 }
 
 func Open(configPath, statePath string, options ...ManagerOption) (*Manager, error) {
@@ -88,16 +108,19 @@ func New(config Config, statePath string, options ...ManagerOption) (*Manager, e
 		_ = registry.Close()
 		return nil, err
 	}
+	managed := registry.ManagedConnections()
 	manager := &Manager{
-		registry:   registry,
-		config:     cloneConfig(config),
-		clusterIDs: clusterIDs,
-		specs:      make(map[string]ConnectionSpec, len(config.Connections)),
-		statuses:   make(map[string]ConnectionStatus, len(config.Connections)),
-		runtimes:   make(map[string]*ClusterRuntime),
-		options:    runtimeOptions,
-		startSem:   make(chan struct{}, 4),
-		closeDone:  make(chan struct{}),
+		registry:          registry,
+		config:            cloneConfig(config),
+		clusterIDs:        clusterIDs,
+		specs:             make(map[string]ConnectionSpec, len(config.Connections)),
+		statuses:          make(map[string]ConnectionStatus, len(config.Connections)),
+		runtimes:          make(map[string]*ClusterRuntime),
+		options:           runtimeOptions,
+		startSem:          make(chan struct{}, 4),
+		closeDone:         make(chan struct{}),
+		clusterGeneration: make(map[string]uint64),
+		runtimeCancels:    make(map[string]context.CancelFunc),
 	}
 	for _, spec := range config.Connections {
 		manager.specs[spec.ID] = cloneConnectionSpec(spec)
@@ -111,6 +134,27 @@ func New(config Config, statePath string, options ...ManagerOption) (*Manager, e
 			Kinds:        make([]KindCoverage, 0, 5),
 		}
 	}
+	for _, spec := range managed {
+		spec.Managed = true
+		clusterID := clusterIDs[spec.ID]
+		if clusterID == "" {
+			for _, connection := range registry.Snapshot().Connections {
+				if connection.ID == spec.ID {
+					clusterID = connection.ClusterID
+					break
+				}
+			}
+		}
+		if clusterID == "" {
+			continue
+		}
+		manager.clusterIDs[spec.ID] = clusterID
+		manager.specs[spec.ID] = cloneConnectionSpec(spec)
+		manager.statuses[clusterID] = ConnectionStatus{
+			ConnectionID: spec.ID, ClusterID: clusterID, Name: spec.Name,
+			State: StateConnecting, Identity: IdentityUnresolved, Kinds: make([]KindCoverage, 0, 5),
+		}
+	}
 	manager.refreshDuplicateCandidatesLocked()
 	return manager, nil
 }
@@ -118,6 +162,26 @@ func New(config Config, statePath string, options ...ManagerOption) (*Manager, e
 func (m *Manager) Start(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	m.mu.RLock()
+	registry := m.registry
+	provider := m.options.candidates
+	closed, starting := m.closed, m.starting
+	m.mu.RUnlock()
+	if closed {
+		return errors.New("fleet manager is closed")
+	}
+	if starting {
+		return errors.New("fleet manager is already starting")
+	}
+	if registry != nil && provider != nil {
+		if err := registry.ReconcileManaged(provider); err != nil {
+			return err
+		}
+	}
+	managed := []ConnectionSpec{}
+	if registry != nil {
+		managed = registry.ManagedConnections()
 	}
 	m.mu.Lock()
 	if m.closed {
@@ -128,14 +192,68 @@ func (m *Manager) Start(ctx context.Context) error {
 		m.mu.Unlock()
 		return errors.New("fleet manager is already starting")
 	}
+	if registry == nil {
+		m.mu.Unlock()
+		return errors.New("fleet manager is closed")
+	}
+	activeManaged := make(map[string]struct{}, len(managed))
+	catalog := registry.Snapshot()
+	clusterByConnection := make(map[string]string, len(catalog.Connections))
+	for _, connection := range catalog.Connections {
+		clusterByConnection[connection.ID] = connection.ClusterID
+	}
+	oldRuntimes := make([]*ClusterRuntime, 0)
+	for _, spec := range managed {
+		spec.Managed = true
+		activeManaged[spec.ID] = struct{}{}
+		clusterID := clusterByConnection[spec.ID]
+		if clusterID == "" {
+			continue
+		}
+		m.clusterIDs[spec.ID] = clusterID
+		m.specs[spec.ID] = cloneConnectionSpec(spec)
+		if _, exists := m.statuses[clusterID]; !exists {
+			m.statuses[clusterID] = ConnectionStatus{
+				ConnectionID: spec.ID, ClusterID: clusterID, Name: spec.Name,
+				State: StateConnecting, Identity: IdentityUnresolved, Kinds: make([]KindCoverage, 0, 5),
+			}
+		}
+	}
+	for connectionID, spec := range m.specs {
+		if !spec.Managed {
+			continue
+		}
+		if _, active := activeManaged[connectionID]; active {
+			continue
+		}
+		clusterID := m.clusterIDs[connectionID]
+		if cancel := m.runtimeCancels[clusterID]; cancel != nil {
+			cancel()
+			delete(m.runtimeCancels, clusterID)
+		}
+		if runtime := m.runtimes[clusterID]; runtime != nil {
+			oldRuntimes = append(oldRuntimes, runtime)
+			delete(m.runtimes, clusterID)
+		}
+		delete(m.specs, connectionID)
+		delete(m.clusterIDs, connectionID)
+		delete(m.statuses, clusterID)
+	}
 	if m.startCancel != nil {
 		m.startCancel()
+	}
+	for clusterID, cancel := range m.runtimeCancels {
+		cancel()
+		delete(m.runtimeCancels, clusterID)
 	}
 	m.starting = true
 	m.generation++
 	generation := m.generation
 	startCtx, cancel := context.WithCancel(ctx)
 	m.startCancel = cancel
+	for clusterID := range m.statuses {
+		m.clusterGeneration[clusterID] = generation
+	}
 	entries := make([]startEntry, 0, len(m.specs))
 	for connectionID, spec := range m.specs {
 		entries = append(entries, startEntry{
@@ -145,7 +263,6 @@ func (m *Manager) Start(ctx context.Context) error {
 		})
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].clusterID < entries[j].clusterID })
-	oldRuntimes := make([]*ClusterRuntime, 0, len(entries))
 	for _, entry := range entries {
 		if runtime := m.runtimes[entry.clusterID]; runtime != nil {
 			oldRuntimes = append(oldRuntimes, runtime)
@@ -201,13 +318,11 @@ func (m *Manager) Refresh(ctx context.Context, clusterID string) error {
 		m.mu.Unlock()
 		return errors.New("unknown or inactive fleet cluster")
 	}
-	if m.startCancel != nil {
-		m.startCancel()
-	}
 	m.generation++
 	generation := m.generation
 	startCtx, cancel := context.WithCancel(ctx)
-	m.startCancel = cancel
+	m.clusterGeneration[clusterID] = generation
+	m.runtimeCancels[clusterID] = cancel
 	m.starting = true
 	status.State = StateConnecting
 	status.Identity = IdentityUnresolved
@@ -246,9 +361,16 @@ func (m *Manager) Close() error {
 	m.generation++
 	cancel := m.startCancel
 	m.startCancel = nil
+	runtimeCancels := make([]context.CancelFunc, 0, len(m.runtimeCancels))
+	for _, runtimeCancel := range m.runtimeCancels {
+		runtimeCancels = append(runtimeCancels, runtimeCancel)
+	}
 	m.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+	for _, runtimeCancel := range runtimeCancels {
+		runtimeCancel()
 	}
 	m.startWG.Wait()
 	m.mu.Lock()
@@ -369,6 +491,152 @@ func (m *Manager) DeleteFleet(fleetID string) error {
 	return registry.DeleteFleet(fleetID)
 }
 
+func (m *Manager) ManagedConnectionIDs() []string {
+	if m == nil {
+		return []string{}
+	}
+	catalog := m.Catalog()
+	ids := make([]string, 0)
+	for _, connection := range catalog.Connections {
+		if connection.Managed && connection.Active {
+			ids = append(ids, connection.ID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func (m *Manager) AddManagedConnection(id, name, candidateID string) (string, error) {
+	if m == nil {
+		return "", errors.New("fleet manager is unavailable")
+	}
+	if m.options.candidates == nil {
+		return "", errors.New("local Fleet connections are disabled")
+	}
+	candidates, err := m.options.candidates()
+	if err != nil {
+		return "", errors.New("fleet candidates are unavailable")
+	}
+	var match *ConnectionCandidate
+	for i := range candidates {
+		if candidates[i].ID == candidateID {
+			match = &candidates[i]
+			break
+		}
+	}
+	if match == nil || match.SourceFile == "" || match.RawContext == "" {
+		return "", errors.New("candidate is no longer trusted")
+	}
+	namespaces := m.options.managedNamespaces
+	if m.options.managedNamespaceProvider != nil {
+		namespaces = m.options.managedNamespaceProvider()
+	}
+	spec := ConnectionSpec{
+		ID: id, Name: name, Managed: true,
+		Source:     SourceSpec{Type: SourceKubeconfig, Kubeconfig: match.SourceFile, Context: match.RawContext},
+		Namespaces: append([]string(nil), namespaces...),
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed || m.registry == nil {
+		return "", errors.New("fleet manager is closed")
+	}
+	if m.starting {
+		return "", errors.New("fleet runtime startup is in progress")
+	}
+	if _, exists := m.specs[id]; exists {
+		return "", errors.New("connection ID is already in use")
+	}
+	clusterID, err := m.registry.AddManagedConnection(spec)
+	if err != nil {
+		for _, connection := range m.registry.Snapshot().Connections {
+			if connection.ID != id || !connection.Managed || !connection.Active {
+				continue
+			}
+			clusterID = connection.ClusterID
+			m.clusterIDs[id] = clusterID
+			m.specs[id] = cloneConnectionSpec(spec)
+			m.statuses[clusterID] = ConnectionStatus{
+				ConnectionID: id, ClusterID: clusterID, Name: name,
+				State: StateUnavailable, Identity: IdentityUnresolved,
+				LastAttemptAt: time.Now().UTC(), Kinds: make([]KindCoverage, 0, 5),
+			}
+			return clusterID, err
+		}
+		return "", err
+	}
+	m.clusterIDs[id] = clusterID
+	m.specs[id] = cloneConnectionSpec(spec)
+	m.statuses[clusterID] = ConnectionStatus{
+		ConnectionID: id, ClusterID: clusterID, Name: name,
+		State: StateConnecting, Identity: IdentityUnresolved, Kinds: make([]KindCoverage, 0, 5),
+	}
+	m.generation++
+	generation := m.generation
+	m.clusterGeneration[clusterID] = generation
+	ctx, cancel := context.WithCancel(context.Background())
+	m.runtimeCancels[clusterID] = cancel
+	entry := startEntry{connectionID: id, clusterID: clusterID, spec: cloneConnectionSpec(spec)}
+	m.startWG.Add(1)
+	go m.startEntry(ctx, generation, entry)
+	return clusterID, nil
+}
+
+func (m *Manager) RemoveManagedConnection(id string) error {
+	if m == nil {
+		return errors.New("fleet manager is unavailable")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed || m.registry == nil {
+		return errors.New("fleet manager is closed")
+	}
+	clusterID, ok := m.clusterIDs[id]
+	spec := m.specs[id]
+	if !ok || !spec.Managed {
+		return errors.New("unknown managed connection")
+	}
+	err := m.registry.RemoveManagedConnection(id)
+	if err != nil {
+		committed := false
+		for _, connection := range m.registry.Snapshot().Connections {
+			if connection.ID == id && connection.Managed && !connection.Active {
+				committed = true
+				break
+			}
+		}
+		if !committed {
+			return err
+		}
+	}
+	if cancel := m.runtimeCancels[clusterID]; cancel != nil {
+		cancel()
+		delete(m.runtimeCancels, clusterID)
+	}
+	m.clusterGeneration[clusterID]++
+	if runtime := m.runtimes[clusterID]; runtime != nil {
+		runtime.Close()
+		delete(m.runtimes, clusterID)
+	}
+	delete(m.specs, id)
+	delete(m.clusterIDs, id)
+	delete(m.statuses, clusterID)
+	return err
+}
+
+func (m *Manager) SetDuplicateDecision(clusterID, otherClusterID, decision string) error {
+	if m == nil {
+		return errors.New("fleet manager is unavailable")
+	}
+	m.mu.RLock()
+	registry := m.registry
+	m.mu.RUnlock()
+	if registry == nil {
+		return errors.New("fleet manager is closed")
+	}
+	return registry.SetDuplicateDecision(clusterID, otherClusterID, decision)
+}
+
 type startEntry struct {
 	connectionID string
 	clusterID    string
@@ -400,6 +668,9 @@ func (m *Manager) startEntry(ctx context.Context, generation uint64, entry start
 		result.status.State = StateUnavailable
 	}
 	m.publishStatus(generation, entry.clusterID, result.status, result.runtime)
+	m.mu.Lock()
+	delete(m.runtimeCancels, entry.clusterID)
+	m.mu.Unlock()
 }
 
 func (m *Manager) finishGeneration(generation uint64) {
@@ -413,7 +684,7 @@ func (m *Manager) finishGeneration(generation uint64) {
 
 func (m *Manager) publishStatus(generation uint64, clusterID string, status ConnectionStatus, runtime *ClusterRuntime) {
 	m.mu.Lock()
-	if m.closed || generation != m.generation {
+	if m.closed || generation != m.clusterGeneration[clusterID] {
 		m.mu.Unlock()
 		if runtime != nil {
 			runtime.Close()

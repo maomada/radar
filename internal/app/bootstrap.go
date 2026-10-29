@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"maps"
@@ -41,9 +42,12 @@ var clusterConnectionProbe = k8s.TestClusterConnection
 
 // AppConfig holds all parsed configuration for the Radar application.
 type AppConfig struct {
-	FleetManager   *fleet.Manager
-	Kubeconfig     string
-	KubeconfigDirs []string
+	FleetManager           *fleet.Manager
+	FleetCandidateProvider fleet.CandidateProvider
+	FleetAdminUsers        []string
+	FleetLocalConnections  bool
+	Kubeconfig             string
+	KubeconfigDirs         []string
 	// Zero value is the deliberate one: an entrypoint that never sets this
 	// starts on the kubeconfig's current-context. Only cmd/desktop opts in.
 	RestoreLastDesktopContext   bool
@@ -107,6 +111,82 @@ type AppConfig struct {
 	HubAPIURL                   string // Hub API origin override ("" = hosted default)
 	HubAppURL                   string // Hub frontend origin override ("" = derived)
 	CloudTunnelConfigured       bool   // --cloud-url was set on this process
+}
+
+func FleetCandidates() ([]fleet.ConnectionCandidate, error) {
+	if k8s.IsInCluster() {
+		return []fleet.ConnectionCandidate{}, nil
+	}
+	contexts, err := k8s.GetAvailableContexts()
+	if err != nil {
+		return nil, errors.New("trusted Kubernetes contexts are unavailable")
+	}
+	candidates := make([]fleet.ConnectionCandidate, 0, len(contexts))
+	seen := make(map[string]struct{}, len(contexts))
+	for _, info := range contexts {
+		sourceFile, rawContext, ok := k8s.GetContextSource(info.Name)
+		if !ok || sourceFile == "" || rawContext == "" {
+			continue
+		}
+		sourceFile, err := filepath.Abs(sourceFile)
+		if err != nil {
+			continue
+		}
+		name := info.Cluster
+		if name == "" {
+			name = rawContext
+		}
+		candidate := fleet.ConnectionCandidate{
+			ID: fleet.CandidateID(sourceFile, rawContext), Name: name, Context: rawContext,
+			SourceLabel: filepath.Base(sourceFile), SourceFile: sourceFile,
+			RawContext: rawContext, DisplayClusterName: info.Cluster,
+		}
+		candidates = append(candidates, candidate)
+		seen[candidate.ID] = struct{}{}
+	}
+	if path := k8s.GetKubeconfigPath(); path != "" {
+		discovered, err := fleet.DiscoverContexts([]string{path})
+		if err != nil {
+			return nil, errors.New("trusted Kubernetes contexts could not be discovered")
+		}
+		for _, candidate := range discovered {
+			sourceFile, err := filepath.Abs(candidate.SourceFile)
+			if err != nil {
+				continue
+			}
+			candidate.SourceFile = sourceFile
+			candidate.ID = fleet.CandidateID(candidate.SourceFile, candidate.RawContext)
+			if _, exists := seen[candidate.ID]; exists {
+				continue
+			}
+			name := candidate.DisplayClusterName
+			if name == "" {
+				name = candidate.RawContext
+			}
+			candidate.Name = name
+			candidate.Context = candidate.RawContext
+			candidate.SourceLabel = filepath.Base(candidate.SourceFile)
+			candidates = append(candidates, candidate)
+			seen[candidate.ID] = struct{}{}
+		}
+	}
+	return candidates, nil
+}
+
+func FleetManagedNamespaces(cfg AppConfig) []string {
+	if cfg.NamespaceScope {
+		if target := k8s.GetNamespaceScopeTarget(); target != "" {
+			return []string{target}
+		}
+		return []string{""}
+	}
+	if len(cfg.Namespaces) > 0 {
+		return append([]string(nil), cfg.Namespaces...)
+	}
+	if cfg.Namespace != "" {
+		return []string{cfg.Namespace}
+	}
+	return nil
 }
 
 // SetGlobals applies debug/test flags to global state.
@@ -584,7 +664,10 @@ func CreateServer(cfg AppConfig) *server.Server {
 		serverCfg.MCPReadOnlyHandler = mcppkg.NewReadOnlyHandler()
 		serverCfg.MCPInvestigationHandler = mcppkg.NewInvestigationHandler(evidenceRefs)
 		if cfg.FleetManager != nil {
-			serverCfg.FleetMCPHandler = mcppkg.NewFleetHandler(cfg.FleetManager, cfg.AuthConfig.Enabled())
+			serverCfg.FleetMCPHandler, serverCfg.FleetAPIHandler = mcppkg.NewFleetEndpoints(cfg.FleetManager, mcppkg.FleetOptions{
+				RequireAuth: cfg.AuthConfig.Enabled(), AdminUsers: cfg.FleetAdminUsers,
+				LocalConnections: cfg.FleetLocalConnections, Candidates: cfg.FleetCandidateProvider,
+			})
 		}
 	}
 	serverCfg.FleetManager = cfg.FleetManager

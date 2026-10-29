@@ -50,10 +50,12 @@ type fleetSearchInput struct {
 }
 
 type fleetInventory struct {
-	Clusters []fleet.ConnectionStatus `json:"clusters"`
-	Fleets   []fleet.FleetRecord      `json:"fleets"`
-	Members  []fleet.MembershipRecord `json:"memberships"`
-	Note     string                   `json:"note"`
+	Clusters             []fleet.ConnectionStatus  `json:"clusters"`
+	Fleets               []fleet.FleetRecord       `json:"fleets"`
+	Members              []fleet.MembershipRecord  `json:"memberships"`
+	ManagedConnectionIDs []string                  `json:"managedConnectionIds"`
+	DuplicateDecisions   []fleet.DuplicateDecision `json:"duplicateDecisions"`
+	Note                 string                    `json:"note"`
 }
 
 type fleetCoverage struct {
@@ -127,7 +129,8 @@ func NewFleetHandler(manager *fleet.Manager, requireAuth bool) http.Handler {
 	if manager == nil {
 		return http.NotFoundHandler()
 	}
-	return handlerForServer(newFleetServer(fleetTools{source: manager, requireAuth: requireAuth}))
+	mcpHandler, _ := NewFleetEndpoints(manager, FleetOptions{RequireAuth: requireAuth})
+	return mcpHandler
 }
 
 func newFleetServer(tools fleetTools) *mcpsdk.Server {
@@ -202,7 +205,12 @@ func (t fleetTools) list(ctx context.Context, _ *mcpsdk.CallToolRequest, input f
 		return nil, fleetInventory{}, err
 	}
 	catalog := t.source.Catalog()
-	result := fleetInventory{Clusters: statuses, Fleets: []fleet.FleetRecord{}, Members: []fleet.MembershipRecord{}, Note: "Configured inventory; connection and identity observations are not current Kubernetes health or per-user access grants."}
+	result := fleetInventory{
+		Clusters: statuses, Fleets: []fleet.FleetRecord{}, Members: []fleet.MembershipRecord{},
+		ManagedConnectionIDs: append([]string{}, managedConnectionIDs(t.source.Catalog())...),
+		DuplicateDecisions:   append([]fleet.DuplicateDecision{}, catalog.DuplicateDecisions...),
+		Note:                 "Configured inventory; connection and identity observations are not current Kubernetes health or per-user access grants.",
+	}
 	for _, f := range catalog.Fleets {
 		if f.Active && (input.FleetID == "" || f.ID == input.FleetID) {
 			result.Fleets = append(result.Fleets, f)
@@ -214,6 +222,17 @@ func (t fleetTools) list(ctx context.Context, _ *mcpsdk.CallToolRequest, input f
 		}
 	}
 	return nil, result, nil
+}
+
+func managedConnectionIDs(catalog fleet.Catalog) []string {
+	ids := make([]string, 0)
+	for _, connection := range catalog.Connections {
+		if connection.Managed && connection.Active {
+			ids = append(ids, connection.ID)
+		}
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 func (t fleetTools) client(ctx context.Context, clusterID string) (dynamic.Interface, []string, error) {

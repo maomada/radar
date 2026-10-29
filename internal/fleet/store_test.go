@@ -313,6 +313,43 @@ func TestOpenRegistryRejectsAliasedConnectionsAndActiveMismatch(t *testing.T) {
 	}
 }
 
+func TestOpenRegistryRejectsManagedSourceReferenceMismatch(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "state.json")
+	registry, err := OpenRegistry(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.AddManagedConnection(ConnectionSpec{
+		ID: "managed", Name: "Managed",
+		Source: SourceSpec{Type: SourceKubeconfig, Kubeconfig: "/trusted/config", Context: "prod"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := decodeState(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Connections[0].Source.Kubeconfig = "/untrusted/config"
+	corrupt, err := json.Marshal(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(statePath, corrupt, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if registry, err := OpenRegistry(statePath); err == nil {
+		_ = registry.Close()
+		t.Fatal("OpenRegistry accepted a managed source reference with a mismatched fingerprint")
+	}
+}
+
 func TestRegistryEnforcesSingleWriterLock(t *testing.T) {
 	statePath := filepath.Join(t.TempDir(), "state.json")
 	first, err := OpenRegistry(statePath)

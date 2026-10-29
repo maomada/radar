@@ -15,10 +15,16 @@ func configureFleet(cfg *app.AppConfig, configPath, statePath string, catalogOnl
 		if statePath != "" {
 			return errors.New("--fleet-state requires --fleet-config")
 		}
+		if cfg.FleetLocalConnections || len(cfg.FleetAdminUsers) > 0 {
+			return errors.New("Fleet management flags require --fleet-config")
+		}
 		return nil
 	}
 	if catalogOnly || cfg.CloudTunnelConfigured || !cfg.MCPEnabled {
 		return errors.New("Fleet requires enabled MCP and cannot use Cloud or catalog-only mode")
+	}
+	if cfg.FleetLocalConnections && (cfg.FakeInCluster || os.Getenv("KUBERNETES_SERVICE_HOST") != "") {
+		return errors.New("--fleet-local-connections is unavailable in-cluster")
 	}
 	loopback := cfg.ListenAddress == "localhost" || net.ParseIP(cfg.ListenAddress).IsLoopback()
 	if !loopback && !cfg.AuthConfig.Enabled() {
@@ -31,10 +37,18 @@ func configureFleet(cfg *app.AppConfig, configPath, statePath string, catalogOnl
 		}
 		statePath = filepath.Join(home, ".radar", "fleet-state.json")
 	}
-	manager, err := fleet.Open(configPath, statePath)
+	namespaceConfig := *cfg
+	options := []fleet.ManagerOption{
+		fleet.WithCandidateProvider(app.FleetCandidates),
+		fleet.WithManagedNamespaceProvider(func() []string {
+			return app.FleetManagedNamespaces(namespaceConfig)
+		}),
+	}
+	manager, err := fleet.Open(configPath, statePath, options...)
 	if err != nil {
 		return err
 	}
 	cfg.FleetManager = manager
+	cfg.FleetCandidateProvider = app.FleetCandidates
 	return nil
 }
