@@ -28,6 +28,28 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
+type fleetRuntimeSwapSource struct {
+	first       fleetSource
+	replacement fleetSource
+	calls       int
+}
+
+func (s *fleetRuntimeSwapSource) Catalog() fleet.Catalog {
+	return s.first.Catalog()
+}
+
+func (s *fleetRuntimeSwapSource) Statuses() []fleet.ConnectionStatus {
+	return s.first.Statuses()
+}
+
+func (s *fleetRuntimeSwapSource) Runtime(clusterID string) (*fleet.ClusterRuntime, error) {
+	s.calls++
+	if s.calls == 1 {
+		return s.first.Runtime(clusterID)
+	}
+	return s.replacement.Runtime(clusterID)
+}
+
 func TestFleetEvidenceRedaction(t *testing.T) {
 	object := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "v1", "kind": "Pod",
@@ -536,5 +558,217 @@ func TestFleetEvidenceAPIQueriesUseSharedHandlers(t *testing.T) {
 				t.Fatalf("%s returned an empty result", item.tool)
 			}
 		})
+	}
+}
+
+func TestFleetEvidenceOperationCapturesRuntimeOnce(t *testing.T) {
+	first := fleetTestManager(t, "")
+	replacement := fleetTestManager(t, "")
+	status := first.Statuses()[0]
+	source := &fleetRuntimeSwapSource{first: first, replacement: replacement}
+	_, result, err := (fleetTools{source: source}).getFleetEvents(context.Background(), nil, fleetEventsInput{
+		fleetEvidenceInput: fleetEvidenceInput{ClusterID: status.ClusterID, Resource: "pods", Namespace: "team", Name: "same-name", UID: status.ConnectionID},
+	})
+	if err != nil || result.State != "available" || source.calls != 1 || len(result.Events) != 0 {
+		t.Fatalf("runtime was reacquired or event read failed: calls=%d result=%+v err=%v", source.calls, result, err)
+	}
+}
+
+func TestFleetEventsMixedNamespaceCoverageIsPartial(t *testing.T) {
+	manager := fleetTestManager(t, "")
+	status := manager.Statuses()[0]
+	cluster, err := manager.Runtime(status.ClusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	typed := cluster.Kubernetes().(*kubernetesfake.Clientset)
+	typed.PrependReactor("list", "events", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if action.GetNamespace() == "other" {
+			return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: "events"}, "", errors.New("hidden"))
+		}
+		return true, &corev1.EventList{Items: []corev1.Event{{
+			ObjectMeta:     metav1.ObjectMeta{Namespace: "team", UID: "event-uid"},
+			InvolvedObject: corev1.ObjectReference{UID: types.UID("node-uid")},
+		}}}, nil
+	})
+	target := fleetResource{ClusterID: status.ClusterID, ConnectionID: status.ConnectionID}
+	object := &unstructured.Unstructured{Object: map[string]any{"metadata": map[string]any{"uid": "node-uid", "name": "node"}}}
+	result := collectFleetEvents(context.Background(), fleetEventsInput{
+		fleetEvidenceInput: fleetEvidenceInput{ClusterID: status.ClusterID, Resource: "nodes", Name: "node", UID: "node-uid"},
+		Limit:              20,
+	}, target, object, evidenceKind{Kind: "Node"}, fleetClientBundle{
+		Status: status, Typed: typed, Namespaces: []string{"team", "other"},
+	}, false)
+	if result.State != "partial" || len(result.Events) != 1 || len(result.Limitations) == 0 {
+		t.Fatalf("mixed namespace event coverage = %+v", result)
+	}
+}
+
+func TestFleetDiagnosisCompletenessGates(t *testing.T) {
+	missingWorkloadFields := map[string]map[string]any{
+		"Deployment": {
+			"apiVersion": "apps/v1", "kind": "Deployment",
+			"metadata": map[string]any{"generation": int64(1)},
+			"spec":     map[string]any{"replicas": int64(1)},
+			"status":   map[string]any{"observedGeneration": int64(1)},
+		},
+		"StatefulSet": {
+			"apiVersion": "apps/v1", "kind": "StatefulSet",
+			"metadata": map[string]any{"generation": int64(1)},
+			"spec":     map[string]any{"replicas": int64(1)},
+			"status":   map[string]any{"observedGeneration": int64(1)},
+		},
+		"ReplicaSet": {
+			"apiVersion": "apps/v1", "kind": "ReplicaSet",
+			"metadata": map[string]any{"generation": int64(1)},
+			"spec":     map[string]any{"replicas": int64(1)},
+			"status":   map[string]any{"observedGeneration": int64(1)},
+		},
+		"DaemonSet": {
+			"apiVersion": "apps/v1", "kind": "DaemonSet",
+			"metadata": map[string]any{"generation": int64(1)},
+			"status":   map[string]any{"observedGeneration": int64(1), "desiredNumberScheduled": int64(1)},
+		},
+	}
+	for kind, object := range missingWorkloadFields {
+		level, complete, finding := classifyFleetObject(&unstructured.Unstructured{Object: object}, kind, time.Now())
+		if complete || finding != nil || level != health.LevelUnknown {
+			t.Errorf("%s missing replica fields = (%s, %v, %+v)", kind, level, complete, finding)
+		}
+	}
+	runningMissingReady := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Pod",
+		"metadata": map[string]any{"uid": "running"},
+		"status":   map[string]any{"phase": "Running"},
+	}}
+	if level, complete, finding := classifyFleetObject(runningMissingReady, "Pod", time.Now()); complete || finding != nil || level != health.LevelUnknown {
+		t.Fatalf("running Pod without Ready condition = (%s, %v, %+v)", level, complete, finding)
+	}
+	pendingMissingCreation := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Pod",
+		"metadata": map[string]any{"uid": "pending"},
+		"status":   map[string]any{"phase": "Pending"},
+	}}
+	if level, complete, finding := classifyFleetObject(pendingMissingCreation, "Pod", time.Now()); complete || finding != nil || level != health.LevelUnknown {
+		t.Fatalf("Pending Pod without creation timestamp = (%s, %v, %+v)", level, complete, finding)
+	}
+	completed := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Pod",
+		"metadata": map[string]any{"uid": "completed"},
+		"status": map[string]any{
+			"phase":      "Succeeded",
+			"conditions": []any{map[string]any{"type": "Ready", "status": "False", "message": "normal completion"}},
+		},
+	}}
+	if level, complete, finding := classifyFleetObject(completed, "Pod", time.Now()); !complete || level != health.LevelNeutral || finding != nil {
+		t.Fatalf("completed Pod readiness was diagnosed: (%s, %v, %+v)", level, complete, finding)
+	}
+}
+
+func TestFleetDiagnosisRedactsConditionMessage(t *testing.T) {
+	secret := "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"
+	object := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Pod",
+		"metadata": map[string]any{"uid": "pod"},
+		"status": map[string]any{
+			"phase":      "Running",
+			"conditions": []any{map[string]any{"type": "Ready", "status": "False", "message": secret}},
+		},
+	}}
+	_, complete, finding := classifyFleetObject(object, "Pod", time.Now())
+	if !complete || finding == nil || strings.Contains(finding.Summary, "eyJhbGci") || !strings.Contains(finding.Summary, "[REDACTED]") {
+		t.Fatalf("condition message was not redacted: complete=%v finding=%+v", complete, finding)
+	}
+}
+
+func TestFleetLogsFinalRedactionCap(t *testing.T) {
+	text, truncated := truncateFleetText(strings.Repeat("x", 64*1024+1), 64*1024)
+	if !truncated || len(text) != 64*1024 {
+		t.Fatalf("final log cap = len %d truncated=%v", len(text), truncated)
+	}
+}
+
+func TestFleetOverviewFindingsHaveDeterministicResourceEvidence(t *testing.T) {
+	now := time.Now().UTC()
+	makePod := func(namespace, uid, resourceVersion string) unstructured.Unstructured {
+		return unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "Pod",
+			"metadata": map[string]any{"name": "api", "namespace": namespace, "uid": uid, "resourceVersion": resourceVersion},
+			"status": map[string]any{
+				"phase":      "Running",
+				"conditions": []any{map[string]any{"type": "Ready", "status": "True"}},
+				"containerStatuses": []any{map[string]any{
+					"name": "app", "state": map[string]any{"waiting": map[string]any{"reason": "CrashLoopBackOff"}},
+				}},
+			},
+		}}
+	}
+	state, findings, _, _ := assessFleetObjects(map[string][]unstructured.Unstructured{
+		"Pod": {makePod("zeta", "z-uid", "2"), makePod("alpha", "a-uid", "1")},
+	}, []fleetCoverage{{Resource: "pods", State: "complete"}}, now)
+	if state != "observed_issues" || len(findings) != 2 {
+		t.Fatalf("overview findings = state %s findings %+v", state, findings)
+	}
+	if !strings.Contains(findings[0].Evidence[len(findings[0].Evidence)-1], "namespace=alpha") ||
+		!strings.Contains(findings[1].Evidence[len(findings[1].Evidence)-1], "namespace=zeta") {
+		t.Fatalf("overview findings were not sorted by namespace: %+v", findings)
+	}
+	for _, finding := range findings {
+		evidence := finding.Evidence[len(finding.Evidence)-1]
+		for _, field := range []string{"group=", "kind=Pod", "namespace=", "name=api", "uid=", "resourceVersion="} {
+			if !strings.Contains(evidence, field) {
+				t.Errorf("resource evidence missing %q: %s", field, evidence)
+			}
+		}
+	}
+}
+
+func TestFleetRelationshipsCollectBindingsWhenClusterListDenied(t *testing.T) {
+	manager := fleetTestManager(t, "")
+	status := manager.Statuses()[0]
+	cluster, err := manager.Runtime(status.ClusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := cluster.Dynamic().(*dynamicfake.FakeDynamicClient)
+	binding := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "work.karmada.io/v1alpha2", "kind": "ResourceBinding",
+		"metadata": map[string]any{"name": "binding", "namespace": "team", "uid": "binding-uid", "resourceVersion": "1"},
+		"spec": map[string]any{
+			"resource": map[string]any{"apiVersion": "v1", "kind": "Pod", "namespace": "team", "name": "same-name", "uid": status.ConnectionID},
+			"clusters": []any{map[string]any{"name": "member"}},
+		},
+	}}
+	if _, err := client.Resource(karmadaResourceBindingsGVR).Namespace("team").Create(context.Background(), binding, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	client.PrependReactor("list", "clusters", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(schema.GroupResource{Group: "cluster.karmada.io", Resource: "clusters"}, "", errors.New("cluster list denied"))
+	})
+	_, result, err := (fleetTools{source: manager}).getFleetRelationships(context.Background(), nil, fleetSelection{ClusterIDs: []string{status.ClusterID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coverage := map[string]string{}
+	for _, item := range result.Coverage {
+		coverage[item.Resource] = item.State
+	}
+	if coverage["clusters"] != "denied" || coverage["resourcebindings"] != "complete" || coverage["clusterresourcebindings"] != "complete" {
+		t.Fatalf("independent relationship coverage = %+v", result.Coverage)
+	}
+	found := false
+	for _, relationship := range result.Relationships {
+		if relationship.Type == "declared_distribution" {
+			found = true
+			if relationship.State != "unresolved" || relationship.TargetClusterID != "" || len(relationship.TargetCandidates) != 0 {
+				t.Fatalf("denied identity was guessed from binding = %+v", relationship)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("readable ResourceBinding did not produce declared unresolved evidence: %+v", result)
+	}
+	if !strings.Contains(strings.Join(result.Limitations, " "), "delivery") {
+		t.Fatalf("relationship endpoint limitation missing: %+v", result.Limitations)
 	}
 }

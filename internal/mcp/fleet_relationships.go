@@ -81,39 +81,68 @@ func (t fleetTools) getFleetRelationships(ctx context.Context, _ *mcpsdk.CallToo
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	result := fleetRelationshipsResult{Relationships: []fleetRelationship{}, Coverage: []fleetRelationshipCoverage{}, Limitations: []string{}}
+	result := fleetRelationshipsResult{
+		Relationships: []fleetRelationship{}, Coverage: []fleetRelationshipCoverage{},
+		Limitations: []string{"observed endpoint resources do not prove delivery or ownership"},
+	}
+	coverageIndex := map[string]int{}
+	coverageKey := func(clusterID, resource string) string { return clusterID + "\x00" + resource }
+	setCoverage := func(clusterID, resource, state string) {
+		if index, ok := coverageIndex[coverageKey(clusterID, resource)]; ok {
+			result.Coverage[index].State = state
+		}
+	}
+	resources := []string{"identity", "clusters", "resourcebindings", "clusterresourcebindings"}
+	for _, status := range selected {
+		for _, resource := range resources {
+			coverageIndex[coverageKey(status.ClusterID, resource)] = len(result.Coverage)
+			result.Coverage = append(result.Coverage, fleetRelationshipCoverage{ClusterID: status.ClusterID, Resource: resource, State: "not_collected"})
+		}
+	}
 	freshUIDs := map[string][]string{}
 	memberTargets := map[string][]string{}
 	clients := map[string]dynamic.Interface{}
 	namespacesByCluster := map[string][]string{}
 	statusesByID := map[string]fleet.ConnectionStatus{}
 	for _, status := range selected {
+		if ctx.Err() != nil {
+			result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+			return nil, result, nil
+		}
 		statusesByID[status.ClusterID] = status
 		typed, dynamic, namespaces, err := t.clients(ctx, status.ClusterID)
 		if err != nil {
-			for _, resource := range []string{"identity", "clusters", "resourcebindings", "clusterresourcebindings"} {
-				result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, resource, "unavailable"})
+			for _, resource := range resources {
+				setCoverage(status.ClusterID, resource, "unavailable")
 			}
 			continue
 		}
 		clients[status.ClusterID], namespacesByCluster[status.ClusterID] = dynamic, namespaces
 		if !fleetNamespaceAllowed(namespaces, "kube-system") {
-			result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, "identity", "out_of_scope"})
+			setCoverage(status.ClusterID, "identity", "out_of_scope")
 			continue
 		}
 		ns, err := typed.CoreV1().Namespaces().Get(ctx, "kube-system", metav1.GetOptions{})
 		if err == nil {
 			if ns.UID == "" {
-				result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, "identity", "unresolved"})
+				setCoverage(status.ClusterID, "identity", "unresolved")
 			} else {
 				freshUIDs[string(ns.UID)] = append(freshUIDs[string(ns.UID)], status.ClusterID)
-				result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, "identity", "complete"})
+				setCoverage(status.ClusterID, "identity", "complete")
 			}
 		} else {
-			result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, "identity", classifyFleetReadError(err)})
+			setCoverage(status.ClusterID, "identity", classifyFleetReadError(err))
 		}
 	}
+	if ctx.Err() != nil {
+		result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+		return nil, result, nil
+	}
 	for _, status := range selected {
+		if ctx.Err() != nil {
+			result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+			return nil, result, nil
+		}
 		dynamic := clients[status.ClusterID]
 		if dynamic == nil {
 			continue
@@ -124,54 +153,105 @@ func (t fleetTools) getFleetRelationships(ctx context.Context, _ *mcpsdk.CallToo
 			if state == "not_found" {
 				state = "unsupported"
 			}
-			result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, "clusters", state})
-			continue
-		}
-		if list.GetContinue() != "" {
-			result.Truncated = true
-		}
-		result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, "clusters", "complete"})
-		for _, member := range list.Items {
-			memberID, _, _ := unstructured.NestedString(member.Object, "spec", "id")
-			targets := fleetIdentityCandidates(memberID, freshUIDs)
-			memberTargets[status.ClusterID+":"+member.GetName()] = append([]string{}, targets...)
-			evidence := fleetTargetFromObject(status, evidenceKind{GVR: karmadaClustersGVR, Kind: "Cluster"}, &member)
-			rel := fleetRelationship{ID: "identity:" + status.ClusterID + ":" + member.GetName(), Type: "declared_identity_match", SourceClusterID: status.ClusterID, MemberName: member.GetName(), State: "unresolved", Evidence: []fleetResource{evidence}}
-			if len(targets) == 1 {
-				rel.TargetClusterID, rel.State = targets[0], "declared_identity_match"
-			} else if len(targets) > 1 {
-				rel.TargetCandidates, rel.State = append([]string{}, targets...), "ambiguous"
+			setCoverage(status.ClusterID, "clusters", state)
+		} else {
+			clusterItems := list.Items
+			partial := list.GetContinue() != ""
+			if len(clusterItems) > 200 {
+				clusterItems = clusterItems[:200]
+				partial = true
 			}
-			result.Relationships = append(result.Relationships, rel)
-			if len(result.Relationships) >= 200 {
+			if partial {
 				result.Truncated = true
-				return nil, result, nil
+			}
+			for _, member := range clusterItems {
+				if ctx.Err() != nil {
+					partial = true
+					result.Truncated = true
+					break
+				}
+				memberID, _, _ := unstructured.NestedString(member.Object, "spec", "id")
+				targets := fleetIdentityCandidates(memberID, freshUIDs)
+				memberTargets[status.ClusterID+":"+member.GetName()] = append([]string{}, targets...)
+				evidence := fleetTargetFromObject(status, evidenceKind{GVR: karmadaClustersGVR, Kind: "Cluster"}, &member)
+				rel := fleetRelationship{ID: "identity:" + status.ClusterID + ":" + member.GetName(), Type: "declared_identity_match", SourceClusterID: status.ClusterID, MemberName: member.GetName(), State: "unresolved", Evidence: []fleetResource{evidence}}
+				if len(targets) == 1 {
+					rel.TargetClusterID, rel.State = targets[0], "declared_identity_match"
+				} else if len(targets) > 1 {
+					rel.TargetCandidates, rel.State = append([]string{}, targets...), "ambiguous"
+				}
+				result.Relationships = append(result.Relationships, rel)
+				if len(result.Relationships) >= 200 {
+					setCoverage(status.ClusterID, "clusters", "partial")
+					result.Truncated = true
+					result.Limitations = append(result.Limitations, "relationship results were truncated at the global limit")
+					return nil, result, nil
+				}
+			}
+			if partial {
+				setCoverage(status.ClusterID, "clusters", "partial")
+				result.Limitations = append(result.Limitations, "one or more relationship lists were truncated")
+			} else {
+				setCoverage(status.ClusterID, "clusters", "complete")
 			}
 		}
 		for _, gvr := range []struct {
 			gvr  schema.GroupVersionResource
 			kind string
 		}{{karmadaResourceBindingsGVR, "ResourceBinding"}, {karmadaClusterResourceBindingsGVR, "ClusterResourceBinding"}} {
+			if ctx.Err() != nil {
+				result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+				return nil, result, nil
+			}
 			bindingNamespaces := []string{""}
 			if gvr.gvr.Resource == karmadaResourceBindingsGVR.Resource && len(namespacesByCluster[status.ClusterID]) > 0 {
 				bindingNamespaces = append([]string{}, namespacesByCluster[status.ClusterID]...)
 			}
-			coverageState := "complete"
+			successes := 0
+			failedStates := []string{}
+			partial := false
 			for _, namespace := range bindingNamespaces {
+				if ctx.Err() != nil {
+					result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+					if successes > 0 {
+						partial = true
+					}
+					break
+				}
 				bindings, bindErr := dynamic.Resource(gvr.gvr).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 200})
 				if bindErr != nil {
-					coverageState = classifyFleetReadError(bindErr)
-					if coverageState == "not_found" {
-						coverageState = "unsupported"
+					state := classifyFleetReadError(bindErr)
+					if state == "not_found" {
+						state = "unsupported"
 					}
+					failedStates = append(failedStates, state)
 					continue
 				}
-				if bindings.GetContinue() != "" {
+				successes++
+				bindingItems := bindings.Items
+				if bindings.GetContinue() != "" || len(bindingItems) > 200 {
+					partial = true
 					result.Truncated = true
+					result.Limitations = append(result.Limitations, "one or more relationship lists were truncated")
 				}
-				for _, binding := range bindings.Items {
+				if len(bindingItems) > 200 {
+					bindingItems = bindingItems[:200]
+				}
+				for _, binding := range bindingItems {
+					if ctx.Err() != nil {
+						partial = true
+						result.Truncated = true
+						result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+						break
+					}
 					members, _, _ := unstructured.NestedSlice(binding.Object, "spec", "clusters")
 					for _, rawMember := range members {
+						if ctx.Err() != nil {
+							partial = true
+							result.Truncated = true
+							result.Limitations = append(result.Limitations, "relationship collection deadline was reached")
+							break
+						}
 						member, ok := rawMember.(map[string]any)
 						if !ok {
 							continue
@@ -181,14 +261,37 @@ func (t fleetTools) getFleetRelationships(ctx context.Context, _ *mcpsdk.CallToo
 						if rel != nil {
 							result.Relationships = append(result.Relationships, *rel)
 							if len(result.Relationships) >= 200 {
+								setCoverage(status.ClusterID, gvr.gvr.Resource, "partial")
 								result.Truncated = true
+								result.Limitations = append(result.Limitations, "relationship results were truncated at the global limit")
 								return nil, result, nil
 							}
 						}
 					}
+					if ctx.Err() != nil {
+						break
+					}
 				}
 			}
-			result.Coverage = append(result.Coverage, fleetRelationshipCoverage{status.ClusterID, gvr.gvr.Resource, coverageState})
+			coverageState := "complete"
+			if successes > 0 && len(failedStates) > 0 {
+				coverageState = "partial"
+			} else if successes == 0 && len(failedStates) > 0 {
+				coverageState = failedStates[0]
+				for _, failedState := range failedStates[1:] {
+					if failedState != coverageState {
+						coverageState = "partial"
+						break
+					}
+				}
+			}
+			if partial {
+				coverageState = "partial"
+			}
+			if successes == 0 && len(failedStates) == 0 && ctx.Err() != nil {
+				coverageState = "not_collected"
+			}
+			setCoverage(status.ClusterID, gvr.gvr.Resource, coverageState)
 		}
 	}
 	return nil, result, nil

@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/skyhook-io/radar/internal/fleet"
@@ -98,31 +99,31 @@ func evidenceKindFor(name string) (evidenceKind, bool) {
 	return kind, ok
 }
 
-func (t fleetTools) evidenceTarget(ctx context.Context, input fleetEvidenceInput) (fleet.ConnectionStatus, evidenceKind, *unstructured.Unstructured, fleetResource, string, []string) {
+func (t fleetTools) evidenceTarget(input fleetEvidenceInput) (fleet.ConnectionStatus, evidenceKind, fleetResource, string, []string) {
 	kind, ok := evidenceKindFor(input.Resource)
 	target := fleetResource{ClusterID: input.ClusterID, Ref: resourceid.NewRef("", input.Resource, input.Namespace, input.Name), ObservedAt: time.Now().UTC(), Source: "kubernetes-api"}
-	if !ok {
-		return fleet.ConnectionStatus{}, kind, nil, target, "unsupported", []string{"resource kind is not supported"}
-	}
-	target.Ref = resourceid.NewRef(kind.GVR.Group, kind.Kind, input.Namespace, input.Name)
-	if input.ClusterID == "" || len(input.ClusterID) > 128 || input.Name == "" || len(input.Name) > 253 || len(validation.IsDNS1123Subdomain(input.Name)) > 0 || len(input.UID) > 256 || (kind.Namespaced && input.Namespace == "") || (!kind.Namespaced && input.Namespace != "") {
-		return fleet.ConnectionStatus{}, kind, nil, target, "invalid", []string{"clusterId, resource, namespace and name must match the selected resource scope"}
-	}
-	if kind.Namespaced && len(validation.IsDNS1123Label(input.Namespace)) > 0 {
-		return fleet.ConnectionStatus{}, kind, nil, target, "invalid", []string{"namespace is invalid"}
-	}
-	statuses := t.source.Statuses()
 	var selected fleet.ConnectionStatus
-	for _, status := range statuses {
+	for _, status := range t.source.Statuses() {
 		if status.ClusterID == input.ClusterID {
 			selected = status
+			target.ConnectionID = status.ConnectionID
 			break
 		}
 	}
-	if selected.ClusterID == "" {
-		return selected, kind, nil, target, "unavailable", []string{"selected cluster is unavailable"}
+	if !ok {
+		return selected, kind, target, "unsupported", []string{"resource kind is not supported"}
 	}
-	return selected, kind, nil, target, "", nil
+	target.Ref = resourceid.NewRef(kind.GVR.Group, kind.Kind, input.Namespace, input.Name)
+	if input.ClusterID == "" || len(input.ClusterID) > 128 || input.Name == "" || len(input.Name) > 253 || len(validation.IsDNS1123Subdomain(input.Name)) > 0 || len(input.UID) > 256 || (kind.Namespaced && input.Namespace == "") || (!kind.Namespaced && input.Namespace != "") {
+		return selected, kind, target, "invalid", []string{"clusterId, resource, namespace and name must match the selected resource scope"}
+	}
+	if kind.Namespaced && len(validation.IsDNS1123Label(input.Namespace)) > 0 {
+		return selected, kind, target, "invalid", []string{"namespace is invalid"}
+	}
+	if selected.ClusterID == "" {
+		return selected, kind, target, "unavailable", []string{"selected cluster is unavailable"}
+	}
+	return selected, kind, target, "", nil
 }
 
 func fleetNamespaceAllowed(configured []string, namespace string) bool {
@@ -167,36 +168,41 @@ func sanitizeFleetObject(obj *unstructured.Unstructured) any {
 	return aicontext.MinifyUnstructured(copy, aicontext.LevelDetail)
 }
 
-func (t fleetTools) readFleetObject(ctx context.Context, input fleetEvidenceInput) (fleetResource, *unstructured.Unstructured, evidenceKind, string, []string) {
+func (t fleetTools) readFleetObject(ctx context.Context, input fleetEvidenceInput) (fleetResource, *unstructured.Unstructured, evidenceKind, string, []string, fleetClientBundle) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	status, kind, _, target, state, limitations := t.evidenceTarget(ctx, input)
+	status, kind, target, state, limitations := t.evidenceTarget(input)
 	if state != "" {
-		return target, nil, kind, state, limitations
+		return target, nil, kind, state, limitations, fleetClientBundle{}
 	}
-	_, client, namespaces, err := t.clients(ctx, status.ClusterID)
+	bundle, err := t.clientBundle(ctx, status.ClusterID)
 	if err != nil {
-		return target, nil, kind, "unavailable", []string{"target caller client is unavailable"}
+		return target, nil, kind, "unavailable", []string{"target caller client is unavailable"}, fleetClientBundle{}
 	}
-	if kind.Namespaced && !fleetNamespaceAllowed(namespaces, input.Namespace) {
-		return target, nil, kind, "out_of_scope", []string{"namespace is outside the runtime collection clamp"}
+	status = bundle.Status
+	target.ConnectionID = status.ConnectionID
+	if status.ClusterID != input.ClusterID || bundle.Dynamic == nil {
+		return target, nil, kind, "unavailable", []string{"target caller client is unavailable"}, fleetClientBundle{}
 	}
-	obj, err := client.Resource(kind.GVR).Namespace(input.Namespace).Get(ctx, input.Name, metav1.GetOptions{})
+	if kind.Namespaced && !fleetNamespaceAllowed(bundle.Namespaces, input.Namespace) {
+		return target, nil, kind, "out_of_scope", []string{"namespace is outside the runtime collection clamp"}, bundle
+	}
+	obj, err := bundle.Dynamic.Resource(kind.GVR).Namespace(input.Namespace).Get(ctx, input.Name, metav1.GetOptions{})
 	if err != nil {
-		return target, nil, kind, classifyFleetReadError(err), []string{"target resource could not be read"}
+		return target, nil, kind, classifyFleetReadError(err), []string{"target resource could not be read"}, bundle
 	}
 	target = fleetTargetFromObject(status, kind, obj)
 	if input.UID != "" && input.UID != string(obj.GetUID()) {
-		return target, nil, kind, "stale", []string{"the supplied UID does not match the current resource"}
+		return target, nil, kind, "stale", []string{"the supplied UID does not match the current resource"}, bundle
 	}
-	return target, obj, kind, "available", []string{}
+	return target, obj, kind, "available", []string{}, bundle
 }
 
 func (t fleetTools) getFleetResource(ctx context.Context, _ *mcpsdk.CallToolRequest, input fleetEvidenceInput) (*mcpsdk.CallToolResult, fleetEvidenceResult, error) {
 	if err := t.authorize(ctx); err != nil {
 		return nil, fleetEvidenceResult{}, err
 	}
-	target, obj, _, state, limitations := t.readFleetObject(ctx, input)
+	target, obj, _, state, limitations, _ := t.readFleetObject(ctx, input)
 	result := fleetEvidenceResult{Target: target, State: state, Limitations: limitations}
 	if state == "available" {
 		result.Object = sanitizeFleetObject(obj)
@@ -217,37 +223,46 @@ func (t fleetTools) getFleetEvents(ctx context.Context, _ *mcpsdk.CallToolReques
 	if input.Limit <= 0 || input.Limit > 100 {
 		input.Limit = 100
 	}
-	target, obj, kind, state, limitations := t.readFleetObject(ctx, input.fleetEvidenceInput)
-	result := fleetEventsResult{Target: target, State: state, Events: []fleetEvent{}, Truncated: clamped, Limitations: limitations}
+	target, obj, kind, state, limitations, bundle := t.readFleetObject(ctx, input.fleetEvidenceInput)
 	if state != "available" {
-		return nil, result, nil
+		return nil, fleetEventsResult{Target: target, State: state, Events: []fleetEvent{}, Truncated: clamped, Limitations: limitations}, nil
 	}
-	typed, _, namespaces, err := t.clients(ctx, input.ClusterID)
-	if err != nil {
+	return nil, collectFleetEvents(ctx, input, target, obj, kind, bundle, clamped), nil
+}
+
+func collectFleetEvents(ctx context.Context, input fleetEventsInput, target fleetResource, obj *unstructured.Unstructured, kind evidenceKind, bundle fleetClientBundle, truncated bool) fleetEventsResult {
+	result := fleetEventsResult{Target: target, State: "available", Events: []fleetEvent{}, Truncated: truncated, Limitations: []string{}}
+	if bundle.Typed == nil {
 		result.State, result.Limitations = "unavailable", []string{"target caller client is unavailable"}
-		return nil, result, nil
+		return result
 	}
-	eventNamespaces := namespaces
+	eventNamespaces := bundle.Namespaces
 	if kind.Namespaced {
 		eventNamespaces = []string{obj.GetNamespace()}
 	}
 	if len(eventNamespaces) == 0 {
 		eventNamespaces = []string{""}
 	}
+	successes := 0
+	failedStates := []string{}
 	for _, namespace := range eventNamespaces {
+		if ctx.Err() != nil {
+			failedStates = append(failedStates, "unavailable")
+			break
+		}
 		if len(result.Events) >= input.Limit {
 			result.Truncated = true
 			break
 		}
-		list, err := typed.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		list, err := bundle.Typed.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector("involvedObject.uid", string(obj.GetUID())).String(),
 			Limit:         int64(input.Limit - len(result.Events)),
 		})
 		if err != nil {
-			result.State = classifyFleetReadError(err)
-			result.Limitations = append(result.Limitations, "event coverage is incomplete")
+			failedStates = append(failedStates, classifyFleetReadError(err))
 			continue
 		}
+		successes++
 		if list.Continue != "" {
 			result.Truncated = true
 		}
@@ -277,10 +292,24 @@ func (t fleetTools) getFleetEvents(ctx context.Context, _ *mcpsdk.CallToolReques
 			if last.IsZero() {
 				last = event.CreationTimestamp.Time
 			}
-			result.Events = append(result.Events, fleetEvent{UID: string(event.UID), Type: event.Type, Reason: event.Reason, Message: message, Count: count, LastObservedAt: last})
+			result.Events = append(result.Events, fleetEvent{UID: string(event.UID), Type: event.Type, Reason: aicontext.RedactSecrets(event.Reason), Message: message, Count: count, LastObservedAt: last})
 		}
 	}
-	return nil, result, nil
+	if len(failedStates) > 0 {
+		result.Limitations = append(result.Limitations, "event coverage is incomplete")
+		state := failedStates[0]
+		for _, failedState := range failedStates[1:] {
+			if state != failedState {
+				state = "partial"
+				break
+			}
+		}
+		if successes > 0 {
+			state = "partial"
+		}
+		result.State = state
+	}
+	return result
 }
 
 func (t fleetTools) getFleetLogs(ctx context.Context, _ *mcpsdk.CallToolRequest, input fleetLogsInput) (*mcpsdk.CallToolResult, fleetLogsResult, error) {
@@ -292,17 +321,16 @@ func (t fleetTools) getFleetLogs(ctx context.Context, _ *mcpsdk.CallToolRequest,
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	target, podObj, kind, state, limitations := t.readFleetObject(ctx, fleetEvidenceInput{ClusterID: input.ClusterID, Resource: "pods", Namespace: input.Namespace, Name: input.Name})
+	target, podObj, kind, state, limitations, bundle := t.readFleetObject(ctx, fleetEvidenceInput{ClusterID: input.ClusterID, Resource: "pods", Namespace: input.Namespace, Name: input.Name})
 	result := fleetLogsResult{Target: target, State: state, Container: input.Container, Text: "", Limitations: limitations}
 	if kind.Kind != "Pod" || state != "available" {
 		return nil, result, nil
 	}
-	typed, _, namespaces, err := t.clients(ctx, input.ClusterID)
-	if err != nil {
+	if bundle.Typed == nil {
 		result.State, result.Limitations = "unavailable", []string{"target caller client is unavailable"}
 		return nil, result, nil
 	}
-	if !fleetNamespaceAllowed(namespaces, input.Namespace) {
+	if !fleetNamespaceAllowed(bundle.Namespaces, input.Namespace) {
 		result.State, result.Limitations = "out_of_scope", []string{"namespace is outside the runtime collection clamp"}
 		return nil, result, nil
 	}
@@ -322,7 +350,7 @@ func (t fleetTools) getFleetLogs(ctx context.Context, _ *mcpsdk.CallToolRequest,
 		}
 		tail = 200
 	}
-	stream, err := typed.CoreV1().Pods(input.Namespace).GetLogs(input.Name, &corev1.PodLogOptions{Container: input.Container, TailLines: &tail, Previous: input.Previous, Timestamps: true}).Stream(ctx)
+	stream, err := bundle.Typed.CoreV1().Pods(input.Namespace).GetLogs(input.Name, &corev1.PodLogOptions{Container: input.Container, TailLines: &tail, Previous: input.Previous, Timestamps: true}).Stream(ctx)
 	if err != nil {
 		result.State, result.Limitations = classifyFleetReadError(err), []string{"pod logs could not be read"}
 		return nil, result, nil
@@ -346,12 +374,29 @@ func (t fleetTools) getFleetLogs(ctx context.Context, _ *mcpsdk.CallToolRequest,
 		data = []byte(strings.Join(lines[:200], "\n"))
 	}
 	result.Text = aicontext.RedactSecrets(string(data))
-	after, err := typed.CoreV1().Pods(input.Namespace).Get(ctx, input.Name, metav1.GetOptions{})
+	var redactionTruncated bool
+	result.Text, redactionTruncated = truncateFleetText(result.Text, 64*1024)
+	if redactionTruncated {
+		result.Truncated = true
+		result.Limitations = append(result.Limitations, "log text was truncated after redaction")
+	}
+	after, err := bundle.Typed.CoreV1().Pods(input.Namespace).Get(ctx, input.Name, metav1.GetOptions{})
 	if err != nil || after.UID != pod.UID {
 		result.State, result.Text = "stale", ""
 		result.Limitations = []string{"Pod UID changed while logs were being read"}
 	}
 	return nil, result, nil
+}
+
+func truncateFleetText(text string, limit int) (string, bool) {
+	if len(text) <= limit {
+		return text, false
+	}
+	text = text[:limit]
+	for !utf8.ValidString(text) && len(text) > 0 {
+		text = text[:len(text)-1]
+	}
+	return text, true
 }
 
 func fleetContainerExists(pod *corev1.Pod, name string) bool {

@@ -35,30 +35,46 @@ type fleetTools struct {
 	requireAuth bool
 }
 
-func (t fleetTools) clients(ctx context.Context, clusterID string) (kubernetes.Interface, dynamic.Interface, []string, error) {
+type fleetClientBundle struct {
+	Status     fleet.ConnectionStatus
+	Runtime    *fleet.ClusterRuntime
+	Typed      kubernetes.Interface
+	Dynamic    dynamic.Interface
+	Namespaces []string
+}
+
+func (t fleetTools) clientBundle(ctx context.Context, clusterID string) (fleetClientBundle, error) {
 	runtime, err := t.source.Runtime(clusterID)
 	if err != nil {
-		return nil, nil, nil, errors.New("cluster is not connected or identity is conflicting")
+		return fleetClientBundle{}, errors.New("cluster is not connected or identity is conflicting")
 	}
+	bundle := fleetClientBundle{Status: runtime.Status(), Runtime: runtime, Namespaces: runtime.Namespaces()}
 	if user := pkgauth.UserFromContext(ctx); user != nil {
-		if user.Username == "" || runtime.RESTConfig() == nil {
-			return nil, nil, nil, errors.New("caller credentials unavailable for target cluster")
-		}
 		config := runtime.RESTConfig()
+		if user.Username == "" || config == nil {
+			return fleetClientBundle{}, errors.New("caller credentials unavailable for target cluster")
+		}
 		typed, err := pkgauth.ImpersonatedClient(config, user.Username, user.Groups)
 		if err != nil {
-			return nil, nil, nil, errors.New("caller client unavailable for target cluster")
+			return fleetClientBundle{}, errors.New("caller client unavailable for target cluster")
 		}
 		dynamicClient, err := pkgauth.ImpersonatedDynamicClient(config, user.Username, user.Groups)
 		if err != nil {
-			return nil, nil, nil, errors.New("caller client unavailable for target cluster")
+			return fleetClientBundle{}, errors.New("caller client unavailable for target cluster")
 		}
-		return typed, dynamicClient, runtime.Namespaces(), nil
+		bundle.Typed, bundle.Dynamic = typed, dynamicClient
+		return bundle, nil
 	}
 	if runtime.Kubernetes() == nil || runtime.Dynamic() == nil {
-		return nil, nil, nil, errors.New("target client unavailable")
+		return fleetClientBundle{}, errors.New("target client unavailable")
 	}
-	return runtime.Kubernetes(), runtime.Dynamic(), runtime.Namespaces(), nil
+	bundle.Typed, bundle.Dynamic = runtime.Kubernetes(), runtime.Dynamic()
+	return bundle, nil
+}
+
+func (t fleetTools) clients(ctx context.Context, clusterID string) (kubernetes.Interface, dynamic.Interface, []string, error) {
+	bundle, err := t.clientBundle(ctx, clusterID)
+	return bundle.Typed, bundle.Dynamic, bundle.Namespaces, err
 }
 
 type fleetSelection struct {

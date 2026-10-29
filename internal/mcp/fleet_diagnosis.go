@@ -2,16 +2,19 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
 	"github.com/skyhook-io/radar/pkg/health"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type fleetFinding struct {
@@ -22,7 +25,7 @@ type fleetFinding struct {
 }
 
 func diagnosisFinding(code, severity, summary string, evidence ...string) fleetFinding {
-	return fleetFinding{Code: code, Severity: severity, Summary: summary, Evidence: evidence}
+	return fleetFinding{Code: aicontext.RedactSecrets(code), Severity: severity, Summary: aicontext.RedactSecrets(summary), Evidence: evidence}
 }
 
 func (t fleetTools) diagnoseFleetResource(ctx context.Context, _ *mcpsdk.CallToolRequest, input fleetEvidenceInput) (*mcpsdk.CallToolResult, fleetDiagnosisResult, error) {
@@ -31,7 +34,7 @@ func (t fleetTools) diagnoseFleetResource(ctx context.Context, _ *mcpsdk.CallToo
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	target, object, kind, state, limitations := t.readFleetObject(ctx, input)
+	target, object, kind, state, limitations, bundle := t.readFleetObject(ctx, input)
 	result := fleetDiagnosisResult{Target: target, State: state, Findings: []fleetFinding{}, Limitations: limitations}
 	if state != "available" {
 		return nil, result, nil
@@ -52,7 +55,10 @@ func (t fleetTools) diagnoseFleetResource(ctx context.Context, _ *mcpsdk.CallToo
 		}
 	}
 	eventsInput := fleetEventsInput{fleetEvidenceInput: fleetEvidenceInput{ClusterID: input.ClusterID, Resource: input.Resource, Namespace: input.Namespace, Name: input.Name, UID: target.UID}, Limit: 20}
-	_, events, _ := t.getFleetEvents(ctx, nil, eventsInput)
+	events := fleetEventsResult{Target: target, State: "unknown", Events: []fleetEvent{}, Limitations: []string{}}
+	if target.UID != "" {
+		events = collectFleetEvents(ctx, eventsInput, target, object, kind, bundle, false)
+	}
 	if events.State != "available" {
 		result.Limitations = append(result.Limitations, "event evidence was unavailable or incomplete")
 	} else {
@@ -83,11 +89,18 @@ func classifyFleetObject(object *unstructured.Unstructured, kind string, now tim
 	}
 	switch kind {
 	case "Pod":
-		if _, ok, _ := unstructured.NestedString(object.Object, "status", "phase"); !ok {
+		phase, ok, _ := unstructured.NestedString(object.Object, "status", "phase")
+		if !ok || phase == "" {
 			return health.LevelUnknown, false, nil
 		}
 		var pod corev1.Pod
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(object.Object, &pod); err != nil {
+			return health.LevelUnknown, false, nil
+		}
+		if pod.Status.Phase == corev1.PodRunning && !podHasCondition(&pod, corev1.PodReady) {
+			return health.LevelUnknown, false, nil
+		}
+		if pod.Status.Phase == corev1.PodPending && pod.CreationTimestamp.IsZero() {
 			return health.LevelUnknown, false, nil
 		}
 		verdict := health.Pod(&pod, now)
@@ -101,10 +114,16 @@ func classifyFleetObject(object *unstructured.Unstructured, kind string, now tim
 				}
 			}
 		}
-		for _, condition := range pod.Status.Conditions {
-			if condition.Type == corev1.PodReady && condition.Status != corev1.ConditionTrue {
-				finding := diagnosisFinding("pod_not_ready", "warning", "Pod Ready condition is "+string(condition.Status), string(object.GetUID()))
-				return verdict.Level, true, &finding
+		if pod.Status.Phase != corev1.PodSucceeded {
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodReady && condition.Status != corev1.ConditionTrue {
+					summary := condition.Message
+					if summary == "" {
+						summary = "Pod Ready condition is " + string(condition.Status)
+					}
+					finding := diagnosisFinding("pod_not_ready", severityForLevel(verdict.Level), summary, string(object.GetUID()))
+					return verdict.Level, true, &finding
+				}
 			}
 		}
 		for _, status := range append(append([]corev1.ContainerStatus{}, pod.Status.ContainerStatuses...), pod.Status.InitContainerStatuses...) {
@@ -118,12 +137,7 @@ func classifyFleetObject(object *unstructured.Unstructured, kind string, now tim
 		}
 		return verdict.Level, true, fleetFindingFromVerdict(verdict, string(object.GetUID()))
 	case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet":
-		generation, okGeneration, _ := unstructured.NestedInt64(object.Object, "metadata", "generation")
-		observed, okObserved, _ := unstructured.NestedInt64(object.Object, "status", "observedGeneration")
-		if !okGeneration || !okObserved {
-			return health.LevelUnknown, false, nil
-		}
-		if kind == "Deployment" && (observed == 0 || observed < generation) {
+		if !workloadEvidenceComplete(object.Object, kind) {
 			return health.LevelUnknown, false, nil
 		}
 		var typed any
@@ -171,6 +185,40 @@ func classifyFleetObject(object *unstructured.Unstructured, kind string, now tim
 	}
 }
 
+func podHasCondition(pod *corev1.Pod, conditionType corev1.PodConditionType) bool {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == conditionType {
+			return true
+		}
+	}
+	return false
+}
+
+func workloadEvidenceComplete(object map[string]any, kind string) bool {
+	generation, hasGeneration, _ := unstructured.NestedInt64(object, "metadata", "generation")
+	observed, hasObserved, _ := unstructured.NestedInt64(object, "status", "observedGeneration")
+	if !hasGeneration || !hasObserved || observed < generation {
+		return false
+	}
+	switch kind {
+	case "Deployment":
+		_, desired, _ := unstructured.NestedInt64(object, "spec", "replicas")
+		_, ready, _ := unstructured.NestedInt64(object, "status", "readyReplicas")
+		_, available, _ := unstructured.NestedInt64(object, "status", "availableReplicas")
+		return desired && ready && available
+	case "StatefulSet", "ReplicaSet":
+		_, desired, _ := unstructured.NestedInt64(object, "spec", "replicas")
+		_, ready, _ := unstructured.NestedInt64(object, "status", "readyReplicas")
+		return desired && ready
+	case "DaemonSet":
+		_, desired, _ := unstructured.NestedInt64(object, "status", "desiredNumberScheduled")
+		_, ready, _ := unstructured.NestedInt64(object, "status", "numberReady")
+		return desired && ready
+	default:
+		return false
+	}
+}
+
 func fleetFindingFromVerdict(verdict health.Verdict, uid string) *fleetFinding {
 	code := strings.ToLower(verdict.Reason)
 	if code == "" {
@@ -206,6 +254,9 @@ func assessFleetObjects(objects map[string][]unstructured.Unstructured, coverage
 	for _, kind := range []string{"Pod", "Deployment", "Node"} {
 		items := objects[kind]
 		sort.Slice(items, func(i, j int) bool {
+			if items[i].GetNamespace() != items[j].GetNamespace() {
+				return items[i].GetNamespace() < items[j].GetNamespace()
+			}
 			if items[i].GetName() == items[j].GetName() {
 				return items[i].GetUID() < items[j].GetUID()
 			}
@@ -219,6 +270,7 @@ func assessFleetObjects(objects map[string][]unstructured.Unstructured, coverage
 				continue
 			}
 			if finding != nil {
+				finding.Evidence = append(finding.Evidence, fleetObjectEvidence(&item, kind))
 				if len(findings) < 10 {
 					findings = append(findings, *finding)
 				} else {
@@ -234,4 +286,17 @@ func assessFleetObjects(objects map[string][]unstructured.Unstructured, coverage
 		assessment = "unknown"
 	}
 	return assessment, findings, coverages, truncated
+}
+
+func fleetObjectEvidence(object *unstructured.Unstructured, fallbackKind string) string {
+	group := ""
+	if version, err := schema.ParseGroupVersion(object.GetAPIVersion()); err == nil {
+		group = version.Group
+	}
+	kind := object.GetKind()
+	if kind == "" {
+		kind = fallbackKind
+	}
+	return fmt.Sprintf("resource group=%s kind=%s namespace=%s name=%s uid=%s resourceVersion=%s",
+		group, kind, object.GetNamespace(), object.GetName(), object.GetUID(), object.GetResourceVersion())
 }

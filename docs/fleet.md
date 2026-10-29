@@ -153,8 +153,8 @@ Relationships are emitted only for supported Karmada APIs. Karmada `Cluster`
 UIDs; it is a declared identity cross-check, not physical proof. Duplicate matches
 remain ambiguous and custom IDs remain unresolved. ResourceBinding membership is
 a declared distribution only; authorized exact source and destination GETs may
-add observed endpoints, but do not prove controller ownership or successful
-application. Coverage distinguishes unsupported APIs from denied reads.
+add observed endpoints, but do not prove delivery, controller ownership or
+successful application. Coverage distinguishes unsupported APIs from denied reads.
 Topology preserves unresolved destinations and every edge references a returned
 node. Result arrays are always non-null; unavailable optional evidence is omitted
 or represented by its explicit state rather than a false assertion.
