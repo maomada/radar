@@ -1,0 +1,134 @@
+suite: Fleet deployment safety
+templates:
+  - deployment.yaml
+tests:
+  - it: does not enable Fleet by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --fleet-config=/etc/radar/fleet/config.json
+  - it: refuses an unauthenticated shared Fleet listener
+    set:
+      fleet.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.enabled requires auth.mode=proxy or oidc on the shared listener
+  - it: refuses write opt-in without Fleet configuration
+    set:
+      fleet.writesEnabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.writesEnabled requires fleet.enabled=true
+  - it: requires persistent identity storage
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.state.existingClaim is required to preserve cluster identities and operation audit across restarts
+  - it: refuses multiple catalog writers
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      replicaCount: 2
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.enabled requires replicaCount=1 for the single-writer identity catalog
+  - it: renders isolated configuration secrets and persistent state without enabling writes
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      fleet.adminUsers: [operator@example.com]
+      fleet.kubeconfigSecrets:
+        - name: member
+          secretName: member-kubeconfig
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --fleet-state=/fleet-state/catalog.json
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --fleet-admin-users=operator@example.com
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --fleet-writes
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: fleet-credentials-member
+            secret:
+              secretName: member-kubeconfig
+              defaultMode: 288
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: fleet-state
+            persistentVolumeClaim:
+              claimName: fleet-state
+  - it: refuses write exposure in MCP read-only mode
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      fleet.writesEnabled: true
+      mcp.readOnly: true
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.writesEnabled cannot be combined with mcp.readOnly
+  - it: renders an explicit write opt-in
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      fleet.writesEnabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --fleet-writes
+  - it: renders the read-only MCP mode instead of merely validating it
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      mcp.readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --mcp-read-only
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --fleet-writes
+  - it: refuses read-only MCP when the MCP server is disabled
+    set:
+      mcp.enabled: false
+      mcp.readOnly: true
+    asserts:
+      - failedTemplate:
+          errorMessage: mcp.readOnly requires mcp.enabled=true
+  - it: refuses duplicate credential mount names
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      fleet.kubeconfigSecrets:
+        - name: member
+          secretName: first
+        - name: member
+          secretName: second
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.kubeconfigSecrets names must be unique
+  - it: refuses Fleet without MCP
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      mcp.enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: fleet.enabled requires mcp.enabled=true

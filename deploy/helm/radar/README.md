@@ -410,6 +410,81 @@ trend charts remain unavailable for Kubecost.
 
 ## Configuration
 
+### Fleet Manager
+
+Fleet is opt-in and connects directly to the configured Kubernetes API servers.
+Use a binary built with Fleet support; publishing or installing this chart alone
+does not upgrade an older image. The independent Radar Portal is not an
+authorization boundary for Fleet operations.
+
+```yaml
+auth:
+  mode: proxy # Configure the trusted authentication proxy, or use OIDC.
+fleet:
+  enabled: true
+  adminUsers: [operator@example.com]
+  writesEnabled: false
+  state:
+    existingClaim: radar-fleet-state
+  kubeconfigSecrets:
+    - name: member
+      secretName: radar-member-kubeconfig
+  config:
+    version: 1
+    connections:
+      - id: local
+        name: Hosting cluster
+        source:
+          type: in-cluster
+      - id: member
+        name: Member cluster
+        source:
+          type: kubeconfig
+          kubeconfig: /etc/radar/fleet-credentials/member/config
+          context: member
+        namespaces: [applications]
+    fleets:
+      - id: production
+        name: Production
+        connections: [local, member]
+```
+
+Provision the referenced PVC and credential Secret separately. Keep credentials
+out of Helm values: each existing Secret is mounted read-only; the key named
+`config` in the example contains that connection's kubeconfig. The generated
+Fleet ConfigMap contains only connection references and group definitions.
+
+Fleet requires authentication, enabled MCP and exactly one replica. The chart
+uses a Recreate strategy so two processes do not compete for the identity
+catalog lock. Preserve the state PVC when upgrading or moving the deployment:
+it contains stable cluster IDs, locally managed Fleet groups and operation audit.
+Back up the PVC and credential sources with appropriately restricted access.
+
+Open `/fleet` for the management workspace or connect an MCP client to
+`/mcp-fleet` (both follow `basePath`). `adminUsers` controls changes to the Fleet
+catalog, not Kubernetes privileges. Each resource request uses the caller's
+identity against the selected connection; provision impersonation and caller
+RBAC in each target cluster. This chart does not automatically grant remote
+cluster access or write privileges.
+
+Fleet definitions and connections supplied in values remain deployment-owned;
+edit values rather than trying to overwrite them in the UI. Local context
+enrollment is unavailable in-cluster. Secret or external kubeconfig changes
+require a runtime reconnect or pod restart; a generated configuration change
+updates the pod checksum. Write exposure remains disabled unless explicitly
+enabled and cannot be combined with MCP read-only mode.
+
+When writes are enabled, the operation preview still needs the caller's target
+Kubernetes permissions and a verified connection identity. Every execution is
+single-cluster, single-resource and consumes a short-lived preview once. API
+acknowledgement does not establish rollout convergence; a timeout can leave the
+outcome unknown. Check resource evidence and the audit trail before retrying.
+Audit records share the state PVC; if audit storage is full or cannot be synced,
+new writes fail closed. Ensure the PVC is writable by the configured non-root
+security context; audit files remain private (0600). Archive audit files only
+while Radar is stopped. The audit file is bounded to 16 MiB; a full or damaged
+file requires operator attention rather than automatic deletion of history.
+
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `replicaCount` | Number of replicas | `1` |
@@ -453,6 +528,7 @@ trend charts remain unavailable for Kubecost.
 | `argocd.url` | Explicit `argocd-server` URL; blank auto-discovers in-cluster | `""` |
 | `argocd.insecureTls` | Skip TLS verification for a self-signed `argocd-server` | `false` |
 | `mcp.execTools` | Opt in to `exec_pod` (`--mcp-exec-tools`); requires exec access. With auth off, every reachable client shares Radar’s ServiceAccount permissions. Ignored with `--disable-exec` or `--mcp-read-only` | `false` |
+| `mcp.readOnly` | Expose only read-only MCP tools (`--mcp-read-only`); requires MCP enabled and cannot be combined with Fleet writes | `false` |
 | `usageReporting.enabled` | Anonymous daily usage stats: views, actions and MCP tools used, plus this cluster's version, platform, node-count range and known integrations. Off unless `true`; Radar never asks in a cluster ([what is sent](https://radarhq.io/docs/configuration/usage-stats)) | unset |
 | `resources.requests.cpu` | CPU request | `200m` |
 | `resources.requests.memory` | Memory request | `256Mi` |

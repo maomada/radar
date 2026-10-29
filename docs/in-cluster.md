@@ -28,6 +28,12 @@ open http://localhost:9280
 
 ## Installation settings
 
+For direct multi-cluster management, use the opt-in
+[Fleet Manager chart settings](../deploy/helm/radar/README.md#fleet-manager).
+Fleet requires authentication, per-target credentials/RBAC and a persistent
+single-writer identity/audit volume. It does not use the independent directory
+portal's login as Kubernetes authorization.
+
 Shared OSS Radar is configured by the installation operator, not by visitors to
 its web UI. Settings shows effective configuration and connection status; it does
 not save installation changes. Use Helm values (or flags/environment for a

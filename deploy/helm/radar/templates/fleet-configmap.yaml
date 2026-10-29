@@ -1,0 +1,11 @@
+{{- if .Values.fleet.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "radar.fullname" . }}-fleet
+  labels:
+    {{- include "radar.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {{- .Values.fleet.config | toPrettyJson | nindent 4 }}
+{{- end }}

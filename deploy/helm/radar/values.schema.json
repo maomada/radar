@@ -5,6 +5,69 @@
   "type": "object",
   "additionalProperties": true,
   "properties": {
+    "fleet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "adminUsers", "writesEnabled", "state", "config", "kubeconfigSecrets"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "writesEnabled": { "type": "boolean" },
+        "adminUsers": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^[^,\\r\\n]+$" } },
+        "state": {
+          "type": "object", "additionalProperties": false,
+          "required": ["existingClaim"],
+          "properties": { "existingClaim": { "type": "string" } }
+        },
+        "config": {
+          "type": "object", "additionalProperties": false,
+          "required": ["version", "connections", "fleets"],
+          "properties": {
+            "version": { "const": 1 },
+            "connections": {
+              "type": "array", "maxItems": 64,
+              "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["id", "name", "source"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                  "namespaces": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 63 } },
+                  "source": {
+                    "oneOf": [
+                      { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "in-cluster" } } },
+                      { "type": "object", "additionalProperties": false, "required": ["type", "kubeconfig", "context"], "properties": { "type": { "const": "kubeconfig" }, "kubeconfig": { "type": "string", "minLength": 1 }, "context": { "type": "string", "minLength": 1 } } }
+                    ]
+                  }
+                }
+              }
+            },
+            "fleets": {
+              "type": "array", "maxItems": 64,
+              "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["id", "name", "connections"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                  "connections": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+                }
+              }
+            }
+          }
+        },
+        "kubeconfigSecrets": {
+          "type": "array", "maxItems": 64,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["name", "secretName"],
+            "properties": {
+              "name": { "type": "string", "maxLength": 45, "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
+              "secretName": { "type": "string", "minLength": 1, "maxLength": 253 }
+            }
+          }
+        }
+      }
+    },
     "audit": {
       "type": ["object", "null"],
       "additionalProperties": false,
@@ -378,6 +441,7 @@
       "additionalProperties": true,
       "properties": {
         "enabled": { "type": "boolean" },
+        "readOnly": { "type": "boolean" },
         "execTools": { "type": "boolean" }
       }
     },
