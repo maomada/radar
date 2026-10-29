@@ -2,6 +2,8 @@
 
 Radar automatically discovers and displays **any** Custom Resource Definition (CRD) in your cluster — no configuration needed. For popular tools, Radar provides dedicated detail views, topology edges, smart table columns, and AI-optimized summaries for seamless integration.
 
+The opt-in [Fleet Manager](fleet.md) is a separate multi-cluster feature; it does not change the current-cluster scope of these integrations.
+
 ## ConfigMap and Secret reflection (Reflector)
 
 [EmberStack Reflector](https://github.com/emberstack/kubernetes-reflector) copies

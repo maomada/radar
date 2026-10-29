@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,6 +48,7 @@ type ConnectionSpec struct {
 	Name       string     `json:"name"`
 	Source     SourceSpec `json:"source"`
 	Namespaces []string   `json:"namespaces,omitempty"`
+	Managed    bool       `json:"-"`
 }
 
 type SourceSpec struct {
@@ -63,9 +66,18 @@ type FleetSpec struct {
 }
 
 type ConnectionCandidate struct {
+	ID                 string `json:"id,omitempty"`
+	Name               string `json:"name,omitempty"`
+	Context            string `json:"context,omitempty"`
+	SourceLabel        string `json:"sourceLabel,omitempty"`
 	SourceFile         string `json:"sourceFile"`
 	RawContext         string `json:"rawContext"`
 	DisplayClusterName string `json:"displayClusterName"`
+}
+
+func CandidateID(sourceFile, context string) string {
+	sum := sha256.Sum256([]byte(filepath.Clean(sourceFile) + "\x00" + context))
+	return hex.EncodeToString(sum[:16])
 }
 
 type resolvedSource struct {
@@ -178,18 +190,8 @@ func ValidateConfig(config Config) error {
 		if err := validateSource(connection.Source); err != nil {
 			return fmt.Errorf("connection %q: %w", connection.ID, err)
 		}
-		if len(connection.Namespaces) > MaxNamespaces {
-			return fmt.Errorf("connection %q has more than %d namespaces", connection.ID, MaxNamespaces)
-		}
-		seenNamespaces := make(map[string]struct{}, len(connection.Namespaces))
-		for _, namespace := range connection.Namespaces {
-			if _, exists := seenNamespaces[namespace]; exists {
-				return fmt.Errorf("connection %q has duplicate namespace %q", connection.ID, namespace)
-			}
-			seenNamespaces[namespace] = struct{}{}
-			if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
-				return fmt.Errorf("connection %q has invalid namespace %q", connection.ID, namespace)
-			}
+		if err := validateNamespaces(connection.Namespaces); err != nil {
+			return fmt.Errorf("connection %q: %w", connection.ID, err)
 		}
 	}
 	fleetIDs := make(map[string]struct{}, len(config.Fleets))
@@ -216,6 +218,23 @@ func ValidateConfig(config Config) error {
 				return fmt.Errorf("fleet %q references unknown connection %q", fleet.ID, connectionID)
 			}
 			seenConnections[connectionID] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func validateNamespaces(namespaces []string) error {
+	if len(namespaces) > MaxNamespaces {
+		return fmt.Errorf("has more than %d namespaces", MaxNamespaces)
+	}
+	seen := make(map[string]struct{}, len(namespaces))
+	for _, namespace := range namespaces {
+		if _, exists := seen[namespace]; exists {
+			return fmt.Errorf("has duplicate namespace %q", namespace)
+		}
+		seen[namespace] = struct{}{}
+		if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
+			return fmt.Errorf("has invalid namespace %q", namespace)
 		}
 	}
 	return nil

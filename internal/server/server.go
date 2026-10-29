@@ -82,6 +82,7 @@ import (
 // Server is the Explorer HTTP server
 type Server struct {
 	fleetMCPHandler         http.Handler
+	fleetAPIHandler         http.Handler
 	fleetManager            *fleet.Manager
 	router                  *chi.Mux
 	broadcaster             *SSEBroadcaster
@@ -209,6 +210,7 @@ type Server struct {
 // Config holds server configuration
 type Config struct {
 	FleetMCPHandler         http.Handler
+	FleetAPIHandler         http.Handler
 	FleetManager            *fleet.Manager
 	Port                    int
 	PortFallback            bool // Port is a preference: when it's taken, bind an OS-assigned port instead of failing
@@ -256,6 +258,7 @@ func New(cfg Config) *Server {
 	}
 	s := &Server{
 		fleetMCPHandler:         cfg.FleetMCPHandler,
+		fleetAPIHandler:         cfg.FleetAPIHandler,
 		fleetManager:            cfg.FleetManager,
 		router:                  chi.NewRouter(),
 		broadcaster:             NewSSEBroadcaster(),
@@ -551,6 +554,11 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Use(s.requireSameOrigin)
+		if s.fleetAPIHandler != nil {
+			r.Mount("/fleet", http.StripPrefix("/api/fleet", s.fleetAPIHandler))
+		} else {
+			r.Mount("/fleet", http.NotFoundHandler())
+		}
 		// Streaming endpoints (SSE/WebSocket) - no timeout
 		r.Get("/events/stream", s.handleSSE)
 		r.Get("/pods/{namespace}/{name}/logs/stream", s.handlePodLogsStream)

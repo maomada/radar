@@ -24,6 +24,20 @@ only its own setting. Contradictory flags, or contradictory settings within the
 config file, are errors. See [MCP configuration](mcp.md#enabling--disabling) for
 examples, boolean parsing and alternate entrypoints.
 
+## Fleet connections and administration
+
+Fleet is disabled unless `--fleet-config` is set. `--fleet-state` selects the
+protected persistent catalog and defaults to `~/.radar/fleet-state.json`.
+`--fleet-admin-users` is a comma-separated exact username allowlist for Fleet
+metadata changes; the default is empty. `--fleet-local-connections` defaults to
+false and allows an administrator to admit or remove trusted local kubeconfig
+connections. Local connection management is unavailable when Radar runs
+in-cluster. Fleet configuration and local candidates are described in
+[Fleet Manager](fleet.md).
+
+With authentication disabled, the Fleet management API is usable only on the
+loopback listener. A non-loopback listener requires Radar authentication.
+
 ## HTTP Listener
 
 Radar listens on `127.0.0.1:9280` by default, so an unauthenticated local

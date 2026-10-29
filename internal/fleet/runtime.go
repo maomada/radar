@@ -31,6 +31,7 @@ type RuntimeClients struct {
 
 type RuntimeFactory func(context.Context, ConnectionSpec) (RuntimeClients, error)
 type IdentityProbe func(context.Context, kubernetes.Interface) (string, error)
+type CandidateProvider func() ([]ConnectionCandidate, error)
 
 type ClusterRuntime struct {
 	clusterID    string
@@ -120,10 +121,13 @@ func (r *ClusterRuntime) Close() {
 }
 
 type runtimeOptions struct {
-	factory       RuntimeFactory
-	identityProbe IdentityProbe
-	probeTimeout  time.Duration
-	syncTimeout   time.Duration
+	factory                  RuntimeFactory
+	identityProbe            IdentityProbe
+	candidates               CandidateProvider
+	managedNamespaces        []string
+	managedNamespaceProvider func() []string
+	probeTimeout             time.Duration
+	syncTimeout              time.Duration
 }
 
 func defaultRuntimeOptions() runtimeOptions {

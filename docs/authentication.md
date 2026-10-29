@@ -113,6 +113,14 @@ Two things still hold on a shared listener without authentication:
    - connecting the cluster to Radar Cloud, which outlasts the request, needs an
      explicit acknowledgement.
 
+Fleet adds a separate metadata-administration gate. With authentication enabled,
+only an exact username in `--fleet-admin-users` may change Fleet metadata or
+manage local connections; Kubernetes read permission alone is not sufficient.
+The allowlist is empty by default. Without authentication, these operations are
+available only on the loopback-enforced listener. Live Fleet reads still perform
+per-user Kubernetes authorization on each target cluster, and Cloud/user-token
+mode is not forwarded to Fleet targets. See [Fleet Manager](fleet.md#http-inventory-and-management-api).
+
 ## Auth Modes
 
 | Mode | Flag | When to Use |

@@ -27,19 +27,24 @@ const (
 var errIdentityConflict = errors.New("fleet cluster identity conflicts with stored evidence")
 
 type storedState struct {
-	Version     int                `json:"version"`
-	Connections []storedConnection `json:"connections"`
-	Clusters    []storedCluster    `json:"clusters"`
-	Fleets      []storedFleet      `json:"fleets"`
-	Memberships []storedMembership `json:"memberships"`
+	Version            int                       `json:"version"`
+	Connections        []storedConnection        `json:"connections"`
+	Clusters           []storedCluster           `json:"clusters"`
+	Fleets             []storedFleet             `json:"fleets"`
+	Memberships        []storedMembership        `json:"memberships"`
+	DuplicateDecisions []storedDuplicateDecision `json:"duplicateDecisions"`
 }
 
 type storedConnection struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	SourceFingerprint string `json:"sourceFingerprint"`
-	ClusterID         string `json:"clusterId"`
-	Active            bool   `json:"active"`
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	SourceFingerprint string     `json:"sourceFingerprint"`
+	Source            SourceSpec `json:"source,omitempty"`
+	Namespaces        []string   `json:"namespaces,omitempty"`
+	Managed           bool       `json:"managed,omitempty"`
+	Removed           bool       `json:"removed,omitempty"`
+	ClusterID         string     `json:"clusterId"`
+	Active            bool       `json:"active"`
 }
 
 type storedCluster struct {
@@ -63,6 +68,12 @@ type storedMembership struct {
 	ClusterID string `json:"clusterId"`
 }
 
+type storedDuplicateDecision struct {
+	ClusterID      string `json:"clusterId"`
+	OtherClusterID string `json:"otherClusterId"`
+	Decision       string `json:"decision"`
+}
+
 type Registry struct {
 	mu      sync.RWMutex
 	path    string
@@ -70,6 +81,203 @@ type Registry struct {
 	state   storedState
 	syncDir func(string) error
 	closed  bool
+}
+
+func (r *Registry) ManagedConnections() []ConnectionSpec {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make([]ConnectionSpec, 0)
+	for _, connection := range r.state.Connections {
+		if !connection.Managed || !connection.Active {
+			continue
+		}
+		result = append(result, ConnectionSpec{
+			ID: connection.ID, Name: connection.Name, Source: connection.Source,
+			Namespaces: append([]string(nil), connection.Namespaces...),
+		})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result
+}
+
+func (r *Registry) ReconcileManaged(provider CandidateProvider) error {
+	if provider == nil {
+		return nil
+	}
+	candidates, err := provider()
+	if err != nil {
+		return errors.New("fleet candidates are unavailable")
+	}
+	trusted := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		source := SourceSpec{Type: SourceKubeconfig, Kubeconfig: candidate.SourceFile, Context: candidate.RawContext}
+		trusted[sourceFingerprint(source)] = struct{}{}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return errors.New("fleet state is closed")
+	}
+	next := cloneStoredState(r.state)
+	for i := range next.Connections {
+		if next.Connections[i].Managed && !next.Connections[i].Removed {
+			_, next.Connections[i].Active = trusted[next.Connections[i].SourceFingerprint]
+			for j := range next.Clusters {
+				if next.Clusters[j].ID == next.Connections[i].ClusterID {
+					next.Clusters[j].Active = next.Connections[i].Active
+				}
+			}
+		}
+	}
+	retainVerifiedDuplicateDecisions(&next)
+	return r.commitLocked(next)
+}
+
+func (r *Registry) hasManagedReferences() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, connection := range r.state.Connections {
+		if connection.Managed && !connection.Removed {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Registry) AddManagedConnection(spec ConnectionSpec) (string, error) {
+	if err := validateIdentifier("connection ID", spec.ID); err != nil {
+		return "", err
+	}
+	if err := validateText("connection name", spec.Name, MaxTextLength); err != nil {
+		return "", err
+	}
+	if err := validateSource(spec.Source); err != nil {
+		return "", err
+	}
+	if err := validateNamespaces(spec.Namespaces); err != nil {
+		return "", err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return "", errors.New("fleet state is closed")
+	}
+	next := cloneStoredState(r.state)
+	fingerprint := sourceFingerprint(spec.Source)
+	for i := range next.Connections {
+		if next.Connections[i].ID != spec.ID {
+			continue
+		}
+		if !next.Connections[i].Managed {
+			return "", errors.New("connection is declarative and cannot be replaced")
+		}
+		if next.Connections[i].SourceFingerprint != fingerprint {
+			return "", errors.New("connection is bound to a different source; choose a new connection ID")
+		}
+		next.Connections[i].Name = spec.Name
+		next.Connections[i].Namespaces = append([]string(nil), spec.Namespaces...)
+		next.Connections[i].Source = spec.Source
+		next.Connections[i].Active = true
+		next.Connections[i].Removed = false
+		for j := range next.Clusters {
+			if next.Clusters[j].ID == next.Connections[i].ClusterID {
+				next.Clusters[j].Active = true
+			}
+		}
+		if err := r.commitLocked(next); err != nil {
+			return "", err
+		}
+		return next.Connections[i].ClusterID, nil
+	}
+	clusterID, err := newStableID()
+	if err != nil {
+		return "", errors.New("unable to allocate a fleet cluster ID")
+	}
+	next.Connections = append(next.Connections, storedConnection{
+		ID: spec.ID, Name: spec.Name, SourceFingerprint: fingerprint,
+		Source: spec.Source, Namespaces: append([]string(nil), spec.Namespaces...),
+		Managed: true, ClusterID: clusterID, Active: true,
+	})
+	next.Clusters = append(next.Clusters, storedCluster{
+		ID: clusterID, ConnectionID: spec.ID, Identity: IdentityUnresolved, Active: true,
+	})
+	if err := r.commitLocked(next); err != nil {
+		return "", err
+	}
+	return clusterID, nil
+}
+
+func (r *Registry) RemoveManagedConnection(id string) error {
+	if err := validateIdentifier("connection ID", id); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return errors.New("fleet state is closed")
+	}
+	next := cloneStoredState(r.state)
+	found := false
+	for i := range next.Connections {
+		if next.Connections[i].ID != id {
+			continue
+		}
+		if !next.Connections[i].Managed {
+			return errors.New("connection is declarative and cannot be removed")
+		}
+		next.Connections[i].Active = false
+		next.Connections[i].Removed = true
+		for j := range next.Clusters {
+			if next.Clusters[j].ID == next.Connections[i].ClusterID {
+				next.Clusters[j].Active = false
+			}
+		}
+		found = true
+		break
+	}
+	if !found {
+		return errors.New("unknown managed connection")
+	}
+	retainVerifiedDuplicateDecisions(&next)
+	return r.commitLocked(next)
+}
+
+func (r *Registry) SetDuplicateDecision(clusterID, otherClusterID, decision string) error {
+	if decision != "keep_separate" {
+		return errors.New("unsupported duplicate decision")
+	}
+	if !validStableID(clusterID) || !validStableID(otherClusterID) || clusterID == otherClusterID {
+		return errors.New("invalid duplicate cluster pair")
+	}
+	if clusterID > otherClusterID {
+		clusterID, otherClusterID = otherClusterID, clusterID
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return errors.New("fleet state is closed")
+	}
+	next := cloneStoredState(r.state)
+	clusters := make(map[string]storedCluster, len(next.Clusters))
+	for _, cluster := range next.Clusters {
+		clusters[cluster.ID] = cluster
+	}
+	left, lok := clusters[clusterID]
+	right, rok := clusters[otherClusterID]
+	if !lok || !rok || !left.Active || !right.Active ||
+		left.Identity != IdentityVerified || right.Identity != IdentityVerified ||
+		left.IdentityUID == "" || left.IdentityUID != right.IdentityUID {
+		return errors.New("duplicate decision requires an active duplicate candidate pair")
+	}
+	for _, existing := range next.DuplicateDecisions {
+		if existing.ClusterID == clusterID && existing.OtherClusterID == otherClusterID {
+			return nil
+		}
+	}
+	next.DuplicateDecisions = append(next.DuplicateDecisions, storedDuplicateDecision{
+		ClusterID: clusterID, OtherClusterID: otherClusterID, Decision: decision,
+	})
+	return r.commitLocked(next)
 }
 
 func OpenRegistry(path string) (*Registry, error) {
@@ -153,10 +361,15 @@ func (r *Registry) SyncConfig(config Config) (map[string]string, error) {
 	}
 	next := cloneStoredState(r.state)
 	for i := range next.Connections {
+		if next.Connections[i].Managed {
+			continue
+		}
 		next.Connections[i].Active = false
-	}
-	for i := range next.Clusters {
-		next.Clusters[i].Active = false
+		for j := range next.Clusters {
+			if next.Clusters[j].ID == next.Connections[i].ClusterID {
+				next.Clusters[j].Active = false
+			}
+		}
 	}
 	for i := range next.Fleets {
 		if next.Fleets[i].Declarative {
@@ -177,6 +390,9 @@ func (r *Registry) SyncConfig(config Config) (map[string]string, error) {
 		index, exists := connectionIndex[spec.ID]
 		if exists {
 			record := &next.Connections[index]
+			if record.Managed {
+				return nil, fmt.Errorf("connection %q is locally managed; choose a different declarative ID", spec.ID)
+			}
 			if record.SourceFingerprint != fingerprint {
 				return nil, fmt.Errorf("connection %q is bound to a different source; choose a new connection ID", spec.ID)
 			}
@@ -241,6 +457,7 @@ func (r *Registry) SyncConfig(config Config) (map[string]string, error) {
 			})
 		}
 	}
+	retainVerifiedDuplicateDecisions(&next)
 	if err := validateStoredState(next); err != nil {
 		return nil, errors.New("fleet state is invalid")
 	}
@@ -276,6 +493,7 @@ func (r *Registry) RecordIdentity(clusterID, uid string, observedAt time.Time) e
 	}
 	if cluster.IdentityUID != "" && cluster.IdentityUID != uid {
 		cluster.Identity = IdentityConflict
+		retainVerifiedDuplicateDecisions(&next)
 		if err := r.persistStateLocked(next); err != nil {
 			return err
 		}
@@ -284,6 +502,7 @@ func (r *Registry) RecordIdentity(clusterID, uid string, observedAt time.Time) e
 	cluster.IdentityUID = uid
 	cluster.Identity = IdentityVerified
 	cluster.IdentityObservedAt = observedAt.UTC()
+	retainVerifiedDuplicateDecisions(&next)
 	return r.persistStateLocked(next)
 }
 
@@ -402,14 +621,15 @@ func (r *Registry) Snapshot() Catalog {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	catalog := Catalog{
-		Connections: make([]ConnectionRecord, 0, len(r.state.Connections)),
-		Clusters:    make([]ClusterRecord, 0, len(r.state.Clusters)),
-		Fleets:      make([]FleetRecord, 0, len(r.state.Fleets)),
-		Memberships: make([]MembershipRecord, 0, len(r.state.Memberships)),
+		Connections:        make([]ConnectionRecord, 0, len(r.state.Connections)),
+		Clusters:           make([]ClusterRecord, 0, len(r.state.Clusters)),
+		Fleets:             make([]FleetRecord, 0, len(r.state.Fleets)),
+		Memberships:        make([]MembershipRecord, 0, len(r.state.Memberships)),
+		DuplicateDecisions: make([]DuplicateDecision, 0, len(r.state.DuplicateDecisions)),
 	}
 	for _, connection := range r.state.Connections {
 		catalog.Connections = append(catalog.Connections, ConnectionRecord{
-			ID: connection.ID, Name: connection.Name, ClusterID: connection.ClusterID, Active: connection.Active,
+			ID: connection.ID, Name: connection.Name, ClusterID: connection.ClusterID, Active: connection.Active, Managed: connection.Managed,
 		})
 	}
 	for _, cluster := range r.state.Clusters {
@@ -429,6 +649,11 @@ func (r *Registry) Snapshot() Catalog {
 			FleetID: membership.FleetID, ClusterID: membership.ClusterID,
 		})
 	}
+	for _, decision := range r.state.DuplicateDecisions {
+		catalog.DuplicateDecisions = append(catalog.DuplicateDecisions, DuplicateDecision{
+			ClusterID: decision.ClusterID, OtherClusterID: decision.OtherClusterID, Decision: decision.Decision,
+		})
+	}
 	sort.Slice(catalog.Connections, func(i, j int) bool { return catalog.Connections[i].ID < catalog.Connections[j].ID })
 	sort.Slice(catalog.Clusters, func(i, j int) bool { return catalog.Clusters[i].ID < catalog.Clusters[j].ID })
 	sort.Slice(catalog.Fleets, func(i, j int) bool { return catalog.Fleets[i].ID < catalog.Fleets[j].ID })
@@ -437,6 +662,12 @@ func (r *Registry) Snapshot() Catalog {
 			return catalog.Memberships[i].FleetID < catalog.Memberships[j].FleetID
 		}
 		return catalog.Memberships[i].ClusterID < catalog.Memberships[j].ClusterID
+	})
+	sort.Slice(catalog.DuplicateDecisions, func(i, j int) bool {
+		if catalog.DuplicateDecisions[i].ClusterID != catalog.DuplicateDecisions[j].ClusterID {
+			return catalog.DuplicateDecisions[i].ClusterID < catalog.DuplicateDecisions[j].ClusterID
+		}
+		return catalog.DuplicateDecisions[i].OtherClusterID < catalog.DuplicateDecisions[j].OtherClusterID
 	})
 	return catalog
 }
@@ -519,6 +750,9 @@ func decodeState(data []byte) (storedState, error) {
 	if err := decoder.Decode(&state); err != nil {
 		return storedState{}, err
 	}
+	if state.DuplicateDecisions == nil {
+		state.DuplicateDecisions = []storedDuplicateDecision{}
+	}
 	var trailing any
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return storedState{}, errors.New("trailing state data")
@@ -537,7 +771,7 @@ func validateStoredState(state storedState) error {
 		return errors.New("state arrays are required")
 	}
 	if len(state.Connections) > MaxConnections || len(state.Clusters) > MaxConnections || len(state.Fleets) > MaxFleets ||
-		len(state.Memberships) > MaxConnections*MaxFleets {
+		len(state.Memberships) > MaxConnections*MaxFleets || len(state.DuplicateDecisions) > MaxConnections*MaxConnections {
 		return errors.New("state exceeds configured limits")
 	}
 	clusterIDs := make(map[string]struct{}, len(state.Clusters))
@@ -581,6 +815,17 @@ func validateStoredState(state storedState) error {
 		if !validFingerprint(connection.SourceFingerprint) {
 			return errors.New("invalid source reference fingerprint")
 		}
+		if connection.Managed {
+			if err := validateSource(connection.Source); err != nil {
+				return errors.New("invalid managed connection source")
+			}
+			if connection.SourceFingerprint != sourceFingerprint(connection.Source) {
+				return errors.New("managed connection source reference is inconsistent")
+			}
+			if err := validateNamespaces(connection.Namespaces); err != nil {
+				return errors.New("managed connection namespace scope is invalid")
+			}
+		}
 		if _, exists := clusterIDs[connection.ClusterID]; !exists {
 			return errors.New("connection references unknown cluster")
 		}
@@ -593,6 +838,25 @@ func validateStoredState(state storedState) error {
 		}
 		clusterByConnection[connection.ID] = connection.ClusterID
 		connectionByCluster[connection.ClusterID] = connection
+	}
+	decisionKeys := make(map[string]struct{}, len(state.DuplicateDecisions))
+	for _, decision := range state.DuplicateDecisions {
+		if decision.Decision != "keep_separate" || !validStableID(decision.ClusterID) ||
+			!validStableID(decision.OtherClusterID) || decision.ClusterID >= decision.OtherClusterID {
+			return errors.New("invalid duplicate decision")
+		}
+		left, lok := clusterByID[decision.ClusterID]
+		right, rok := clusterByID[decision.OtherClusterID]
+		if !lok || !rok || !left.Active || !right.Active ||
+			left.Identity != IdentityVerified || right.Identity != IdentityVerified ||
+			left.IdentityUID == "" || left.IdentityUID != right.IdentityUID {
+			return errors.New("duplicate decision references an invalid candidate pair")
+		}
+		key := decision.ClusterID + "\x00" + decision.OtherClusterID
+		if _, exists := decisionKeys[key]; exists {
+			return errors.New("duplicate duplicate decision")
+		}
+		decisionKeys[key] = struct{}{}
 	}
 	for _, cluster := range state.Clusters {
 		connection, exists := connectionByCluster[cluster.ID]
@@ -644,13 +908,32 @@ func syncParentDirectory(dir string) error {
 	return closeErr
 }
 
+func retainVerifiedDuplicateDecisions(state *storedState) {
+	clusters := make(map[string]storedCluster, len(state.Clusters))
+	for _, cluster := range state.Clusters {
+		clusters[cluster.ID] = cluster
+	}
+	kept := state.DuplicateDecisions[:0]
+	for _, decision := range state.DuplicateDecisions {
+		left, leftExists := clusters[decision.ClusterID]
+		right, rightExists := clusters[decision.OtherClusterID]
+		if leftExists && rightExists && left.Active && right.Active &&
+			left.Identity == IdentityVerified && right.Identity == IdentityVerified &&
+			left.IdentityUID != "" && left.IdentityUID == right.IdentityUID {
+			kept = append(kept, decision)
+		}
+	}
+	state.DuplicateDecisions = kept
+}
+
 func emptyState() storedState {
 	return storedState{
-		Version:     stateVersion,
-		Connections: []storedConnection{},
-		Clusters:    []storedCluster{},
-		Fleets:      []storedFleet{},
-		Memberships: []storedMembership{},
+		Version:            stateVersion,
+		Connections:        []storedConnection{},
+		Clusters:           []storedCluster{},
+		Fleets:             []storedFleet{},
+		Memberships:        []storedMembership{},
+		DuplicateDecisions: []storedDuplicateDecision{},
 	}
 }
 
@@ -660,6 +943,10 @@ func cloneStoredState(state storedState) storedState {
 	clone.Clusters = append(make([]storedCluster, 0, len(state.Clusters)), state.Clusters...)
 	clone.Fleets = append(make([]storedFleet, 0, len(state.Fleets)), state.Fleets...)
 	clone.Memberships = append(make([]storedMembership, 0, len(state.Memberships)), state.Memberships...)
+	clone.DuplicateDecisions = append(make([]storedDuplicateDecision, 0, len(state.DuplicateDecisions)), state.DuplicateDecisions...)
+	for i := range clone.Connections {
+		clone.Connections[i].Namespaces = append([]string(nil), state.Connections[i].Namespaces...)
+	}
 	return clone
 }
 

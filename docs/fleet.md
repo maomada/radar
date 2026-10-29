@@ -1,4 +1,4 @@
-# Fleet Manager: read-only foundation
+# Fleet Manager: managed connections and metadata API
 
 Fleet is opt-in. The same Radar process connects directly to multiple Kubernetes
 API servers, using a separate client, discovery client and informer cache for each
@@ -46,6 +46,30 @@ explicit kubeconfig separately; there is no automatic enrollment of all contexts
 Kubeconfigs are executable trusted configuration (for example, exec credential
 plugins), not untrusted uploads. They are never returned over MCP or copied into
 the catalog. Do not put credentials in connection names or IDs.
+
+Authenticated operators can manage Fleet metadata only when their exact username
+appears in the comma-separated `--fleet-admin-users` flag; it defaults to empty.
+Kubernetes read access does not grant Fleet administration. With Radar auth
+disabled, management is available only on the loopback listener.
+`--fleet-local-connections` (default false) additionally enables trusted local
+kubeconfig admission and removal; it is forbidden in-cluster. These controls do
+not enable Kubernetes writes.
+
+The protected registry persists stable cluster IDs and managed kubeconfig source
+references, never kubeconfig contents or credentials. Candidate IDs are resolved
+again from trusted server-side context discovery when admitted. The candidate API
+returns only `{id,name,context,sourceLabel}` and the source label is a basename;
+clients cannot submit paths, kubeconfig data, URLs or arbitrary contexts. A
+managed source missing or no longer present in trusted discovery is retained with
+its stable ID but becomes inactive and unroutable after restart. Re-adding the
+same connection ID and source can reactivate that record. Explicit removal also
+leaves the identity record inactive, so a later deliberate re-addition preserves
+the ID.
+
+Local connections inherit startup namespace settings as a hard collection clamp.
+When `--namespace-scope` is set, its selected namespace remains the boundary;
+managed connections cannot broaden it. The ordinary namespace picker does not
+retarget Fleet.
 
 `--fleet-state` defaults to `~/.radar/fleet-state.json`. Preserve this file across
 restarts: it contains stable internal cluster IDs, identity evidence and membership,
@@ -117,6 +141,34 @@ Cloud/user-token forwarding is unsupported and fails closed: an incoming token i
 never forwarded to arbitrary Fleet clusters. Configure authentication and trusted
 proxy/OIDC boundaries as described in [authentication.md](authentication.md).
 
+## HTTP inventory and management API
+
+When Fleet is enabled, Radar mounts these routes under the existing authenticated
+and same-origin `/api` boundary. They do not inherit legacy current-cluster
+authorization or its namespace filter; live Fleet queries explicitly route to
+selected runtimes and enforce the caller's access on each target cluster.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/fleet/capabilities` | Returns `{"enabled":true,"canManage":false,"localConnections":false,"writesEnabled":false}` with caller-specific `canManage` and configured `localConnections` values. Kubernetes writes remain disabled. |
+| `POST /api/fleet/query/{tool}` | Runs only `list_clusters`, `get_fleet_overview` or `search_fleet_resources`, with the same bounded JSON inputs and structured results as MCP. |
+| `GET /api/fleet/candidates` | Lists current trusted server-side context candidates; source paths and credentials are not returned. |
+| `POST /api/fleet/connections` | Adds `{ "id": "...", "name": "...", "candidateId": "..." }` when local connections are enabled and the caller may manage Fleet. Returns `{ "ok": true, "clusterId": "..." }`. |
+| `DELETE /api/fleet/connections/{id}` | Removes only a locally managed connection. Declarative connections are immutable. |
+| `PUT /api/fleet/fleets/{id}` | Upserts `{ "name": "...", "clusterIds": [] }` and memberships. |
+| `DELETE /api/fleet/fleets/{id}` | Deletes a locally managed Fleet. Declarative Fleets return `409`; edit the Fleet configuration instead. |
+| `POST /api/fleet/clusters/{clusterId}/refresh` | Refreshes only that cluster's runtime. |
+| `POST /api/fleet/duplicates` | Persists `{ "clusterId": "...", "otherClusterId": "...", "decision": "keep_separate" }` only for active, verified duplicate candidates. |
+
+Successful metadata mutations return `{ "ok": true }`, except connection
+admission, which also returns the stable `clusterId`. `list_clusters` and API
+inventory include `managedConnectionIds` for active locally owned connections
+and `duplicateDecisions`; both arrays are always non-null. Declarative records
+are never included in `managedConnectionIds`. Duplicate decisions preserve
+separate identities and never merge credentials, runtimes or access.
+Candidate discovery is restricted to Fleet administrators; ordinary authenticated
+readers can query capabilities and inventory but cannot inspect local candidates.
+
 ## Helm configuration
 
 Use a locally built image containing this implementation; released upstream images
@@ -162,9 +214,9 @@ for this Fleet deployment.
 
 ## Deliberate limits of this increment
 
-There is no Fleet UI or public membership-edit API yet; operators manage the JSON.
-There are no cross-cluster relationships, Karmada discovery, health diagnosis,
-logs/events/topology evidence tools, resource application, restart or scaling tools.
-The model does not yet allow approving a merge of duplicate candidates. The
-read-only foundation must not be described as complete Fleet Manager acceptance.
-Tests using fake clients or HTTP fixtures are not real-cluster deployment evidence.
+There is no Fleet UI yet. There are no cross-cluster relationships, Karmada
+discovery, health diagnosis, logs/events/topology evidence tools, resource
+application, restart or scaling tools. Duplicate candidates cannot be merged.
+Fleet remains a read-only Kubernetes surface; metadata management does not
+create or change Kubernetes resources. Tests using fake clients or HTTP fixtures
+are not real-cluster deployment evidence.

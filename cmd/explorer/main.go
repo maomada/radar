@@ -89,6 +89,8 @@ func main() {
 	kubeconfigDir := flag.String("kubeconfig-dir", fileCfg.KubeconfigDirsFlag(), "Comma-separated directories containing additional kubeconfig files")
 	fleetConfig := flag.String("fleet-config", "", "Opt-in Fleet connection configuration JSON; enables the read-only /mcp-fleet endpoint")
 	fleetState := flag.String("fleet-state", "", "Persistent Fleet identity catalog path (default ~/.radar/fleet-state.json)")
+	fleetAdminUsers := flag.String("fleet-admin-users", "", "Comma-separated exact usernames allowed to manage Fleet metadata and local connections")
+	fleetLocalConnections := flag.Bool("fleet-local-connections", false, "Allow Fleet administrators to add and remove trusted local kubeconfig connections; unavailable in-cluster")
 	namespace := flag.String("namespace", fileCfg.Namespace, "Initial namespace filter (empty = all namespaces)")
 	namespaces := flag.String("namespaces", fileCfg.NamespacesFlag(), "Initial namespace filters as a comma-separated list (e.g. ns1,ns2,ns3). Use this when you can list resources in specific namespaces but cannot list namespaces cluster-wide.")
 	port := flag.Int("port", fileCfg.PortOr(9280), "Server port")
@@ -465,6 +467,8 @@ func main() {
 		MCPEnabled:                  mcpEnabled,
 		MCPReadOnly:                 mcpMode.ReadOnly,
 		MCPExecTools:                mcpFlags.ExecToolsEnabled(),
+		FleetAdminUsers:             parseCSV(*fleetAdminUsers),
+		FleetLocalConnections:       *fleetLocalConnections,
 		AIHistory:                   *aiHistory,
 		AIHistoryDBPath:             fileCfg.AIHistoryDBPath,
 		Version:                     version,
@@ -548,6 +552,12 @@ func main() {
 	if err := app.InitializeK8s(cfg); err != nil {
 		log.Fatalf("%v", err)
 	}
+	if cfg.FleetLocalConnections && k8s.IsInCluster() {
+		if cfg.FleetManager != nil {
+			_ = cfg.FleetManager.Close()
+		}
+		log.Fatal("--fleet-local-connections is unavailable in-cluster")
+	}
 	k8s.LogTiming(" K8s client init: %v", time.Since(t))
 
 	// Provision the Argo CD integration from the environment (RADAR_ARGOCD_TOKEN
@@ -577,13 +587,15 @@ func main() {
 	srv := app.CreateServer(cfg)
 	k8s.LogTiming(" Server created: %v", time.Since(t))
 
-	rootCtx, rootCancel := startServer(srv, startupStart)
-	defer rootCancel()
 	if cfg.FleetManager != nil {
-		if err := cfg.FleetManager.Start(rootCtx); err != nil {
+		if err := cfg.FleetManager.Start(context.Background()); err != nil {
+			_ = cfg.FleetManager.Close()
 			log.Fatal("Fleet runtime startup failed")
 		}
 	}
+
+	rootCtx, rootCancel := startServer(srv, startupStart)
+	defer rootCancel()
 
 	// Open browser — server is confirmed ready to accept connections
 	if !cfg.NoBrowser {

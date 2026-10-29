@@ -62,6 +62,7 @@ type ConnectionRecord struct {
 	Name      string `json:"name"`
 	ClusterID string `json:"clusterId"`
 	Active    bool   `json:"active"`
+	Managed   bool   `json:"managed"`
 }
 
 type ClusterRecord struct {
@@ -85,9 +86,16 @@ type MembershipRecord struct {
 	ClusterID string `json:"clusterId"`
 }
 
+type DuplicateDecision struct {
+	ClusterID      string `json:"clusterId"`
+	OtherClusterID string `json:"otherClusterId"`
+	Decision       string `json:"decision"`
+}
+
 type Catalog struct {
-	Connections []ConnectionRecord `json:"connections"`
-	Clusters    []ClusterRecord    `json:"clusters"`
-	Fleets      []FleetRecord      `json:"fleets"`
-	Memberships []MembershipRecord `json:"memberships"`
+	Connections        []ConnectionRecord  `json:"connections"`
+	Clusters           []ClusterRecord     `json:"clusters"`
+	Fleets             []FleetRecord       `json:"fleets"`
+	Memberships        []MembershipRecord  `json:"memberships"`
+	DuplicateDecisions []DuplicateDecision `json:"duplicateDecisions"`
 }
