@@ -68,6 +68,7 @@ type Manager struct {
 	specs             map[string]ConnectionSpec
 	statuses          map[string]ConnectionStatus
 	runtimes          map[string]*ClusterRuntime
+	auditStore        *AuditStore
 	options           runtimeOptions
 	startSem          chan struct{}
 	startCancel       context.CancelFunc
@@ -111,6 +112,7 @@ func New(config Config, statePath string, options ...ManagerOption) (*Manager, e
 	managed := registry.ManagedConnections()
 	manager := &Manager{
 		registry:          registry,
+		auditStore:        newAuditStore(registry.path + ".audit.jsonl"),
 		config:            cloneConfig(config),
 		clusterIDs:        clusterIDs,
 		specs:             make(map[string]ConnectionSpec, len(config.Connections)),
@@ -157,6 +159,18 @@ func New(config Config, statePath string, options ...ManagerOption) (*Manager, e
 	}
 	manager.refreshDuplicateCandidatesLocked()
 	return manager, nil
+}
+
+func (m *Manager) AuditStore() (*AuditStore, error) {
+	if m == nil {
+		return nil, errors.New("fleet audit is unavailable")
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed || m.auditStore == nil {
+		return nil, errors.New("fleet audit is unavailable")
+	}
+	return m.auditStore, nil
 }
 
 func (m *Manager) Start(ctx context.Context) error {
@@ -476,6 +490,54 @@ func (m *Manager) Runtime(clusterID string) (*ClusterRuntime, error) {
 		return nil, errors.New("fleet cluster is not routable")
 	}
 	return runtime, nil
+}
+
+// WithVerifiedRuntime pins a verified runtime until callback returns. The callback must not call Manager methods.
+func (m *Manager) WithVerifiedRuntime(
+	ctx context.Context,
+	clusterID string,
+	expectedRuntime *ClusterRuntime,
+	callback func(context.Context, *ClusterRuntime) error,
+) error {
+	if m == nil || callback == nil {
+		return errors.New("fleet runtime is unavailable")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed || m.registry == nil {
+		return errors.New("fleet runtime is unavailable")
+	}
+	status, ok := m.statuses[clusterID]
+	runtime := m.runtimes[clusterID]
+	if !ok || runtime == nil || status.State == StateConnecting || status.State == StateUnavailable ||
+		status.State == StateIdentityConflict || status.Identity != IdentityVerified ||
+		runtime.clusterID != clusterID || status.ClusterID != clusterID ||
+		status.ConnectionID != runtime.connectionID || (expectedRuntime != nil && runtime != expectedRuntime) {
+		return errors.New("fleet runtime is not verified and routable")
+	}
+	runtimeStatus := runtime.Status()
+	if runtimeStatus.State == StateConnecting || runtimeStatus.State == StateUnavailable ||
+		runtimeStatus.State == StateIdentityConflict || runtimeStatus.Identity != IdentityVerified ||
+		runtimeStatus.ConnectionID != runtime.connectionID || runtimeStatus.ClusterID != clusterID {
+		return errors.New("fleet runtime is not verified and routable")
+	}
+	stored, exists := m.registry.identity(clusterID)
+	if !exists || !stored.Active || stored.ConnectionID != runtime.connectionID ||
+		stored.Identity != IdentityVerified || stored.IdentityUID == "" {
+		return errors.New("fleet runtime identity is unavailable")
+	}
+	probeCtx, cancelProbe := context.WithTimeout(ctx, defaultProbeTimeout)
+	uid, err := m.options.identityProbe(probeCtx, runtime.Kubernetes())
+	cancelProbe()
+	if err != nil || uid == "" || uid != stored.IdentityUID {
+		return errors.New("fleet runtime identity could not be verified")
+	}
+	callbackCtx, cancelCallback := context.WithTimeout(ctx, 20*time.Second)
+	defer cancelCallback()
+	return callback(callbackCtx, runtime)
 }
 
 func (m *Manager) UpsertFleet(id, name string, clusterIDs []string) error {

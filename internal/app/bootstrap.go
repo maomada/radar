@@ -46,6 +46,7 @@ type AppConfig struct {
 	FleetCandidateProvider fleet.CandidateProvider
 	FleetAdminUsers        []string
 	FleetLocalConnections  bool
+	FleetWrites            bool
 	Kubeconfig             string
 	KubeconfigDirs         []string
 	// Zero value is the deliberate one: an entrypoint that never sets this
@@ -666,7 +667,8 @@ func CreateServer(cfg AppConfig) *server.Server {
 		if cfg.FleetManager != nil {
 			serverCfg.FleetMCPHandler, serverCfg.FleetAPIHandler = mcppkg.NewFleetEndpoints(cfg.FleetManager, mcppkg.FleetOptions{
 				RequireAuth: cfg.AuthConfig.Enabled(), AdminUsers: cfg.FleetAdminUsers,
-				LocalConnections: cfg.FleetLocalConnections, Candidates: cfg.FleetCandidateProvider,
+				LocalConnections: cfg.FleetLocalConnections, WritesEnabled: cfg.FleetWrites,
+				Candidates: cfg.FleetCandidateProvider,
 			})
 		}
 	}

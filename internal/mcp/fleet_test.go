@@ -29,6 +29,11 @@ import (
 
 func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 	t.Helper()
+	return fleetTestManagerWithEndpoints(t, map[string]string{"a": endpoint, "b": endpoint}, filepath.Join(t.TempDir(), "state.json"))
+}
+
+func fleetTestManagerWithEndpoints(t *testing.T, endpoints map[string]string, statePath string) *fleet.Manager {
+	t.Helper()
 	config := fleet.Config{Version: 1, Connections: []fleet.ConnectionSpec{
 		{ID: "a", Name: "A", Source: fleet.SourceSpec{Type: fleet.SourceInCluster}, Namespaces: []string{"team"}},
 		{ID: "b", Name: "B", Source: fleet.SourceSpec{Type: fleet.SourceInCluster}, Namespaces: []string{"team"}},
@@ -50,7 +55,7 @@ func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 			{Group: "work.karmada.io", Version: "v1alpha2", Resource: "clusterresourcebindings"}: "ClusterResourceBindingList",
 		}, pod)
 		var cfg *rest.Config
-		if endpoint != "" {
+		if endpoint := endpoints[spec.ID]; endpoint != "" {
 			cfg = &rest.Config{Host: endpoint, Timeout: time.Second}
 			var err error
 			client, err = dynamic.NewForConfig(cfg)
@@ -60,7 +65,7 @@ func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 		}
 		return fleet.RuntimeClients{Typed: typed, Dynamic: client, Discovery: &discoveryfake.FakeDiscovery{Fake: &k8stesting.Fake{}}, Config: cfg}, nil
 	}
-	manager, err := fleet.New(config, filepath.Join(t.TempDir(), "state.json"), fleet.WithRuntimeFactory(factory), fleet.WithCacheSyncTimeout(time.Second))
+	manager, err := fleet.New(config, statePath, fleet.WithRuntimeFactory(factory), fleet.WithCacheSyncTimeout(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +203,7 @@ func TestFleetEvidenceMCPCatalogAndIsolation(t *testing.T) {
 		"list_clusters": true, "get_fleet_overview": true, "search_fleet_resources": true,
 		"get_fleet_resource": true, "get_fleet_events": true, "get_fleet_logs": true,
 		"diagnose_fleet_resource": true, "get_fleet_relationships": true, "get_fleet_topology": true,
+		"get_fleet_audit": true,
 	}
 	if err != nil || len(listed.Tools) != len(expectedTools) {
 		t.Fatalf("catalog = %+v, %v", listed, err)
@@ -256,6 +262,44 @@ func TestFleetEvidenceMCPCatalogAndIsolation(t *testing.T) {
 	NewFleetHandler(manager, false).ServeHTTP(w, request)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("cross-site request status = %d", w.Code)
+	}
+}
+
+func TestFleetOperationsCatalogHasExactTwelveToolsWhenEnabled(t *testing.T) {
+	server := newFleetServer(fleetTools{writesEnabled: true, operations: newFleetOperationStore()})
+	st, ct := mcpsdk.NewInMemoryTransports()
+	ctx := context.Background()
+	ss, err := server.Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test", Version: "test"}, nil)
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cs.Close(); _ = ss.Wait() }()
+	listed, err := cs.ListTools(ctx, nil)
+	expected := map[string]bool{
+		"list_clusters": true, "get_fleet_overview": true, "search_fleet_resources": true,
+		"get_fleet_resource": true, "get_fleet_events": true, "get_fleet_logs": true,
+		"diagnose_fleet_resource": true, "get_fleet_relationships": true, "get_fleet_topology": true,
+		"get_fleet_audit": true, "prepare_fleet_operation": true, "execute_fleet_operation": true,
+	}
+	if err != nil || len(listed.Tools) != len(expected) {
+		t.Fatalf("enabled catalog = %+v, %v", listed, err)
+	}
+	seen := make(map[string]bool, len(expected))
+	for _, tool := range listed.Tools {
+		if !expected[tool.Name] || seen[tool.Name] {
+			t.Fatalf("unexpected enabled tool %q", tool.Name)
+		}
+		seen[tool.Name] = true
+		if tool.Name == "prepare_fleet_operation" || tool.Name == "execute_fleet_operation" {
+			if tool.Annotations == nil || tool.Annotations.ReadOnlyHint {
+				t.Fatalf("write operation marked read-only: %s", tool.Name)
+			}
+		}
 	}
 }
 
