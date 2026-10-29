@@ -174,13 +174,30 @@ func (m *Manager) Start(ctx context.Context) error {
 	if starting {
 		return errors.New("fleet manager is already starting")
 	}
-	if registry != nil && provider != nil {
-		if err := registry.ReconcileManaged(provider); err != nil {
-			return err
-		}
-	}
 	managed := []ConnectionSpec{}
-	if registry != nil {
+	if registry != nil && registry.hasManagedReferences() {
+		candidates := []ConnectionCandidate{}
+		discoveryAvailable := false
+		if provider != nil {
+			resolved, err := provider()
+			if err == nil {
+				candidates = resolved
+				discoveryAvailable = true
+			}
+		}
+		if !discoveryAvailable {
+			_ = registry.ReconcileManaged(func() ([]ConnectionCandidate, error) {
+				return []ConnectionCandidate{}, nil
+			})
+		} else {
+			if err := registry.ReconcileManaged(func() ([]ConnectionCandidate, error) {
+				return candidates, nil
+			}); err != nil {
+				return err
+			}
+			managed = registry.ManagedConnections()
+		}
+	} else if registry != nil {
 		managed = registry.ManagedConnections()
 	}
 	m.mu.Lock()
@@ -645,6 +662,7 @@ type startEntry struct {
 
 func (m *Manager) startEntry(ctx context.Context, generation uint64, entry startEntry) {
 	defer m.startWG.Done()
+	defer m.clearRuntimeCancel(entry.clusterID, generation)
 	select {
 	case m.startSem <- struct{}{}:
 	case <-ctx.Done():
@@ -668,8 +686,13 @@ func (m *Manager) startEntry(ctx context.Context, generation uint64, entry start
 		result.status.State = StateUnavailable
 	}
 	m.publishStatus(generation, entry.clusterID, result.status, result.runtime)
+}
+
+func (m *Manager) clearRuntimeCancel(clusterID string, generation uint64) {
 	m.mu.Lock()
-	delete(m.runtimeCancels, entry.clusterID)
+	if m.clusterGeneration[clusterID] == generation {
+		delete(m.runtimeCancels, clusterID)
+	}
 	m.mu.Unlock()
 }
 

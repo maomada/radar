@@ -228,7 +228,7 @@ func TestFleetManagedConnectionPersistsAndRemovesOnlyOwnedRuntime(t *testing.T) 
 		}
 		return []fleet.ConnectionCandidate{candidate}, nil
 	}
-	manager := fleetManagementTestManager(t, statePath, provider, false)
+	manager := fleetManagementTestManager(t, statePath, provider, true)
 	_, api := NewFleetEndpoints(manager, FleetOptions{
 		RequireAuth: true, AdminUsers: []string{"alice"}, LocalConnections: true, Candidates: provider,
 	})
@@ -246,9 +246,7 @@ func TestFleetManagedConnectionPersistsAndRemovesOnlyOwnedRuntime(t *testing.T) 
 	if err := json.Unmarshal(response.Body.Bytes(), &added); err != nil || added.ClusterID == "" {
 		t.Fatalf("add response = %+v, %v", added, err)
 	}
-	if _, err := manager.Runtime(added.ClusterID); err != nil {
-		t.Fatalf("new managed runtime unavailable: %v", err)
-	}
+	waitForFleetRuntime(t, manager, added.ClusterID)
 	response = callFleetAPI(t, api, http.MethodPost, "/query/list_clusters", `{}`, "alice")
 	var inventory struct {
 		ManagedConnectionIDs []string `json:"managedConnectionIds"`
@@ -257,12 +255,35 @@ func TestFleetManagedConnectionPersistsAndRemovesOnlyOwnedRuntime(t *testing.T) 
 		len(inventory.ManagedConnectionIDs) != 1 || inventory.ManagedConnectionIDs[0] != "local-prod" {
 		t.Fatalf("managed connection inventory = %+v, %v", inventory, err)
 	}
-	declaredID := manager.Catalog().Clusters[0].ID
+	declaredID := ""
+	for _, connection := range manager.Catalog().Connections {
+		if connection.ID == "a" {
+			declaredID = connection.ClusterID
+			break
+		}
+	}
+	if declaredID == "" {
+		t.Fatal("declared peer cluster ID missing")
+	}
+	if err := manager.SetDuplicateDecision(declaredID, added.ClusterID, "keep_separate"); err != nil {
+		t.Fatalf("persist duplicate decision: %v", err)
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
+	}
+	manager = fleetManagementTestManager(t, statePath, provider, true)
+	if len(manager.Catalog().DuplicateDecisions) != 1 {
+		t.Fatalf("trusted restart lost duplicate decision: %+v", manager.Catalog().DuplicateDecisions)
+	}
+	if _, err := manager.Runtime(declaredID); err != nil {
+		t.Fatalf("declared peer not routable after trusted restart: %v", err)
+	}
+	waitForFleetRuntime(t, manager, added.ClusterID)
 	if err := manager.Close(); err != nil {
 		t.Fatal(err)
 	}
 	trusted = false
-	manager = fleetManagementTestManager(t, statePath, provider, false)
+	manager = fleetManagementTestManager(t, statePath, provider, true)
 	managedID := ""
 	for _, connection := range manager.Catalog().Connections {
 		if connection.ID == "local-prod" {
@@ -278,11 +299,14 @@ func TestFleetManagedConnectionPersistsAndRemovesOnlyOwnedRuntime(t *testing.T) 
 	if _, err := manager.Runtime(managedID); err == nil {
 		t.Fatal("managed runtime without a trusted source remained routable")
 	}
+	if _, err := manager.Runtime(declaredID); err != nil {
+		t.Fatalf("trust loss for managed source affected declared peer: %v", err)
+	}
 	if err := manager.Close(); err != nil {
 		t.Fatal(err)
 	}
 	trusted = true
-	manager = fleetManagementTestManager(t, statePath, provider, false)
+	manager = fleetManagementTestManager(t, statePath, provider, true)
 	if manager.Catalog().Connections[0].ID != "a" && manager.Catalog().Connections[1].ID != "a" {
 		t.Fatalf("declarative connections lost after restart: %+v", manager.Catalog().Connections)
 	}
@@ -311,6 +335,19 @@ func TestFleetManagedConnectionPersistsAndRemovesOnlyOwnedRuntime(t *testing.T) 
 		if connection.ID == "local-prod" && connection.Active {
 			t.Fatal("removed managed record remains active")
 		}
+	}
+}
+
+func TestFleetAPIJSONUsesNoStore(t *testing.T) {
+	success := httptest.NewRecorder()
+	writeFleetJSON(success, http.StatusOK, map[string]bool{"enabled": true})
+	if got := success.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("success Cache-Control = %q, want no-store", got)
+	}
+	failure := httptest.NewRecorder()
+	writeFleetError(failure, http.StatusBadRequest, context.Canceled)
+	if got := failure.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("error Cache-Control = %q, want no-store", got)
 	}
 }
 
@@ -394,9 +431,16 @@ func fleetManagementTestManager(t *testing.T, statePath string, provider fleet.C
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		statuses := manager.Statuses()
-		ready := len(statuses) == 2
+		expected := make(map[string]struct{})
+		for _, connection := range manager.Catalog().Connections {
+			if connection.Active {
+				expected[connection.ClusterID] = struct{}{}
+			}
+		}
+		ready := len(statuses) == len(expected)
 		for _, status := range statuses {
-			ready = ready && status.State == fleet.StateReady
+			_, expectedCluster := expected[status.ClusterID]
+			ready = ready && expectedCluster && status.State == fleet.StateReady
 		}
 		if ready {
 			return manager
@@ -405,4 +449,23 @@ func fleetManagementTestManager(t *testing.T, statePath string, provider fleet.C
 	}
 	t.Fatalf("fake Fleet runtimes not ready: %+v", manager.Statuses())
 	return nil
+}
+
+func waitForFleetRuntime(t *testing.T, manager *fleet.Manager, clusterID string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := manager.Runtime(clusterID); err == nil {
+			return
+		}
+		status, err := manager.Status(clusterID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if status.State != fleet.StateConnecting {
+			t.Fatalf("runtime unavailable in settled state %s", status.State)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("runtime %q remained unavailable", clusterID)
 }

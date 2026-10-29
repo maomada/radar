@@ -133,6 +133,17 @@ func (r *Registry) ReconcileManaged(provider CandidateProvider) error {
 	return r.commitLocked(next)
 }
 
+func (r *Registry) hasManagedReferences() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, connection := range r.state.Connections {
+		if connection.Managed && !connection.Removed {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Registry) AddManagedConnection(spec ConnectionSpec) (string, error) {
 	if err := validateIdentifier("connection ID", spec.ID); err != nil {
 		return "", err
@@ -350,12 +361,15 @@ func (r *Registry) SyncConfig(config Config) (map[string]string, error) {
 	}
 	next := cloneStoredState(r.state)
 	for i := range next.Connections {
-		if !next.Connections[i].Managed {
-			next.Connections[i].Active = false
+		if next.Connections[i].Managed {
+			continue
 		}
-	}
-	for i := range next.Clusters {
-		next.Clusters[i].Active = false
+		next.Connections[i].Active = false
+		for j := range next.Clusters {
+			if next.Clusters[j].ID == next.Connections[i].ClusterID {
+				next.Clusters[j].Active = false
+			}
+		}
 	}
 	for i := range next.Fleets {
 		if next.Fleets[i].Declarative {
