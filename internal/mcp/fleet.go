@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 )
 
 type fleetSource interface {
@@ -32,6 +33,48 @@ type fleetSource interface {
 type fleetTools struct {
 	source      fleetSource
 	requireAuth bool
+}
+
+type fleetClientBundle struct {
+	Status     fleet.ConnectionStatus
+	Runtime    *fleet.ClusterRuntime
+	Typed      kubernetes.Interface
+	Dynamic    dynamic.Interface
+	Namespaces []string
+}
+
+func (t fleetTools) clientBundle(ctx context.Context, clusterID string) (fleetClientBundle, error) {
+	runtime, err := t.source.Runtime(clusterID)
+	if err != nil {
+		return fleetClientBundle{}, errors.New("cluster is not connected or identity is conflicting")
+	}
+	bundle := fleetClientBundle{Status: runtime.Status(), Runtime: runtime, Namespaces: runtime.Namespaces()}
+	if user := pkgauth.UserFromContext(ctx); user != nil {
+		config := runtime.RESTConfig()
+		if user.Username == "" || config == nil {
+			return fleetClientBundle{}, errors.New("caller credentials unavailable for target cluster")
+		}
+		typed, err := pkgauth.ImpersonatedClient(config, user.Username, user.Groups)
+		if err != nil {
+			return fleetClientBundle{}, errors.New("caller client unavailable for target cluster")
+		}
+		dynamicClient, err := pkgauth.ImpersonatedDynamicClient(config, user.Username, user.Groups)
+		if err != nil {
+			return fleetClientBundle{}, errors.New("caller client unavailable for target cluster")
+		}
+		bundle.Typed, bundle.Dynamic = typed, dynamicClient
+		return bundle, nil
+	}
+	if runtime.Kubernetes() == nil || runtime.Dynamic() == nil {
+		return fleetClientBundle{}, errors.New("target client unavailable")
+	}
+	bundle.Typed, bundle.Dynamic = runtime.Kubernetes(), runtime.Dynamic()
+	return bundle, nil
+}
+
+func (t fleetTools) clients(ctx context.Context, clusterID string) (kubernetes.Interface, dynamic.Interface, []string, error) {
+	bundle, err := t.clientBundle(ctx, clusterID)
+	return bundle.Typed, bundle.Dynamic, bundle.Namespaces, err
 }
 
 type fleetSelection struct {
@@ -73,12 +116,16 @@ type fleetNamespaceCoverage struct {
 }
 
 type fleetOverviewRow struct {
-	ClusterID    string          `json:"clusterId"`
-	ConnectionID string          `json:"connectionId"`
-	ObservedAt   time.Time       `json:"observedAt"`
-	Source       string          `json:"source"`
-	Health       string          `json:"health"`
-	Resources    []fleetCoverage `json:"resources"`
+	ClusterID           string          `json:"clusterId"`
+	ConnectionID        string          `json:"connectionId"`
+	ObservedAt          time.Time       `json:"observedAt"`
+	Source              string          `json:"source"`
+	Health              string          `json:"health"`
+	Resources           []fleetCoverage `json:"resources"`
+	AssessmentState     string          `json:"assessmentState"`
+	Findings            []fleetFinding  `json:"findings"`
+	AssessmentCoverage  []fleetCoverage `json:"assessmentCoverage"`
+	AssessmentTruncated bool            `json:"assessmentTruncated"`
 }
 
 type fleetOverview struct {
@@ -135,7 +182,7 @@ func NewFleetHandler(manager *fleet.Manager, requireAuth bool) http.Handler {
 
 func newFleetServer(tools fleetTools) *mcpsdk.Server {
 	server := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "radar-fleet", Version: version.Current}, &mcpsdk.ServerOptions{
-		Instructions: "Read-only multi-cluster Radar. Cluster IDs are explicit stable targets, never the UI's current Context. Connection readiness is not cluster health. Counts cover only the caller's accessible configured scope; partial counts are lower bounds. Unavailable or denied is not zero. Duplicate candidates may represent the same cluster: do not sum them as distinct physical clusters. This increment does not infer cluster relationships or diagnose health.",
+		Instructions: "Read-only multi-cluster Radar. Available tools are exactly list_clusters, get_fleet_overview, search_fleet_resources, get_fleet_resource, get_fleet_events, get_fleet_logs, diagnose_fleet_resource, get_fleet_relationships, and get_fleet_topology. Cluster IDs are explicit stable targets, never the UI's current Context. Connection readiness is not cluster health. Counts cover only the caller's accessible configured scope; partial counts are lower bounds. Unavailable or denied is not zero. Duplicate candidates may represent the same cluster: do not sum them as distinct physical clusters. Evidence and diagnosis are scoped observations, not whole-cluster health or ownership proof.",
 		SetCacheable: privateCacheScope,
 	})
 	closedWorld := false
@@ -143,6 +190,12 @@ func newFleetServer(tools fleetTools) *mcpsdk.Server {
 	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "list_clusters", Description: "List configured Fleet clusters, stable IDs, identity evidence status and collection connection status. Inventory is operator-configured metadata, not a grant of Kubernetes access.", Annotations: annotations}, tools.list)
 	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_overview", Description: "Bounded live resource counts by cluster, with explicit coverage. Does not assert cluster health. Reads run as the caller on each target cluster.", Annotations: annotations}, tools.overview)
 	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "search_fleet_resources", Description: "Search supported resource metadata across explicitly selected clusters or a Fleet. Returns provenance and per-cluster collection coverage, never raw YAML or Secret data.", Annotations: annotations}, tools.search)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_resource", Description: "Read one allowlisted Fleet resource from an explicit cluster with sanitized structured detail and provenance. Secret access is denied.", Annotations: annotations}, tools.getFleetResource)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_events", Description: "Read bounded UID-bound events for one Fleet resource. Events are caller-scoped and partial or denied coverage is explicit.", Annotations: annotations}, tools.getFleetEvents)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_logs", Description: "Read bounded, best-effort-redacted logs for an explicitly named Pod container with UID-stale protection.", Annotations: annotations}, tools.getFleetLogs)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "diagnose_fleet_resource", Description: "Classify scoped observations for one allowlisted Fleet resource using Radar's canonical health policy; it does not assert a root cause or whole-cluster health.", Annotations: annotations}, tools.diagnoseFleetResource)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_relationships", Description: "Return conservative, evidence-backed Karmada identity and distribution relationships with explicit coverage and unresolved ambiguity.", Annotations: annotations}, tools.getFleetRelationships)
+	mcpsdk.AddTool(server, &mcpsdk.Tool{Name: "get_fleet_topology", Description: "Return typed, bounded Fleet nodes and evidence-backed edges. Every edge references returned nodes.", Annotations: annotations}, tools.getFleetTopology)
 	return server
 }
 
@@ -236,24 +289,8 @@ func managedConnectionIDs(catalog fleet.Catalog) []string {
 }
 
 func (t fleetTools) client(ctx context.Context, clusterID string) (dynamic.Interface, []string, error) {
-	runtime, err := t.source.Runtime(clusterID)
-	if err != nil {
-		return nil, nil, errors.New("cluster is not connected or identity is conflicting")
-	}
-	if user := pkgauth.UserFromContext(ctx); user != nil {
-		if user.Username == "" || runtime.RESTConfig() == nil {
-			return nil, nil, errors.New("caller credentials unavailable for target cluster")
-		}
-		client, err := pkgauth.ImpersonatedDynamicClient(runtime.RESTConfig(), user.Username, user.Groups)
-		if err != nil {
-			return nil, nil, errors.New("caller client unavailable for target cluster")
-		}
-		return client, runtime.Namespaces(), nil
-	}
-	if runtime.Dynamic() == nil {
-		return nil, nil, errors.New("target client unavailable")
-	}
-	return runtime.Dynamic(), runtime.Namespaces(), nil
+	_, client, namespaces, err := t.clients(ctx, clusterID)
+	return client, namespaces, err
 }
 
 func (t fleetTools) overview(ctx context.Context, _ *mcpsdk.CallToolRequest, input fleetSelection) (*mcpsdk.CallToolResult, fleetOverview, error) {
@@ -261,18 +298,33 @@ func (t fleetTools) overview(ctx context.Context, _ *mcpsdk.CallToolRequest, inp
 	if err != nil {
 		return nil, fleetOverview{}, err
 	}
-	result := fleetOverview{Clusters: make([]fleetOverviewRow, len(selected)), Note: "Counts are bounded per resource and configured namespace scope, not fleet-wide totals. Partial counts are lower bounds; denied/unavailable counts are omitted. Health and cross-cluster relationships are not assessed."}
+	result := fleetOverview{Clusters: make([]fleetOverviewRow, len(selected)), Note: "Counts and assessments are bounded to the caller-visible configured scope. Partial, denied and unavailable coverage is never treated as zero or whole-cluster health."}
 	fleetParallel(ctx, len(selected), func(ctx context.Context, i int) {
 		status := selected[i]
-		row := fleetOverviewRow{ClusterID: status.ClusterID, ConnectionID: status.ConnectionID, ObservedAt: time.Now().UTC(), Source: "kubernetes-api", Health: "not_assessed", Resources: make([]fleetCoverage, 0, len(fleetKinds))}
+		row := fleetOverviewRow{ClusterID: status.ClusterID, ConnectionID: status.ConnectionID, ObservedAt: time.Now().UTC(), Source: "kubernetes-api", Health: "not_assessed", AssessmentState: "unknown", Findings: []fleetFinding{}, AssessmentCoverage: []fleetCoverage{}, Resources: make([]fleetCoverage, 0, len(fleetKinds))}
 		client, namespaces, err := t.client(ctx, status.ClusterID)
+		objects := map[string][]unstructured.Unstructured{}
 		for _, kind := range fleetKinds {
 			coverage := fleetCoverage{Resource: kind.gvr.Resource, State: "not_connected", CountScope: "configured-and-caller-visible"}
 			if err == nil {
-				_, coverage = fleetCollect(ctx, client, namespaces, kind, "", "")
+				items, collected := fleetCollect(ctx, client, namespaces, kind, "", "")
+				coverage = collected
+				switch kind.gvr.Resource {
+				case "pods":
+					objects["Pod"] = items
+				case "deployments":
+					objects["Deployment"] = items
+				case "nodes":
+					objects["Node"] = items
+				}
 			}
 			row.Resources = append(row.Resources, coverage)
+			if kind.gvr.Resource == "pods" || kind.gvr.Resource == "deployments" || kind.gvr.Resource == "nodes" {
+				row.AssessmentCoverage = append(row.AssessmentCoverage, coverage)
+			}
 		}
+		row.AssessmentState, row.Findings, row.AssessmentCoverage, row.AssessmentTruncated = assessFleetObjects(objects, row.AssessmentCoverage, time.Now().UTC())
+		row.Health = row.AssessmentState
 		row.ObservedAt = time.Now().UTC()
 		result.Clusters[i] = row
 	})
