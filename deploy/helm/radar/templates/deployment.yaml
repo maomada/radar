@@ -7,6 +7,39 @@
 {{- $basePath := include "radar.basePath" . -}}
 {{- $enroll := include "radar.cloudEnrollmentMode" . | eq "true" -}}
 {{- $cloudCA := and $enroll (not (empty .Values.cloud.caBundle)) -}}
+{{- if and .Values.mcp.readOnly (not .Values.mcp.enabled) }}
+{{- fail "mcp.readOnly requires mcp.enabled=true" }}
+{{- end }}
+{{- if and .Values.fleet.writesEnabled (not .Values.fleet.enabled) }}
+{{- fail "fleet.writesEnabled requires fleet.enabled=true" }}
+{{- end }}
+{{- if .Values.fleet.enabled }}
+{{- if or .Values.cloud.enabled $enroll }}
+{{- fail "fleet.enabled cannot be combined with Radar Cloud" }}
+{{- end }}
+{{- if eq .Values.auth.mode "none" }}
+{{- fail "fleet.enabled requires auth.mode=proxy or oidc on the shared listener" }}
+{{- end }}
+{{- if not .Values.mcp.enabled }}
+{{- fail "fleet.enabled requires mcp.enabled=true" }}
+{{- end }}
+{{- if and .Values.fleet.writesEnabled .Values.mcp.readOnly }}
+{{- fail "fleet.writesEnabled cannot be combined with mcp.readOnly" }}
+{{- end }}
+{{- if ne (int .Values.replicaCount) 1 }}
+{{- fail "fleet.enabled requires replicaCount=1 for the single-writer identity catalog" }}
+{{- end }}
+{{- if not .Values.fleet.state.existingClaim }}
+{{- fail "fleet.state.existingClaim is required to preserve cluster identities and operation audit across restarts" }}
+{{- end }}
+{{- $names := dict }}
+{{- range .Values.fleet.kubeconfigSecrets }}
+{{- if hasKey $names .name }}
+{{- fail "fleet.kubeconfigSecrets names must be unique" }}
+{{- end }}
+{{- $_ := set $names .name true }}
+{{- end }}
+{{- end }}
 {{- if $enroll }}
 {{- $e := .Values.cloud.enrollment }}
 {{- /* The same rules Radar applies to --cloud-hub-url at startup, so a bad
@@ -80,7 +113,7 @@ spec:
   {{- /* Enrollment: the Hub keeps one connection per cluster. In a rolling
          update the new pod would wait until the old one is gone and the Hub
          sees its connection drop. */}}
-  {{- if or $enroll (and .Values.persistence.enabled (eq .Values.timeline.storage "sqlite")) }}
+  {{- if or .Values.fleet.enabled $enroll (and .Values.persistence.enabled (eq .Values.timeline.storage "sqlite")) }}
   strategy:
     type: Recreate
   {{- end }}
@@ -98,6 +131,9 @@ spec:
                auth.mode and cloud.enabled also shape the ClusterRole, but they
                already change the container args. */}}
         checksum/rbac: {{ toJson .Values.rbac | sha256sum }}
+        {{- if .Values.fleet.enabled }}
+        checksum/fleet-config: {{ toJson .Values.fleet.config | sha256sum }}
+        {{- end }}
         {{- if not .Values.cloud.enabled }}
         checksum/operator-settings: {{ include "radar.operatorSettings" . | sha256sum }}
         {{- end }}
@@ -191,6 +227,9 @@ spec:
             {{- end }}
             {{- if not .Values.mcp.enabled }}
             - --no-mcp
+            {{- end }}
+            {{- if .Values.mcp.readOnly }}
+            - --mcp-read-only
             {{- end }}
             {{- if .Values.debug.image }}
             - --debug-image={{ .Values.debug.image }}
@@ -291,6 +330,16 @@ spec:
             {{- end }}
             {{- if $cloudCA }}
             - --cloud-ca-file=/etc/radar/cloud-ca/ca.crt
+            {{- end }}
+            {{- if .Values.fleet.enabled }}
+            - --fleet-config=/etc/radar/fleet/config.json
+            - --fleet-state=/fleet-state/catalog.json
+            {{- if .Values.fleet.adminUsers }}
+            - {{ printf "--fleet-admin-users=%s" (join "," .Values.fleet.adminUsers) | quote }}
+            {{- end }}
+            {{- if .Values.fleet.writesEnabled }}
+            - --fleet-writes
+            {{- end }}
             {{- end }}
             {{- /* extraArgs come last: a repeated scalar flag wins, a repeatable one is appended */}}
             {{- range .Values.extraArgs }}
@@ -467,6 +516,18 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            {{- if .Values.fleet.enabled }}
+            - name: fleet-config
+              mountPath: /etc/radar/fleet
+              readOnly: true
+            - name: fleet-state
+              mountPath: /fleet-state
+            {{- range .Values.fleet.kubeconfigSecrets }}
+            - name: fleet-credentials-{{ .name }}
+              mountPath: /etc/radar/fleet-credentials/{{ .name }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
             {{- if not .Values.cloud.enabled }}
             - name: operator-settings
               mountPath: /etc/radar/operator
@@ -494,6 +555,20 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
+        {{- if .Values.fleet.enabled }}
+        - name: fleet-config
+          configMap:
+            name: {{ include "radar.fullname" . }}-fleet
+        - name: fleet-state
+          persistentVolumeClaim:
+            claimName: {{ .Values.fleet.state.existingClaim | quote }}
+        {{- range .Values.fleet.kubeconfigSecrets }}
+        - name: fleet-credentials-{{ .name }}
+          secret:
+            secretName: {{ .secretName | quote }}
+            defaultMode: 0440
+        {{- end }}
+        {{- end }}
         {{- if not .Values.cloud.enabled }}
         - name: operator-settings
           configMap:

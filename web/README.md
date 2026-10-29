@@ -41,6 +41,10 @@ When `navSlots.embedded` is true, Radar sizes itself to the host container (`hei
 
 Embedded mode renders only the active view. Radar Hub owns the sidebar, top bar, cluster selector, and navigation. `onClusterLoadStateChange` supplies the loading status for Hub's top bar.
 
+The standalone Fleet Manager route and navigation entry are disabled when
+`navSlots.embedded` is true. They do not replace the host's fleet selection or
+change the configured per-cluster API base.
+
 The package can be newer than the Radar it talks to. Features that need a newer Radar show an inline "needs Radar vX or newer" note instead of an error. Radar decides this from the `features` block of `/api/capabilities`, or from the Radar's version when it predates a flag. Pass `radarVersion` so Radar can skip those calls before `/api/version-check` answers. Pass `onRequestRadarUpgrade` to run your own upgrade flow from the note's "Upgrade Radar" button. Without it, the note links to the upgrade instructions.
 
 ## Tailwind

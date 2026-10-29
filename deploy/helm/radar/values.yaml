@@ -620,6 +620,8 @@ usageReporting:
 
 # MCP (Model Context Protocol) server for AI tools
 mcp:
+  # Expose only read-only MCP tools; incompatible with Fleet writes.
+  readOnly: false
   # Opt in to exec_pod; also requires rbac.podExec for local ServiceAccount access.
   execTools: false
   # Set to false to disable the MCP server (useful when deployed behind authentication)
@@ -752,6 +754,22 @@ extraArgs: []
 #  - --kubeconfig-dir=/kubeconfigs
 #  - --list-page-size=200
 #  - "--cluster-name={{ .Release.Name }}"
+
+# Fleet connects directly to each Kubernetes API with its own credentials.
+# Supply kubeconfigs through existing Secrets, never inline in Helm values.
+fleet:
+  enabled: false
+  adminUsers: []
+  writesEnabled: false
+  state:
+    existingClaim: ""
+  config:
+    version: 1
+    connections: []
+    fleets: []
+  # Each entry mounts an existing Secret at /etc/radar/fleet-credentials/<name>.
+  # Reference its kubeconfig key as a file in config.connections[].source.
+  kubeconfigSecrets: []
 
 # Additional environment variables
 env: []

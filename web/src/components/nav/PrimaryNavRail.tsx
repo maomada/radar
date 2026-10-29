@@ -100,6 +100,7 @@ interface PrimaryNavRailProps {
   accountSlot?: ReactNode;
   // Present only when release notes exist for this version; unread adds a dot.
   whatsNew?: { unread: boolean; onOpen: () => void };
+  onOpenFleet?: () => void;
 }
 
 export function PrimaryNavRail({
@@ -111,6 +112,7 @@ export function PrimaryNavRail({
   onOpenSettings,
   accountSlot,
   whatsNew,
+  onOpenFleet,
 }: PrimaryNavRailProps) {
   return (
     <aside
@@ -143,6 +145,7 @@ export function PrimaryNavRail({
           pinned && "flex-1 min-h-0 overflow-y-auto",
         )}
       >
+        {onOpenFleet && <RailActionRow icon={Network} label="Fleet Manager" pinned={pinned} onClick={onOpenFleet} />}
         {NAV_ITEMS.map((item) => (
           <NavRailItem
             key={item.view}

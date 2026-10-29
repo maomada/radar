@@ -1,0 +1,36 @@
+suite: Fleet declarative configuration
+templates:
+  - fleet-configmap.yaml
+tests:
+  - it: emits no Fleet config when disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: serializes connection references and grouping without credentials
+    set:
+      fleet.enabled: true
+      auth.mode: proxy
+      fleet.state.existingClaim: fleet-state
+      fleet.config:
+        version: 1
+        connections:
+          - id: member
+            name: Member
+            source:
+              type: kubeconfig
+              kubeconfig: /etc/radar/fleet-credentials/member/config
+              context: member
+            namespaces: [apps]
+        fleets:
+          - id: production
+            name: Production
+            connections: [member]
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"kubeconfig": "/etc/radar/fleet-credentials/member/config"'
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"context": "member"'

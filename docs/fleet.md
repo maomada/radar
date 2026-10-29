@@ -176,6 +176,23 @@ Cloud/user-token forwarding is unsupported and fails closed: an incoming token i
 never forwarded to arbitrary Fleet clusters. Configure authentication and trusted
 proxy/OIDC boundaries as described in [authentication.md](authentication.md).
 
+## Fleet workspace
+
+Open `/fleet` (under the configured base path) or select **Fleet Manager** in the
+standalone navigation. The workspace uses the same authenticated Fleet API as
+MCP: inventory and grouping, scoped overview, resource search, on-demand evidence,
+relationship/topology tables, and explicit-target operations with audit history.
+Denied, partial, unavailable and unresolved observations remain visible rather
+than becoming zero counts or healthy states. Refresh controls request fresh
+evidence; displayed observations are not a promise of continuous monitoring.
+
+Writes are disabled unless the operator enables them. Review a server dry-run,
+check the explicit cluster/resource identity and confirm once; changing form
+inputs clears the preview. An uncertain outcome must be reconciled against fresh
+evidence and audit before preparing another request. Credentials and manifests
+are not saved to browser storage. Embedded Radar consumers keep their existing
+host-owned navigation and per-cluster API configuration.
+
 ## HTTP inventory and management API
 
 When Fleet is enabled, Radar mounts these routes under the existing authenticated
@@ -237,42 +254,50 @@ Use a locally built image containing this implementation; released upstream imag
 do not gain these flags from values alone. No image or chart is published by this
 change. The canonical chart is `deploy/helm/radar` in this repository.
 
-The existing chart extension points can mount the Fleet JSON as a ConfigMap and
-per-cluster kubeconfigs as an operator-managed Secret, without embedding credentials
-in Helm values. For example, assuming the Secret, ConfigMap, target RBAC and Radar
-authentication have already been configured:
+The chart's `fleet` settings render a non-secret configuration ConfigMap, mount
+operator-managed kubeconfig Secrets read-only, and require an existing state PVC.
+For example, after provisioning the PVC, Secret, authentication proxy and target
+RBAC:
 
 ```yaml
 replicaCount: 1
-persistence:
+auth:
+  mode: proxy
+fleet:
   enabled: true
-extraArgs:
-  - --fleet-config=/etc/radar/fleet/fleet.json
-  - --fleet-state=/data/fleet-state.json
-extraVolumes:
-  - name: fleet-config
-    configMap:
-      name: radar-fleet-config
-  - name: fleet-kubeconfigs
-    secret:
-      secretName: radar-fleet-kubeconfigs
-extraVolumeMounts:
-  - name: fleet-config
-    mountPath: /etc/radar/fleet
-    readOnly: true
-  - name: fleet-kubeconfigs
-    mountPath: /etc/radar/fleet-credentials
-    readOnly: true
+  writesEnabled: false
+  adminUsers: [operator@example.com]
+  state:
+    existingClaim: radar-fleet-state
+  kubeconfigSecrets:
+    - name: member
+      secretName: radar-member-kubeconfig
+  config:
+    version: 1
+    connections:
+      - id: member
+        name: Member cluster
+        source:
+          type: kubeconfig
+          kubeconfig: /etc/radar/fleet-credentials/member/config
+          context: member
+    fleets:
+      - id: production
+        name: Production
+        connections: [member]
 ```
 
 Use absolute mounted paths in each `source.kubeconfig`. A local cluster can instead
 use `"source": {"type": "in-cluster"}`, which retains the pod's ServiceAccount.
 Ensure the container can read the mounted files and write the state directory.
-Keep one replica and durable storage for the identity catalog; use a Recreate
-rollout when sharing that catalog so a second pod does not contend for the lock.
-Restart after external ConfigMap/Secret changes. The extension points do not add
-an automatic checksum for those external objects. Do not enable Cloud tunneling
-for this Fleet deployment.
+The chart requires one replica and uses Recreate so a second pod does not contend
+for the catalog lock. Preserve the PVC, including the audit log, across upgrades.
+Generated Fleet configuration changes update the pod checksum; external Secret
+rotation still requires reconnecting the affected runtime or restarting Radar.
+Cloud tunneling and MCP-disabled mode cannot be combined with Fleet. Enabling
+`fleet.writesEnabled` with `mcp.readOnly` is rejected. This chart grants no remote
+cluster or Kubernetes write permissions. See the [chart guide](../deploy/helm/radar/README.md#fleet-manager)
+for storage ownership and target authorization requirements.
 
 ## Deliberate limits
 
