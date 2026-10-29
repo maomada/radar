@@ -28,12 +28,13 @@ type AuditRecord struct {
 }
 
 type AuditStore struct {
-	mu   sync.Mutex
-	path string
+	mu      sync.Mutex
+	path    string
+	syncDir func(string) error
 }
 
 func newAuditStore(path string) *AuditStore {
-	return &AuditStore{path: path}
+	return &AuditStore{path: path, syncDir: syncAuditDirectory}
 }
 
 func (s *AuditStore) Append(record AuditRecord) error {
@@ -45,7 +46,7 @@ func (s *AuditStore) Append(record AuditRecord) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	data, _, exists, err := s.readLocked()
+	data, _, _, err := s.readLocked()
 	if err != nil {
 		return err
 	}
@@ -80,11 +81,8 @@ func (s *AuditStore) Append(record AuditRecord) error {
 	if writeErr != nil || closeErr != nil {
 		return errors.New("fleet audit could not be persisted")
 	}
-	if !exists {
-		if dir, err := os.Open(filepath.Dir(s.path)); err == nil {
-			_ = dir.Sync()
-			_ = dir.Close()
-		}
+	if err := s.syncDir(filepath.Dir(s.path)); err != nil {
+		return errors.New("fleet audit directory could not be persisted")
 	}
 	return nil
 }
@@ -109,6 +107,62 @@ func (s *AuditStore) Read(limit int) ([]AuditRecord, bool, error) {
 	out := make([]AuditRecord, len(records))
 	copy(out, records)
 	return out, truncated, nil
+}
+
+func (s *AuditStore) ReadFiltered(clusterID, actor string, limit int) ([]AuditRecord, bool, bool, error) {
+	if s == nil {
+		return []AuditRecord{}, false, false, errors.New("fleet audit is unavailable")
+	}
+	if limit <= 0 || limit > 100 {
+		return []AuditRecord{}, false, false, errors.New("fleet audit limit is invalid")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, records, _, err := s.readLocked()
+	if err != nil {
+		return []AuditRecord{}, false, false, err
+	}
+	matching := make([]AuditRecord, 0, len(records))
+	for _, record := range records {
+		if clusterID != "" && record.ClusterID != clusterID {
+			continue
+		}
+		if actor != "" && record.Actor != actor {
+			continue
+		}
+		matching = append(matching, record)
+	}
+	unmatchedIntent := false
+	pending := make(map[string]struct{})
+	for _, record := range matching {
+		if record.Stage == "intent" {
+			pending[record.OperationID] = struct{}{}
+		} else {
+			delete(pending, record.OperationID)
+		}
+	}
+	unmatchedIntent = len(pending) > 0
+	truncated := len(matching) > limit
+	if truncated {
+		matching = matching[len(matching)-limit:]
+	}
+	if matching == nil {
+		matching = []AuditRecord{}
+	}
+	return matching, truncated, unmatchedIntent, nil
+}
+
+func syncAuditDirectory(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	syncErr := dir.Sync()
+	closeErr := dir.Close()
+	if syncErr != nil {
+		return syncErr
+	}
+	return closeErr
 }
 
 func (s *AuditStore) readLocked() ([]byte, []AuditRecord, bool, error) {

@@ -211,6 +211,12 @@ change invalidates a preview. Timeouts after dispatch are outcome-unknown and
 must not be automatically retried. `applied` means only that the API
 acknowledged the mutation, not that rollout converged.
 
+Target-cluster RBAC must allow workload `get` plus `patch` for restart,
+`get` plus `patch` on the `scale` subresource for scale, and `get` plus
+`patch` for an existing apply target or `create` for an absent apply target.
+The API server dry-run uses the same caller identity and requires the same
+authorization as the eventual mutation.
+
 Durable audit is stored beside the registry at `<fleet-state>.audit.jsonl`,
 requires a regular 0600 file and is capped at 16 MiB. Intents are synced before
 mutation and results after; full, insecure, torn or malformed history fails

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -22,10 +23,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	k8sjson "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
@@ -99,6 +102,7 @@ type fleetPendingOperation struct {
 	name         string
 	replicas     *int
 	manifest     map[string]any
+	beforeObject map[string]any
 	applyPayload []byte
 	patchPayload []byte
 	manifestHash string
@@ -192,36 +196,28 @@ func (t fleetTools) getFleetAudit(ctx context.Context, _ *mcpsdk.CallToolRequest
 	if err != nil {
 		return nil, fleetAuditResult{}, errors.New("Fleet audit is unavailable")
 	}
-	records, truncated, err := store.Read(100)
+	user := pkgauth.UserFromContext(ctx)
+	actor, _, actorErr := fleetActor(user)
+	if actorErr != nil {
+		return nil, fleetAuditResult{}, actorErr
+	}
+	_, isAdmin := t.admins[userName(user)]
+	isAdmin = isAdmin || !t.requireAuth
+	if isAdmin {
+		actor = ""
+	}
+	records, truncated, unmatchedIntent, err := store.ReadFiltered(input.ClusterID, actor, limit)
 	if err != nil {
 		return nil, fleetAuditResult{}, errors.New("Fleet audit history is unavailable or invalid")
 	}
-	user := pkgauth.UserFromContext(ctx)
-	actor, _, _ := fleetActor(user)
-	_, isAdmin := t.admins[userName(user)]
-	isAdmin = isAdmin || !t.requireAuth
-	filtered := make([]fleet.AuditRecord, 0, len(records))
-	for _, record := range records {
-		if input.ClusterID != "" && record.ClusterID != input.ClusterID {
-			continue
-		}
-		if !isAdmin && record.Actor != actor {
-			continue
-		}
-		filtered = append(filtered, record)
-	}
-	if len(filtered) > limit {
-		filtered = filtered[len(filtered)-limit:]
-		truncated = true
-	}
-	if filtered == nil {
-		filtered = []fleet.AuditRecord{}
-	}
 	limitations := []string{}
 	if truncated {
-		limitations = append(limitations, "Only the latest bounded audit records are available; earlier records may be omitted.")
+		limitations = append(limitations, "Only the latest matching audit records are available; earlier matching records may be omitted.")
 	}
-	return nil, fleetAuditResult{Records: filtered, Truncated: truncated, Limitations: limitations}, nil
+	if unmatchedIntent {
+		limitations = append(limitations, "An intent without a matching durable result remains outcome_unknown; acknowledgement must not be inferred.")
+	}
+	return nil, fleetAuditResult{Records: records, Truncated: truncated, Limitations: limitations}, nil
 }
 
 func (t fleetTools) prepareOperation(ctx context.Context, input fleetOperationInput) (fleetOperationPreview, error) {
@@ -253,16 +249,18 @@ func (t fleetTools) prepareOperation(ctx context.Context, input fleetOperationIn
 	expiresAt := time.Now().UTC().Add(fleetOperationTTL)
 	var preview fleetOperationPreview
 	err = t.source.(*fleet.Manager).WithVerifiedRuntime(ctx, input.ClusterID, nil, func(pinCtx context.Context, runtime *fleet.ClusterRuntime) error {
-		bundle, err := t.clientBundleForRuntime(pinCtx, runtime)
-		if err != nil || bundle.Status.ConnectionID == "" || !fleetNamespaceAllowed(bundle.Namespaces, input.Namespace) {
+		client, err := fleetOperationClient(pinCtx, runtime)
+		status := runtime.Status()
+		if err != nil || status.ConnectionID == "" || !fleetNamespaceAllowed(runtime.Namespaces(), input.Namespace) {
 			return errors.New("Fleet operation target is unavailable or outside configured scope")
 		}
 		target := fleetResource{
-			ClusterID: input.ClusterID, ConnectionID: bundle.Status.ConnectionID,
+			ClusterID: input.ClusterID, ConnectionID: status.ConnectionID,
 			Ref:        resourceid.NewRef(kind.GVR.Group, kind.Kind, input.Namespace, input.Name),
+			APIVersion: kind.GVR.GroupVersion().String(),
 			ObservedAt: time.Now().UTC(), Source: "kubernetes-api",
 		}
-		resource := bundle.Dynamic.Resource(kind.GVR).Namespace(input.Namespace)
+		resource := client.Resource(kind.GVR).Namespace(input.Namespace)
 		before, getErr := resource.Get(pinCtx, input.Name, metav1.GetOptions{})
 		absent := apierrors.IsNotFound(getErr)
 		if getErr != nil && !absent {
@@ -276,12 +274,23 @@ func (t fleetTools) prepareOperation(ctx context.Context, input fleetOperationIn
 			target.ResourceVersion = before.GetResourceVersion()
 			target.APIVersion = kind.GVR.GroupVersion().String()
 		}
+		if input.Action == "apply" {
+			suppliedUID, suppliedResourceVersion, err := manifestPreconditions(manifest)
+			if err != nil || (absent && (suppliedUID != "" || suppliedResourceVersion != "")) ||
+				(!absent && ((suppliedUID != "" && suppliedUID != target.UID) ||
+					(suppliedResourceVersion != "" && suppliedResourceVersion != target.ResourceVersion))) {
+				return errors.New("Fleet manifest preconditions do not match the selected target")
+			}
+		}
 		plan := fleetPendingOperation{
-			operationID: operationID, clusterID: input.ClusterID, connectionID: bundle.Status.ConnectionID,
+			operationID: operationID, clusterID: input.ClusterID, connectionID: status.ConnectionID,
 			action: input.Action, kind: kind, namespace: input.Namespace, name: input.Name,
 			replicas: replicas, manifest: manifest, manifestHash: digest, uid: target.UID,
 			resourceVer: target.ResourceVersion, absent: absent, runtime: runtime, actor: actor,
 			groups: append([]string(nil), groups...), expiresAt: expiresAt, target: target,
+		}
+		if !absent {
+			plan.beforeObject = kruntime.DeepCopyJSONValue(before.Object).(map[string]any)
 		}
 		switch input.Action {
 		case "restart":
@@ -305,17 +314,17 @@ func (t fleetTools) prepareOperation(ctx context.Context, input fleetOperationIn
 					return errors.New("Fleet operation manifest is invalid")
 				}
 			}
-			paths := safeManifestPaths(manifest)
-			plan.summary = []string{fmt.Sprintf("Apply %s %s/%s", kind.Kind, input.Namespace, input.Name), "Manifest fields: " + strings.Join(paths, ", ")}
 		}
-		if err := dryRunFleetOperation(pinCtx, bundle.Dynamic, plan); err != nil {
+		dryRunObject, err := dryRunFleetOperation(pinCtx, client, plan)
+		if err != nil {
 			return errors.New("Kubernetes API denied or rejected the operation dry-run")
 		}
+		plan.summary = safeOperationSummary(plan, dryRunObject)
 		if err := t.operations.add(confirmation, plan); err != nil {
 			return err
 		}
 		preview = fleetOperationPreview{
-			OperationID: operationID, ClusterID: input.ClusterID, ConnectionID: bundle.Status.ConnectionID,
+			OperationID: operationID, ClusterID: input.ClusterID, ConnectionID: status.ConnectionID,
 			Action: input.Action, Target: target, Confirmation: confirmation, ExpiresAt: expiresAt,
 			Summary: append([]string{}, plan.summary...), DryRun: true,
 			ManifestDigest: digest, Limitations: []string{"Dry-run is authorization and validation evidence, not a guarantee the later request will succeed."},
@@ -347,13 +356,17 @@ func (t fleetTools) executeOperation(ctx context.Context, input fleetExecuteOper
 		OperationID: plan.operationID, ClusterID: plan.clusterID,
 		Limitations: []string{"Applied means the Kubernetes API acknowledged the mutation; it does not assert rollout convergence."},
 	}
+	audit, err := t.auditStore()
+	if err != nil {
+		return fleetOperationResult{}, errors.New("Fleet audit is unavailable; no operation was attempted")
+	}
 	var dispatched bool
 	err = t.source.(*fleet.Manager).WithVerifiedRuntime(ctx, plan.clusterID, plan.runtime, func(pinCtx context.Context, runtime *fleet.ClusterRuntime) error {
-		bundle, err := t.clientBundleForRuntime(pinCtx, runtime)
-		if err != nil || bundle.Status.ConnectionID != plan.connectionID || !fleetNamespaceAllowed(bundle.Namespaces, plan.namespace) {
+		client, err := fleetOperationClient(pinCtx, runtime)
+		if err != nil || runtime.Status().ConnectionID != plan.connectionID || !fleetNamespaceAllowed(runtime.Namespaces(), plan.namespace) {
 			return errors.New("Fleet operation preview is stale or unavailable")
 		}
-		resource := bundle.Dynamic.Resource(plan.kind.GVR).Namespace(plan.namespace)
+		resource := client.Resource(plan.kind.GVR).Namespace(plan.namespace)
 		live, getErr := resource.Get(pinCtx, plan.name, metav1.GetOptions{})
 		if plan.absent {
 			if !apierrors.IsNotFound(getErr) {
@@ -362,15 +375,11 @@ func (t fleetTools) executeOperation(ctx context.Context, input fleetExecuteOper
 		} else if getErr != nil || string(live.GetUID()) != plan.uid || live.GetResourceVersion() != plan.resourceVer {
 			return errors.New("Fleet operation preview is stale or unavailable")
 		}
-		audit, err := t.auditStore()
-		if err != nil {
-			return errors.New("Fleet audit is unavailable; no operation was attempted")
-		}
 		if err := audit.Append(operationAuditRecord(plan, "intent", "")); err != nil {
 			return errors.New("Fleet audit is unavailable; no operation was attempted")
 		}
 		dispatched = true
-		mutationErr := performFleetMutation(pinCtx, bundle.Dynamic, plan)
+		mutationErr := performFleetMutation(pinCtx, client, plan)
 		outcome := "applied"
 		result.State = "applied"
 		result.Summary = "Kubernetes API acknowledged the mutation."
@@ -474,20 +483,25 @@ func parseFleetManifest(source string, kind evidenceKind, namespace, name string
 		return nil, nil, errors.New("invalid manifest object")
 	}
 	var object map[string]any
-	if err := json.Unmarshal(encoded, &object); err != nil || object == nil {
+	if err := k8sjson.Unmarshal(encoded, &object); err != nil || object == nil {
 		return nil, nil, errors.New("manifest must be one object")
 	}
 	manifestKind, _ := object["kind"].(string)
 	apiVersion, _ := object["apiVersion"].(string)
+	_, hasStatus := object["status"]
+	_, hasManagedFields := object["managedFields"]
+	_, hasGenerateName := object["generateName"]
 	if manifestKind != kind.Kind || apiVersion != kind.GVR.GroupVersion().String() ||
-		strings.HasSuffix(manifestKind, "List") || object["status"] != nil || object["managedFields"] != nil {
+		strings.HasSuffix(manifestKind, "List") || hasStatus || hasManagedFields || hasGenerateName {
 		return nil, nil, errors.New("unsupported manifest kind or fields")
 	}
 	metadata, ok := object["metadata"].(map[string]any)
 	if !ok {
 		return nil, nil, errors.New("manifest metadata is required")
 	}
-	if metadata["generateName"] != nil || metadata["managedFields"] != nil {
+	_, hasGenerateName = metadata["generateName"]
+	_, hasManagedFields = metadata["managedFields"]
+	if hasGenerateName || hasManagedFields {
 		return nil, nil, errors.New("generated names and managedFields are unsupported")
 	}
 	manifestName, _ := metadata["name"].(string)
@@ -500,6 +514,31 @@ func parseFleetManifest(source string, kind evidenceKind, namespace, name string
 		return nil, nil, err
 	}
 	return object, canonical, nil
+}
+
+func manifestPreconditions(manifest map[string]any) (string, string, error) {
+	metadata, ok := manifest["metadata"].(map[string]any)
+	if !ok {
+		return "", "", errors.New("manifest metadata is unavailable")
+	}
+	uid, uidFound := metadata["uid"]
+	resourceVersion, resourceVersionFound := metadata["resourceVersion"]
+	readString := func(value any, found bool) (string, error) {
+		if !found || value == nil {
+			return "", nil
+		}
+		text, ok := value.(string)
+		if !ok {
+			return "", errors.New("manifest precondition must be a string")
+		}
+		return text, nil
+	}
+	uidText, err := readString(uid, uidFound)
+	if err != nil {
+		return "", "", err
+	}
+	resourceVersionText, err := readString(resourceVersion, resourceVersionFound)
+	return uidText, resourceVersionText, err
 }
 
 func validateYAMLNode(node *yaml.Node) error {
@@ -528,7 +567,7 @@ func validateYAMLNode(node *yaml.Node) error {
 }
 
 func manifestWithPreconditions(manifest map[string]any, uid, resourceVersion string) ([]byte, error) {
-	copyObject := runtime.DeepCopyJSONValue(manifest).(map[string]any)
+	copyObject := kruntime.DeepCopyJSONValue(manifest).(map[string]any)
 	metadata, ok := copyObject["metadata"].(map[string]any)
 	if !ok {
 		return nil, errors.New("manifest metadata is unavailable")
@@ -570,43 +609,101 @@ func scalePatch(before *unstructured.Unstructured, absent bool, replicas int) ([
 	return json.Marshal(operations)
 }
 
-func dryRunFleetOperation(ctx context.Context, client dynamic.Interface, plan fleetPendingOperation) error {
+func dryRunFleetOperation(ctx context.Context, client dynamic.Interface, plan fleetPendingOperation) (*unstructured.Unstructured, error) {
 	resource := client.Resource(plan.kind.GVR).Namespace(plan.namespace)
 	if plan.action == "apply" {
 		if plan.absent {
 			object := &unstructured.Unstructured{Object: plan.manifest}
-			_, err := resource.Create(ctx, object, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "radar-fleet"})
-			return err
+			created, err := resource.Create(ctx, object, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "radar-fleet", FieldValidation: metav1.FieldValidationStrict})
+			return created, err
 		}
 		force := false
-		_, err := resource.Patch(ctx, plan.name, types.ApplyPatchType, plan.applyPayload, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "radar-fleet", Force: &force})
-		return err
+		applied, err := resource.Patch(ctx, plan.name, types.ApplyPatchType, plan.applyPayload, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "radar-fleet", Force: &force, FieldValidation: metav1.FieldValidationStrict})
+		return applied, err
 	}
 	patch := plan.patchPayload
 	subresources := []string(nil)
 	if plan.action == "scale" {
 		subresources = []string{"scale"}
 	}
-	_, err := resource.Patch(ctx, plan.name, types.JSONPatchType, patch, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}}, subresources...)
-	return err
+	updated, err := resource.Patch(ctx, plan.name, types.JSONPatchType, patch, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}, FieldValidation: metav1.FieldValidationStrict}, subresources...)
+	return updated, err
+}
+
+type noRetryRESTClient struct {
+	rest.Interface
+}
+
+func (c noRetryRESTClient) Verb(verb string) *rest.Request {
+	return c.Interface.Verb(verb).MaxRetries(0)
+}
+
+func (c noRetryRESTClient) Post() *rest.Request {
+	return c.Interface.Post().MaxRetries(0)
+}
+
+func (c noRetryRESTClient) Put() *rest.Request {
+	return c.Interface.Put().MaxRetries(0)
+}
+
+func (c noRetryRESTClient) Patch(patchType types.PatchType) *rest.Request {
+	return c.Interface.Patch(patchType).MaxRetries(0)
+}
+
+func (c noRetryRESTClient) Get() *rest.Request {
+	return c.Interface.Get().MaxRetries(0)
+}
+
+func (c noRetryRESTClient) Delete() *rest.Request {
+	return c.Interface.Delete().MaxRetries(0)
+}
+
+func fleetOperationClient(ctx context.Context, runtime *fleet.ClusterRuntime) (dynamic.Interface, error) {
+	if runtime == nil {
+		return nil, errors.New("target runtime is unavailable")
+	}
+	config := runtime.RESTConfig()
+	if config == nil {
+		return nil, errors.New("target REST config is unavailable")
+	}
+	if user := pkgauth.UserFromContext(ctx); user != nil {
+		if user.Username == "" {
+			return nil, errors.New("caller identity is unavailable")
+		}
+		config = pkgauth.ImpersonatedConfig(config, user.Username, user.Groups)
+	}
+	config = dynamic.ConfigFor(config)
+	config.GroupVersion = nil
+	config.APIPath = "/if-you-see-this-search-for-the-break"
+	config.WarningHandler = rest.NoWarnings{}
+	config.WarningHandlerWithContext = rest.NoWarnings{}
+	httpClient, err := rest.HTTPClientFor(config)
+	if err != nil {
+		return nil, errors.New("caller operation client is unavailable")
+	}
+	client, err := rest.UnversionedRESTClientForConfigAndClient(config, httpClient)
+	if err != nil {
+		return nil, errors.New("caller operation client is unavailable")
+	}
+	return dynamic.New(noRetryRESTClient{Interface: client}), nil
 }
 
 func performFleetMutation(ctx context.Context, client dynamic.Interface, plan fleetPendingOperation) error {
 	resource := client.Resource(plan.kind.GVR).Namespace(plan.namespace)
 	if plan.action == "apply" {
 		if plan.absent {
-			_, err := resource.Create(ctx, &unstructured.Unstructured{Object: plan.manifest}, metav1.CreateOptions{FieldManager: "radar-fleet"})
+			_, err := resource.Create(ctx, &unstructured.Unstructured{Object: plan.manifest}, metav1.CreateOptions{FieldManager: "radar-fleet", FieldValidation: metav1.FieldValidationStrict})
 			return err
 		}
 		force := false
-		_, err := resource.Patch(ctx, plan.name, types.ApplyPatchType, plan.applyPayload, metav1.PatchOptions{FieldManager: "radar-fleet", Force: &force})
+		_, err := resource.Patch(ctx, plan.name, types.ApplyPatchType, plan.applyPayload, metav1.PatchOptions{FieldManager: "radar-fleet", Force: &force, FieldValidation: metav1.FieldValidationStrict})
 		return err
 	}
 	subresources := []string(nil)
 	if plan.action == "scale" {
 		subresources = []string{"scale"}
 	}
-	_, err := resource.Patch(ctx, plan.name, types.JSONPatchType, plan.patchPayload, metav1.PatchOptions{}, subresources...)
+	_, err := resource.Patch(ctx, plan.name, types.JSONPatchType, plan.patchPayload, metav1.PatchOptions{FieldValidation: metav1.FieldValidationStrict}, subresources...)
 	return err
 }
 
@@ -691,23 +788,77 @@ func randomHex(size int) (string, error) {
 	return hex.EncodeToString(buffer), nil
 }
 
-func safeManifestPaths(manifest map[string]any) []string {
-	paths := make([]string, 0, 8)
-	for _, key := range []string{"metadata", "spec"} {
-		if _, ok := manifest[key]; ok {
-			paths = append(paths, key)
+func safeOperationSummary(plan fleetPendingOperation, dryRun *unstructured.Unstructured) []string {
+	switch plan.action {
+	case "restart":
+		return plan.summary
+	case "scale":
+		return plan.summary
+	case "apply":
+		paths := []string{}
+		if plan.absent {
+			paths = safeManifestPaths(plan.manifest, plan.kind.Kind)
+			if len(paths) == 0 {
+				return []string{fmt.Sprintf("Create %s %s/%s", plan.kind.Kind, plan.namespace, plan.name), "No allowlisted desired-field paths were observed."}
+			}
+			return []string{
+				fmt.Sprintf("Create %s %s/%s", plan.kind.Kind, plan.namespace, plan.name),
+				"Structural paths: " + strings.Join(paths, ", "),
+			}
+		}
+		if dryRun != nil {
+			paths = changedManifestPaths(plan.beforeObject, dryRun.Object, plan.kind.Kind)
+		}
+		if len(paths) == 0 {
+			return []string{fmt.Sprintf("Apply %s %s/%s", plan.kind.Kind, plan.namespace, plan.name), "No desired-field differences were observed in the server dry-run object."}
+		}
+		return []string{
+			fmt.Sprintf("Apply %s %s/%s", plan.kind.Kind, plan.namespace, plan.name),
+			"Changed structural paths: " + strings.Join(paths, ", "),
+		}
+	default:
+		return []string{}
+	}
+}
+
+func safeManifestPaths(manifest map[string]any, kind string) []string {
+	paths := []string{}
+	for _, path := range []string{"metadata.labels", "metadata.annotations"} {
+		if _, found, _ := unstructured.NestedFieldNoCopy(manifest, strings.Split(path, ".")...); found {
+			paths = append(paths, path)
 		}
 	}
-	if metadata, ok := manifest["metadata"].(map[string]any); ok {
-		for _, key := range []string{"labels", "annotations"} {
-			if _, ok := metadata[key]; ok {
-				paths = append(paths, "metadata."+key)
-			}
+	for _, path := range safeSpecPaths(kind) {
+		if _, found, _ := unstructured.NestedFieldNoCopy(manifest, strings.Split(path, ".")...); found {
+			paths = append(paths, path)
 		}
 	}
 	sort.Strings(paths)
-	if len(paths) == 0 {
-		return []string{"object"}
-	}
 	return paths
+}
+
+func changedManifestPaths(before, after map[string]any, kind string) []string {
+	paths := []string{}
+	for _, path := range append([]string{"metadata.labels", "metadata.annotations"}, safeSpecPaths(kind)...) {
+		beforeValue, beforeFound, _ := unstructured.NestedFieldNoCopy(before, strings.Split(path, ".")...)
+		afterValue, afterFound, _ := unstructured.NestedFieldNoCopy(after, strings.Split(path, ".")...)
+		if beforeFound != afterFound || !reflect.DeepEqual(beforeValue, afterValue) {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func safeSpecPaths(kind string) []string {
+	switch kind {
+	case "Pod":
+		return []string{"spec.nodeName", "spec.serviceAccountName", "spec.restartPolicy", "spec.hostNetwork", "spec.containers", "spec.initContainers", "spec.ephemeralContainers", "spec.volumes", "spec.securityContext", "spec.affinity", "spec.tolerations", "spec.imagePullSecrets"}
+	case "Service":
+		return []string{"spec.type", "spec.clusterIP", "spec.ports", "spec.selector", "spec.externalIPs", "spec.sessionAffinity"}
+	case "Deployment", "StatefulSet", "ReplicaSet", "DaemonSet":
+		return []string{"spec.replicas", "spec.selector", "spec.strategy", "spec.minReadySeconds", "spec.revisionHistoryLimit", "spec.template.metadata.labels", "spec.template.metadata.annotations", "spec.template.spec.containers", "spec.template.spec.initContainers", "spec.template.spec.volumes", "spec.template.spec.serviceAccountName", "spec.template.spec.nodeSelector", "spec.template.spec.tolerations", "spec.template.spec.affinity", "spec.template.spec.securityContext"}
+	default:
+		return []string{}
+	}
 }

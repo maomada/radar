@@ -260,6 +260,44 @@ func TestFleetEvidenceMCPCatalogAndIsolation(t *testing.T) {
 	}
 }
 
+func TestFleetOperationsCatalogHasExactTwelveToolsWhenEnabled(t *testing.T) {
+	server := newFleetServer(fleetTools{writesEnabled: true, operations: newFleetOperationStore()})
+	st, ct := mcpsdk.NewInMemoryTransports()
+	ctx := context.Background()
+	ss, err := server.Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test", Version: "test"}, nil)
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cs.Close(); _ = ss.Wait() }()
+	listed, err := cs.ListTools(ctx, nil)
+	expected := map[string]bool{
+		"list_clusters": true, "get_fleet_overview": true, "search_fleet_resources": true,
+		"get_fleet_resource": true, "get_fleet_events": true, "get_fleet_logs": true,
+		"diagnose_fleet_resource": true, "get_fleet_relationships": true, "get_fleet_topology": true,
+		"get_fleet_audit": true, "prepare_fleet_operation": true, "execute_fleet_operation": true,
+	}
+	if err != nil || len(listed.Tools) != len(expected) {
+		t.Fatalf("enabled catalog = %+v, %v", listed, err)
+	}
+	seen := make(map[string]bool, len(expected))
+	for _, tool := range listed.Tools {
+		if !expected[tool.Name] || seen[tool.Name] {
+			t.Fatalf("unexpected enabled tool %q", tool.Name)
+		}
+		seen[tool.Name] = true
+		if tool.Name == "prepare_fleet_operation" || tool.Name == "execute_fleet_operation" {
+			if tool.Annotations == nil || tool.Annotations.ReadOnlyHint {
+				t.Fatalf("write operation marked read-only: %s", tool.Name)
+			}
+		}
+	}
+}
+
 func TestFleetCollectionPreservesNamespaceGaps(t *testing.T) {
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
