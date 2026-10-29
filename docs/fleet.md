@@ -112,8 +112,14 @@ increment; legacy stdio/catalog-only modes do not become Fleet transports.
 | Tool | Inputs | Result |
 | --- | --- | --- |
 | `list_clusters` | Optional `fleetId`, `clusterIds` | Active inventory, stable IDs, connection and identity observations, duplicate candidates and memberships |
-| `get_fleet_overview` | Optional `fleetId`, `clusterIds` | Per-cluster resource counts, source/time and coverage; health explicitly `not_assessed` |
+| `get_fleet_overview` | Optional `fleetId`, `clusterIds` | Per-cluster rows add `assessmentState`, `findings`, `assessmentCoverage`, and `assessmentTruncated` to the scoped inventory |
 | `search_fleet_resources` | `resource`; optional `fleetId`, `clusterIds`, `namespace`, `nameContains`, `labelSelector`, `limit` | Metadata only: cluster/connection, group/kind/namespace/name, UID, resourceVersion, source/time and per-cluster coverage |
+| `get_fleet_resource` | `clusterId`, `resource`, `namespace`, `name`, optional `uid` | `{target,state,object?,limitations}`; one sanitized allowlisted resource; Secret reads are denied |
+| `get_fleet_events` | `clusterId`, `resource`, `namespace`, `name`, `uid`, optional `limit` | `{target,state,events,truncated,limitations}` with UID-bound, redacted events |
+| `get_fleet_logs` | `clusterId`, `namespace`, `name`, `container`, optional `tailLines`, `previous` | `{target,state,container,text,truncated,limitations}`; stale Pod UIDs suppress text. Redaction is best effort and cannot guarantee removal of arbitrary application secrets. |
+| `diagnose_fleet_resource` | `clusterId`, `resource`, `namespace`, `name`, optional `uid` | `{target,state,findings,limitations}` with deterministic canonical health observations, not an LLM root-cause claim |
+| `get_fleet_relationships` | Optional `fleetId`, `clusterIds` | `{relationships,coverage,truncated,limitations}`; evidence-backed Karmada identity/distribution declarations |
+| `get_fleet_topology` | Optional `fleetId`, `clusterIds` | `{nodes,edges,coverage,truncated,limitations}` with typed referentially valid nodes and evidence-backed edges |
 
 Omitting selection queries all active configured clusters. Supplying an unknown
 cluster or a cluster outside the selected Fleet is an error, never a fallback to
@@ -125,6 +131,33 @@ limits yield partial coverage. Partial counts are lower bounds; denied,
 unavailable and out-of-scope counts are omitted, not zero. Search count coverage
 is before the client-side name filter. `truncated` indicates the returned match
 limit; collection incompleteness is separately reported in `coverage`.
+
+Evidence reads allow only Pods, Deployments, StatefulSets, DaemonSets, ReplicaSets,
+Services, Nodes and Namespaces; Secret reads are not supported. Resource detail
+removes managed fields and the last-applied annotation and uses Radar's shared
+structured and inline-secret redaction. Event reads bind to the fetched object's
+UID, not its name. Pod logs require an explicit regular, init or ephemeral
+container, are limited to 200 lines, 64 KiB and 20 seconds, and return no text
+when the Pod UID changes during the read. Log redaction is best effort; it cannot
+guarantee removal of arbitrary application secrets.
+
+`diagnose_fleet_resource` is a deterministic, scoped observation using Radar's
+canonical Pod, workload and Node lifecycle classifiers. Missing required fields
+or incomplete coverage remain unknown; historical OOM evidence is not called a
+current root cause. Overview assessments reuse their bounded collections and
+keep collection coverage separate from assessment certainty. Neither surface
+claims whole-cluster health.
+
+Relationships are emitted only for supported Karmada APIs. Karmada `Cluster`
+`spec.id` is compared only with fresh caller-authorized `kube-system` namespace
+UIDs; it is a declared identity cross-check, not physical proof. Duplicate matches
+remain ambiguous and custom IDs remain unresolved. ResourceBinding membership is
+a declared distribution only; authorized exact source and destination GETs may
+add observed endpoints, but do not prove controller ownership or successful
+application. Coverage distinguishes unsupported APIs from denied reads.
+Topology preserves unresolved destinations and every edge references a returned
+node. Result arrays are always non-null; unavailable optional evidence is omitted
+or represented by its explicit state rather than a false assertion.
 
 Without Radar authentication, loopback callers use each connection's credentials.
 The CLI refuses Fleet on a non-loopback listener without Radar authentication.
@@ -151,7 +184,7 @@ selected runtimes and enforce the caller's access on each target cluster.
 | Method and path | Purpose |
 | --- | --- |
 | `GET /api/fleet/capabilities` | Returns `{"enabled":true,"canManage":false,"localConnections":false,"writesEnabled":false}` with caller-specific `canManage` and configured `localConnections` values. Kubernetes writes remain disabled. |
-| `POST /api/fleet/query/{tool}` | Runs only `list_clusters`, `get_fleet_overview` or `search_fleet_resources`, with the same bounded JSON inputs and structured results as MCP. |
+| `POST /api/fleet/query/{tool}` | Runs the nine read tools listed above with the same bounded JSON inputs and structured results as MCP. |
 | `GET /api/fleet/candidates` | Lists current trusted server-side context candidates; source paths and credentials are not returned. |
 | `POST /api/fleet/connections` | Adds `{ "id": "...", "name": "...", "candidateId": "..." }` when local connections are enabled and the caller may manage Fleet. Returns `{ "ok": true, "clusterId": "..." }`. |
 | `DELETE /api/fleet/connections/{id}` | Removes only a locally managed connection. Declarative connections are immutable. |
@@ -214,9 +247,8 @@ for this Fleet deployment.
 
 ## Deliberate limits of this increment
 
-There is no Fleet UI yet. There are no cross-cluster relationships, Karmada
-discovery, health diagnosis, logs/events/topology evidence tools, resource
-application, restart or scaling tools. Duplicate candidates cannot be merged.
+There is no Fleet UI yet. Resource application, restart and scaling tools are not
+included. Duplicate candidates cannot be merged.
 Fleet remains a read-only Kubernetes surface; metadata management does not
 create or change Kubernetes resources. Tests using fake clients or HTTP fixtures
 are not real-cluster deployment evidence.

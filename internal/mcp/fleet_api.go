@@ -142,6 +142,42 @@ func (s *fleetService) query(w http.ResponseWriter, r *http.Request, name string
 		if err == nil {
 			_, output, err = s.tools.search(r.Context(), nil, input)
 		}
+	case "get_fleet_resource":
+		var input fleetEvidenceInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.getFleetResource(r.Context(), nil, input)
+		}
+	case "get_fleet_events":
+		var input fleetEventsInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.getFleetEvents(r.Context(), nil, input)
+		}
+	case "get_fleet_logs":
+		var input fleetLogsInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.getFleetLogs(r.Context(), nil, input)
+		}
+	case "diagnose_fleet_resource":
+		var input fleetEvidenceInput
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.diagnoseFleetResource(r.Context(), nil, input)
+		}
+	case "get_fleet_relationships":
+		var input fleetSelection
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.getFleetRelationships(r.Context(), nil, input)
+		}
+	case "get_fleet_topology":
+		var input fleetSelection
+		err = decodeFleetJSON(r, &input)
+		if err == nil {
+			_, output, err = s.tools.getFleetTopology(r.Context(), nil, input)
+		}
 	default:
 		err = errors.New("unsupported Fleet query tool")
 	}

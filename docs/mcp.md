@@ -4,7 +4,10 @@ For the opt-in, multi-cluster read-only `/mcp-fleet` endpoint, see
 [Fleet Manager](fleet.md). The existing endpoints below keep their single-cluster
 Context behavior.
 
-`/mcp-fleet` exposes only the three Fleet read tools. Its companion
+`/mcp-fleet` exposes exactly `list_clusters`, `get_fleet_overview`,
+`search_fleet_resources`, `get_fleet_resource`, `get_fleet_events`,
+`get_fleet_logs`, `diagnose_fleet_resource`, `get_fleet_relationships` and
+`get_fleet_topology`. Its companion
 `/api/fleet` routes provide inventory and separately authorized metadata
 management; neither endpoint changes the legacy `/mcp` contract.
 

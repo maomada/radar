@@ -36,7 +36,19 @@ func fleetTestManager(t *testing.T, endpoint string) *fleet.Manager {
 	factory := func(_ context.Context, spec fleet.ConnectionSpec) (fleet.RuntimeClients, error) {
 		typed := kubernetesfake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system", UID: types.UID(spec.ID)}})
 		pod := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "v1", "kind": "Pod", "metadata": map[string]any{"name": "same-name", "namespace": "team", "uid": spec.ID, "resourceVersion": "42"}}}
-		var client dynamic.Interface = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{{Version: "v1", Resource: "pods"}: "PodList"}, pod)
+		var client dynamic.Interface = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
+			{Version: "v1", Resource: "pods"}:                                                    "PodList",
+			{Version: "v1", Resource: "services"}:                                                "ServiceList",
+			{Version: "v1", Resource: "nodes"}:                                                   "NodeList",
+			{Version: "v1", Resource: "namespaces"}:                                              "NamespaceList",
+			{Group: "apps", Version: "v1", Resource: "deployments"}:                              "DeploymentList",
+			{Group: "apps", Version: "v1", Resource: "statefulsets"}:                             "StatefulSetList",
+			{Group: "apps", Version: "v1", Resource: "daemonsets"}:                               "DaemonSetList",
+			{Group: "apps", Version: "v1", Resource: "replicasets"}:                              "ReplicaSetList",
+			{Group: "cluster.karmada.io", Version: "v1alpha1", Resource: "clusters"}:             "ClusterList",
+			{Group: "work.karmada.io", Version: "v1alpha2", Resource: "resourcebindings"}:        "ResourceBindingList",
+			{Group: "work.karmada.io", Version: "v1alpha2", Resource: "clusterresourcebindings"}: "ClusterResourceBindingList",
+		}, pod)
 		var cfg *rest.Config
 		if endpoint != "" {
 			cfg = &rest.Config{Host: endpoint, Timeout: time.Second}
@@ -166,7 +178,7 @@ func TestFleetCollectionCoverage(t *testing.T) {
 	}
 }
 
-func TestFleetMCPCatalogAndIsolation(t *testing.T) {
+func TestFleetEvidenceMCPCatalogAndIsolation(t *testing.T) {
 	manager := fleetTestManager(t, "")
 	server := newFleetServer(fleetTools{source: manager})
 	st, ct := mcpsdk.NewInMemoryTransports()
@@ -182,12 +194,55 @@ func TestFleetMCPCatalogAndIsolation(t *testing.T) {
 	}
 	defer func() { _ = cs.Close(); _ = ss.Wait() }()
 	listed, err := cs.ListTools(ctx, nil)
-	if err != nil || len(listed.Tools) != 3 {
+	expectedTools := map[string]bool{
+		"list_clusters": true, "get_fleet_overview": true, "search_fleet_resources": true,
+		"get_fleet_resource": true, "get_fleet_events": true, "get_fleet_logs": true,
+		"diagnose_fleet_resource": true, "get_fleet_relationships": true, "get_fleet_topology": true,
+	}
+	if err != nil || len(listed.Tools) != len(expectedTools) {
 		t.Fatalf("catalog = %+v, %v", listed, err)
 	}
+	seenTools := make(map[string]bool, len(expectedTools))
 	for _, tool := range listed.Tools {
+		if !expectedTools[tool.Name] || seenTools[tool.Name] {
+			t.Fatalf("unexpected tool in catalog: %s", tool.Name)
+		}
+		seenTools[tool.Name] = true
 		if tool.Annotations == nil || !tool.Annotations.ReadOnlyHint {
 			t.Fatalf("write tool exposed: %s", tool.Name)
+		}
+	}
+	for name := range expectedTools {
+		if !seenTools[name] {
+			t.Errorf("expected tool missing from catalog: %s", name)
+		}
+	}
+	expectedProperties := map[string][]string{
+		"get_fleet_resource":      {"clusterId", "resource", "namespace", "name", "uid"},
+		"get_fleet_events":        {"clusterId", "resource", "namespace", "name", "uid", "limit"},
+		"get_fleet_logs":          {"clusterId", "namespace", "name", "container", "tailLines", "previous"},
+		"diagnose_fleet_resource": {"clusterId", "resource", "namespace", "name", "uid"},
+		"get_fleet_relationships": {"fleetId", "clusterIds"},
+		"get_fleet_topology":      {"fleetId", "clusterIds"},
+	}
+	for _, tool := range listed.Tools {
+		required := expectedProperties[tool.Name]
+		if len(required) == 0 {
+			continue
+		}
+		schemaJSON, err := json.Marshal(tool.InputSchema)
+		if err != nil {
+			t.Fatalf("marshal input schema for %s: %v", tool.Name, err)
+		}
+		var schemaObject map[string]any
+		if err := json.Unmarshal(schemaJSON, &schemaObject); err != nil {
+			t.Fatalf("decode input schema for %s: %v", tool.Name, err)
+		}
+		properties, _ := schemaObject["properties"].(map[string]any)
+		for _, property := range required {
+			if _, ok := properties[property]; !ok {
+				t.Errorf("%s input schema omits %q: %s", tool.Name, property, schemaJSON)
+			}
 		}
 	}
 	result, err := cs.CallTool(ctx, &mcpsdk.CallToolParams{Name: "search_fleet_resources", Arguments: map[string]any{"resource": "pods"}})
