@@ -50,7 +50,7 @@ export function Login() {
     <main className="mx-auto grid w-full max-w-6xl flex-1 content-center gap-10 px-6 py-12 lg:grid-cols-2 lg:items-center lg:gap-20 lg:px-10 lg:py-20">
       <section aria-label="门户介绍">
         <div className="mb-6 inline-flex rounded-2xl border border-theme-border bg-theme-surface p-4 text-accent-text"><Radar size={36} /></div>
-        <p className="portal-mono mb-3 text-xs text-accent-text">RADAR PORTAL</p>
+        <p className="portal-mono mb-3 text-xs text-accent-text">Radar 集群门户</p>
         <h1 className="text-3xl font-semibold leading-tight lg:text-4xl">一个入口，<br />连接所有 Radar。</h1>
         <p className="mt-5 max-w-md text-base leading-relaxed text-theme-text-secondary">登录集中式门户，查看纳管实例、进入集群控制台，获取 MCP Server 接入信息。</p>
         <div className="mt-8 hidden space-y-5 lg:block">

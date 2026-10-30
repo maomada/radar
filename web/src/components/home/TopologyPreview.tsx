@@ -165,11 +165,11 @@ export function TopologyPreview({ topology, namespaceSelected, onNavigate }: Top
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
         <div className="flex items-center gap-2">
           <Network className="w-4 h-4 text-theme-text-tertiary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">Topology</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">拓扑</span>
         </div>
         {counts ? (
           <span className="text-[11px] text-theme-text-tertiary">
-            {counts.nodeCount} resources &middot; {counts.edgeCount} conn
+            {counts.nodeCount} 个资源 &middot; {counts.edgeCount} 个连接
           </span>
         ) : needsNamespaceFilter ? null : (
           <span className="h-3 w-28 rounded bg-theme-text-tertiary/20 animate-pulse" />
@@ -183,7 +183,7 @@ export function TopologyPreview({ topology, namespaceSelected, onNavigate }: Top
             <p className="text-[11px] leading-relaxed text-theme-text-tertiary text-center">
               This cluster is too large to graph every namespace.
               <br />
-              <span className="text-theme-text-secondary font-medium">Select a namespace</span> to view the topology.
+              <span className="text-theme-text-secondary font-medium">选择命名空间</span>后查看拓扑。
             </p>
           </div>
         ) : (
@@ -232,7 +232,7 @@ export function TopologyPreview({ topology, namespaceSelected, onNavigate }: Top
                 ) : (
                   <span className="h-3 w-5 rounded bg-theme-text-tertiary/20 animate-pulse" />
                 )}
-                <span className="text-theme-text-tertiary">resources</span>
+                <span className="text-theme-text-tertiary">资源</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] leading-tight">
                 <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', counts ? 'bg-theme-text-tertiary' : 'bg-theme-text-tertiary/30 animate-pulse')} />
@@ -241,7 +241,7 @@ export function TopologyPreview({ topology, namespaceSelected, onNavigate }: Top
                 ) : (
                   <span className="h-3 w-5 rounded bg-theme-text-tertiary/10 animate-pulse" />
                 )}
-                <span className="text-theme-text-tertiary">connections</span>
+                <span className="text-theme-text-tertiary">连接</span>
               </div>
             </div>
           )}

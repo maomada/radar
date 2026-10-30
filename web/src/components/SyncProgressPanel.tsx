@@ -35,15 +35,14 @@ export function SyncProgressPanel({
       <div className="max-w-xl w-full px-8 py-10">
         <div className="flex items-center gap-3 mb-1">
           <Loader2 className="w-5 h-5 animate-spin text-theme-text-tertiary" />
-          <h2 className="text-lg font-semibold text-theme-text-primary">Loading cluster data</h2>
+          <h2 className="text-lg font-semibold text-theme-text-primary">正在加载集群数据</h2>
         </div>
         <p className="text-sm text-theme-text-secondary mb-6">
           {synced} of {total} resource types ready — views open as their data finishes loading.
           This view needs the full dataset and will appear automatically.
           {failedCount > 0 && (
             <span className="block mt-1 text-red-400">
-              {failedCount} resource {failedCount === 1 ? 'type' : 'types'} failed to load within the
-              sync deadline — affected views will show an error. Retry the connection to try again.
+              {failedCount} 种资源未能在同步时限内加载，相关视图将显示错误。请重试连接。
             </span>
           )}
         </p>

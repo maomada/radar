@@ -3,7 +3,7 @@
  * being left, which Radar keeps in the document title.
  */
 export function currentPageLabel(): string {
-  return document.title.replace(/\s*·\s*Radar$/, '') || 'previous page'
+  return document.title.replace(/\s*·\s*Radar$/, '') || '上一页'
 }
 
 /**

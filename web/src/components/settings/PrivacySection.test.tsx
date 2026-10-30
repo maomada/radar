@@ -30,23 +30,23 @@ function render(status: UsageDataStatus) {
 describe('PrivacySection', () => {
   it('shows an example report and promises nothing is sent while off', () => {
     const html = render(make({}))
-    expect(html).toContain('See an example report')
-    expect(html).toContain('What isn')
+    expect(html).toContain('查看示例报告')
+    expect(html).toContain('不会发送')
     expect(html).not.toContain('usage-report.json')
     expect(html).toContain('aria-checked="false"')
   })
 
   it('shows the pending report and where it lives once on', () => {
     const html = render(make({ state: 'on', source: 'user', nextReportAt: '2026-09-30T12:00:00Z' }))
-    expect(html).toContain('See the next report')
+    expect(html).toContain('查看下一份报告')
     expect(html).toContain('usage-report.json')
     expect(html).toContain('&quot;topology&quot;: 3')
   })
 
   it('names the control that fixed the choice', () => {
-    expect(render(make({ state: 'off', source: 'deployment', canChange: false }))).toContain('Radar Cloud manages')
+    expect(render(make({ state: 'off', source: 'deployment', canChange: false }))).toContain('Radar Cloud 管理此安装的使用情况数据。')
     const helm = make({ state: 'on', source: 'env', canChange: false, shared: true })
-    expect(render({ ...helm, preview: { ...helm.preview, mode: 'in-cluster' } })).toContain('Helm value usageReporting.enabled')
+    expect(render({ ...helm, preview: { ...helm.preview, mode: 'in-cluster' } })).toContain('通过 Helm 值 usageReporting.enabled 为所有用户设置。')
     expect(render(make({ state: 'off', source: 'env', canChange: false }))).toContain('RADAR_USAGE_REPORTING=off')
   })
 })
@@ -64,7 +64,7 @@ describe('PrivacySection on a shared Radar', () => {
   it('points at the Helm value while nothing set it', () => {
     const base = make({ shared: true, canChange: false })
     const html = render({ ...base, preview: { ...base.preview, mode: 'in-cluster' } })
-    expect(html).toContain('Applies to everyone using this Radar.')
+    expect(html).toContain('适用于所有使用此 Radar 的用户。')
     expect(html).toContain('usageReporting.enabled')
     expect(html).toContain('aria-checked="false"')
   })
@@ -77,8 +77,8 @@ describe('PrivacySection on a shared Radar', () => {
 describe('PrivacySection storage and log wording', () => {
   it('says logs, not sends, for development builds', () => {
     const html = render(make({ state: 'on', source: 'user', developmentBuild: true, nextReportAt: '2026-09-25T12:00:00Z' }))
-    expect(html).toContain('logs')
-    expect(html).toContain('reports go to the log, never sent')
-    expect(render(make({ state: 'on', source: 'user', nextReportAt: '2026-09-25T12:00:00Z' }))).toContain('sends')
+    expect(html).toContain('日志')
+    expect(html).toContain('报告仅写入日志，不会发送')
+    expect(render(make({ state: 'on', source: 'user', nextReportAt: '2026-09-25T12:00:00Z' }))).toContain('发送')
   })
 })

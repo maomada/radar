@@ -38,9 +38,21 @@ export function LocalIntegrationStatus({ kind, profile, argo, busy, changedAt }:
   if (!checking) lastDetail.current = { text: detail ?? lastDetail.current.text, visible: !!detail }
   const configured = !!(profile.url || profile.secretSet || profile.headerKeys.length || profile.clusterId || profile.mode === 'prometheus')
   const failed = !checking && (query.isError || configured && ['Not connected', 'Unavailable', 'No cost data'].includes(status))
+  const displayStatus: Record<string, string> = {
+    'Checking…': '检查中…',
+    'Status unavailable': '状态不可用',
+    Connected: '已连接',
+    'Connected · no token needed': '已连接 · 无需令牌',
+    'Connecting…': '正在连接…',
+    'Not connected': '未连接',
+    Discovering: '正在发现…',
+    'Discovering…': '正在发现…',
+    'No cost data': '无成本数据',
+    Unavailable: '不可用',
+  }
   return (
-    <div role="group" className="contents text-xs text-theme-text-secondary" aria-label="Current connection">
-      <Badge severity={status.startsWith('Connected') || status.startsWith('Available') ? 'success' : failed ? 'warning' : 'neutral'}>{status}</Badge>
+    <div role="group" className="contents text-xs text-theme-text-secondary" aria-label="当前连接">
+      <Badge severity={status.startsWith('Connected') || status.startsWith('Available') ? 'success' : failed ? 'warning' : 'neutral'}>{status.startsWith('Available ·') ? status.replace('Available ·', '可用 ·') : displayStatus[status] ?? status}</Badge>
       <Collapse open={lastDetail.current.visible} className="basis-full min-w-0">
         <p className={`break-words text-theme-text-tertiary ${checking ? 'invisible' : ''}`}>{lastDetail.current.text}</p>
       </Collapse>

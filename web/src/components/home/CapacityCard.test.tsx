@@ -107,7 +107,7 @@ describe("CapacityCard", () => {
       state: "denied",
     });
     expect(html).toContain("Karpenter view unavailable");
-    expect(html).not.toContain("No active signals");
+    expect(html).not.toContain("暂无活跃信号");
     expect(html).toContain("NodePools");
     expect(html).toContain("—");
     expect(html).toContain(">6<");
@@ -125,8 +125,8 @@ describe("CapacityCard", () => {
       }),
       state: "not_detected",
     });
-    expect(html).toContain("Node groups");
-    expect(html).toContain("Managers");
+    expect(html).toContain("节点组");
+    expect(html).toContain("管理器");
     expect(html).not.toContain("NodePools");
     expect(html).not.toContain("NodeClaims");
   });

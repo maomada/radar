@@ -685,9 +685,9 @@ export function ResourceActionsBar({
       )}
 
       {onDelete && !((kind === 'node' || kind === 'nodes') && data?.metadata?.deletionTimestamp) && (
-        <Tooltip content={isDeleting ? 'Deleting resource' : 'Delete resource'}>
+        <Tooltip content={isDeleting ? '正在删除资源' : '删除资源'}>
           <button
-            aria-label={isDeleting ? 'Deleting resource' : 'Delete resource'}
+            aria-label={isDeleting ? '正在删除资源' : '删除资源'}
             disabled={isDeleting}
             onClick={() => setShowDeleteConfirm(true)}
             className="p-1.5 text-theme-text-secondary border border-theme-border-light rounded-lg hover:text-red-400 hover:border-red-400/50 hover:bg-red-500/10 transition-colors"

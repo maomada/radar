@@ -50,7 +50,7 @@ export function HelmSummary({ data, onNavigate }: HelmSummaryProps) {
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
         <div className="flex items-center gap-2">
           <Package className="w-4 h-4 text-theme-text-tertiary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">Helm Releases</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">Helm 发布</span>
           {data && data.total > 0 && (
             <span className="badge-sm bg-theme-elevated text-theme-text-secondary">
               {data.total}
@@ -79,26 +79,26 @@ export function HelmSummary({ data, onNavigate }: HelmSummaryProps) {
         ) : data.restricted ? (
           <div className="flex flex-col items-center justify-center h-full py-4 text-theme-text-tertiary">
             <Shield className="w-8 h-8 text-amber-400 mb-2" />
-            <span className="text-xs font-medium text-theme-text-secondary">Access Restricted</span>
-            <span className="text-[11px] mt-1">Insufficient permissions to list Helm releases</span>
+            <span className="text-xs font-medium text-theme-text-secondary">访问受限</span>
+            <span className="text-[11px] mt-1">权限不足，无法列出 Helm 发布</span>
           </div>
         ) : data.error ? (
           <div className="flex flex-col items-center justify-center h-full py-4 text-theme-text-tertiary">
             <Shield className="w-8 h-8 text-amber-400 mb-2" />
             <span className="text-xs font-medium text-theme-text-secondary">
-              {data.errorCode === 'unconfigured' ? 'Helm not configured' : 'Helm unavailable'}
+              {data.errorCode === 'unconfigured' ? 'Helm 未配置' : 'Helm 不可用'}
             </span>
             <Tooltip content={data.error} wrapperClassName="!block mt-1 min-w-0 w-full text-center">
             <span className="text-[11px] text-center px-2 line-clamp-2 [overflow-wrap:anywhere] max-w-full">
               {data.errorCode === 'unconfigured'
-                ? 'Set rbac.helm=true in the Radar Helm chart values.'
+                ? '请在 Radar Helm chart values 中设置 rbac.helm=true。'
                 : data.error}
             </span>
             </Tooltip>
           </div>
         ) : !data.releases || data.releases.length === 0 ? (
           <div className="flex items-center justify-center h-full py-4 text-xs text-theme-text-tertiary">
-            No Helm releases found
+            未找到 Helm 发布
           </div>
         ) : (
           <div className="divide-y divide-theme-border">
@@ -133,7 +133,7 @@ export function HelmSummary({ data, onNavigate }: HelmSummaryProps) {
           {data && data.releases && data.total > data.releases.length ? `+${data.total - data.releases.length} more` : ''}
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-theme-text-secondary group-hover:text-theme-text-primary transition-colors">
-          Open Helm
+          打开 Helm
           <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>

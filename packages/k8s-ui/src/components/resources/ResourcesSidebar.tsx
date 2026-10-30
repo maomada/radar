@@ -18,6 +18,17 @@ import { Tooltip } from '../ui/Tooltip'
 import { certaintyGlyph } from '../facts'
 import { Input } from '../ui/Input'
 
+const RESOURCE_CATEGORY_LABELS: Record<string, string> = {
+  Workloads: '工作负载',
+  Networking: '网络',
+  Storage: '存储',
+  Configuration: '配置',
+  'Access Control': '访问控制',
+  Scheduling: '调度',
+  Cluster: '集群',
+  Other: '其他',
+}
+
 // Selected resource type info (need both name for API and kind for display)
 export interface SelectedKindInfo {
   name: string      // Plural name for API calls (e.g., 'pods')
@@ -97,7 +108,7 @@ export interface SidebarDisplayState {
 let persistedExpandedCategories: Set<string> | null = null
 // Per-category "Resource kinds" disclosure, once the user has toggled it.
 const persistedKindsOpen = new Map<string, boolean>()
-const COUNT_UNAVAILABLE_MESSAGE = 'Count unavailable. Open to view resources.'
+const COUNT_UNAVAILABLE_MESSAGE = '计数不可用。打开以查看资源。'
 
 // Fallback resource types when API resources aren't loaded yet
 const CORE_RESOURCE_TYPES = [
@@ -208,13 +219,13 @@ const ResourceTypeButton = forwardRef<HTMLButtonElement, ResourceTypeButtonProps
                   ? 'text-theme-text-secondary'
                   : 'opacity-0 group-hover/kind:opacity-100 text-theme-text-disabled'
               )}
-              title={isPinned ? 'Unpin from favorites' : 'Pin to favorites'}
+              title={isPinned ? '从收藏中取消固定' : '固定到收藏'}
             >
               <Pin className={clsx('w-3 h-3', isPinned && 'fill-current')} />
             </span>
           )}
           {forbidden ? (
-            <Tooltip content="Insufficient permissions" position="left">
+            <Tooltip content="权限不足" position="left">
               <Shield className="w-3.5 h-3.5 text-amber-400/60" />
             </Tooltip>
           ) : count === null ? (
@@ -603,7 +614,7 @@ export function ResourcesSidebar({
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-theme-text-tertiary" />
           <Input
             ref={kindSearchRef}
-            placeholder="Filter resources..."
+            placeholder="筛选资源..."
             value={kindFilter}
             onChange={(e) => setKindFilter(e.target.value)}
             onKeyDown={handleSearchKeyDown}
@@ -628,7 +639,7 @@ export function ResourcesSidebar({
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-theme-text-tertiary hover:text-theme-text-secondary uppercase tracking-wide"
           >
             <CollapseChevron open={favoritesExpanded} className="w-3 h-3" />
-            <span className="flex-1 text-left">Favorites</span>
+            <span className="flex-1 text-left">收藏</span>
             {!favoritesExpanded && pinned.length > 0 && (
               <span className={clsx('text-xs py-0.5 rounded bg-theme-elevated text-theme-text-secondary font-normal normal-case text-center font-mono', pinned.length < 1000 ? 'w-8' : 'w-9')}>
                 {pinned.length}
@@ -639,7 +650,7 @@ export function ResourcesSidebar({
             <div className="space-y-0.5">
               {pinned.length === 0 ? (
                 <div className="px-3 py-2 text-xs text-theme-text-disabled">
-                  No pinned resources. Click <Pin className="w-3 h-3 inline" /> on any resource type to pin it here.
+                  还没有收藏的资源类型。点击任意资源类型旁的 <Pin className="w-3 h-3 inline" /> 即可收藏。
                 </div>
               ) : (
                 pinned.map((p) => {
@@ -684,7 +695,7 @@ export function ResourcesSidebar({
                   className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-theme-text-tertiary hover:text-theme-text-secondary uppercase tracking-wide"
                 >
                   <CollapseChevron open={isExpanded} className="w-3 h-3" />
-                  <span className="flex-1 text-left truncate" title={rawGroupTitle}>{category.name}</span>
+                  <span className="flex-1 text-left truncate" title={rawGroupTitle}>{RESOURCE_CATEGORY_LABELS[category.name] ?? category.name}</span>
                   {!isExpanded && (
                     <span className="text-xs py-0.5 px-1 min-w-8 rounded bg-theme-elevated text-theme-text-secondary font-normal normal-case text-center font-mono">
                       {category.totalLabel}
@@ -805,7 +816,7 @@ export function ResourcesSidebar({
             {showEmptyKinds ? (
               <>
                 <EyeOff className="w-3.5 h-3.5" />
-                <span>Hide empty</span>
+                <span>隐藏空类别</span>
               </>
             ) : (
               <>
@@ -866,7 +877,7 @@ function WorkspaceDestinations({
 }) {
   return (
     <div className="space-y-0.5">
-      <div className="pl-5 pr-2 pt-0.5 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-theme-text-tertiary">Views</div>
+      <div className="pl-5 pr-2 pt-0.5 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-theme-text-tertiary">视图</div>
       {destinations.map((d) => {
         const Icon = d.icon
         return (
@@ -917,7 +928,7 @@ function WorkspaceDestinations({
         <div className="pl-6 pr-2 pt-0.5 text-[11px] text-theme-text-tertiary">{workspace.scopeNote}</div>
       )}
       {filtering ? (
-        hasKinds && <div className="pl-5 pr-2 pt-2 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-theme-text-tertiary">Resource kinds</div>
+        hasKinds && <div className="pl-5 pr-2 pt-2 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-theme-text-tertiary">资源类型</div>
       ) : (
         <button
           aria-expanded={kindsOpen}
@@ -926,7 +937,7 @@ function WorkspaceDestinations({
           className="w-full flex items-center gap-1.5 pl-5 pr-2 pt-2 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-theme-text-tertiary hover:text-theme-text-secondary"
         >
           <CollapseChevron open={kindsOpen} className="w-3 h-3" />
-          <span>Resource kinds</span>
+          <span>资源类型</span>
         </button>
       )}
     </div>

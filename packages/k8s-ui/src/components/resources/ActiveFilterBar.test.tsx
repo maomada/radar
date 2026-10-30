@@ -71,7 +71,7 @@ describe('ActiveFilterBar', () => {
   it('shows the restored line only when restored, with Clear calling onClearAll', async () => {
     const onClearAll = vi.fn()
     await render({ restored: true, onClearAll, columnFilters: { status: ['Running'] } })
-    expect(element.textContent).toContain('Filters restored from your last visit')
+    expect(element.textContent).toContain('已恢复你上次使用的筛选条件。')
     await act(async () => buttonWithText('Clear').click())
     expect(onClearAll).toHaveBeenCalledOnce()
   })

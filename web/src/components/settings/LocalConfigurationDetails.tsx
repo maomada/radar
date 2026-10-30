@@ -48,22 +48,22 @@ export function PreviousIntegrationSettingsNotice({ profiles, onNavigate, onDism
     }
   }
   return (
-    <section aria-label="Previous integration settings" className="mt-3 rounded-lg border border-theme-border bg-accent-muted p-3">
-      <h4 className="text-sm font-medium text-theme-text-primary">Integration settings are now saved per cluster</h4>
+    <section aria-label="之前的集成设置" className="mt-3 rounded-lg border border-theme-border bg-accent-muted p-3">
+      <h4 className="text-sm font-medium text-theme-text-primary">集成设置现按集群保存</h4>
       <p className="mt-1 text-xs text-theme-text-secondary">
-        Your previous global settings no longer apply automatically. To use them for this cluster, choose{' '}
-        <span className="font-medium">Copy settings from… → Previous global settings</span> in its tab.
+        之前的全局设置不再自动应用。如需在此集群使用，请在对应标签页选择{' '}
+        <span className="font-medium">复制设置自… → 之前的全局设置</span>。
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
         {available.map(kind => (
           <button key={kind} type="button" className="text-xs text-accent-text hover:underline"
             onClick={() => onNavigate(kind === 'metrics' ? 'prometheus' : kind)}>
-            Review {integrationNames[kind]}
+            查看 {integrationNames[kind]}
           </button>
         ))}
         <button type="button" disabled={busy} className="text-xs text-theme-text-secondary hover:underline disabled:opacity-50"
           onClick={() => void dismiss()}>
-          Don’t show again
+          不再显示
         </button>
       </div>
       {error && <p role="alert" className="mt-2 text-xs text-warning-text">{error}</p>}
@@ -77,33 +77,30 @@ export const integrationSettingsByClusterId = 'integration-settings-by-cluster'
 // mean anything is saved. An invalid record disables the integration instead.
 function integrationStatus(use: StoredConnection) {
   if (use.error || use.mode !== 'auto' || use.url || use.secretSet || use.clusterId) return 'saved'
-  return use.integration === 'cost' ? 'Automatic' : 'auto-discovery'
+  return use.integration === 'cost' ? '自动' : '自动发现'
 }
 
 export function LocalConfigurationDetails({ onNavigate }: { onNavigate: (section: SettingsSectionId) => void }) {
   return (
     <div className="mt-5 border-t border-theme-border pt-4">
       <Disclosure
-        summary="Configuration files"
+        summary="配置文件"
         summaryClassName="text-sm font-medium text-theme-text-primary"
       >
         <div className="space-y-3 pt-2 text-xs text-theme-text-secondary">
           <p>
-            CLI and Desktop share these files in <code>~/.radar/</code> on this
-            machine.
+            CLI 与 Desktop 在此设备上共用 <code>~/.radar/</code> 中的这些文件。
           </p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
             <dt className="font-mono text-theme-text-primary">config.json</dt>
             <dd>
-              Startup defaults, such as browser, port and timeline storage.
-              Flags take precedence.
+              启动默认值，例如浏览器、端口和时间线存储。命令行标志优先。
             </dd>
             <dt className="font-mono text-theme-text-primary">settings.json</dt>
-            <dd>Local preferences, audit settings and OCI registry sources.</dd>
+            <dd>本地偏好设置、审计设置和 OCI 注册表来源。</dd>
             <dt className="font-mono text-theme-text-primary">clusters.json</dt>
             <dd>
-              Metrics, Argo CD and Cost connections and credentials, saved per
-              kubeconfig entry.{' '}
+              Metrics、Argo CD 和 Cost 的连接及凭据，按 kubeconfig 条目分别保存。{' '}
               <button
                 type="button"
                 className="text-accent-text hover:underline"
@@ -112,14 +109,12 @@ export function LocalConfigurationDetails({ onNavigate }: { onNavigate: (section
                   requestAnimationFrame(() => document.getElementById(integrationSettingsByClusterId)?.focus())
                 }}
               >
-                Review integration settings by cluster
+                查看各集群的集成设置
               </button>
             </dd>
           </dl>
           <p className="text-theme-text-tertiary">
-            Credentials are permission-protected plaintext, not encrypted.
-            Connection edits from another process apply on the next integration
-            operation.
+            凭据以受文件权限保护的明文保存，并未加密。其他进程所做的连接更改将在下一次集成操作时生效。
           </p>
         </div>
       </Disclosure>
@@ -331,14 +326,14 @@ export function SavedClusterConnections({
                           type="button"
                           disabled={busy}
                           className="text-accent-text hover:underline disabled:opacity-50"
-                          aria-label={`Remove saved ${integrationNames[use.integration]} settings for ${use.context}`}
+                          aria-label={`移除 ${use.context} 的已保存 ${integrationNames[use.integration]} 设置`}
                           onClick={() => {
                             setSelected(use)
                             setError('')
                             setMessage('')
                           }}
                         >
-                          Remove {integrationNames[use.integration]}
+                          移除 {integrationNames[use.integration]}
                         </button>
                       </div>
                     ))}
@@ -359,7 +354,7 @@ export function SavedClusterConnections({
               className="underline"
               onClick={() => setVersion((value) => value + 1)}
             >
-              Reload integration settings
+              重新加载集成设置
             </button>
           </p>
         )}
@@ -368,13 +363,13 @@ export function SavedClusterConnections({
         open={!!selected}
         onClose={() => setSelected(null)}
         onConfirm={() => void remove()}
-        title="Remove saved settings?"
+        title="移除已保存的设置？"
         message={
           selected
-            ? `Remove the saved ${integrationNames[selected.integration]} settings and credentials for ${selected.context}? Other saved settings are unchanged. Nothing is deleted from Kubernetes or the backend.${selected.availability === 'unavailable' ? ' This entry may still exist in another kubeconfig; removal also affects any CLI or Desktop using that entry.' : ''}`
+            ? `移除 ${selected.context} 的已保存 ${integrationNames[selected.integration]} 设置和凭据？其他已保存设置不受影响。不会从 Kubernetes 或后端删除任何内容。${selected.availability === 'unavailable' ? ' 此条目可能仍存在于其他 kubeconfig 中；移除也会影响使用该条目的 CLI 或 Desktop。' : ''}`
             : ''
         }
-        confirmLabel="Remove settings"
+        confirmLabel="移除设置"
         isLoading={busy}
         confirmDisabled={!!error}
         showWarning={false}
@@ -386,7 +381,7 @@ export function SavedClusterConnections({
             role="alert"
             className="text-sm text-warning-text"
           >
-            {error} Cancel and reload integration settings before trying again.
+            {error} 请取消并重新加载集成设置后再试。
           </p>
         )}
       </ConfirmDialog>

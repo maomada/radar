@@ -39,13 +39,13 @@ export function CrossplaneDeleteNotice({ resources, force = false }: { resources
   const alreadyDeleting = blocked.some(data => data.metadata?.deletionTimestamp)
   if (force ? forceTargets.length === 0 : blocked.length === 0) {
     return <p className="text-xs text-theme-text-secondary">
-      Reconciliation pause is requested for {resourceNames(paused)}. The pause annotation alone does not block Kubernetes deletion; remaining finalizers determine whether cleanup must finish first.
+      已请求暂停以下资源的协调：{resourceNames(paused)}。暂停注解本身不会阻止 Kubernetes 删除资源；是否需要先完成清理取决于剩余 finalizer。
     </p>
   }
   return <AlertBanner
     variant="warning"
     className="mb-2"
-    title={force ? 'Force delete bypasses controller cleanup' : alreadyDeleting ? 'Deletion requested while reconciliation is paused' : 'Pause can hold deletion in Terminating'}
+    title={force ? '强制删除会绕过控制器清理' : alreadyDeleting ? '已在暂停协调时请求删除' : '暂停可能使删除停留在 Terminating 状态'}
     message={<>
       {force
         ? resources.length === 1
@@ -54,7 +54,7 @@ export function CrossplaneDeleteNotice({ resources, force = false }: { resources
         : resources.length === 1
           ? <p>Pause requested on {resourceNames(blocked)}. This resource holds a Crossplane finalizer.</p>
           : <p>Of {resources.length} selected resources, {blocked.length} {blocked.length === 1 ? 'has' : 'have'} pause requested and {blocked.length === 1 ? 'holds' : 'hold'} a Crossplane finalizer: {resourceNames(blocked)}.</p>}
-      {force ? <p className="mt-1">Force delete strips finalizers and can leave external or related resources behind. It does not resume reconciliation or guarantee what other controllers will delete.</p> : <p className="mt-1">{alreadyDeleting ? resources.length === 1 ? 'Deletion has already been requested.' : 'Some deletions have already been requested.' : 'Kubernetes can accept the deletion request.'} The pause annotation tells {blocked.length === 1 ? 'this resource’s controller' : 'these resources’ controllers'} to defer finalizer cleanup. Removing the pause requests resumption and may allow pending work, including deletion under {blocked.length === 1 ? 'its policies' : 'their policies'}.</p>}
+      {force ? <p className="mt-1">强制删除会移除 finalizer，可能留下外部或相关资源。此操作不会恢复协调，也不保证其他控制器会删除哪些资源。</p> : <p className="mt-1">{alreadyDeleting ? resources.length === 1 ? '已请求删除。' : '已请求删除部分资源。' : 'Kubernetes 可以接受删除请求。'} 暂停注解会让{blocked.length === 1 ? '此资源的控制器' : '这些资源的控制器'}延后 finalizer 清理。移除暂停标记会请求恢复协调，并可能触发待处理工作，包括按策略执行删除。</p>}
     </>}
   />
 }
@@ -69,7 +69,7 @@ export function CrossplaneApplyNotice({ resources, unknownResources = [], childr
     message={<>
       {paused.length > 0 && <>
         <p>{resourceNames(paused)}.</p>
-        <p className="mt-1">Kubernetes can accept edits. While <code>crossplane.io/paused</code> remains <code>&quot;true&quot;</code>, {paused.length === 1 ? 'this resource’s controller will' : 'these resources’ controllers will'} defer reconciliation. Removing the annotation requests resumption and may allow pending work, including deletion. Other resources&apos; controllers may continue independently.</p>
+        <p className="mt-1">Kubernetes 可以接受修改。只要 <code>crossplane.io/paused</code> 仍为 <code>&quot;true&quot;</code>，{paused.length === 1 ? '此资源的控制器' : '这些资源的控制器'}就会延后协调。移除此注解会请求恢复协调，并可能触发待处理工作，包括删除。其他资源的控制器可能会继续独立运行。</p>
       </>}
       {unknownResources.length > 0 && <>
         <p className="mt-1">Live pause state is unverified for {resourceNames(unknownResources)}.</p>

@@ -16,28 +16,28 @@ describe('Crossplane operation context', () => {
   it.each([mr, xr, claim])('identifies its own paused deletion cleanup for $kind', data => {
     const result = html(<CrossplaneDeleteNotice resources={[data]} />)
     expect(result).toContain('This resource holds a Crossplane finalizer')
-    expect(result).toContain('Kubernetes can accept the deletion request')
-    expect(result).toContain('defer finalizer cleanup')
+    expect(result).toContain('Kubernetes 可以接受删除请求')
+    expect(result).toContain('此资源的控制器延后 finalizer 清理')
     expect(result).not.toContain('stuck in Terminating')
-    expect(result).toContain('requests resumption')
+    expect(result).toContain('请求恢复协调')
     expect(result).not.toContain('will delete external')
   })
   it('distinguishes an already requested deletion', () => {
     const result = html(<CrossplaneDeleteNotice resources={[{ ...mr, metadata: { ...mr.metadata, deletionTimestamp: '2026-10-26T00:00:00Z' } }]} />)
-    expect(result).toContain('Deletion requested while reconciliation is paused')
-    expect(result).toContain('Deletion has already been requested')
+    expect(result).toContain('已在暂停协调时请求删除')
+    expect(result).toContain('已请求删除')
     expect(result).not.toContain('Kubernetes can accept')
   })
   it('avoids claiming pause alone blocks deletion without a known finalizer', () => {
     const result = html(<CrossplaneDeleteNotice resources={[{ ...mr, metadata: { ...mr.metadata, finalizers: ['other.example.test/cleanup'] } }]} />)
-    expect(result).toContain('pause annotation alone does not block Kubernetes deletion')
+    expect(result).toContain('暂停注解本身不会阻止 Kubernetes 删除资源')
     expect(result).not.toContain('cannot complete its finalizer cleanup')
   })
   it('explains the existing explicit force choice without promising a cascade', () => {
     const result = html(<CrossplaneDeleteNotice resources={[mr]} force />)
-    expect(result).toContain('Force delete strips finalizers')
-    expect(result).toContain('can leave external or related resources behind')
-    expect(result).toContain('does not resume reconciliation')
+    expect(result).toContain('强制删除会移除 finalizer')
+    expect(result).toContain('可能留下外部或相关资源')
+    expect(result).toContain('不会恢复协调')
     expect(result).toContain('This resource has finalizers')
     expect(result).not.toContain('These resources have finalizers')
   })
@@ -55,7 +55,7 @@ describe('Crossplane operation context', () => {
     expect(forced).toContain('Bucket bare')
     expect(forced).not.toContain('0 of 1')
     expect(forced).not.toContain('Force delete bypasses')
-    expect(forced).toContain('pause annotation alone does not block')
+    expect(forced).toContain('暂停注解本身不会阻止')
   })
   it('counts a mixed selection and caps names', () => {
     const resources = Array.from({ length: 7 }, (_, i) => ({ ...mr, metadata: { ...mr.metadata, name: `paused-${i}` } }))
@@ -72,14 +72,14 @@ describe('Crossplane operation context', () => {
   })
   it('retains own-controller context while independent failures exist', () => {
     const data = { ...mr, status: { conditions: [{ type: 'Ready', status: 'False', reason: 'Unavailable' }] } }
-    expect(html(<CrossplaneApplyNotice resources={[data]} />)).toContain('Other resources&#x27; controllers may continue independently')
+    expect(html(<CrossplaneApplyNotice resources={[data]} />)).toContain('其他资源的控制器可能会继续独立运行')
     expect(data.status.conditions[0].reason).toBe('Unavailable')
   })
   it('uses conditional wording when an apply draft omits a pause owned by another manager', () => {
     const after = { ...mr, metadata: { ...mr.metadata, annotations: {} } }
     const result = html(<CrossplaneYamlApplyNotice yaml={stringify(after)} baselineYaml={stringify(mr)} />)
-    expect(result).toContain('Kubernetes can accept edits')
-    expect(result).toContain('requests resumption')
+    expect(result).toContain('Kubernetes 可以接受修改')
+    expect(result).toContain('请求恢复协调')
     expect(result).toContain('Omitting the annotation from server-side apply YAML does not guarantee its removal')
     expect(result).not.toContain('will resume')
   })
@@ -100,7 +100,7 @@ describe('Crossplane operation context', () => {
     const result = html(<CrossplaneYamlApplyNotice yaml={stringify(mr)} baselineUnavailable />)
     expect(result).toContain('Pause affects reconciliation')
     expect(result).toContain('Live pause state is unverified')
-    expect(result).toContain('requests resumption')
+    expect(result).toContain('请求恢复协调')
   })
   it('recognizes acknowledged ref-less objects without broadening annotation-only detection', () => {
     const raw = { ...mr, kind: 'Claim', spec: {}, status: { conditions: [{ type: 'Synced', status: 'False', reason: 'ReconcilePaused' }] } }
@@ -137,7 +137,7 @@ describe('Crossplane operation context', () => {
     const predictedYaml = stringify({ ...mr, apiVersion: 's3.example.test/v2', metadata: { ...mr.metadata, annotations: { 'crossplane.io/paused': 'false' } }, spec: {} })
     const result = html(<CrossplaneYamlApplyNotice yaml={predictedYaml} baselineYaml={baselineYaml} previewDocuments={[{ index: 0, status: 'accepted', action: 'update', baselineYaml, predictedYaml }]} />)
     expect(result).toContain('Server preview clears the pause request on Bucket archive')
-    expect(result).toContain('requests resumption')
+    expect(result).toContain('请求恢复协调')
   })
   it('does not use one raw target to classify unrelated documents in a batch', () => {
     const raw = { ...mr, kind: 'Claim', spec: {}, status: { conditions: [{ type: 'Synced', status: 'False', reason: 'ReconcilePaused' }] } }

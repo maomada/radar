@@ -45,7 +45,7 @@ export function NetworkPolicyCoverageCard({ data, onNavigate }: NetworkPolicyCov
           <div className="flex items-center gap-2">
             <ShieldCheck className={clsx('w-4 h-4', accentColor)} />
             <span className={clsx('text-xs font-semibold uppercase tracking-wider', accentColor)}>
-              Network Policies
+              网络策略
             </span>
             <span className={clsx('badge-sm', hasPolicies ? 'bg-theme-elevated text-theme-text-secondary' : 'bg-theme-hover text-theme-text-tertiary')}>
               {data.totalPolicies}
@@ -57,7 +57,7 @@ export function NetworkPolicyCoverageCard({ data, onNavigate }: NetworkPolicyCov
           {!hasPolicies ? (
             <div className="flex flex-col items-center justify-center text-center gap-2">
               <ShieldCheck className="w-8 h-8 text-theme-text-tertiary/40" />
-              <span className="text-xs text-theme-text-tertiary">No network policies configured</span>
+              <span className="text-xs text-theme-text-tertiary">未配置网络策略</span>
             </div>
           ) : (
             <>
@@ -75,8 +75,8 @@ export function NetworkPolicyCoverageCard({ data, onNavigate }: NetworkPolicyCov
                     <div className="h-full" style={{ width: `${stagedDeltaPercentage}%` }}>
                       <Tooltip
                         content={stagedDelta > 0
-                          ? `${stagedDelta} more workloads covered if staged policies are applied`
-                          : `${-stagedDelta} workloads lose coverage if staged policies are applied`}
+                          ? `应用暂存策略后将多覆盖 ${stagedDelta} 个工作负载`
+                          : `应用暂存策略后将有 ${-stagedDelta} 个工作负载失去覆盖`}
                         wrapperClassName="!block h-full w-full"
                       >
                         <div
@@ -104,14 +104,14 @@ export function NetworkPolicyCoverageCard({ data, onNavigate }: NetworkPolicyCov
               </div>
 
               <div className="grid grid-cols-1 gap-y-2 mt-4 w-full">
-                <StatRow label="Policies" value={data.totalPolicies} />
-                <StatRow label="Covered workloads" value={data.coveredWorkloads} total={data.totalWorkloads} />
+                <StatRow label="策略" value={data.totalPolicies} />
+                <StatRow label="已覆盖工作负载" value={data.coveredWorkloads} total={data.totalWorkloads} />
                 {hasStagedPolicies && (
-                  <StatRow label="Covered if staged" value={coveredIfStaged} total={data.totalWorkloads} />
+                  <StatRow label="暂存后已覆盖" value={coveredIfStaged} total={data.totalWorkloads} />
                 )}
-                <StatRow label="Uncovered workloads" value={data.totalWorkloads - data.coveredWorkloads} warn />
+                <StatRow label="未覆盖工作负载" value={data.totalWorkloads - data.coveredWorkloads} warn />
                 {hasStagedPolicies && (
-                  <StatRow label="Uncovered if staged" value={data.totalWorkloads - coveredIfStaged} warn />
+                  <StatRow label="暂存后未覆盖" value={data.totalWorkloads - coveredIfStaged} warn />
                 )}
               </div>
             </>
@@ -123,7 +123,7 @@ export function NetworkPolicyCoverageCard({ data, onNavigate }: NetworkPolicyCov
             'flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors',
             accentColor,
           )}>
-            View Policies
+            查看策略
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
           </span>
         </div>

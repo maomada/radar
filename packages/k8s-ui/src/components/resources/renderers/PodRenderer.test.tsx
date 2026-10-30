@@ -40,7 +40,7 @@ describe('PodRenderer completed readiness conditions', () => {
   it('keeps completed readiness observations visible without counting them as failing', () => {
     const html = renderConditions('Succeeded')
 
-    expect(html).toContain('Conditions (5)')
+    expect(html).toContain('条件（5）')
     expect(html).not.toContain('failing')
     expect(html).toContain('PodReadyToStartContainers')
     expect(html).toContain('ContainersReady')
@@ -54,7 +54,7 @@ describe('PodRenderer completed readiness conditions', () => {
       { type: 'ContainersReady', status: 'False' },
     ])
 
-    expect(html).toContain('Conditions (3)')
+    expect(html).toContain('条件（3）')
     expect(html).not.toContain('failing')
     expect(html).toContain('ContainersNotReady')
   })
@@ -66,11 +66,11 @@ describe('PodRenderer completed readiness conditions', () => {
       { type: 'ContainersReady', status: 'False' },
     ])
 
-    expect(html).toContain('Conditions (3) · 3 failing')
+    expect(html).toContain('条件（3） · 3 项失败')
   })
 
   it('does not let a completion reason hide readiness failures on a failed Pod', () => {
-    expect(renderConditions('Failed')).toContain('Conditions (5) · 3 failing')
+    expect(renderConditions('Failed')).toContain('条件（5） · 3 项失败')
   })
 
   it('retains unrelated false conditions after successful completion', () => {
@@ -79,7 +79,7 @@ describe('PodRenderer completed readiness conditions', () => {
       { type: 'example.com/controller-ready', status: 'False', reason: 'ControllerFailed' },
     ])
 
-    expect(html).toContain('Conditions (6) · 1 failing')
+    expect(html).toContain('条件（6） · 1 项失败')
     expect(html).toContain('example.com/controller-ready')
     expect(html).toContain('ControllerFailed')
   })
@@ -361,7 +361,7 @@ describe('PodRenderer issues banner', () => {
       />,
     )
 
-    expect(html).toContain('Issues Detected')
+    expect(html).toContain('检测到问题')
     expect(html).toContain('Evicted')
     expect(html).toContain('Usage of EmptyDir volume')
     expect(html).toContain('exceeds the limit')
@@ -414,13 +414,13 @@ describe('PodRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Resource Usage')
-    expect(html).toContain('Metrics unavailable')
-    expect(html).toContain('Radar cannot read metrics.k8s.io')
-    expect(html).toContain('Metrics error details')
+    expect(html).toContain('资源使用情况')
+    expect(html).toContain('指标不可用。Radar 无法读取 metrics.k8s.io。')
+    expect(html).toContain('Radar 无法读取 metrics.k8s.io')
+    expect(html).toContain('指标错误详情')
     expect(html).not.toContain('Install or repair metrics-server and its APIService')
-    expect(html).not.toContain('Metrics collection error')
-    expect(html).not.toContain('Collecting metrics data')
+    expect(html).not.toContain('指标收集错误：')
+    expect(html).not.toContain('正在收集指标数据')
   })
 
   it('does not let stale live metrics hide an unavailable state', () => {
@@ -437,7 +437,7 @@ describe('PodRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics unavailable')
+    expect(html).toContain('指标不可用。Radar 无法读取 metrics.k8s.io。')
     expect(html).not.toContain('100m')
     expect(html).not.toContain('Last updated')
   })
@@ -458,9 +458,9 @@ describe('PodRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics unavailable')
+    expect(html).toContain('指标不可用。Radar 无法读取 metrics.k8s.io。')
     expect(html).toContain('CPU')
-    expect(html).toContain('Memory')
+    expect(html).toContain('内存')
     expect(html).not.toContain('Last updated')
   })
 
@@ -474,7 +474,7 @@ describe('PodRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics collection error')
+    expect(html).toContain('指标收集错误：')
     expect(html).toContain('forbidden: no access to pods.metrics.k8s.io')
   })
 
@@ -494,7 +494,7 @@ describe('PodRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics collection error')
+    expect(html).toContain('指标收集错误：')
     expect(html).toContain('forbidden: no access to pods.metrics.k8s.io')
     expect(html).toContain('CPU')
   })
@@ -509,7 +509,7 @@ describe('PodRenderer on a Radar without variable sources', () => {
       <PodRenderer data={pod} onCopy={() => undefined} copied={null} environmentError={unsupported} />,
     )
     expect(html).toContain('Values from ConfigMaps and Secrets')
-    expect(html).toContain('need Radar v1.9 or newer on this cluster. It runs v1.7.2.')
+    expect(html).toContain('需要 Radar v1.9 或更高版本。此集群当前运行 v1.7.2。')
     expect(html).toContain('ConfigMap')
     expect(html).not.toContain('could not be loaded')
   })
@@ -519,11 +519,11 @@ describe('PodRenderer pending Pods, including non-CNPG workloads', () => {
   const pending = { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'nginx-join', namespace: 'default' }, spec: { containers: [{ name: 'nginx', image: 'nginx' }], initContainers: [{ name: 'setup', image: 'busybox' }] }, status: { phase: 'Pending' } }
   const render = (data: any, metricsHistory: any = { containers: [], metricsAPIReachable: true }) => renderToString(<PodRenderer data={data} onCopy={() => {}} copied={null} metricsUnavailable metricsHistory={metricsHistory} />)
   it('shows no usage yet only with a successful metrics API collection', () => {
-    expect(render(pending)).toContain('No usage yet: this Pod is not running')
-    expect(render(pending)).not.toContain('Radar cannot read metrics.k8s.io')
-    expect(render(pending, { containers: [], metricsAPIReachable: false })).toContain('Radar cannot read metrics.k8s.io')
+    expect(render(pending)).toContain('暂无用量：此 Pod 尚未运行')
+    expect(render(pending)).not.toContain('Radar 无法读取 metrics.k8s.io')
+    expect(render(pending, { containers: [], metricsAPIReachable: false })).toContain('Radar 无法读取 metrics.k8s.io')
     expect(render(pending, { containers: [], collectionError: 'forbidden' })).toContain('forbidden')
-    expect(render({ ...pending, status: { phase: 'Running' } })).toContain('Radar cannot read metrics.k8s.io')
+    expect(render({ ...pending, status: { phase: 'Running' } })).toContain('Radar 无法读取 metrics.k8s.io')
     expect(render({ ...pending, status: { phase: 'Pending', initContainerStatuses: [{ name: 'setup', state: { running: {} } }] } })).not.toContain('No usage yet')
   })
   it('shows unstarted regular and init containers neutrally', () => {
@@ -552,13 +552,13 @@ describe('finished Pod resource usage',()=>{
   const html=renderToString(<PodRenderer data={{...pod,status:{phase}}} onCopy={()=>{}} copied={null} metricsUnavailable metricsHistory={{containers:[],metricsUnavailableReason:'not found'}} />)
   expect(html).toContain('Live resource usage has ended for this Pod')
   expect(html).toContain('No recorded usage is available.')
-  expect(html).not.toContain('Metrics collection error:')
-  expect(html).not.toContain('Radar cannot read metrics.k8s.io')
-  expect(html).not.toContain('No usage yet: this Pod is not running')
+  expect(html).not.toContain('指标收集错误：')
+  expect(html).not.toContain('Radar 无法读取 metrics.k8s.io')
+  expect(html).not.toContain('暂无用量：此 Pod 尚未运行')
  })
  it('keeps a genuine collector error qualified as current on a finished Pod',()=>{
   const html=renderToString(<PodRenderer data={{...pod,status:{phase:'Succeeded'}}} onCopy={()=>{}} copied={null} metricsHistory={{containers:[],collectionError:'forbidden: list pods.metrics.k8s.io'}} />)
-  expect(html).toContain('Current cluster metrics collection error:')
+  expect(html).toContain('当前集群指标收集错误：')
   expect(html).toContain('forbidden: list pods.metrics.k8s.io')
   expect(html).toContain('Live resource usage has ended for this Pod')
  })
@@ -572,12 +572,12 @@ describe('finished Pod resource usage',()=>{
  })
  it('distinguishes loading from a loaded empty terminal history',()=>{
   const html=renderToString(<PodRenderer data={{...pod,status:{phase:'Succeeded'}}} onCopy={()=>{}} copied={null} metricsHistoryLoading />)
-  expect(html).toContain('Loading recorded usage...')
+  expect(html).toContain('正在加载历史使用数据…')
   expect(html).not.toContain('No recorded usage is available.')
  })
  it('shows a failed terminal history fetch without claiming empty history',()=>{
   const html=renderToString(<PodRenderer data={{...pod,status:{phase:'Failed'}}} onCopy={()=>{}} copied={null} metricsHistoryError={new Error('Metrics history not available')} />)
-  expect(html).toContain('Recorded usage could not be loaded')
+  expect(html).toContain('无法加载历史使用数据')
   expect(html).toContain('Metrics history not available')
   expect(html).not.toContain('No recorded usage is available.')
  })
@@ -585,14 +585,14 @@ describe('finished Pod resource usage',()=>{
   const html=renderToString(<PodRenderer data={{...pod,status:{phase:'Succeeded'}}} onCopy={()=>{}} copied={null}
    metricsHistory={{containers:[{name:'recorded-history',dataPoints:[{timestamp:'2026-10-25T11:59:00Z',cpu:100,memory:1024}]}]}}
    metricsHistoryError={new Error('Network request failed')} />)
-  expect(html).toContain('Recorded usage could not be refreshed')
+  expect(html).toContain('无法刷新历史使用数据')
   expect(html).toContain('recorded-history')
   expect(html).not.toContain('No recorded usage is available.')
  })
 
  it('keeps usage absent when the host wires no metrics state',()=>{
   const html=renderToString(<PodRenderer data={{...pod,status:{phase:'Succeeded'}}} onCopy={()=>{}} copied={null} />)
-  expect(html).not.toContain('Resource Usage')
+  expect(html).not.toContain('资源使用情况')
   expect(html).not.toContain('Live resource usage has ended')
  })
 

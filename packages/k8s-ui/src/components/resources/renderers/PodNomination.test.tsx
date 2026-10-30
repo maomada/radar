@@ -20,7 +20,7 @@ describe('PodRenderer nominated Node', () => {
           onNavigate={onNavigate}
         />,
       ))
-      expect(container.textContent).toContain('Nominated Node')
+      expect(container.textContent).toContain('提名 Node')
       const button = [...container.querySelectorAll('button')].find(button => button.textContent === 'candidate')
       expect(button).toBeDefined()
       await act(async () => button!.click())
@@ -37,7 +37,7 @@ describe('PodRenderer nominated Node', () => {
       { metadata: { name: 'deleting', namespace: 'app', deletionTimestamp: '2026-10-07T00:00:00Z' }, spec: { containers: [] }, status: { phase: 'Pending', nominatedNodeName: 'stale' } },
     ]) {
       const html = renderToStaticMarkup(<PodRenderer data={data} onCopy={() => {}} copied={null} />)
-      expect(html).not.toContain('Nominated Node')
+      expect(html).not.toContain('提名 Node')
       expect(html).not.toContain('stale')
     }
   })
@@ -50,7 +50,7 @@ describe('PodRenderer nominated Node', () => {
         copied={null}
       />,
     )
-    expect(html).not.toContain('Nominated Node')
+    expect(html).not.toContain('提名 Node')
     expect(html).not.toContain('stale')
     expect(html).toContain('assigned')
   })

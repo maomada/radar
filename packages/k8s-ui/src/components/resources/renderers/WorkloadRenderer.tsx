@@ -125,7 +125,7 @@ function compactHPASummary(diagnosis: HPADiagnosis): string {
     if (missingMetric?.name) {
       return `${missingMetric.name} metric unavailable; HPA cannot compute replicas`
     }
-    return 'Metrics unavailable; HPA cannot compute replicas'
+    return '指标不可用；HPA 无法计算副本数'
   }
   return diagnosis.summary
 }
@@ -142,7 +142,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
   const isScaleBlocked = !!scaleBlockedBy?.length
   const isScalable = isScalableKind && !!onScale && !isScaleBlocked
   const scaleBlockedLabel = scaleBlockedBy?.map(formatScalerLabel).join(', ')
-  const scaleBlockedReason = `Manual scaling is disabled because replicas are controlled by ${scaleBlockedLabel}. Manage scaling there instead.`
+  const scaleBlockedReason = `无法手动调整副本数，因为副本由 ${scaleBlockedLabel} 控制。请在对应资源中管理副本数。`
 
   // Scale dialog state
   const [showScaleDialog, setShowScaleDialog] = useState(false)
@@ -165,7 +165,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
   const problems = operationalIssuesShown ? [] : getWorkloadProblems(status, spec, kind, rolloutExplainsShortfall)
   const hasProblems = problems.length > 0
   const displayedActivity = scaledTo !== null && rolloutActivity.phase === 'idle'
-    ? { ...rolloutActivity, phase: 'applying' as const, active: true, label: 'Scaling workload', detail: `Waiting for the controller to apply ${scaledTo} replicas` }
+    ? { ...rolloutActivity, phase: 'applying' as const, active: true, label: '正在调整工作负载副本数', detail: `等待控制器应用 ${scaledTo} 个副本` }
     : rolloutActivity
 
   useProgressiveRefresh(scaledTo !== null, onRequestRefresh)
@@ -198,7 +198,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
 
       {/* Problems alert - shown at top when there are real issues */}
       {hasProblems && (
-        <AlertBanner variant="error" title="Issues Detected" items={problems}>
+        <AlertBanner variant="error" title="检测到问题" items={problems}>
           <div className="flex items-center justify-between mt-2">
             <div className="text-xs text-red-400/60">
               Check Events below for details, or view individual pods for logs.
@@ -216,22 +216,22 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
         </AlertBanner>
       )}
 
-      <Section title="Status" icon={Server}>
+      <Section title="状态" icon={Server}>
         <PropertyList>
           {isDaemonSet ? (
             <>
-              <Property label="Desired" value={status.desiredNumberScheduled} />
-              <Property label="Current" value={status.currentNumberScheduled} />
-              <Property label="Ready" value={status.numberReady} />
-              <Property label="Up-to-date" value={status.updatedNumberScheduled} />
-              <Property label="Available" value={status.numberAvailable} />
+              <Property label="期望数量" value={status.desiredNumberScheduled} />
+              <Property label="当前数量" value={status.currentNumberScheduled} />
+              <Property label="就绪数量" value={status.numberReady} />
+              <Property label="最新版本数量" value={status.updatedNumberScheduled} />
+              <Property label="可用数量" value={status.numberAvailable} />
             </>
           ) : (
             <>
-              <Property label="Replicas" value={`${status.readyReplicas || 0}/${spec.replicas ?? 1}`} />
+              <Property label="副本数" value={`${status.readyReplicas || 0}/${spec.replicas ?? 1}`} />
               {scaleBlockedBy && scaleBlockedBy.length > 0 && (
                 <Property
-                  label="Controlled by"
+                  label="控制者"
                   value={
                     <div className="flex flex-wrap gap-1">
                       {scaleBlockedBy.map((ref) => (
@@ -248,9 +248,9 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
                   }
                 />
               )}
-              <Property label="Updated" value={status.updatedReplicas} />
-              <Property label="Available" value={status.availableReplicas} />
-              <Property label="Unavailable" value={status.unavailableReplicas} />
+              <Property label="已更新" value={status.updatedReplicas} />
+              <Property label="可用" value={status.availableReplicas} />
+              <Property label="不可用" value={status.unavailableReplicas} />
             </>
           )}
         </PropertyList>
@@ -261,7 +261,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded transition-colors"
             >
               <ExternalLink className="w-3 h-3" />
-              View Managed Pods
+              查看受管 Pod
             </button>
           )}
           {isScalable ? (
@@ -270,7 +270,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded transition-colors"
             >
               <Scale className="w-3 h-3" />
-              Scale
+              调整副本数
             </button>
           ) : isScalableKind && !!onScale && isScaleBlocked ? (
             <Tooltip content={scaleBlockedReason}>
@@ -281,7 +281,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-theme-text-tertiary bg-theme-elevated border border-theme-border rounded cursor-not-allowed"
               >
                 <Scale className="w-3 h-3" />
-                Scale
+                调整副本数
               </button>
             </Tooltip>
           ) : null}
@@ -291,12 +291,12 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
       {/* Scale Dialog */}
       <DialogPortal ariaLabelledBy={titleId} open={showScaleDialog} onClose={() => setShowScaleDialog(false)} className="w-80 p-4">
         <h3 id={titleId} className="text-sm font-medium text-theme-text-primary mb-4">
-          Scale {metadata.name}
+          调整副本数：{metadata.name}
         </h3>
 
         <div className="flex items-center justify-center gap-4 mb-4">
           <button
-            aria-label="Decrease replicas"
+            aria-label="减少副本数"
             onClick={() => setTargetReplicas(Math.max(0, targetReplicas - 1))}
             className="p-2 rounded-lg bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
             disabled={targetReplicas <= 0}
@@ -309,14 +309,14 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
             min="0"
             max="10000"
             value={targetReplicas}
-            aria-label="Replicas"
+            aria-label="副本数"
             onChange={(e) => setTargetReplicas(Math.min(10000, Math.max(0, parseInt(e.target.value) || 0)))}
             className="w-20 text-center text-2xl font-semibold bg-theme-elevated border border-theme-border rounded-lg py-2 text-theme-text-primary focus:outline-none focus:border-blue-500"
             autoFocus
           />
 
           <button
-            aria-label="Increase replicas"
+            aria-label="增加副本数"
             onClick={() => setTargetReplicas(Math.min(10000, targetReplicas + 1))}
             disabled={targetReplicas >= 10000}
             className="p-2 rounded-lg bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -326,7 +326,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
         </div>
 
         <div className="text-xs text-theme-text-tertiary text-center mb-4">
-          Current: {spec.replicas ?? 1} replicas
+          当前副本数：{spec.replicas ?? 1}
           {targetReplicas !== (spec.replicas ?? 1) && (
             <span className="text-theme-text-secondary">
               {' '}→ {targetReplicas}
@@ -339,14 +339,14 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
             onClick={() => setShowScaleDialog(false)}
             className="flex-1 px-3 py-2 text-sm text-theme-text-secondary hover:text-theme-text-primary bg-theme-elevated hover:bg-theme-hover border border-theme-border rounded-lg transition-colors"
           >
-            Cancel
+            取消
           </button>
           <button
             onClick={handleScale}
             disabled={isScalePending || targetReplicas === (spec.replicas ?? 1)}
             className="flex-1 px-3 py-2 text-sm btn-brand disabled:cursor-not-allowed rounded-lg"
           >
-            {isScalePending ? 'Scaling...' : 'Apply'}
+            {isScalePending ? '正在调整…' : '应用'}
           </button>
         </div>
       </DialogPortal>
@@ -355,17 +355,17 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
         <PolicySection data={policyData} loading={policyLoading} error={policyError} />
       )}
 
-      <Section title="Strategy">
+      <Section title="更新策略">
         <PropertyList>
           {isDaemonSet || isStatefulSet ? (
-            <Property label="Update Strategy" value={spec.updateStrategy?.type} />
+            <Property label="更新策略" value={spec.updateStrategy?.type} />
           ) : (
             <>
               <Property label="Strategy" value={spec.strategy?.type} />
               {spec.strategy?.rollingUpdate && (
                 <>
-                  <Property label="Max Surge" value={spec.strategy.rollingUpdate.maxSurge} />
-                  <Property label="Max Unavailable" value={spec.strategy.rollingUpdate.maxUnavailable} />
+                  <Property label="最大超出数量" value={spec.strategy.rollingUpdate.maxSurge} />
+                  <Property label="最大不可用数量" value={spec.strategy.rollingUpdate.maxUnavailable} />
                 </>
               )}
             </>
@@ -375,13 +375,13 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
               <Property label="Service Name" value={
                 spec.serviceName ? <ResourceLink name={spec.serviceName} kind="services" namespace={data.metadata?.namespace || ''} onNavigate={onNavigate} /> : undefined
               } />
-              <Property label="Pod Management" value={spec.podManagementPolicy || 'OrderedReady'} />
+              <Property label="Pod 管理策略" value={spec.podManagementPolicy || 'OrderedReady'} />
             </>
           )}
         </PropertyList>
       </Section>
 
-      <Section title="Pod Template" defaultExpanded={false}>
+      <Section title="Pod 模板" defaultExpanded={false}>
         <PodTemplateSection template={spec.template} />
         <NamespaceLimitRangeLink
           namespace={metadata.namespace || ''}
@@ -414,10 +414,10 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
 
 function ScalerDiagnosisRow({ entry }: { entry: ScalerDiagnosis }) {
   if (entry.loading) {
-    return <div className="text-xs text-theme-text-tertiary">Loading autoscaler diagnosis…</div>
+    return <div className="text-xs text-theme-text-tertiary">正在加载自动伸缩器诊断…</div>
   }
   if (entry.error) {
-    return <div className="text-xs text-theme-text-tertiary">Autoscaler diagnosis unavailable</div>
+    return <div className="text-xs text-theme-text-tertiary">自动扩缩容诊断不可用</div>
   }
   if (!entry.diagnosis) return null
   return (
@@ -462,7 +462,7 @@ function WorkloadPermissionsSection({
   if (loading) {
     return (
       <Section title={title} icon={Shield}>
-        <div className="text-sm text-theme-text-secondary">Loading RBAC graph…</div>
+        <div className="text-sm text-theme-text-secondary">正在加载 RBAC 关系图…</div>
       </Section>
     )
   }
@@ -494,7 +494,7 @@ function WorkloadPermissionsSection({
   return (
     <Section title={title} icon={Shield} defaultExpanded={hasBlastRadius}>
       {blast.length > 0 && (
-        <AlertBanner variant="warning" title="Blast radius">
+        <AlertBanner variant="warning" title="影响范围">
           <div className="text-xs">
             Every Pod this workload spawns inherits the ServiceAccount's
             permissions. Compromising any replica gives an attacker:
@@ -542,7 +542,7 @@ function WorkloadPermissionsSection({
           name={saName}
           kind="serviceaccounts"
           namespace={namespace}
-          label="View full permissions →"
+          label="查看完整权限 →"
           onNavigate={onNavigate}
         />
       </div>

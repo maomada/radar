@@ -18,7 +18,7 @@ describe('MCP setup in read-only mode', () => {
       expect(html).not.toContain('apply_resource')
       expect(html).not.toContain('exec_pod')
       expect(html).not.toContain('in_cluster')
-      expect(html).toContain('Read-only mode blocks write tools')
+      expect(html).toContain('只读模式会阻止写入工具以及会创建临时 Kubernetes 资源的诊断选项')
     } finally {
       setBasename('')
     }
@@ -29,9 +29,9 @@ describe('MCP setup in read-only mode', () => {
     expect(html).toContain('apply_resource')
     expect(html).toContain('in_cluster')
     expect(html).toContain('exec_pod')
-    expect(html).toContain('is disabled')
+    expect(html).toContain('已禁用')
     expect(html).toContain('--mcp-exec-tools')
-    expect(html).toContain(`${MCP_TOOL_CATALOG.length - 1} tools`)
+    expect(html).toContain(`${MCP_TOOL_CATALOG.length - 1} 个工具`)
   })
 
   it('does not suggest an unsupported flag when the capability is absent', () => {
@@ -43,13 +43,13 @@ describe('MCP setup in read-only mode', () => {
   it('shows exec and counts it only when enabled', () => {
     const html = renderToStaticMarkup(<MCPSetupDialog open execTools mcpUrl={mcpEndpointUrl()} onClose={() => {}} />)
     expect(html).toContain('exec_pod')
-    expect(html).toContain(`${MCP_TOOL_CATALOG.length} tools`)
+    expect(html).toContain(`${MCP_TOOL_CATALOG.length} 个工具`)
     expect(html.indexOf('exec_pod')).toBeGreaterThan(html.indexOf('get_workload_logs'))
   })
 
   it('hides exec in read-only mode even if exec is requested', () => {
     const html = renderToStaticMarkup(<MCPSetupDialog open readOnly execTools mcpUrl={mcpEndpointUrl(true)} onClose={() => {}} />)
     expect(html).not.toContain('exec_pod')
-    expect(html).toContain(`${MCP_TOOL_CATALOG.filter((tool) => !tool.write).length} tools`)
+    expect(html).toContain(`${MCP_TOOL_CATALOG.filter((tool) => !tool.write).length} 个工具`)
   })
 })

@@ -5,7 +5,6 @@ import { AlertBanner } from '../ui/drawer-components'
 import { Tooltip } from '../ui/Tooltip'
 import { RadarUpgradeNote } from '../ui/RadarUpgradeNote'
 import type { RadarUpgradeRequirement } from '../../types/fetch-error'
-import { pluralize } from '../../utils/pluralize'
 
 // Shapes returned by POST /api/nodes/{name}/drain-plan.
 export type DrainOutcome = 'evict' | 'skip' | 'may-block'
@@ -89,15 +88,15 @@ const OUTCOME_SEVERITY: Record<DrainOutcome, BadgeSeverity> = {
 }
 
 const OUTCOME_LABEL: Record<DrainOutcome, string> = {
-  evict: 'evict',
-  'may-block': 'may block',
-  skip: 'skip',
+  evict: '驱逐',
+  'may-block': '可能受阻',
+  skip: '跳过',
 }
 
 const ESTIMATE_CAVEAT =
-  'An estimate, not a guarantee: the drain re-lists live state when it runs, and pods, budgets and permissions can change until then. ' +
-  'Drain normally waits up to 2 minutes for evictions and pod deletion, retrying when a disruption budget temporarily blocks eviction. ' +
-  'Older Radar versions may return before pods are deleted. A pod covered by more than one budget is refused outright.'
+  '这是估算，并非保证：执行时 Drain 会重新读取实时状态，在此之前 Pod、预算和权限都可能发生变化。' +
+  '通常 Drain 最多等待 2 分钟完成驱逐和删除 Pod；如果驱逐暂时受中断预算阻止，会重试。' +
+  '较旧版本的 Radar 可能会在 Pod 删除前返回。若某个 Pod 同时受多个预算约束，系统会直接拒绝驱逐。'
 
 interface DrainPlanContentProps {
   nodeName: string
@@ -134,7 +133,7 @@ export function DrainPlanContent({
             onChange={(e) => onOptionsChange({ ...options, force: e.target.checked })}
             className="rounded border-theme-border"
           />
-          Force: evict pods not managed by a controller (they are not recreated)
+          强制驱逐：驱逐未由控制器管理的 Pod（这些 Pod 不会重新创建）
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -143,27 +142,27 @@ export function DrainPlanContent({
             onChange={(e) => onOptionsChange({ ...options, deleteEmptyDirData: e.target.checked })}
             className="rounded border-theme-border"
           />
-          Delete emptyDir data: evict pods that use emptyDir volumes (their data is lost)
+          删除 emptyDir 数据：驱逐使用 emptyDir 卷的 Pod（其中的数据将丢失）
         </label>
       </div>
 
-      {!planSupported && planUpgrade && <RadarUpgradeNote requirement={planUpgrade} />}
+      {!planSupported && planUpgrade && <RadarUpgradeNote requirement={{ ...planUpgrade, feature: '驱逐计划' }} />}
 
       {planSupported && loading && (
         <div className="flex items-center gap-2 text-theme-text-secondary">
-          <Loader2 className="w-4 h-4 animate-spin" /> Computing the plan…
+          <Loader2 className="w-4 h-4 animate-spin" /> 正在计算计划…
         </div>
       )}
 
       {planSupported && !loading && error && (
-        <AlertBanner variant="error" title="Could not compute the drain plan" message={error}>
+        <AlertBanner variant="error" title="无法计算驱逐计划" message={error}>
           {onRefreshPlan && (
             <button
               type="button"
               onClick={onRefreshPlan}
               className="mt-2 rounded border border-theme-border bg-theme-surface px-2 py-1 text-xs text-theme-text-primary transition-colors hover:bg-theme-hover"
             >
-              Try again
+              请重试
             </button>
           )}
         </AlertBanner>
@@ -173,28 +172,28 @@ export function DrainPlanContent({
         <>
           <div className="flex items-start justify-between gap-2">
             <div className="text-theme-text-primary">
-              {pluralize(current.summary.evict, 'pod')} to evict,{' '}
+              计划驱逐 {current.summary.evict} 个 Pod，{' '}
               {current.pdbsEvaluated
-                ? `${current.summary.mayBlock} may block on a PodDisruptionBudget`
-                : 'PodDisruptionBudgets not evaluated'}
-              , {current.summary.skip} skipped.
+                ? `${current.summary.mayBlock} 个可能受 PodDisruptionBudget 阻止`
+                : '未评估 PodDisruptionBudget'}
+              ，跳过 {current.summary.skip} 个。
             </div>
             <div className="flex items-center gap-1 shrink-0 text-xs text-theme-text-tertiary">
-              <span>Estimated at {new Date(current.generatedAt).toLocaleTimeString()}</span>
+              <span>估算时间：{new Date(current.generatedAt).toLocaleTimeString()}</span>
               <Tooltip content={ESTIMATE_CAVEAT} className="max-w-xs">
                 <button
                   type="button"
-                  aria-label="About this estimate"
+                  aria-label="关于此估算"
                   className="p-0.5 rounded text-theme-text-tertiary transition-colors hover:text-theme-text-secondary"
                 >
                   <Info className="w-3.5 h-3.5" />
                 </button>
               </Tooltip>
               {onRefreshPlan && (
-                <Tooltip content="Recompute the plan">
+                <Tooltip content="重新计算计划">
                   <button
                     type="button"
-                    aria-label="Recompute the plan"
+                    aria-label="重新计算计划"
                     onClick={onRefreshPlan}
                     className="p-1 rounded text-theme-text-secondary transition-colors hover:bg-theme-hover hover:text-theme-text-primary"
                   >
@@ -208,8 +207,8 @@ export function DrainPlanContent({
           {!current.pdbsEvaluated && (
             <AlertBanner
               variant="warning"
-              title="PodDisruptionBudgets were not evaluated"
-              message={current.pdbError ?? 'Budgets could not be listed; evictions may still be refused.'}
+              title="未评估 PodDisruptionBudget"
+              message={current.pdbError ?? '无法列出预算；驱逐操作仍可能被拒绝。'}
             />
           )}
 
@@ -220,7 +219,7 @@ export function DrainPlanContent({
                   <tr key={`${p.namespace}/${p.name}`} className="border-b border-theme-border last:border-b-0 align-top">
                     <td className="px-2 py-1.5 whitespace-nowrap">
                       <Badge severity={p.outcome === 'skip' && p.expectedSkip === false ? 'warning' : OUTCOME_SEVERITY[p.outcome]} size="sm">
-                        {p.outcome === 'skip' && p.expectedSkip !== undefined ? p.expectedSkip ? 'left by design' : 'requires attention' : OUTCOME_LABEL[p.outcome]}
+                        {p.outcome === 'skip' && p.expectedSkip !== undefined ? p.expectedSkip ? '按设计保留' : '需要关注' : OUTCOME_LABEL[p.outcome]}
                       </Badge>
                     </td>
                     <td className="px-2 py-1.5 font-mono whitespace-nowrap text-theme-text-primary">
@@ -231,7 +230,7 @@ export function DrainPlanContent({
                 ))}
                 {current.pods.length === 0 && (
                   <tr>
-                    <td className="px-2 py-3 text-theme-text-secondary" colSpan={3}>No pods are scheduled on this node.</td>
+                    <td className="px-2 py-3 text-theme-text-secondary" colSpan={3}>此节点上没有已调度的 Pod。</td>
                   </tr>
                 )}
               </tbody>
@@ -243,13 +242,13 @@ export function DrainPlanContent({
       {options.deleteEmptyDirData && (
         <AlertBanner
           variant="warning"
-          title="emptyDir data will be discarded"
+          title="emptyDir 数据将被丢弃"
           message={
             current && atRisk.length > 0
-              ? `${pluralize(atRisk.length, 'pod')} that would be evicted ${atRisk.length === 1 ? 'uses' : 'use'} emptyDir: ${atRisk.map((p) => `${p.namespace}/${p.name}`).join(', ')}. That data cannot be recovered.`
+              ? `将驱逐的 ${atRisk.length} 个 Pod 使用 emptyDir：${atRisk.map((p) => `${p.namespace}/${p.name}`).join(', ')}。这些数据无法恢复。`
               : current
-                ? 'No pod that would be evicted uses emptyDir right now. Any that does when the drain runs loses that data, which cannot be recovered.'
-                : 'Every evicted pod that uses emptyDir volumes loses that data, which cannot be recovered.'
+                ? '目前没有将被驱逐的 Pod 使用 emptyDir。驱逐执行时若有 Pod 使用此卷，其中数据将丢失且无法恢复。'
+                : '所有使用 emptyDir 卷且被驱逐的 Pod，其数据都会丢失且无法恢复。'
           }
         />
       )}
@@ -286,11 +285,11 @@ export function DrainPlanDialog({
       open={open}
       onClose={onClose}
       onConfirm={() => onConfirm(options)}
-      title="Drain Node"
+      title="驱逐节点工作负载"
       message={planSupported
-        ? `Cordon "${nodeName}" and evict the pods listed below. The list is an estimate: the drain re-lists live state when it runs.`
-        : `Cordon "${nodeName}" and evict its pods.`}
-      confirmLabel={isDraining ? 'Draining...' : 'Drain'}
+        ? `禁止节点 "${nodeName}" 调度并驱逐下方列出的 Pod。此列表仅为估算：执行驱逐时会重新读取实时状态。`
+        : `禁止节点 "${nodeName}" 调度并驱逐其 Pod。`}
+      confirmLabel={isDraining ? '正在驱逐…' : '驱逐'}
       variant="danger"
       isLoading={isDraining}
       isClosable

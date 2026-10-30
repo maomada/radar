@@ -30,7 +30,7 @@ export function NoClusterAccessBanner() {
       <AlertBanner
         variant="warning"
         icon={ShieldAlert}
-        title="You can't read any namespace in this cluster"
+        title="你无权读取此集群中的任何命名空间"
         message={
           <>
             Radar is connected, but your Kubernetes permissions don't allow reading any namespace, so

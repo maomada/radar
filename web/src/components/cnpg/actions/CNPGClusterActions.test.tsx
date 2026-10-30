@@ -99,7 +99,7 @@ it('disables header restore for known no sources and keeps unread sources enable
   state.caps.dataUpdatedAt = Date.now() - 180_000
   act(() => root.render(<CNPGClusterActions namespace="db" name="pg" />))
   expect(host.textContent).toContain('Last refresh failed: Refresh timeout')
-  expect(host.textContent).toContain('3m ago')
+  expect(host.textContent).toContain('3分钟前')
   expect(host.textContent).not.toContain('Actions could not be checked')
   expect(restore.disabled).toBe(false)
 })

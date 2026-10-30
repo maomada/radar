@@ -47,28 +47,28 @@ export function HPARenderer({ data, onNavigate, hpaDiagnosis, extraSections }: H
   return (
     <>
       {hpaDiagnosis && (
-        <Section title="Diagnosis" icon={Activity}>
+        <Section title="诊断" icon={Activity}>
           <HPADiagnosisSummary diagnosis={hpaDiagnosis} variant="detail" />
         </Section>
       )}
 
-      <Section title="Scaling" icon={Cpu}>
+      <Section title="扩缩容" icon={Cpu}>
         <PropertyList>
-          <Property label="Target" value={
+          <Property label="目标" value={
             targetRef.name ? (target ? (
               <ResourceLink {...target} label={`${targetRef.kind}/${targetRef.name}`} onNavigate={onNavigate} />
             ) : `${targetRef.kind || 'Unknown kind'}/${targetRef.name}`) : undefined
           } />
-          <Property label="Current" value={status.currentReplicas} />
-          <Property label="Desired" value={status.desiredReplicas} />
-          <Property label="Min" value={spec.minReplicas ?? 1} />
-          <Property label="Max" value={spec.maxReplicas} />
-          {status.lastScaleTime && <Property label="Last Scale" value={<TimeValue timestamp={status.lastScaleTime} />} />}
+          <Property label="当前副本数" value={status.currentReplicas} />
+          <Property label="期望副本数" value={status.desiredReplicas} />
+          <Property label="最小值" value={spec.minReplicas ?? 1} />
+          <Property label="最大值" value={spec.maxReplicas} />
+          {status.lastScaleTime && <Property label="上次扩缩容" value={<TimeValue timestamp={status.lastScaleTime} />} />}
         </PropertyList>
       </Section>
 
       {hpaDiagnosis?.metrics && hpaDiagnosis.metrics.length > 0 && (
-        <Section title="Metrics" defaultExpanded>
+        <Section title="指标" defaultExpanded>
           <div className="space-y-2">
             {hpaDiagnosis.metrics.map((metric, index) => (
               <div key={`${metric.type}-${metric.name}-${index}`} className="card-inner">
@@ -78,8 +78,8 @@ export function HPARenderer({ data, onNavigate, hpaDiagnosis, extraSections }: H
                     <div className="text-xs text-theme-text-tertiary">{metric.type}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-theme-text-secondary">
-                    {metric.current && <span>Current {metric.current}</span>}
-                    {metric.target && <span>Target {metric.target}</span>}
+                    {metric.current && <span>当前值 {metric.current}</span>}
+                    {metric.target && <span>目标值 {metric.target}</span>}
                     <Badge severity={metric.status === 'ok' ? 'success' : metric.status === 'missing' ? 'warning' : 'neutral'} size="sm">
                       {metric.status.replace(/_/g, ' ')}
                     </Badge>
@@ -97,7 +97,7 @@ export function HPARenderer({ data, onNavigate, hpaDiagnosis, extraSections }: H
       )}
 
       {!hpaDiagnosis?.metrics?.length && metrics.length > 0 && (
-        <Section title="Metrics" defaultExpanded>
+        <Section title="指标" defaultExpanded>
           <div className="space-y-3">
             {metrics.map((metric: any, i: number) => {
               const current = metric.resource?.current?.averageUtilization || metric.resource?.current?.averageValue
@@ -127,7 +127,7 @@ export function HPARenderer({ data, onNavigate, hpaDiagnosis, extraSections }: H
       )}
 
       {!hasDiagnosisMetrics && objectMetrics.length > 0 && (
-        <Section title="Object metric sources" defaultExpanded>
+        <Section title="对象指标来源" defaultExpanded>
           <div className="space-y-3">
             {objectMetrics.map((metric: any, i: number) => (
               <div key={`${metric.object.metric.name}-${i}`} className="card-inner">
@@ -157,13 +157,13 @@ function HPAObjectMetricSource({ object, namespace, onNavigate, showMetric = fal
   const source = objectReferenceToResourceRef({ ...described, name, namespace })
   return (
     <PropertyList>
-      {showMetric && <Property label="Metric" value={object.metric.name} />}
+      {showMetric && <Property label="指标" value={object.metric.name} />}
       <Property label="Object" value={source ? (
         <ResourceLink {...source} label={`${described.kind}/${name}`} onNavigate={onNavigate} />
       ) : described.name ? `${described.kind || 'Unknown kind'}/${described.name}` : undefined} />
       {source?.group && <Property label="API Group" value={source.group} />}
-      {object.metric.selector && <Property label="Selector" value={<LabelSelectorDisplay selector={object.metric.selector} />} />}
-      {namespaceMetric && <Property label="Scope" value="This HPA's namespace" />}
+      {object.metric.selector && <Property label="选择器" value={<LabelSelectorDisplay selector={object.metric.selector} />} />}
+      {namespaceMetric && <Property label="范围" value="此 HPA 的命名空间" />}
     </PropertyList>
   )
 }

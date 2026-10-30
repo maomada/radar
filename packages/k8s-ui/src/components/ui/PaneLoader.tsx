@@ -17,7 +17,7 @@ const radarLoadingIcon = assetUrl(radarLoadingIconAsset)
 // (`flex-1`, `h-full`, `h-32`, `absolute inset-0`, etc.). The SVG self-
 // animates (sweep arm + blips, `prefers-reduced-motion` honored).
 export function PaneLoader({
-  label = 'Loading…',
+  label = '加载中…',
   className = '',
   children,
 }: {

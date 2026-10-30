@@ -33,7 +33,7 @@ export function FormSaveActions({
           onClick={onSave}
           className="btn-brand min-w-28 px-3 py-2 text-xs"
         >
-          {busy ? "Saving…" : "Save changes"}
+          {busy ? "正在保存…" : "保存更改"}
         </button>
         {success && (
           <span
@@ -55,10 +55,10 @@ export function FormSaveActions({
               onClick={onDiscard}
               className="text-xs text-theme-text-secondary hover:underline"
             >
-              Discard
+              放弃
             </button>
             <span className="text-xs text-theme-text-tertiary">
-              Unsaved changes
+              尚未保存的更改
             </span>
           </>
         )}

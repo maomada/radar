@@ -2,16 +2,16 @@ import { describe, it, expect } from 'vitest'
 import { formatUpdatedAgo, formatLastUpdatedBucket, msToNextBucket } from './format'
 
 describe('formatUpdatedAgo', () => {
-  it('collapses the first minute to "just now"', () => {
-    expect(formatUpdatedAgo(0)).toBe('just now')
-    expect(formatUpdatedAgo(59_000)).toBe('just now')
+  it('collapses the first minute to a just-now label', () => {
+    expect(formatUpdatedAgo(0)).toBe('刚刚')
+    expect(formatUpdatedAgo(59_000)).toBe('刚刚')
   })
-  it('renders minutes and hours with an "ago" suffix', () => {
-    expect(formatUpdatedAgo(60_000)).toBe('1m ago')
-    expect(formatUpdatedAgo(3_600_000)).toBe('1h ago')
+  it('renders minutes and hours in Chinese', () => {
+    expect(formatUpdatedAgo(60_000)).toBe('1分钟前')
+    expect(formatUpdatedAgo(3_600_000)).toBe('1小时前')
   })
-  it('collapses anything past a day to "over a day ago"', () => {
-    expect(formatUpdatedAgo(25 * 3_600_000)).toBe('over a day ago')
+  it('collapses anything past a day to an inexact label', () => {
+    expect(formatUpdatedAgo(25 * 3_600_000)).toBe('超过一天')
   })
 })
 
