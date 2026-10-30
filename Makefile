@@ -11,13 +11,13 @@
 
 VERSION ?= $(shell git describe --tags --match 'v*' --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -X main.version=$(VERSION)
-DOCKER_REPO ?= ghcr.io/skyhook-io/radar
+DOCKER_REPO ?= ghcr.io/maomada/radar
 RADAR_FLAGS ?=
 PORT ?= 9280
 
 ## Quick in-cluster test deploy (full build: frontend + embed + Go binary)
 # Usage: make deploy-test   (or make deploy-test TEST_IMAGE=... CLUSTER_NS=... CLUSTER_DEPLOY=...)
-TEST_IMAGE   ?= gcr.io/koalabackend/radar:auth-rbac
+TEST_IMAGE   ?= ghcr.io/maomada/radar:test
 CLUSTER_NS   ?= radar
 CLUSTER_DEPLOY ?= radar
 
@@ -441,7 +441,7 @@ fmt:
 # Docker build (single arch, for local testing)
 # Uses --target full to build from source (the default 'release' target requires pre-built binaries)
 docker:
-	docker build --target full -t $(DOCKER_REPO):$(VERSION) -t $(DOCKER_REPO):latest .
+	docker build --target full -t $(DOCKER_REPO):$(VERSION) .
 
 # Test Docker image with read-only filesystem (simulates in-cluster with readOnlyRootFilesystem)
 # Requires ~/.kube/config for cluster access; runs on port 9280
@@ -465,14 +465,13 @@ docker-multiarch:
 	docker buildx build \
 		--platform linux/amd64,linux/arm64 \
 		--build-arg VERSION=$(VERSION) \
+		--target full \
 		-t $(DOCKER_REPO):$(VERSION) \
-		-t $(DOCKER_REPO):latest \
 		--push \
 		.
 
 docker-push:
 	docker push $(DOCKER_REPO):$(VERSION)
-	docker push $(DOCKER_REPO):latest
 
 # ============================================================================
 # Desktop (Wails) Targets
@@ -520,7 +519,7 @@ release-binaries-dry:
 
 # Interactive release (remote via CI or local)
 release:
-	./scripts/release.sh
+	@echo "Use the manual Release GHCR workflow after its environment protection is configured."
 
 # ============================================================================
 # Help
@@ -564,11 +563,11 @@ help:
 	@echo "Docker & In-Cluster:"
 	@echo "  make docker           - Build Docker image (local arch)"
 	@echo "  make docker-test      - Build and run with read-only filesystem (simulates in-cluster)"
-	@echo "  make docker-multiarch - Build multi-arch image (amd64+arm64) and push"
+	@echo "  make docker-multiarch - Build multi-arch image (amd64+arm64), version tag only"
 	@echo "  make docker-push      - Push to GHCR"
 	@echo ""
 	@echo "Release:"
-	@echo "  make release              - Interactive release (remote via CI or local)"
+	@echo "  make release              - Show the manual Release GHCR workflow guidance"
 	@echo "  make release-binaries-dry - Dry run goreleaser (no publish)"
 	@echo ""
 	@echo "Utility:"

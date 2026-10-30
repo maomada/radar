@@ -23,7 +23,7 @@ helm:
   # - oci://ghcr.io/myorg/charts
 
 image:
-  repository: ghcr.io/skyhook-io/radar
+  repository: ghcr.io/maomada/radar
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

@@ -2,5 +2,13 @@ apiVersion: v2
 name: radar-portal
 description: Self-hosted registry and viewer for proactively registered Radar clusters
 type: application
-version: 0.1.0
-appVersion: "dev"
+version: 0.0.0-unreleased
+appVersion: "0.0.0-unreleased"
+home: https://github.com/maomada/radar
+sources:
+  - https://github.com/maomada/radar
+maintainers:
+  - name: maomada
+    url: https://github.com/maomada
+annotations:
+  org.opencontainers.image.source: https://github.com/maomada/radar

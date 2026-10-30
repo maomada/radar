@@ -8,7 +8,7 @@
 # =============================================================================
 # Stage 1: Build frontend
 # =============================================================================
-FROM node:24-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-builder
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ RUN npm run build --workspace=web
 # =============================================================================
 # Stage 2: Build Go backend
 # =============================================================================
-FROM golang:1.26-alpine AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS backend-builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates
@@ -52,6 +52,7 @@ ARG VERSION=dev
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ARG GOEXPERIMENT=""
+ARG SOURCE_REVISION=unknown
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOEXPERIMENT=${GOEXPERIMENT} \
@@ -63,12 +64,14 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOEXPERIMENT=${GOEXPERIM
 # =============================================================================
 FROM gcr.io/distroless/static-debian12:nonroot AS full
 
+ARG SOURCE_REVISION=unknown
+ARG VERSION=dev
 LABEL org.opencontainers.image.title="Radar"
 LABEL org.opencontainers.image.description="Modern Kubernetes visibility — topology, traffic, and Helm management"
-LABEL org.opencontainers.image.source="https://github.com/skyhook-io/radar"
-LABEL org.opencontainers.image.vendor="Skyhook"
-# Ownership proof for the official MCP registry — must match the name in server.json.
-LABEL io.modelcontextprotocol.server.name="io.github.skyhook-io/radar"
+LABEL org.opencontainers.image.source="https://github.com/maomada/radar"
+LABEL org.opencontainers.image.vendor="maomada"
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
+LABEL org.opencontainers.image.version=$VERSION
 
 COPY --from=backend-builder /radar /radar
 
@@ -86,12 +89,14 @@ CMD ["--no-browser"]
 # =============================================================================
 FROM gcr.io/distroless/static-debian12:nonroot AS release
 
+ARG SOURCE_REVISION=unknown
+ARG VERSION=dev
 LABEL org.opencontainers.image.title="Radar"
 LABEL org.opencontainers.image.description="Modern Kubernetes visibility — topology, traffic, and Helm management"
-LABEL org.opencontainers.image.source="https://github.com/skyhook-io/radar"
-LABEL org.opencontainers.image.vendor="Skyhook"
-# Ownership proof for the official MCP registry — must match the name in server.json.
-LABEL io.modelcontextprotocol.server.name="io.github.skyhook-io/radar"
+LABEL org.opencontainers.image.source="https://github.com/maomada/radar"
+LABEL org.opencontainers.image.vendor="maomada"
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
+LABEL org.opencontainers.image.version=$VERSION
 
 ARG TARGETARCH
 COPY radar-${TARGETARCH} /radar

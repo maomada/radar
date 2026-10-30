@@ -536,6 +536,12 @@ else
 fi
 echo
 
+render_portal "Portal image tag defaults to chart appVersion"
+assert_contains 'image: "?example.test/radar-portal:0.0.0-unreleased"?$' "empty image.tag uses Chart.AppVersion"
+render_portal "Portal image tag override is honored" --set image.tag=0.2.0
+assert_contains 'image: "?example.test/radar-portal:0.2.0"?$' "explicit image.tag overrides Chart.AppVersion"
+echo
+
 if [[ $FAIL -eq 0 ]]; then
   echo "All chart template tests passed."
   exit 0

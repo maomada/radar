@@ -1,8 +1,10 @@
 # Radar Portal Helm Chart
 
-This chart deploys the independent, self-hosted Radar Portal server. The chart
-does not publish or select a prebuilt image: build the Portal image from this
-repository and supply an image from a registry you control. For the complete
+This chart deploys the independent, self-hosted Radar Portal server. Fork
+images and charts use the owned OCI flow documented in
+[`docs/ci-cd.md`](../../../docs/ci-cd.md); this checkout does not imply a
+published release. Upstream installers and update feeds do not deliver fork
+releases. For the complete
 registration model, credential handling, TLS, and Radar-side configuration,
 see [the Portal deployment guide](../../../docs/portal.md).
 
@@ -11,7 +13,7 @@ see [the Portal deployment guide](../../../docs/portal.md).
 - Kubernetes and Helm 3
 - A PersistentVolume provisioner and a PVC for the registry
 - An externally managed Secret containing `tokens`, `username`, and `password`
-- A locally built Portal image in a registry accessible to the cluster
+- A version actually published through the manual Release GHCR workflow
 
 The `tokens` Secret key contains a JSON object mapping cluster IDs to unique
 registration tokens. `username` and `password` are the separate viewer login
@@ -27,25 +29,22 @@ chart only references the existing Secret by name.
 
 ## Build an image
 
-Build from the repository root and push only to a registry you control:
+Build locally for testing:
 
 ```bash
-docker build -f Dockerfile.portal -t registry.example.internal/radar-portal:dev .
-docker push registry.example.internal/radar-portal:dev
+docker build -f Dockerfile.portal --target full -t radar-portal:local .
 ```
 
-These commands are examples; this repository does not claim that a Portal
-image or chart has been published.
+The local test image is not a published release.
 
 ## Install
 
-Supply your existing Secret and image repository:
+Use a published version and the existing credentials Secret:
 
 ```bash
-helm upgrade --install radar-portal deploy/helm/radar-portal \
+helm upgrade --install radar-portal oci://ghcr.io/maomada/charts/radar-portal \
   --namespace radar-portal --create-namespace \
-  --set image.repository=registry.example.internal/radar-portal \
-  --set image.tag=dev \
+  --version "$VERSION" \
   --set existingSecret=radar-portal-auth
 ```
 
