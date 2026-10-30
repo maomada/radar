@@ -12,6 +12,10 @@ from pathlib import Path
 
 EXPECTED_PLATFORMS = {("linux", "amd64"), ("linux", "arm64")}
 REF_NAME_ANNOTATION = "org.opencontainers.image.ref.name"
+NESTED_INDEX_MEDIA_TYPES = {
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+}
 
 
 def _load_json(raw, description):
@@ -36,7 +40,7 @@ def _read_descriptor(descriptor, blob_reader, description):
     digest = match.group(1)
     try:
         blob = blob_reader(f"blobs/sha256/{digest}")
-    except (KeyError, OSError) as error:
+    except (KeyError, OSError, ValueError) as error:
         raise ValueError(f"{description} blob is missing") from error
     if descriptor.get("size") != len(blob):
         raise ValueError(f"{description} blob size does not match its descriptor")
@@ -97,6 +101,29 @@ def _read_archive_member(archive, name):
     return stream.read()
 
 
+def _validate_archive_index(index_bytes, blob_reader):
+    root_index = _load_json(index_bytes, "OCI archive root index")
+    descriptors = root_index.get("manifests")
+    if root_index.get("schemaVersion") != 2 or not isinstance(descriptors, list):
+        raise ValueError("OCI archive root index must have schemaVersion 2 and a manifests array")
+
+    nested_indexes = [
+        descriptor
+        for descriptor in descriptors
+        if isinstance(descriptor, dict) and descriptor.get("mediaType") in NESTED_INDEX_MEDIA_TYPES
+    ]
+    if nested_indexes:
+        if len(descriptors) != 1 or len(nested_indexes) != 1:
+            raise ValueError("OCI archive root index contains ambiguous nested image indexes")
+        descriptor = nested_indexes[0]
+        if "platform" in descriptor:
+            raise ValueError("OCI archive root index descriptor must not declare a platform")
+        platform_index = _read_descriptor(descriptor, blob_reader, "OCI archive root index")
+        return validate_index(platform_index, blob_reader)
+
+    return validate_index(index_bytes, blob_reader)
+
+
 def validate_archive(archive_path, raw_manifest_path=None):
     try:
         archive = tarfile.open(archive_path, "r:*")
@@ -112,7 +139,7 @@ def validate_archive(archive_path, raw_manifest_path=None):
         def read_blob(name):
             return _read_archive_member(archive, name)
 
-        platforms = validate_index(index_bytes, read_blob)
+        platforms = _validate_archive_index(index_bytes, read_blob)
         if raw_manifest_path is not None:
             raw_manifest = Path(raw_manifest_path).read_bytes()
             raw_platforms = validate_index(raw_manifest, read_blob)

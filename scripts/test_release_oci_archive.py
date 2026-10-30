@@ -109,6 +109,49 @@ class OCIArchiveValidationTests(unittest.TestCase):
         result = oci.validate_archive(archive_path, raw_path)
         self.assertEqual(set(result), oci.EXPECTED_PLATFORMS)
 
+    def test_archive_validates_nested_platform_indexes(self):
+        raw_path = self.root / "raw-manifest.json"
+        raw_path.write_bytes(self.raw_manifest)
+        for media_type in sorted(oci.NESTED_INDEX_MEDIA_TYPES):
+            descriptor = self._add_blob(self.raw_manifest)
+            descriptor["mediaType"] = media_type
+            descriptor["annotations"] = {oci.REF_NAME_ANNOTATION: "smoke"}
+            archive_path = self._write_archive(
+                {"schemaVersion": 2, "manifests": [descriptor]}
+            )
+            with self.subTest(media_type=media_type):
+                result = oci.validate_archive(archive_path, raw_path)
+                self.assertEqual(set(result), oci.EXPECTED_PLATFORMS)
+
+    def test_archive_rejects_missing_or_corrupt_nested_index_blob(self):
+        original_blobs = dict(self.blobs)
+        for state in ("missing", "corrupt"):
+            with self.subTest(state=state):
+                self.blobs = dict(original_blobs)
+                descriptor = self._add_blob(self.raw_manifest)
+                descriptor["mediaType"] = "application/vnd.oci.image.index.v1+json"
+                blob_path = f"blobs/sha256/{descriptor['digest'].removeprefix('sha256:')}"
+                if state == "missing":
+                    del self.blobs[blob_path]
+                else:
+                    corrupt = bytearray(self.blobs[blob_path])
+                    corrupt[0] ^= 1
+                    self.blobs[blob_path] = bytes(corrupt)
+                archive_path = self._write_archive(
+                    {"schemaVersion": 2, "manifests": [descriptor]}
+                )
+                with self.assertRaisesRegex(ValueError, "OCI archive root index blob"):
+                    oci.validate_archive(archive_path)
+
+    def test_archive_rejects_ambiguous_nested_indexes(self):
+        descriptor = self._add_blob(self.raw_manifest)
+        descriptor["mediaType"] = "application/vnd.oci.image.index.v1+json"
+        archive_path = self._write_archive(
+            {"schemaVersion": 2, "manifests": [descriptor, dict(descriptor)]}
+        )
+        with self.assertRaisesRegex(ValueError, "ambiguous nested image indexes"):
+            oci.validate_archive(archive_path)
+
     def test_local_copy_descriptor_preserves_source_manifest_digest(self):
         layout = self.root / "layout"
         (layout / "blobs" / "sha256").mkdir(parents=True)
