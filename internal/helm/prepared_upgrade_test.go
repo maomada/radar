@@ -251,10 +251,7 @@ func TestValidatePreparedCloudMutationSurfaceRejectsUnpreflightedObjects(t *test
 
 func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *testing.T) {
 	cfg := memoryActionConfig(t)
-	currentChart, err := loader.Load("../../deploy/helm/radar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	currentChart := loadUpstreamRadarTestChart(t)
 	currentChart.Metadata.Version = "1.6.0"
 	currentChart.Metadata.AppVersion = "1.6.2"
 	currentReq := &InstallRequest{ReleaseName: "radar", Namespace: "radar-system", ChartName: "radar", Version: "1.6.0", Repository: "unused"}
@@ -281,10 +278,7 @@ func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *t
 	if err := unrecorded.Releases.Create(&blank); err != nil {
 		t.Fatal(err)
 	}
-	targetChart, err := loader.Load("../../deploy/helm/radar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	targetChart := loadUpstreamRadarTestChart(t)
 	targetChart.Metadata.Version = "1.7.0"
 	targetChart.Metadata.AppVersion = "1.7.2"
 	server := preparedChartServer(t, targetChart)
@@ -298,10 +292,7 @@ func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *t
 
 func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T) {
 	cfg := memoryActionConfig(t)
-	currentChart, err := loader.Load("../../deploy/helm/radar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	currentChart := loadUpstreamRadarTestChart(t)
 	currentChart.Metadata.Version = "1.6.0"
 	currentChart.Metadata.AppVersion = "1.6.2"
 	currentReq := &InstallRequest{
@@ -320,11 +311,8 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 		t.Fatal(err)
 	}
 
-	targetChart, err := loader.Load("../../deploy/helm/radar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The on-disk chart carries a 0.0.0-dev placeholder, which the stable-version
+	targetChart := loadUpstreamRadarTestChart(t)
+	// The on-disk chart carries an unreleased placeholder, which the stable-version
 	// eligibility check rightly rejects — pin a stable version like a real release.
 	targetChart.Metadata.Version = "1.7.0"
 	targetChart.Metadata.AppVersion = "1.7.2"
@@ -333,6 +321,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 	request := InstallRequest{
 		ReleaseName: "radar", Namespace: "default", ChartName: "radar", Repository: server.URL,
 		Values: map[string]any{
+			"image": map[string]any{"repository": "ghcr.io/skyhook-io/radar"},
 			"cloud": map[string]any{
 				"enabled": true, "url": "wss://cloud.invalid/agent",
 				"clusterName": "cluster-id", "existingSecret": "radar-cloud-config",
@@ -389,10 +378,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 }
 
 func TestResolvePreparedChartSummaryUsesVerifiedArchive(t *testing.T) {
-	loaded, err := loader.Load("../../deploy/helm/radar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	loaded := loadUpstreamRadarTestChart(t)
 	loaded.Metadata.Version = "1.7.0"
 	loaded.Metadata.AppVersion = "1.7.2"
 	server := preparedChartServer(t, loaded)
@@ -407,6 +393,18 @@ func TestResolvePreparedChartSummaryUsesVerifiedArchive(t *testing.T) {
 	if summary.ChartVersion != loaded.Metadata.Version || summary.AppVersion != loaded.Metadata.AppVersion {
 		t.Fatalf("summary = %+v", summary)
 	}
+}
+
+func loadUpstreamRadarTestChart(t *testing.T) *chart.Chart {
+	t.Helper()
+	loaded, err := loader.Load("../../deploy/helm/radar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Cloud upgrade validation intentionally follows the upstream chart feed,
+	// not this fork's owned chart metadata.
+	loaded.Metadata.Sources = []string{"https://github.com/skyhook-io/radar"}
+	return loaded
 }
 
 func preparedChartServer(t *testing.T, loaded *chart.Chart) *httptest.Server {

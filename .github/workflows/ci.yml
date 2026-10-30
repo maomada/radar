@@ -220,7 +220,8 @@ jobs:
           RADAR_REQUIRE_POSTGRES_TESTS: "1"
         run: |
           pkgs=$(go list ./...)
-          go test $(grep -vx 'github.com/skyhook-io/radar/internal/server' <<<"$pkgs")
+          readarray -t pkgs_to_test < <(grep -vx 'github.com/skyhook-io/radar/internal/server' <<<"$pkgs")
+          go test "${pkgs_to_test[@]}"
 
       - name: Evaluate PVC and CNPG PromQL in Prometheus
         env:
