@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const githubStarRepo = "skyhook-io/radar"
+const githubStarRepo = "maomada/radar"
 
 type starStatusResponse struct {
 	Starred      bool `json:"starred"`

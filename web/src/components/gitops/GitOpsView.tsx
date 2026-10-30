@@ -84,7 +84,7 @@ import { ArgoResourceDiffLoader } from './ArgoResourceDiffLoader'
 import { RevisionMetaChip } from './RevisionMetaChip'
 import { RemoteDestinationCloudHint } from './RemoteDestinationCloudHint'
 
-const GITOPS_HEALTH_DOCS_URL = 'https://radarhq.io/docs/features/gitops#per-resource-health'
+const GITOPS_HEALTH_DOCS_URL = 'https://github.com/maomada/radar/blob/main/docs/gitops.md#per-resource-health'
 import type { GitOpsHistoryItem } from '@skyhook-io/k8s-ui'
 
 

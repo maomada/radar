@@ -33,7 +33,6 @@ import { DockProvider, BottomDock, useDock, useDockReservedHeight, useOpenLocalT
 import { DURATION_DOCK, overlayExitMs } from '@skyhook-io/k8s-ui/utils/animation'
 import { ContextSwitcher } from './components/ContextSwitcher'
 import { NamespaceSwitcher, type NamespaceSwitcherHandle } from './components/NamespaceSwitcher'
-import { CloudFunnelButton } from './components/CloudFunnelButton'
 import { useNavCustomization } from './context/NavCustomization'
 import type { FleetTakeoverTarget } from './context/NavCustomization'
 import { PrimaryNavRail } from './components/nav/PrimaryNavRail'
@@ -1948,8 +1947,6 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           {/* AI investigations (self-hides when no agent CLI is present) */}
           <GlobalDiagnoseButton />
 
-          <CloudFunnelButton />
-
           {/* Local terminal */}
           {capabilities.localTerminal && (
             <Tooltip content={connection.context || connection.state === 'disconnected' ? 'Open local terminal' : 'Waiting for a context to open a terminal'}>
@@ -2661,7 +2658,7 @@ function GitHubStarButton() {
 
   useEffect(() => {
     // Fetch star count from GitHub public API
-    fetch('https://api.github.com/repos/skyhook-io/radar')
+    fetch('https://api.github.com/repos/maomada/radar')
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data && typeof data.stargazers_count === 'number') setStarCount(data.stargazers_count) })
       .catch(() => {})
@@ -2728,7 +2725,7 @@ function GitHubStarButton() {
         })
         .catch(() => {
           // Fallback: open GitHub in browser
-          openExternal('https://github.com/skyhook-io/radar')
+          openExternal('https://github.com/maomada/radar')
         })
     } else {
       // No gh CLI — link opens GitHub; dismiss the callout
@@ -2741,7 +2738,7 @@ function GitHubStarButton() {
     <div className="relative">
       <a
         ref={buttonRef}
-        href="https://github.com/skyhook-io/radar"
+        href="https://github.com/maomada/radar"
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleClick}
@@ -2771,7 +2768,7 @@ function GitHubStarButton() {
           </p>
           <div className="flex items-center gap-2">
             <a
-              href="https://github.com/skyhook-io/radar"
+              href="https://github.com/maomada/radar"
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleClick}

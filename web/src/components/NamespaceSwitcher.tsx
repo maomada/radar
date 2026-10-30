@@ -4,7 +4,7 @@ import { useAuthMe, useCapabilities, useNamespaceScope, useSetActiveNamespace } 
 
 export type NamespaceSwitcherHandle = NamespacePickerHandle
 
-const NAMESPACES_HELP_URL = 'https://radarhq.io/docs/configuration/files#namespaces-missing-from-the-picker'
+const NAMESPACES_HELP_URL = 'https://github.com/maomada/radar/blob/main/docs/configuration.md#namespaces-missing-from-the-picker'
 
 interface NamespaceSwitcherProps {
   className?: string

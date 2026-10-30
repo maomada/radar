@@ -7,7 +7,7 @@ import { type DiagnoseSetup } from "./DiagnoseContext";
 import { openExternal } from "../../utils/navigation";
 
 const REPORT_URL =
-  "https://github.com/skyhook-io/radar/issues/new?labels=bug&template=bug_report.md";
+  "https://github.com/maomada/radar/issues/new?labels=bug&template=bug_report.md";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);

@@ -11,7 +11,7 @@ for (const [width, height] of [[1280, 800], [1366, 768], [1440, 900], [1920, 108
   test(`Overview fits ${width}x${height} with one version and an update link in the header`, async ({ page }) => {
     const state = await fixture(page)
     state.failStatus()
-    await page.route('**/api/version-check', route => route.fulfill({ json: { currentVersion: 'v1.14.1-test', latestVersion: '1.14.2', updateAvailable: true, releaseUrl: 'https://github.com/skyhook-io/radar/releases/tag/v1.14.2' } }))
+    await page.route('**/api/version-check', route => route.fulfill({ json: { currentVersion: 'v1.14.1-test', latestVersion: '1.14.2', updateAvailable: true, releaseUrl: 'https://github.com/maomada/radar/releases/tag/v1.14.2' } }))
     await page.setViewportSize({ width, height })
     const dialog = await openSettings(page, 'Overview')
     await expect(page.getByRole('button', { name: 'Configuration files', exact: true })).toBeVisible()
@@ -42,24 +42,24 @@ for (const mode of ['in-cluster', 'cloud']) {
       const capabilities = await (await route.fetch()).json()
       await route.fulfill({ json: { ...capabilities, deployment: { ...capabilities.deployment, mode } } })
     })
-    await page.route('**/api/version-check', route => route.fulfill({ json: { currentVersion: '1.14.1', latestVersion: '1.14.2', updateAvailable: true, releaseUrl: 'https://github.com/skyhook-io/radar/releases/tag/v1.14.2' } }))
+    await page.route('**/api/version-check', route => route.fulfill({ json: { currentVersion: '1.14.1', latestVersion: '1.14.2', updateAvailable: true, releaseUrl: 'https://github.com/maomada/radar/releases/tag/v1.14.2' } }))
     const dialog = await openSettings(page, 'Overview')
     if (mode === 'cloud') {
       await expect(dialog.getByRole('link', { name: 'Update available', exact: true })).toHaveCount(0)
       await expect(dialog.getByRole('button', { name: 'Update available', exact: true })).toHaveCount(0)
     }
-    else await expect(dialog.getByRole('link', { name: 'Update available', exact: true })).toHaveAttribute('href', 'https://radarhq.io/docs/configuration/in-cluster')
+    else await expect(dialog.getByRole('link', { name: 'Update available', exact: true })).toHaveAttribute('href', 'https://github.com/maomada/radar/blob/main/docs/in-cluster.md')
   })
 }
 
 for (const installMethod of ['homebrew', 'krew', 'direct', 'desktop']) {
-  test(`Settings offers ${installMethod} update instructions without leaving the dialog`, async ({ page }) => {
+  test(`Settings shows the ${installMethod} update path without leaving the dialog`, async ({ page }) => {
     await fixture(page)
-    const command = installMethod === 'homebrew' ? 'brew upgrade radar' : installMethod === 'krew' ? 'kubectl krew upgrade radar' : 'curl -fsSL https://radarhq.io/install.sh | sh'
+    const command = installMethod === 'direct' ? 'curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh' : undefined
     await page.route('**/api/version-check', route => route.fulfill({ json: {
       currentVersion: '1.14.1', latestVersion: '1.14.2', updateAvailable: true, installMethod,
-      updateCommand: installMethod === 'desktop' ? undefined : command,
-      releaseUrl: 'https://github.com/skyhook-io/radar/releases/tag/v1.14.2',
+      updateCommand: command,
+      releaseUrl: 'https://github.com/maomada/radar/releases/tag/v1.14.2',
     } }))
     await page.addInitScript(() => localStorage.setItem('radar-update-dismissed', '1.14.2'))
     const dialog = await openSettings(page, 'Metrics')
@@ -67,7 +67,8 @@ for (const installMethod of ['homebrew', 'krew', 'direct', 'desktop']) {
     await trigger.click()
     await expect(trigger).toHaveAttribute('aria-expanded', 'true')
     if (installMethod === 'desktop') await expect(dialog.getByRole('button', { name: 'Update Now', exact: true })).toBeVisible()
-    else await expect(dialog.getByRole('button', { name: command, exact: true })).toBeVisible()
+    else if (command) await expect(dialog.getByRole('button', { name: command, exact: true })).toBeVisible()
+    else await expect(dialog.getByRole('link', { name: 'Download from GitHub →', exact: true })).toHaveAttribute('href', 'https://github.com/maomada/radar/releases/tag/v1.14.2')
     await expect(dialog.getByText(/You're on/)).toHaveCount(0)
     if (installMethod === 'direct') await expect(dialog.getByRole('link', { name: 'or download from GitHub' })).toBeVisible()
     await page.keyboard.press('Escape')

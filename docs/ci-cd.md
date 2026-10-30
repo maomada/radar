@@ -67,6 +67,15 @@ the same version. Roll back by selecting a previously known-good image tag or
 Helm revision (`helm history` / `helm rollback`) and verify the matching
 manifest digest.
 
-The upstream installers, update feeds, and library identities remain upstream;
-they do not deliver fork releases. This migration does not change Go module or
-npm package identities or rewrite installer/runtime updater behavior.
+The CLI installers and direct update checks now use `maomada/radar`; they do
+not fall back to the upstream release relay. Installer scripts fail closed
+when the owned release lacks the expected CLI assets. GHCR images do not
+provide those assets, and no package-manager update command is advertised until
+an owned distribution path exists. The Go module path and npm package names
+retain their historical compatibility identifiers; those identifiers do not
+publish or install this repository's CLI releases.
+
+Optional Radar Cloud connectivity and opt-in usage reporting still use their
+existing external service endpoints. This project does not operate those
+services or claim them as owned; see [Usage Stats](usage-stats.md) for the
+telemetry destination and contents.

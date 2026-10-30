@@ -4,7 +4,7 @@ import { Collapse, CollapseChevron, useDisclosure } from '@skyhook-io/k8s-ui/com
 import { ConfigToggle, SubHeading } from './controls'
 import { isRecording, useSetUsageData, useUsageData, type UsageDataStatus } from '../../api/usage-data'
 
-const DOCS_URL = 'https://radarhq.io/docs/configuration/usage-stats'
+const DOCS_URL = 'https://github.com/maomada/radar/blob/main/docs/usage-stats.md'
 
 export function PrivacySection({ active }: { active: boolean }) {
   const { data: status, isLoading, error, refetch } = useUsageData(active, { fresh: true })
@@ -36,7 +36,7 @@ export function PrivacySection({ active }: { active: boolean }) {
         <SubHeading>Usage stats</SubHeading>
         <ConfigToggle
           label="Send anonymous usage stats"
-          description={<>Shows us which features get used, so we know what to build next.<br />Sent straight to us, with no third-party trackers.</>}
+          description={<>Sends feature-use and coarse cluster metadata to the external usage-reporting service at usage.radarhq.io. It is not operated by this repository&apos;s maintainers.</>}
           value={recording}
           disabled={!status.canChange || setUsageData.isPending}
           onChange={(v) => setUsageData.mutate(v)}

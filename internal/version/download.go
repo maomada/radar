@@ -36,7 +36,7 @@ type githubReleaseWithAssets struct {
 func FetchRelease(ctx context.Context) (*githubReleaseWithAssets, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET",
-		"https://api.github.com/repos/skyhook-io/radar/releases/latest", nil)
+		githubURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

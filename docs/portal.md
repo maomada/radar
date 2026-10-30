@@ -1,8 +1,10 @@
 # Self-hosted Radar Portal
 
-Fork releases use the owned OCI images and charts described in
-[`ci-cd.md`](ci-cd.md). Upstream installers, update feeds, and library
-identities do not deliver fork releases.
+This repository's OCI images and charts are available only for versions
+actually published by the manual workflow described in [`ci-cd.md`](ci-cd.md).
+CLI installer scripts and direct update checks use this repository's GitHub
+releases, while historical Go module and npm package identities remain
+compatibility names rather than a source of CLI release artifacts.
 
 Radar Portal is an optional, independent registry and viewer for multiple
 Radar instances, including in-cluster installations and explicitly configured

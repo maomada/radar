@@ -8,7 +8,10 @@ We are committed to providing a welcoming and inclusive environment for everyone
 
 ## Reporting
 
-If you experience or witness unacceptable behavior, please report it by emailing conduct@skyhook.io.
+If you experience or witness unacceptable behavior, contact the current maintainer,
+[@maomada](https://github.com/maomada), using a verified private contact method listed
+on their profile. Do not post sensitive reports in public issues or contact the
+upstream maintainers about conduct in this repository.
 
 All reports will be reviewed and investigated promptly and fairly.
 

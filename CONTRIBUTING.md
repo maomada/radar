@@ -1,4 +1,4 @@
-# Contributing to Radar
+# Contributing to maomada/radar
 
 Thank you for your interest in contributing to Radar! This document provides guidelines and instructions for contributing.
 
@@ -8,9 +8,9 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 ## Get Help & Join the Community
 
-The fastest way to get help, ask questions, or share feedback is our [Discord community](https://radarhq.io/community/chat). Maintainers and other Radar users hang out there.
-
-For longer-form discussion, use [GitHub Discussions](https://github.com/skyhook-io/radar/discussions).
+Use [this repository's issues](https://github.com/maomada/radar/issues) for
+questions, bug reports and feature requests. This is an independently maintained
+derivative; its custom features and releases are not supported by the upstream team.
 
 ## How to Contribute
 

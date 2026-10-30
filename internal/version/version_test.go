@@ -57,12 +57,12 @@ func TestGetUpdateCommand(t *testing.T) {
 		goos   string
 		want   string
 	}{
-		{"homebrew tap", InstallHomebrew, "darwin", "brew upgrade skyhook-io/tap/radar"},
-		{"krew", InstallKrew, "linux", "kubectl krew upgrade radar"},
-		{"scoop", InstallScoop, "windows", "scoop update radar"},
-		{"direct linux", InstallDirect, "linux", "curl -fsSL https://get.radarhq.io | sh"},
-		{"direct darwin", InstallDirect, "darwin", "curl -fsSL https://get.radarhq.io | sh"},
-		{"direct windows", InstallDirect, "windows", "irm https://get.radarhq.io/install.ps1 | iex"},
+		{"homebrew tap", InstallHomebrew, "darwin", ""},
+		{"krew", InstallKrew, "linux", ""},
+		{"scoop", InstallScoop, "windows", ""},
+		{"direct linux", InstallDirect, "linux", "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh"},
+		{"direct darwin", InstallDirect, "darwin", "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh"},
+		{"direct windows", InstallDirect, "windows", "irm https://raw.githubusercontent.com/maomada/radar/main/install.ps1 | iex"},
 		{"direct freebsd falls through", InstallDirect, "freebsd", ""},
 		{"direct empty goos falls through", InstallDirect, "", ""},
 		{"desktop", InstallDesktop, "darwin", ""},
@@ -85,12 +85,12 @@ func TestHomebrewUpgradeCommand(t *testing.T) {
 		exe  string
 		want string
 	}{
-		{"core on Apple Silicon", "/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", "brew upgrade kubectl-radar"},
-		{"core on Intel", "/usr/local/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", "brew upgrade kubectl-radar"},
-		{"core on Linux", "/home/linuxbrew/.linuxbrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", "brew upgrade kubectl-radar"},
-		{"tap", "/opt/homebrew/Cellar/radar/1.16.0/bin/kubectl-radar", "brew upgrade skyhook-io/tap/radar"},
-		{"unresolved link falls back to tap", "/opt/homebrew/bin/radar", "brew upgrade skyhook-io/tap/radar"},
-		{"unknown path falls back to tap", "", "brew upgrade skyhook-io/tap/radar"},
+		{"core on Apple Silicon", "/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", ""},
+		{"core on Intel", "/usr/local/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", ""},
+		{"core on Linux", "/home/linuxbrew/.linuxbrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", ""},
+		{"tap", "/opt/homebrew/Cellar/radar/1.16.0/bin/kubectl-radar", ""},
+		{"unresolved link falls back to tap", "/opt/homebrew/bin/radar", ""},
+		{"unknown path falls back to tap", "", ""},
 	}
 
 	for _, tt := range tests {
@@ -140,7 +140,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/opt/homebrew/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "homebrew-core on Intel, previously reported as a direct install",
@@ -151,7 +151,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/usr/local/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "homebrew-core via kubectl plugin name",
@@ -161,7 +161,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/opt/homebrew/bin/kubectl-radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "homebrew-core via opt link, as brew services runs it",
@@ -171,7 +171,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/opt/homebrew/opt/kubectl-radar/bin/kubectl-radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "skyhook-io tap",
@@ -182,7 +182,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/opt/homebrew/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade skyhook-io/tap/radar",
+			wantCommand: "",
 		},
 		{
 			name: "own symlink to a Homebrew install",
@@ -192,7 +192,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/home/user/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "install script shorthand link",
@@ -202,7 +202,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/usr/local/bin/radar"
 			},
 			wantMethod:  InstallDirect,
-			wantCommand: "curl -fsSL https://get.radarhq.io | sh",
+			wantCommand: "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh",
 		},
 		{
 			name: "krew",
@@ -212,7 +212,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/home/user/.krew/bin/kubectl-radar"
 			},
 			wantMethod:  InstallKrew,
-			wantCommand: "kubectl krew upgrade radar",
+			wantCommand: "",
 		},
 		{
 			name: "scoop current link",
@@ -222,7 +222,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/home/user/scoop/apps/radar/current/radar"
 			},
 			wantMethod:  InstallScoop,
-			wantCommand: "scoop update radar",
+			wantCommand: "",
 		},
 		{
 			name: "plain binary, no links",
@@ -231,7 +231,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/home/user/bin/radar"
 			},
 			wantMethod:  InstallDirect,
-			wantCommand: "curl -fsSL https://get.radarhq.io | sh",
+			wantCommand: "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh",
 		},
 		{
 			name: "dangling link keeps the original path",
@@ -240,7 +240,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/opt/homebrew/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade skyhook-io/tap/radar",
+			wantCommand: "",
 		},
 	}
 

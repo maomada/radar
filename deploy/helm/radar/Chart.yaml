@@ -25,12 +25,12 @@ annotations:
   artifacthub.io/license: Apache-2.0
   artifacthub.io/links: |
     - name: Website
-      url: https://radarhq.io
+      url: https://github.com/maomada/radar
     - name: Documentation
-      url: https://radarhq.io/docs
+      url: https://github.com/maomada/radar/tree/main/docs
     - name: Source
       url: https://github.com/maomada/radar
     - name: Releases
-      url: https://github.com/maomada/radar
-    - name: Discord
-      url: https://radarhq.io/community/chat
+      url: https://github.com/maomada/radar/releases
+    - name: Issues
+      url: https://github.com/maomada/radar/issues
