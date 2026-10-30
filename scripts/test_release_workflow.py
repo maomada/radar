@@ -39,6 +39,28 @@ class ReleaseWorkflowTests(unittest.TestCase):
         for name in removed:
             self.assertFalse((ROOT / ".github/workflows" / name).exists())
 
+    def test_ci_container_build_validates_and_copies_oci_archives_locally(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        container_job = workflow.split("  container-build:\n", 1)[1]
+        self.assertIn("'.dockerignore'", workflow)
+        self.assertIn("linux/amd64,linux/arm64", container_job)
+        self.assertIn("push: false", container_job)
+        self.assertIn("outputs: type=oci,dest=", container_job)
+        self.assertNotIn("type=cacheonly", container_job)
+        self.assertIn("skopeo inspect --raw", container_job)
+        self.assertIn("skopeo copy --all --preserve-digests", container_job)
+        self.assertIn('"oci:$LAYOUT:$LAYOUT_TAG"', container_job)
+        self.assertIn("python3 scripts/validate_oci_archive.py verify-copy", container_job)
+        self.assertNotIn("docker://ghcr.io/", container_job)
+
+    def test_release_build_validates_archive_with_trusted_tooling(self):
+        workflow = (ROOT / ".github/workflows/release.yml").read_text()
+        build_job = workflow.split("  build-images:\n", 1)[1].split("\n  charts:\n", 1)[0]
+        validator = "python3 trusted/scripts/validate_oci_archive.py validate"
+        self.assertIn(validator, build_job)
+        self.assertLess(build_job.index(validator), build_job.index("Record archive checksum"))
+        self.assertLess(build_job.index(validator), build_job.index("Upload component release archive"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,10 +47,9 @@ COPY --from=frontend-builder /app/web/dist internal/static/dist/
 
 # Build arguments
 # TARGETOS and TARGETARCH are automatically set by Docker buildx for multi-platform builds
-# Defaults provided for regular docker build (without buildx)
 ARG VERSION=dev
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 ARG GOEXPERIMENT=""
 ARG SOURCE_REVISION=unknown
 

@@ -111,6 +111,8 @@ jobs:
             containers:
               - 'Dockerfile'
               - 'Dockerfile.portal'
+              - '.dockerignore'
+              - 'scripts/validate_oci_archive.py'
               - 'go.mod'
               - 'go.sum'
               - 'cmd/**'
@@ -495,6 +497,8 @@ jobs:
           scripts/test_release_chart_package.py
           scripts/release_manifest.py
           scripts/test_release_manifest.py
+          scripts/validate_oci_archive.py
+          scripts/test_release_oci_archive.py
           scripts/test_release_workflow.py
 
   workflow-lint:
@@ -527,7 +531,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
-      - name: Build Linux amd64 and arm64 without pushing
+      - name: Build Linux amd64 and arm64 as an OCI archive
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -535,8 +539,35 @@ jobs:
           target: full
           platforms: linux/amd64,linux/arm64
           push: false
-          outputs: type=cacheonly
+          outputs: type=oci,dest=${{ runner.temp }}/${{ matrix.component }}.oci.tar
           provenance: false
           build-args: |
             VERSION=0.0.0-ci
             SOURCE_REVISION=${{ github.sha }}
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y skopeo
+      - name: Inspect the archive and verify exact platform descriptors
+        env:
+          ARCHIVE: ${{ runner.temp }}/${{ matrix.component }}.oci.tar
+          RAW_MANIFEST: ${{ runner.temp }}/${{ matrix.component }}.manifest.json
+        run: |
+          skopeo inspect --raw "oci-archive:$ARCHIVE" > "$RAW_MANIFEST"
+          python3 scripts/validate_oci_archive.py validate \
+            --archive "$ARCHIVE" \
+            --raw-manifest "$RAW_MANIFEST"
+      - name: Copy all platforms to a local OCI layout without publishing
+        env:
+          COMPONENT: ${{ matrix.component }}
+          ARCHIVE: ${{ runner.temp }}/${{ matrix.component }}.oci.tar
+          RAW_MANIFEST: ${{ runner.temp }}/${{ matrix.component }}.manifest.json
+          LAYOUT: ${{ runner.temp }}/${{ matrix.component }}-oci-layout
+          LAYOUT_TAG: ci-validation
+        run: |
+          skopeo copy --all --preserve-digests \
+            "oci-archive:$ARCHIVE" "oci:$LAYOUT:$LAYOUT_TAG"
+          python3 scripts/validate_oci_archive.py verify-copy \
+            --layout "$LAYOUT" \
+            --raw-manifest "$RAW_MANIFEST" \
+            --tag "$LAYOUT_TAG"

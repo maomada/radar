@@ -18,10 +18,12 @@ The publish job uses the `ghcr-publish` environment and `GITHUB_TOKEN` with
 `packages:write`; builds have no registry login or package-write permission.
 The environment name alone does **not** enforce approval. A repository
 maintainer must configure required reviewers and restrict deployment branches
-to `main` in repository settings before enabling publication. The first push
-also requires GHCR packages to be associated with this repository and to have
-an intentional visibility/access policy. Neither environment protection nor
-package visibility was configured by this change.
+to `main` in repository settings before enabling publication. GHCR can
+automatically associate newly created packages with this repository when the
+first publication uses `GITHUB_TOKEN`. Existing packages must grant this
+repository Actions access. Review the intended package visibility and access
+policy before publishing; neither environment protection nor package
+visibility was configured by this change.
 
 Images:
 
@@ -45,9 +47,11 @@ helm upgrade --install radar-portal oci://ghcr.io/maomada/charts/radar-portal \
 
 Use a secret manager or existing Kubernetes Secret for credentials. Do not put
 registry credentials in chart values, runtime configuration, command arguments,
-or this repository. For private GHCR packages, configure Kubernetes
-`imagePullSecrets` in the target namespace using your approved secret process.
-Do not assume packages are public.
+or this repository. The Radar chart supports an `imagePullSecrets` value. The
+Portal chart does not; its Deployment uses the namespace default ServiceAccount.
+For private GHCR images used by Portal, have the cluster operator provision that
+ServiceAccount's `imagePullSecrets` before installation. Do not assume packages
+are public.
 
 Before any write, the workflow inspects all four versioned refs and blocks if
 one exists or if absence cannot be established. Images are copied from the

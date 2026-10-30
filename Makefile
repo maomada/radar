@@ -563,7 +563,7 @@ help:
 	@echo "Docker & In-Cluster:"
 	@echo "  make docker           - Build Docker image (local arch)"
 	@echo "  make docker-test      - Build and run with read-only filesystem (simulates in-cluster)"
-	@echo "  make docker-multiarch - Build multi-arch image (amd64+arm64), version tag only"
+	@echo "  make docker-multiarch - Build and push multi-arch image (amd64+arm64), version tag only"
 	@echo "  make docker-push      - Push to GHCR"
 	@echo ""
 	@echo "Release:"

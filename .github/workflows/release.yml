@@ -120,6 +120,12 @@ jobs:
           - component: radar-portal
             dockerfile: Dockerfile.portal
     steps:
+      - name: Check out trusted archive validator
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
       - name: Check out selected source
         uses: actions/checkout@v7
         with:
@@ -142,6 +148,11 @@ jobs:
           build-args: |
             VERSION=${{ needs.validate.outputs.version }}
             SOURCE_REVISION=${{ needs.validate.outputs.source_sha }}
+      - name: Validate archive platforms and image configs
+        env:
+          ARCHIVE: ${{ runner.temp }}/${{ matrix.component }}.oci.tar
+        run: |
+          python3 trusted/scripts/validate_oci_archive.py validate --archive "$ARCHIVE"
       - name: Record archive checksum and build metadata
         env:
           COMPONENT: ${{ matrix.component }}

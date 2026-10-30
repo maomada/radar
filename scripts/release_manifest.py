@@ -14,7 +14,11 @@ CHART_NAMES = ("radar", "radar-portal")
 
 
 def _sha256(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as archive:
+        for chunk in iter(lambda: archive.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _chart_checksums(path):
