@@ -1,9 +1,11 @@
 # In-Cluster Deployment
 
-Fork releases use the owned OCI images and charts documented in
-[`ci-cd.md`](ci-cd.md); upstream installers, update feeds, and package
-identities do not deliver fork releases. A version is usable only after the
-manual Release GHCR workflow has actually published it.
+This repository's OCI images and charts are available only for versions
+actually published by the manual workflow documented in [`ci-cd.md`](ci-cd.md).
+The CLI installer scripts and direct update checks use this repository's
+GitHub releases, and fail closed or report an unknown result when the expected
+CLI assets are unavailable. Historical package identities are retained for
+compatibility; they do not imply that package-manager releases are available.
 
 Deploy Radar to your Kubernetes cluster for shared team access.
 
@@ -131,7 +133,7 @@ If Argo CD or Flux owns Radar, change the version in Git and let the controller
 reconcile it. Running `helm upgrade` directly against a GitOps-managed release
 creates drift and the controller may revert it.
 
-Before upgrading, review the [release notes](https://github.com/skyhook-io/radar/releases)
+Before upgrading, review the [release notes](https://github.com/maomada/radar/releases)
 between your current and target versions, especially for a major-version update.
 The Radar version shown on the Home page matches the published Helm chart
 version.
@@ -334,10 +336,10 @@ other. A hostname each keeps them properly separate.
 Separately from that: a Radar per cluster gives you a view per cluster. Each
 watches only its own cluster and carries its own upgrades, ingress and auth
 config, with no cross-cluster search or combined issue list across them. If you
-want several clusters in one view, that is what
-[Radar Cloud](https://radarhq.io) is for. You still run Radar in each cluster,
-but it dials out to the control plane, so there is no per-cluster ingress to
-wire up.
+want several clusters in one view, the optional external
+[Radar Cloud](https://radarhq.io) service provides that control plane. It is
+operated outside this repository; you still run Radar in each cluster, and
+each agent dials out to the configured control-plane endpoint.
 
 ### With ingress basic authentication
 

@@ -1,6 +1,6 @@
 # Configuration
 
-This document covers Radar's cluster connection behavior. For commands and flags, see the [CLI reference](https://radarhq.io/docs/configuration/cli).
+This document covers Radar's cluster connection behavior. For commands and flags, see the [CLI flag definitions](../cmd/explorer/main.go).
 
 ## MCP exposure
 
@@ -890,13 +890,13 @@ events not fully visible**.
 
 ## Radar Cloud
 
-Radar is free and fully functional without an account. A Cloud button in the
-header offers to connect the cluster to [Radar Cloud](https://app.radarhq.io) —
-optional, and nothing else depends on it.
+Radar is fully functional without an account or Cloud connection. The optional
+[Radar Cloud](https://app.radarhq.io) service is external to this repository and
+uses its own control-plane endpoints.
 
 | Variable | Effect |
 |---|---|
-| `RADAR_CLOUD_FUNNEL=off` | Removes the Cloud button entirely. `on` forces it on. |
+| `RADAR_CLOUD_FUNNEL=off` | Opts this installation out of the optional external Cloud funnel. `on` forces it into the funnel. |
 | `RADAR_HUB_URL` | Connect to your own Radar Cloud Self-Managed control plane instead of the hosted service. |
 | `RADAR_HUB_APP_URL` | That control plane's web origin, when it differs from `RADAR_HUB_URL`. |
 
@@ -910,29 +910,23 @@ kubeconfig before these commands can run.
 
 ### What Radar sends
 
-Until you connect a cluster to Cloud, Radar makes three kinds of outbound
-request, all to Skyhook, none containing your resources, logs or events:
-
-- **Update check** — to `releases.skyhook.io`, with the Radar version, OS/arch,
-  install method, whether it is running locally or in-cluster, and the
-  installation timestamp when Radar can determine it. Radar caches the release
-  result for one hour. Development builds skip the browser relay and use
-  release-only lookups when fetching release metadata.
-- **[Anonymous usage stats](usage-stats.md)**: once a day, strictly opt-in.
-- **Cloud dialog copy** — only when you *open* the Cloud dialog, to fetch the
-  current terms shown in it. No identifiers are sent. `RADAR_CLOUD_FUNNEL=off`
-  stops this request from ever happening.
+Standalone Radar makes direct release-metadata requests to the GitHub Releases
+API for `maomada/radar`; it does not send install-method or installation-time
+metadata and does not fall back to an upstream relay. Separately, optional
+[usage reporting](usage-stats.md) sends a daily report to an external service
+only when enabled. Cloud connections use the external Radar Cloud service and
+its configured endpoints; they are not operated by this repository's
+maintainers.
 
 Disable automatic version checks with `--no-version-check`,
 `RADAR_DISABLE_VERSION_CHECK=1` (or `true`), or `"noVersionCheck": true` in
 `~/.radar/config.json`. The config setting works for both CLI and Desktop,
-including Desktop launched from Finder or the Dock. These controls stop both
-automatic release lookups and the in-cluster browser relay. Desktop's Help >
-Check for Updates remains available and makes one fresh lookup when clicked,
-including when automatic checks are disabled. It reports an available update,
-an up-to-date installation or a lookup failure, and leaves the automatic-check
-setting unchanged. `DO_NOT_TRACK` does not
-change version checks; [usage stats](usage-stats.md) are controlled separately.
+including Desktop launched from Finder or the Dock. Desktop's Help > Check for
+Updates remains available and makes a fresh lookup when clicked, even when
+automatic checks are disabled. It reports an available update, an up-to-date
+installation or a lookup failure, and leaves the automatic-check setting
+unchanged. `DO_NOT_TRACK` does not change version checks;
+[usage reporting](usage-stats.md) is controlled separately.
 
 For Helm deployments, use the chart's existing environment-variable support:
 
@@ -952,7 +946,7 @@ Deciding whether to connect is a separate question from the requests above.
 
 ## Related Documentation
 
-- [CLI reference](https://radarhq.io/docs/configuration/cli) — Commands and operator-facing flags
+- [CLI flag definitions](../cmd/explorer/main.go) — Commands and operator-facing flags
 - [In-Cluster Deployment](in-cluster.md) — Deploy Radar inside your cluster with Helm
 - [Self-hosted Radar Portal](portal.md) — Optional registry for in-cluster and local Radar instances
 - [Authentication & Authorization](authentication.md) — Proxy and OIDC auth for shared deployments

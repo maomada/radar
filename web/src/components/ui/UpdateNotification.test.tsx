@@ -12,7 +12,7 @@ vi.mock('../../api/client', () => ({
       latestVersion: '1.3.0',
       updateAvailable: true,
       installMethod: 'direct',
-      releaseUrl: 'https://github.com/skyhook-io/radar/releases/tag/v1.3.0',
+      releaseUrl: 'https://github.com/maomada/radar/releases/tag/v1.3.0',
     },
   }),
   useStartDesktopUpdate: () => ({ mutate: vi.fn(), isPending: false }),

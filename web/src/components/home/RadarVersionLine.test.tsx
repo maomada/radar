@@ -8,7 +8,7 @@ const version: VersionInfo = {
   latestVersion: '1.3.0',
   updateAvailable: true,
   installMethod: 'direct',
-  releaseUrl: 'https://github.com/skyhook-io/radar/releases/tag/v1.3.0',
+  releaseUrl: 'https://github.com/maomada/radar/releases/tag/v1.3.0',
 }
 
 describe('RadarVersionLine', () => {
@@ -68,7 +68,7 @@ describe('RadarVersionLine', () => {
 
   it('opens actionable upgrade instructions when the installation manager is unknown', () => {
     const html = renderToString(<RadarVersionLine version={version} />)
-    expect(html).toContain('https://radarhq.io/docs/configuration/in-cluster')
+    expect(html).toContain('https://github.com/maomada/radar/blob/main/docs/in-cluster.md')
     expect(html).not.toContain('#upgrading')
     expect(html).toContain('Open the in-cluster upgrade instructions')
     expect(html).not.toContain(version.releaseUrl)
@@ -99,7 +99,7 @@ describe('RadarVersionLine', () => {
         manager={{ ownership: 'helm', namespace: 'radar-system', release: 'radar' }}
       />,
     )
-    expect(html).toContain('https://radarhq.io/docs/configuration/in-cluster')
+    expect(html).toContain('https://github.com/maomada/radar/blob/main/docs/in-cluster.md')
     expect(html).toContain('Managed by Helm release radar-system/radar')
     expect(html).toContain('Open the in-cluster upgrade instructions')
     expect(html).not.toContain('Open the release to upgrade')
@@ -137,7 +137,7 @@ describe('RadarVersionLine', () => {
         manager={{ ownership: 'gitops', controller: 'Kustomization flux-system/radar', controllerRef }}
       />,
     )
-    expect(html).toContain('https://radarhq.io/docs/configuration/in-cluster')
+    expect(html).toContain('https://github.com/maomada/radar/blob/main/docs/in-cluster.md')
     expect(html).toContain('Managed by Kustomization flux-system/radar')
     expect(html).toContain('Open the in-cluster upgrade instructions and apply the change through GitOps')
     expect(html).not.toContain('Open it to upgrade through GitOps')

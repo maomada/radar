@@ -469,24 +469,22 @@ Or add to `~/.gemini/settings.json`:
 
 Any other MCP client that supports the Streamable HTTP transport can connect to the same endpoint.
 
-## MCP Registry / Docker
+## Container use
 
-Radar is listed on the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.skyhook-io/radar`, packaged as the `ghcr.io/skyhook-io/radar` Docker image. The registry-suggested invocation is:
+This repository does not currently publish a separate MCP registry entry or
+CLI release archives. The older `io.github.skyhook-io/radar` registry identity
+and `ghcr.io/skyhook-io/radar` image belong to the upstream project; they are
+not releases of this independently maintained repository. Use a locally built
+Radar binary or an owned OCI image only after it has been published as
+described in [CI/CD](ci-cd.md).
 
-```bash
-docker run -p 127.0.0.1:9280:9280 \
-  -v ~/.kube/config:/kubeconfig:ro \
-  -e KUBECONFIG=/kubeconfig \
-  ghcr.io/skyhook-io/radar:latest
-```
-
-**Prefer the native install** (`brew install skyhook-io/tap/radar`, krew, or the install script — see the [README](../README.md)) — it uses your kubeconfig exactly as kubectl does. The Docker path has real limitations because the image is distroless (no shell, no cloud CLIs):
+When using a compatible distroless Radar image, note these limitations:
 
 - **Exec-plugin auth does not work.** Kubeconfigs for GKE/EKS/AKS typically call `gke-gcloud-auth-plugin`, `aws eks get-token`, or `kubelogin` — none exist inside the container. Only kubeconfigs with embedded certificates or static tokens work.
 - **Local clusters are unreachable.** kind/minikube/Docker Desktop API servers listen on the host's `127.0.0.1`, which inside the container is the container itself.
 - **File ownership matters.** On Linux hosts a `0600` kubeconfig owned by your user is unreadable by the container's `nonroot` (uid 65532) user.
 
-The Docker image's primary use is [in-cluster deployment](in-cluster.md) with a ServiceAccount, where none of these apply.
+An in-cluster deployment uses a ServiceAccount and avoids these local kubeconfig limitations; see [in-cluster deployment](in-cluster.md).
 
 ## Crossplane pause context
 

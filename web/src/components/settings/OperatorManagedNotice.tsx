@@ -9,7 +9,7 @@ export function OperatorManagedNotice({ helmValue }: { helmValue?: string }) {
         <p className="mt-1 text-xs text-theme-text-secondary">
           To change these settings, ask your operator to update {helmValue ? <><code className="font-mono">{helmValue}</code> in </> : null}
           Radar’s Helm values or startup configuration.
-          {' '}<a className="text-accent hover:underline" href="https://github.com/skyhook-io/radar/blob/main/docs/in-cluster.md#installation-settings" target="_blank" rel="noreferrer">Configuration guide</a>
+          {' '}<a className="text-accent hover:underline" href="https://github.com/maomada/radar/blob/main/docs/in-cluster.md#installation-settings" target="_blank" rel="noreferrer">Configuration guide</a>
         </p>
       </div>
     </div>

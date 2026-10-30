@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	releasesURL = "https://releases.skyhook.io/radar/latest"
-	githubURL   = "https://api.github.com/repos/skyhook-io/radar/releases/latest"
+	releasesURL = ""
+	githubURL   = "https://api.github.com/repos/maomada/radar/releases/latest"
 
 	// Current is the current version of Radar, set at build time
 	Current = "dev"
@@ -115,8 +115,7 @@ func LocalInstalledAt() int64 {
 }
 
 // IsDevelopmentBuild reports whether this is an unreleased build (source,
-// git-describe, or "dev"). Such builds must never send usage reports: their
-// installs are Skyhook's own and would pollute the data.
+// git-describe, or "dev"). Such builds must never send usage reports.
 func IsDevelopmentBuild() bool {
 	return buildChannel(Current) == buildChannelDevelopment
 }
@@ -143,7 +142,7 @@ func IsDisabled() bool {
 	return false
 }
 
-const defaultReleasesURL = "https://github.com/skyhook-io/radar/releases"
+const defaultReleasesURL = "https://github.com/maomada/radar/releases"
 
 func disabledUpdateInfo() *UpdateInfo {
 	mu.Lock()
@@ -202,7 +201,7 @@ func CheckForUpdateManual(ctx context.Context) *UpdateInfo {
 }
 
 func RelayUpdateCheck(ctx context.Context) error {
-	if IsDisabled() || buildChannel(Current) == buildChannelDevelopment {
+	if releasesURL == "" || IsDisabled() || buildChannel(Current) == buildChannelDevelopment {
 		return nil
 	}
 
@@ -301,27 +300,30 @@ func fetchLatestRelease(ctx context.Context, options checkOptions) *UpdateInfo {
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	mode := "local"
-	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-		mode = "in-cluster"
+	requestURL := githubURL
+	if releasesURL != "" {
+		mode := "local"
+		if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+			mode = "in-cluster"
+		}
+		params := url.Values{
+			"v":       {Current},
+			"os":      {runtime.GOOS},
+			"arch":    {runtime.GOARCH},
+			"method":  {string(method)},
+			"mode":    {mode},
+			"channel": {string(buildChannel(Current))},
+		}
+		if installedAt := installTimestamp(ctx, mode); installedAt != 0 {
+			params.Set("t", strconv.FormatInt(installedAt, 10))
+		}
+		if options.source != "" {
+			params.Set("source", options.source)
+		}
+		requestURL = fmt.Sprintf("%s?%s", releasesURL, params.Encode())
 	}
-	params := url.Values{
-		"v":       {Current},
-		"os":      {runtime.GOOS},
-		"arch":    {runtime.GOARCH},
-		"method":  {string(method)},
-		"mode":    {mode},
-		"channel": {string(buildChannel(Current))},
-	}
-	if installedAt := installTimestamp(ctx, mode); installedAt != 0 {
-		params.Set("t", strconv.FormatInt(installedAt, 10))
-	}
-	if options.source != "" {
-		params.Set("source", options.source)
-	}
-	proxyURL := fmt.Sprintf("%s?%s", releasesURL, params.Encode())
 
-	req, err := http.NewRequestWithContext(ctx, "GET", proxyURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to create request: %v", err)
 		log.Printf("[version] %s", result.Error)
@@ -330,7 +332,7 @@ func fetchLatestRelease(ctx context.Context, options checkOptions) *UpdateInfo {
 	req.Header.Set("User-Agent", fmt.Sprintf("radar/%s", Current))
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if releasesURL != "" && (err != nil || resp.StatusCode != http.StatusOK) {
 		// Fallback to GitHub directly
 		if resp != nil {
 			resp.Body.Close()
@@ -344,11 +346,11 @@ func fetchLatestRelease(ctx context.Context, options checkOptions) *UpdateInfo {
 		}
 		req2.Header.Set("User-Agent", fmt.Sprintf("radar/%s", Current))
 		resp, err = client.Do(req2)
-		if err != nil {
-			result.Error = fmt.Sprintf("failed to check for updates: %v", err)
-			log.Printf("[version] %s", result.Error)
-			return result
-		}
+	}
+	if err != nil {
+		result.Error = fmt.Sprintf("failed to check for updates: %v", err)
+		log.Printf("[version] %s", result.Error)
+		return result
 	}
 	defer resp.Body.Close()
 
@@ -596,15 +598,15 @@ func getUpdateCommandForOS(method InstallMethod, goos, exe string) string {
 	case InstallHomebrew:
 		return homebrewUpgradeCommand(exe)
 	case InstallKrew:
-		return "kubectl krew upgrade radar"
+		return ""
 	case InstallScoop:
-		return "scoop update radar"
+		return ""
 	case InstallDirect:
 		switch goos {
 		case "darwin", "linux":
-			return "curl -fsSL https://get.radarhq.io | sh"
+			return "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh"
 		case "windows":
-			return "irm https://get.radarhq.io/install.ps1 | iex"
+			return "irm https://raw.githubusercontent.com/maomada/radar/main/install.ps1 | iex"
 		default:
 			return ""
 		}
@@ -615,14 +617,8 @@ func getUpdateCommandForOS(method InstallMethod, goos, exe string) string {
 	}
 }
 
-// homebrewUpgradeCommand names the formula that installed exe. Radar ships in
-// homebrew-core as kubectl-radar and in the skyhook-io tap as radar; the Cellar
-// directory in the resolved path tells them apart. Paths without a Cellar
-// directory fall back to the tap formula.
-func homebrewUpgradeCommand(exe string) string {
-	path := strings.ToLower(filepath.ToSlash(exe))
-	if strings.Contains(path, "/cellar/kubectl-radar/") {
-		return "brew upgrade kubectl-radar"
-	}
-	return "brew upgrade skyhook-io/tap/radar"
+// No Homebrew formula distributes this derivative; an upstream upgrade would
+// replace it with a different application.
+func homebrewUpgradeCommand(_ string) string {
+	return ""
 }

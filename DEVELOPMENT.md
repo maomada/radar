@@ -12,7 +12,7 @@ Guide for developers contributing to Radar or building custom versions.
 ## Quick Start
 
 ```bash
-git clone https://github.com/skyhook-io/radar.git
+git clone https://github.com/maomada/radar.git
 cd radar
 
 # Install dependencies
@@ -141,7 +141,7 @@ radar/
 
 ## API Reference
 
-See the operator-facing [HTTP API reference](https://radarhq.io/docs/reference/api). Route definitions in [`internal/server/server.go`](internal/server/server.go) remain the source of truth when adding or changing an endpoint.
+See the route definitions in [`internal/server/server.go`](internal/server/server.go) for the operator-facing HTTP API. They remain the source of truth when adding or changing an endpoint.
 
 ## Adding Features
 
@@ -187,35 +187,19 @@ make watch-frontend  # Terminal 2
 
 ## Releasing
 
-```bash
-# Interactive release (prompts for version and targets)
-make release
+Distribution is intentionally manual and guarded. Main and pull-request CI
+build and test; they do not publish artifacts. The complete source-SHA,
+version, CI/CodeQL, dry-run, approval, and GHCR process is documented in
+[`docs/ci-cd.md`](docs/ci-cd.md). Do not create release tags or dispatch a
+publishing workflow as part of ordinary development.
 
-# Dry-run goreleaser (local test, no publish)
-make release-binaries-dry
-```
+Builds from this checkout are available with `make build VERSION=dev` and
+`make portal VERSION=dev`. An owned CLI release or OCI chart should be
+described as available only after its publication has been verified.
 
-| Target | Command | Output |
-|--------|---------|--------|
-| All | `make release` | Interactive — runs `scripts/release.sh` |
-| Dry run | `make release-binaries-dry` | Local goreleaser snapshot (no publish) |
-| Docker | `make docker-multiarch` | Multi-arch Docker image build |
-
-### Prerequisites for Releasing
-
-| Target | Requirements |
-|--------|--------------|
-| CLI binaries | `goreleaser`, `GITHUB_TOKEN` or `gh auth login` |
-| Docker | Docker running, GHCR auth (`docker login ghcr.io`) |
-
-### Release Checklist
-
-1. Ensure tests pass: `make test`
-1. For a minor or major release (`vX.Y.0`), add its What's New entry to `web/src/components/whats-new/releaseNotes.ts` and merge it first. Lead with the highlight most users will care about; give highlights that open a feature a `path` and `cta`. Preview with `?whats-new=vX.Y.0` on a local build. `scripts/check-whats-new.sh` enforces this: `make release` refuses to tag without the entry, and the release workflows fail before building. Patch releases need no entry.
-2. Tag the release: `git tag v0.X.Y && git push origin v0.X.Y`
-3. Run release: `make release`
-
-The `helm` job in `.github/workflows/release.yml` rewrites the chart's `version` / `appVersion` / image-tag annotation to match the release tag and pushes the chart to `skyhook-io/helm-charts`. No manual chart edit is needed; in fact, hand-edited values in `deploy/helm/radar/Chart.yaml` will be overwritten — which is why those fields sit at the `0.0.0-dev` placeholder on `main`. The job fails fast if `radar-<version>` is already tagged in helm-charts — bump the release version higher in that case.
+The Go module path and npm package names retain their historical compatibility
+identifiers; they do not imply ownership of the original upstream project or
+availability of package-manager releases.
 
 ## Code Style
 

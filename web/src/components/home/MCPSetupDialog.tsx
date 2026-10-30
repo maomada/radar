@@ -334,7 +334,7 @@ export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false, execTo
                 <code className="inline-code">exec_pod</code> is disabled. The Radar operator can enable
                 container commands by restarting with <code className="inline-code">--mcp-exec-tools</code>{' '}
                 and without <code className="inline-code">--disable-exec</code>. See{' '}
-                <a href="https://github.com/skyhook-io/radar/blob/main/docs/mcp.md#exec_pod"
+                <a href="https://github.com/maomada/radar/blob/main/docs/mcp.md#exec_pod"
                   target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
                   configuration options
                 </a>{' '}for Desktop and Helm. Kubernetes permissions still apply.
@@ -375,7 +375,7 @@ export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false, execTo
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-theme-border/50 shrink-0">
           <a
-            href="https://github.com/skyhook-io/radar/blob/main/docs/mcp.md"
+            href="https://github.com/maomada/radar/blob/main/docs/mcp.md"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-theme-text-tertiary hover:text-purple-400 transition-colors"
