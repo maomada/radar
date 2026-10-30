@@ -15,7 +15,7 @@
     "companyName": "maomada",
     "productName": "Radar",
     "productVersion": "0.0.0",
-    "copyright": "Originally created by Skyhook; see NOTICE.",
+    "copyright": "Copyright Skyhook. All rights reserved. Modifications maintained by maomada; see NOTICE.",
     "comments": "Kubernetes Visibility Tool"
   }
 }

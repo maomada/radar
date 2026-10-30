@@ -569,8 +569,6 @@ Questions or ideas? Open an [issue](https://github.com/maomada/radar/issues).
 
 ---
 
----
-
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE)

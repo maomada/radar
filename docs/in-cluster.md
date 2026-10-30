@@ -3,8 +3,8 @@
 This repository's OCI images and charts are available only for versions
 actually published by the manual workflow documented in [`ci-cd.md`](ci-cd.md).
 The CLI installer scripts and direct update checks use this repository's
-GitHub releases, and fail closed or report an unknown result when the expected
-CLI assets are unavailable. Historical package identities are retained for
+GitHub releases. An unreadable release lookup reports an error; the installer
+fails if the required CLI archive or checksum is missing. Historical package identities are retained for
 compatibility; they do not imply that package-manager releases are available.
 
 Deploy Radar to your Kubernetes cluster for shared team access.

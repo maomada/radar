@@ -896,7 +896,7 @@ uses its own control-plane endpoints.
 
 | Variable | Effect |
 |---|---|
-| `RADAR_CLOUD_FUNNEL=off` | Opts this installation out of the optional external Cloud funnel. `on` forces it into the funnel. |
+| `RADAR_CLOUD_FUNNEL=off` | Disables the inherited Cloud funnel. This distribution does not render its promotional header button, even when set to `on`. |
 | `RADAR_HUB_URL` | Connect to your own Radar Cloud Self-Managed control plane instead of the hosted service. |
 | `RADAR_HUB_APP_URL` | That control plane's web origin, when it differs from `RADAR_HUB_URL`. |
 

@@ -3,8 +3,9 @@
 Images and charts for this repository are published only by the manual
 workflow documented in [`docs/ci-cd.md`](../../../docs/ci-cd.md); this source
 checkout does not imply any version has been published. CLI installers and
-direct update checks use this repository's GitHub releases and fail closed or
-report unknown when the expected CLI assets are missing. Package-manager
+direct update checks use this repository's GitHub releases. An unreadable
+release lookup reports an error; the installer fails if its CLI archive or
+checksum is missing. Package-manager
 identifiers remain compatibility names, not a claim that those feeds provide
 this project's releases.
 

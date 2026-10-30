@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Use [GitHub's private vulnerability reporting](https://github.com/maomada/radar/security/advisories/new) for this repository.
+Use [GitHub's private vulnerability reporting](https://github.com/maomada/radar/security/advisories/new) when the maintainer has enabled it. If unavailable, ask the maintainer to establish a private reporting channel before sharing any vulnerability details. Do not post sensitive details in public issues or send reports about this derivative to upstream maintainers.
 
 Include as much of the following information as possible:
 
