@@ -38,7 +38,7 @@ describe('NodeRenderer metrics', () => {
     expect(html).toContain('Radar 无法读取 metrics.k8s.io')
     expect(html).toContain('指标错误详情')
     expect(html).not.toContain('Install or repair metrics-server and its APIService')
-    expect(html).not.toContain('指标收集错误：')
+    expect(html).not.toContain('指标采集错误：')
     expect(html).not.toContain('正在收集指标数据')
   })
 
