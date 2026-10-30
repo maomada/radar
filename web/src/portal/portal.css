@@ -1,0 +1,33 @@
+@import 'tailwindcss' source(none);
+@source './';
+@source '../../../packages/k8s-ui/src/components/ui/Badge.tsx';
+@variant dark (&:where(.dark, .dark *));
+@import '@skyhook-io/k8s-ui/theme/variables.css';
+@import '@skyhook-io/k8s-ui/theme/tailwind-theme.css';
+@import '@skyhook-io/k8s-ui/theme/components.css';
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource/dm-mono';
+
+:root { font-family: 'DM Sans Variable', system-ui, sans-serif; }
+body { margin: 0; background: var(--bg-base); color: var(--text-primary); }
+button, a, input, select { outline-offset: 4px; }
+button:not(:disabled), select { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .65; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--color-brand);
+}
+.portal-control {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+.portal-control:hover { background: var(--bg-hover); }
+.portal-search { padding-left: 2.5rem; }
+.portal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+}
+.portal-mono { font-family: 'DM Mono', monospace; }

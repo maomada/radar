@@ -1,0 +1,45 @@
+FROM node:24-alpine AS frontend-builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY web/package*.json ./web/
+COPY packages/k8s-ui/package*.json ./packages/k8s-ui/
+RUN npm ci --prefer-offline --no-audit
+
+COPY web/ ./web/
+COPY packages/k8s-ui/ ./packages/k8s-ui/
+COPY internal/portalui/ ./internal/portalui/
+RUN cd web && npx vite build --config vite.portal.config.ts
+
+FROM golang:1.26-alpine AS backend-builder
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+COPY pkg/ pkg/
+RUN go mod download
+
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY --from=frontend-builder /app/internal/portalui/dist/ internal/portalui/dist/
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags "-s -w" -o /radar-portal ./cmd/radar-portal
+
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="Radar Portal"
+LABEL org.opencontainers.image.description="Independent, self-hosted directory for registered Radar clusters"
+LABEL org.opencontainers.image.source="https://github.com/skyhook-io/radar"
+LABEL org.opencontainers.image.vendor="Skyhook"
+
+COPY --from=backend-builder /radar-portal /radar-portal
+
+EXPOSE 9290
+USER nonroot:nonroot
+ENTRYPOINT ["/radar-portal"]

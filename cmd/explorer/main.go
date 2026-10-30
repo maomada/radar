@@ -573,6 +573,7 @@ func main() {
 
 	rootCtx, rootCancel := startServer(srv, startupStart)
 	defer rootCancel()
+	app.StartPortalReporter(rootCtx, cfg)
 
 	// Open browser — server is confirmed ready to accept connections
 	if !cfg.NoBrowser {

@@ -4,6 +4,40 @@
 {{- if and (eq .Values.timeline.storage "postgres") (not .Values.timeline.postgres.existingSecret) }}
 {{- fail "timeline.postgres.existingSecret is required when timeline.storage=postgres" }}
 {{- end }}
+{{- $portal := .Values.portalRegistration -}}
+{{- if $portal.enabled }}
+{{- if .Values.cloud.enabled }}
+{{- fail "portalRegistration.enabled cannot be combined with cloud.enabled" }}
+{{- end }}
+{{- range $key := list "url" "clusterId" "clusterName" "radarUrl" "existingSecret" "tokenKey" }}
+{{- if empty (get $portal $key) }}
+{{- fail (printf "portalRegistration.%s is required when portalRegistration.enabled=true" $key) }}
+{{- end }}
+{{- end }}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9-]{0,62}$" (toString $portal.clusterId)) }}
+{{- fail "portalRegistration.clusterId must match [a-z0-9][a-z0-9-]{0,62}" }}
+{{- end }}
+{{- range $key := list "url" "radarUrl" }}
+{{- $rawURL := toString (get $portal $key) }}
+{{- $url := urlParse $rawURL }}
+{{- if or (not (has $url.scheme (list "http" "https"))) (not $url.host) $url.userinfo $url.query $url.fragment (contains "?" $rawURL) (contains "#" $rawURL) }}
+{{- fail (printf "portalRegistration.%s must be an absolute HTTP(S) URL without credentials, query, or fragment" $key) }}
+{{- end }}
+{{- if and (eq $key "url") (not (has $url.path (list "" "/"))) }}
+{{- fail "portalRegistration.url must be root-hosted; Portal subpath hosting is unsupported" }}
+{{- end }}
+{{- if and (eq $key "url") (eq $url.scheme "http") (not $portal.allowHTTP) }}
+{{- fail "portalRegistration.url must use HTTPS unless portalRegistration.allowHTTP=true" }}
+{{- end }}
+{{- end }}
+{{- if $portal.mcpBaseUrl }}
+{{- $rawMCPBaseURL := toString $portal.mcpBaseUrl }}
+{{- $mcpBaseURL := urlParse $rawMCPBaseURL }}
+{{- if or (not (has $mcpBaseURL.scheme (list "http" "https"))) (not $mcpBaseURL.host) $mcpBaseURL.userinfo $mcpBaseURL.query $mcpBaseURL.fragment (contains "?" $rawMCPBaseURL) (contains "#" $rawMCPBaseURL) }}
+{{- fail "portalRegistration.mcpBaseUrl must be an absolute HTTP(S) URL without credentials, query, or fragment" }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- $basePath := include "radar.basePath" . -}}
 {{- $enroll := include "radar.cloudEnrollmentMode" . | eq "true" -}}
 {{- $cloudCA := and $enroll (not (empty .Values.cloud.caBundle)) -}}
@@ -345,6 +379,35 @@ spec:
               {{- else }}
               value: {{ .Values.auth.oidc.clientSecret | quote }}
               {{- end }}
+            {{- end }}
+            {{- if $portal.enabled }}
+            - name: RADAR_PORTAL_URL
+              value: {{ $portal.url | quote }}
+            - name: RADAR_PORTAL_CLUSTER_ID
+              value: {{ $portal.clusterId | quote }}
+            - name: RADAR_PORTAL_CLUSTER_NAME
+              value: {{ $portal.clusterName | quote }}
+            - name: RADAR_PORTAL_DESCRIPTION
+              value: {{ $portal.description | quote }}
+            - name: RADAR_PORTAL_ENVIRONMENT
+              value: {{ $portal.environment | quote }}
+            - name: RADAR_PORTAL_REGION
+              value: {{ $portal.region | quote }}
+            - name: RADAR_PORTAL_RADAR_URL
+              value: {{ $portal.radarUrl | quote }}
+            {{- if $portal.mcpBaseUrl }}
+            - name: RADAR_PORTAL_MCP_BASE_URL
+              value: {{ $portal.mcpBaseUrl | quote }}
+            {{- end }}
+            {{- if $portal.allowHTTP }}
+            - name: RADAR_PORTAL_ALLOW_HTTP
+              value: "true"
+            {{- end }}
+            - name: RADAR_PORTAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $portal.existingSecret }}
+                  key: {{ $portal.tokenKey }}
             {{- end }}
             - name: HELM_CACHE_HOME
               value: "/tmp/helm/cache"

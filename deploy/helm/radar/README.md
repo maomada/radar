@@ -452,6 +452,18 @@ trend charts remain unavailable for Kubecost.
 | `argocd.token` | Inline Argo CD API token (dev only — lands in the release state) | `""` |
 | `argocd.url` | Explicit `argocd-server` URL; blank auto-discovers in-cluster | `""` |
 | `argocd.insecureTls` | Skip TLS verification for a self-signed `argocd-server` | `false` |
+| `portalRegistration.enabled` | Opt in to outbound registration with a self-hosted Portal | `false` |
+| `portalRegistration.url` | Root-hosted Portal base URL; Portal subpath hosting is unsupported | `""` |
+| `portalRegistration.clusterId` | Stable ID for this Radar instance, bound to its Portal token | `""` |
+| `portalRegistration.clusterName` | Stable operator-chosen display name for this Radar instance | `""` |
+| `portalRegistration.description` | Optional cluster description | `""` |
+| `portalRegistration.environment` | Optional environment label | `""` |
+| `portalRegistration.region` | Optional region label | `""` |
+| `portalRegistration.radarUrl` | Public Radar URL, including any path prefix | `""` |
+| `portalRegistration.mcpBaseUrl` | Optional public MCP base URL; defaults to `radarUrl` | `""` |
+| `portalRegistration.allowHTTP` | Allow an HTTP Portal URL for isolated/trusted networks; TLS verification remains enabled | `false` |
+| `portalRegistration.existingSecret` | Name of a Secret containing this Radar's registration token | `""` |
+| `portalRegistration.tokenKey` | Key within `portalRegistration.existingSecret` holding the token | `token` |
 | `mcp.execTools` | Opt in to `exec_pod` (`--mcp-exec-tools`); requires exec access. With auth off, every reachable client shares Radar’s ServiceAccount permissions. Ignored with `--disable-exec` or `--mcp-read-only` | `false` |
 | `usageReporting.enabled` | Anonymous daily usage stats: views, actions and MCP tools used, plus this cluster's version, platform, node-count range and known integrations. Off unless `true`; Radar never asks in a cluster ([what is sent](https://radarhq.io/docs/configuration/usage-stats)) | unset |
 | `resources.requests.cpu` | CPU request | `200m` |
@@ -460,6 +472,12 @@ trend charts remain unavailable for Kubecost.
 | `resources.limits.memory` | Memory limit. Radar sets `GOMEMLIMIT` to 85% of the container's cgroup limit at startup, so the GC collects harder as it approaches the limit; set `GOMEMLIMIT` under `env` to override | `1Gi` |
 
 See `values.yaml` for all configuration options.
+
+Portal reporter configuration, required fields, TLS behavior, and the separate
+Portal chart are described in the [self-hosted Portal guide](../../../docs/portal.md).
+The configured instance ID/name remain stable when Radar's selected kube
+context changes; the Portal also reports the current context and Kubernetes
+cluster name.
 
 ### Installation-owned settings (OSS)
 

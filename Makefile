@@ -1,4 +1,4 @@
-.PHONY: build install clean dev frontend backend test test-e2e test-chart lint help restart restart-fe kill watch-backend watch-frontend loadtest
+.PHONY: build install clean dev frontend backend portal test test-e2e test-chart lint help restart restart-fe kill watch-backend watch-frontend loadtest
 .PHONY: calico-demo calico-demo-down calico-demo-status
 .PHONY: kueue-demo kueue-demo-down kueue-demo-status kueue-demo-verify
 .PHONY: cilium-demo cilium-demo-down cilium-demo-status
@@ -68,6 +68,14 @@ install: build
 backend:
 	@echo "Building Go backend..."
 	go build -ldflags "$(LDFLAGS)" -o radar ./cmd/explorer
+
+# Build the independent portal frontend and executable.
+portal:
+	@echo "Building portal frontend and executable..."
+	@test -f node_modules/typescript-7/bin/tsc || (echo "Installing npm dependencies..." && npm ci --prefer-offline --no-audit)
+	cd web && npx vite build --config vite.portal.config.ts
+	@touch internal/portalui/dist/.gitkeep
+	go build -ldflags "$(LDFLAGS)" -o radar-portal ./cmd/radar-portal
 
 # Build frontend (auto-installs deps if needed)
 frontend:

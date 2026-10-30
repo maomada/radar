@@ -12,6 +12,7 @@
 set -euo pipefail
 
 CHART_DIR="$(cd "$(dirname "$0")/.." && pwd)/deploy/helm/radar"
+PORTAL_CHART_DIR="$(cd "$(dirname "$0")/.." && pwd)/deploy/helm/radar-portal"
 FAIL=0
 CASE=""
 
@@ -39,6 +40,18 @@ render() {
   CASE="$1"; shift
   echo "  Case: $CASE"
   OUT=$(helm template radar "$CHART_DIR" "$@" 2>&1) || {
+    fail "helm template failed"
+    echo "$OUT" | sed 's/^/      /'
+    return
+  }
+}
+
+render_portal() {
+  CASE="$1"; shift
+  echo "  Case: $CASE"
+  OUT=$(helm template radar-portal "$PORTAL_CHART_DIR" \
+    --set image.repository=example.test/radar-portal \
+    --set existingSecret=portal-auth "$@" 2>&1) || {
     fail "helm template failed"
     echo "$OUT" | sed 's/^/      /'
     return
@@ -437,6 +450,90 @@ echo
 render "OSS mode (cloud disabled): no cloud RBAC at all"
 assert_not_contains 'name: radar-cluster-read$'                 "no cluster-read outside cloud mode"
 assert_not_contains 'name: radar-cloud-viewer-cluster-read$'    "no tier bindings outside cloud mode"
+echo
+
+render "Portal registration defaults off"
+assert_not_contains 'name: RADAR_PORTAL_' "no Portal reporter environment variables"
+echo
+
+render "Portal registration uses a Secret-backed token" \
+  --set portalRegistration.enabled=true \
+  --set portalRegistration.url=https://portal.example.test \
+  --set portalRegistration.clusterId=prod-east \
+  --set portalRegistration.clusterName=Production-east \
+  --set portalRegistration.radarUrl=https://radar.example.test \
+  --set portalRegistration.existingSecret=radar-east-portal \
+  --set portalRegistration.tokenKey=token
+assert_contains 'name: RADAR_PORTAL_URL' "Portal URL is configured"
+assert_contains 'name: RADAR_PORTAL_CLUSTER_ID' "Portal instance ID is configured"
+assert_contains 'name: RADAR_PORTAL_TOKEN' "Portal token environment variable is configured"
+assert_contains 'secretKeyRef:' "Portal registration token comes from a Secret"
+assert_contains 'name: radar-east-portal$' "Portal registration Secret is referenced"
+assert_contains 'key: token$' "Portal registration token key is referenced"
+echo
+
+if helm template radar "$CHART_DIR" --set portalRegistration.enabled=true >/dev/null 2>&1; then
+  fail "Portal registration without required settings should fail"
+else
+  pass "Portal registration without required settings fails"
+fi
+echo
+
+if helm template radar "$CHART_DIR" \
+  --set portalRegistration.enabled=true \
+  --set portalRegistration.url=https://portal.example.test \
+  --set portalRegistration.clusterId=prod-east \
+  --set portalRegistration.clusterName=Production-east \
+  --set portalRegistration.radarUrl=https://radar.example.test \
+  --set portalRegistration.existingSecret=radar-east-portal \
+  --set portalRegistration.tokenKey=token \
+  --set cloud.enabled=true >/dev/null 2>&1; then
+  fail "Portal registration with Cloud enabled should fail"
+else
+  pass "Portal registration conflicts with Cloud"
+fi
+echo
+
+if helm template radar "$CHART_DIR" \
+  --set portalRegistration.enabled=true \
+  --set portalRegistration.url=https://portal.example.test/portal \
+  --set portalRegistration.clusterId=prod-east \
+  --set portalRegistration.clusterName=Production-east \
+  --set portalRegistration.radarUrl=https://radar.example.test \
+  --set portalRegistration.existingSecret=radar-east-portal \
+  --set portalRegistration.tokenKey=token >/dev/null 2>&1; then
+  fail "Portal subpath URL should fail"
+else
+  pass "Portal subpath URL is rejected"
+fi
+echo
+
+render_portal "Portal has one writer, Secret credentials, PVC, and root ingress" \
+  --set ingress.enabled=true \
+  --set ingress.tls[0].secretName=portal-tls \
+  --set ingress.tls[0].hosts[0]=portal.example.test
+assert_contains 'replicas: 1' "Portal has exactly one replica"
+assert_contains 'type: Recreate' "Portal uses a single-writer Recreate strategy"
+assert_contains 'automountServiceAccountToken: false' "Portal Pod has no ServiceAccount token"
+assert_contains 'kind: PersistentVolumeClaim' "Portal registry has a PVC"
+assert_contains 'name: portal-auth' "Portal credentials use the existing Secret"
+assert_contains 'key: tokens' "Portal token map uses the tokens Secret key"
+assert_contains 'key: username' "Portal viewer username uses the Secret"
+assert_contains 'key: password' "Portal viewer password uses the Secret"
+assert_contains 'path: /$' "Portal ingress is rooted at /"
+assert_contains 'pathType: Prefix' "Portal ingress matches root descendants"
+echo
+
+if helm template radar-portal "$PORTAL_CHART_DIR" \
+  --set image.repository=example.test/radar-portal \
+  --set existingSecret=portal-auth \
+  --set ingress.enabled=true \
+  --set ingress.tls[0].secretName=portal-tls \
+  --set-string ingress.hosts[0].paths[0].path=/portal >/dev/null 2>&1; then
+  fail "Portal subpath ingress should fail"
+else
+  pass "Portal subpath ingress is rejected"
+fi
 echo
 
 if [[ $FAIL -eq 0 ]]; then
