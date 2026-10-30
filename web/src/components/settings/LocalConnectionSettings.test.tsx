@@ -70,8 +70,8 @@ describe('Local saved connections', () => {
     }
     const notice = () => renderToStaticMarkup(<PreviousIntegrationSettingsNotice profiles={profiles} onNavigate={vi.fn()} onDismissed={vi.fn()} />)
     const html = notice()
-    expect(html).toContain('now saved per cluster')
-    expect(html).toContain('Review Metrics')
+    expect(html).toContain('集成设置现按集群保存')
+    expect(html).toContain('查看 Metrics')
     expect(html).not.toContain('Review Argo CD')
     expect(html).not.toContain('Review Cost')
     profiles.metrics.legacy = { ...legacy, noticeDismissed: true }
@@ -88,27 +88,27 @@ describe('Local saved connections', () => {
         'launch',
         'target_changed'
       ] as const) {
-        expect(render({ state }, kind)).not.toContain('Reload')
+        expect(render({ state }, kind)).not.toContain('重新加载')
       }
     }
   )
   it('keeps first setup a form, with no mandatory name or assignment step', () => {
     const html = render({})
-    expect(html).toContain('Save changes')
-    expect(html).toContain('Add header')
-    expect(html).not.toContain('Copy settings from')
-    expect(html).toContain('Cluster settings identity')
+    expect(html).toContain('保存更改')
+    expect(html).toContain('添加请求头')
+    expect(html).not.toContain('复制设置自')
+    expect(html).toContain('集群设置身份')
   })
   it('names common compatible backends without claiming an exhaustive list', () => {
     const html = render({ headerKeys: ['Authorization', 'X-Scope-OrgID'] })
     expect(html).toContain(
-      'such as Prometheus, VictoriaMetrics, Thanos or Grafana Mimir'
+      '例如 Prometheus、VictoriaMetrics、Thanos 或 Grafana Mimir'
     )
-    expect(html).toContain('Authentication headers')
-    expect(html).toContain('Authorization value')
-    expect(html).toContain('X-Scope-OrgID value')
-    expect(html).toContain('Saved value')
-    expect(html).not.toContain('Edit headers')
+    expect(html).toContain('身份验证请求头')
+    expect(html).toContain('Authorization的值')
+    expect(html).toContain('X-Scope-OrgID的值')
+    expect(html).toContain('已保存的值')
+    expect(html).not.toContain('修改请求头')
     expect(html).not.toContain('<select')
   })
   it('offers previous settings as a copy source and never activates them by default', () => {
@@ -126,7 +126,7 @@ describe('Local saved connections', () => {
         noticeDismissed: true
       }
     })
-    expect(html).toContain('Copy settings from…')
+    expect(html).toContain('复制设置自…')
     expect(html).not.toContain('https://legacy')
   })
   it('keeps launch overrides read-only with a way to change their source', () => {
@@ -135,11 +135,11 @@ describe('Local saved connections', () => {
       url: 'https://temporary',
       headerKeys: ['Authorization']
     })
-    expect(html).toContain('Set for this launch')
+    expect(html).toContain('仅本次启动生效')
     expect(html).toContain(
-      'Restart without its startup flags or environment configuration'
+      '若要编辑已保存的设置，请在不使用这些启动标志或环境配置的情况下重新启动。'
     )
-    expect(html).not.toContain('Save changes')
+    expect(html).not.toContain('保存更改')
   })
   it('requires review for changed cluster identity', () => {
     const html = render({
@@ -147,8 +147,8 @@ describe('Local saved connections', () => {
       url: 'https://saved',
       error: 'Review the changed cluster connection'
     })
-    expect(html).toContain('Review changes')
-    expect(html).not.toContain('Save changes')
+    expect(html).toContain('查看更改')
+    expect(html).not.toContain('保存更改')
   })
   it.each(['argocd', 'cost'] as const)(
     'lets paused discovery credentials be replaced without accepting them for %s',
@@ -157,8 +157,8 @@ describe('Local saved connections', () => {
         { state: 'target_changed', url: '', secretSet: true, error: 'The cluster behind this context changed' },
         kind
       )
-      expect(html).toContain('Review changes')
-      expect(html).toContain('Use a different connection')
+      expect(html).toContain('查看更改')
+      expect(html).toContain('使用其他连接')
     }
   )
   it.each(['metrics', 'argocd', 'cost'] as const)(
@@ -169,15 +169,15 @@ describe('Local saved connections', () => {
         kind
       )
       expect(html).toContain('Repair clusters.json')
-      expect(html).toContain('Reload latest settings')
-      expect(html).not.toContain('Save changes')
+      expect(html).toContain('重新加载最新设置')
+      expect(html).not.toContain('保存更改')
     }
   )
   it.each(['metrics', 'argocd', 'cost'] as const)(
     'edits only this cluster for %s',
     (kind) => {
       const html = render({ ...savedProfile, secretSet: true }, kind)
-      expect(html).toContain('Save changes')
+      expect(html).toContain('保存更改')
       expect(html).not.toContain('Copy settings from')
       expect(html).not.toContain('Reload')
     }

@@ -8,7 +8,7 @@ describe('RefreshFailedNotice', () => {
       <RefreshFailedNotice queries={[{ isRefetchError: true, error: new Error('Gateway Timeout'), dataUpdatedAt: Date.now() - 5 * 60_000 }]} />,
     )
     expect(html).toContain('Last refresh failed: Gateway Timeout')
-    expect(html).toContain('showing data from 5m ago')
+    expect(html).toContain('showing data from 5分钟前')
   })
   it('names the oldest of several failed reads', () => {
     const html = renderToStaticMarkup(
@@ -21,7 +21,7 @@ describe('RefreshFailedNotice', () => {
       />,
     )
     expect(html).toContain('older')
-    expect(html).toContain('3h ago')
+    expect(html).toContain('3小时前')
   })
   it('renders nothing while refreshes succeed', () => {
     expect(renderToStaticMarkup(<RefreshFailedNotice queries={[{ isRefetchError: false, error: null, dataUpdatedAt: Date.now() }]} />)).toBe('')

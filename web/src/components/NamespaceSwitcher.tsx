@@ -35,7 +35,7 @@ export const NamespaceSwitcher = forwardRef<NamespaceSwitcherHandle, NamespaceSw
 
   const limitedListHelp = canConfigureNamespaces ? (
     <a href={NAMESPACES_HELP_URL} target="_blank" rel="noreferrer" className="text-accent-text hover:underline">
-      How to add namespaces
+      如何添加命名空间
     </a>
   ) : undefined
 

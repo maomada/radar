@@ -49,16 +49,16 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
         <AlertTriangle className="w-12 h-12 text-red-400 mb-4" />
-        <h2 className="text-lg font-semibold text-theme-text-primary mb-2">Something went wrong</h2>
+        <h2 className="text-lg font-semibold text-theme-text-primary mb-2">发生错误</h2>
         <p className="text-sm text-theme-text-secondary mb-4 max-w-md">
-          {this.state.error?.message || 'An unexpected error occurred'}
+          {this.state.error?.message || '发生意外错误'}
         </p>
         <button
           onClick={this.handleReset}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium btn-brand rounded-lg"
         >
           <RefreshCw className="w-4 h-4" />
-          Try Again
+          重试
         </button>
       </div>
     )

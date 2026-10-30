@@ -27,28 +27,28 @@ function render(props: Partial<Parameters<typeof MultiSelectPicker>[0]> = {}) {
 }
 
 describe('MultiSelectPicker', () => {
-  it('renders each item as a checkbox row with Clear all / Select all and Done', () => {
+  it('renders each item as a checkbox row with bulk selection and completion controls', () => {
     const html = render()
     expect(html).toContain('type="checkbox"')
     for (const kind of KINDS) expect(html).toContain(`>${kind}</span>`)
-    expect(html).toContain('Clear all')
-    expect(html).toContain('Select all')
-    expect(html).toContain('>Done</button>')
+    expect(html).toContain('清除全部')
+    expect(html).toContain('全选')
+    expect(html).toContain('>完成</button>')
   })
 
   it('adds an Only button to each row only when a select-only handler is given', () => {
-    expect(render()).not.toContain('>Only</button>')
+    expect(render()).not.toContain('>仅此项</button>')
 
     const html = render({ onSelectOnly: () => {} })
-    expect(html.match(/>Only<\/button>/g)).toHaveLength(KINDS.length)
-    expect(html).toContain('aria-label="Show only Pod"')
+    expect(html.match(/>仅此项<\/button>/g)).toHaveLength(KINDS.length)
+    expect(html).toContain('aria-label="仅选择 Pod"')
     // The name stays inside the checkbox label, so clicking it still toggles.
     expect(html).toMatch(/<label[^>]*><span[^>]*><input type="checkbox"[^>]*\/><span class="truncate">Pod<\/span><\/span><\/label><button/)
   })
 
   it('hides Only until hover or keyboard focus, and keeps it visible on touch', () => {
     const html = render({ onSelectOnly: () => {} })
-    const only = html.match(/<button[^>]*aria-label="Show only Pod"[^>]*>/)?.[0] ?? ''
+    const only = html.match(/<button[^>]*aria-label="仅选择 Pod"[^>]*>/)?.[0] ?? ''
     expect(only).toContain('opacity-0')
     expect(only).toContain('group-hover/row:opacity-100')
     expect(only).toContain('group-has-[:focus-visible]/row:opacity-100')
@@ -73,7 +73,7 @@ describe('MultiSelectPicker', () => {
 
   it('shows a no-matches message when the search excludes everything', () => {
     const html = render({ search: 'zzz' })
-    expect(html).toContain('No matches.')
+    expect(html).toContain('没有匹配项。')
     expect(html).not.toContain('>Pod</span>')
   })
 
@@ -82,11 +82,11 @@ describe('MultiSelectPicker', () => {
     expect(html).toContain('No kinds available.')
   })
 
-  it('summarises the empty selection as the empty label, else "N selected"', () => {
+  it('summarises the empty selection as the empty label, else the selected count', () => {
     expect(render({ selected: new Set() })).toContain('All kinds')
 
     const some = render({ selected: new Set(['Pod', 'Service']), clearAllDisabled: false })
-    expect(some).toContain('2 selected')
+    expect(some).toContain('已选择 2 项')
     expect(some).not.toContain('All kinds')
   })
 
@@ -99,7 +99,7 @@ describe('MultiSelectPicker', () => {
   it('disables Clear all when clearAllDisabled and enables it otherwise', () => {
     expect(render({ clearAllDisabled: true })).toContain('aria-label="Clear kind selection"')
     // Disabled state present when nothing is selected.
-    expect(render({ clearAllDisabled: true })).toMatch(/Clear all[\s\S]*?disabled|disabled[\s\S]*?Clear all/)
+    expect(render({ clearAllDisabled: true })).toMatch(/清除全部[\s\S]*?disabled|disabled[\s\S]*?清除全部/)
 
     const enabled = render({ selected: new Set(['Pod']), clearAllDisabled: false })
     // The bulk row's Clear all button is not disabled here (the list checkboxes carry no disabled attr either).
@@ -107,15 +107,15 @@ describe('MultiSelectPicker', () => {
   })
 
   it('labels the visible-bulk button by search + selection state', () => {
-    // No search, nothing selected -> plain "Select all".
-    expect(render({ search: '' })).toContain('Select all')
+    // No search, nothing selected -> select all.
+    expect(render({ search: '' })).toContain('全选')
 
-    // Search active, nothing of the visible set selected -> "Select N visible".
+    // Search active, nothing of the visible set selected.
     const searching = render({ search: 'e' })
-    expect(searching).toMatch(/Select \d+ visible/)
+    expect(searching).toMatch(/选择当前可见项（\d+）/)
 
-    // All visible selected -> "Clear N visible".
+    // All visible selected.
     const allSelected = render({ selected: new Set(KINDS), clearAllDisabled: false })
-    expect(allSelected).toMatch(/Clear \d+ visible/)
+    expect(allSelected).toMatch(/清除当前可见项（\d+）/)
   })
 })

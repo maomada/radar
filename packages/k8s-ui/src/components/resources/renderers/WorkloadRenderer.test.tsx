@@ -23,7 +23,7 @@ describe('WorkloadRenderer', () => {
 
     expect(html).toContain('Rolling out')
     expect(html).toContain('2/3 updated · 4 available')
-    expect(html).not.toContain('Issues Detected')
+    expect(html).not.toContain('检测到问题')
   })
 
   it('uses new-revision Pod failure evidence in the rollout notice', () => {
@@ -56,7 +56,7 @@ describe('WorkloadRenderer', () => {
 
     expect(html).toContain('New revision cannot start')
     expect(html).toContain('ImagePullBackOff · Pod api-new-revision')
-    expect(html).toContain('Issues Detected')
+    expect(html).toContain('检测到问题')
     expect(html).toContain('Progressing: Progress deadline exceeded')
     expect(html).not.toContain('Rolling out')
   })
@@ -97,9 +97,9 @@ describe('WorkloadRenderer', () => {
       <WorkloadRenderer kind="deployments" data={deployment} onScale={async () => {}} />,
     )
 
-    expect(html).toContain('Scale')
+    expect(html).toContain('调整副本数')
     expect(html).not.toContain('disabled=""')
-    expect(html).not.toContain('Manual scaling is disabled')
+    expect(html).not.toContain('无法手动调整副本数，因为副本由')
   })
 
   it('disables manual scaling when an HPA or KEDA ScaledObject owns replicas', () => {
@@ -116,9 +116,9 @@ describe('WorkloadRenderer', () => {
     )
 
     expect(html).toContain('disabled=""')
-    expect(html).toContain('Manual scaling is disabled')
-    expect(html).not.toContain('title="Manual scaling is disabled')
-    expect(html).toContain('Controlled by')
+    expect(html).toContain('无法手动调整副本数，因为副本由')
+    expect(html).not.toContain('title="无法手动调整副本数，因为副本由')
+    expect(html).toContain('控制者')
     expect(html).toContain('HorizontalPodAutoscaler prod/api')
     expect(html).toContain('ScaledObject prod/api-queue')
     expect(html).toContain('flex-wrap')

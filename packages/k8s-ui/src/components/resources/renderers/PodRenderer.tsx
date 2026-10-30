@@ -132,7 +132,7 @@ function SecretValueCell({ value }: { value: string }) {
       <button
         onClick={() => setRevealed(r => !r)}
         className="shrink-0 text-theme-text-tertiary hover:text-amber-700 dark:hover:text-yellow-400 transition-colors"
-        title={revealed ? 'Hide value' : 'Reveal value'}
+        title={revealed ? '隐藏值' : '显示值'}
       >
         {revealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
       </button>
@@ -413,7 +413,7 @@ export function PodRenderer({
     <>
       {/* Problems alert - shown at top when there are issues */}
       {hasProblems && (
-        <AlertBanner variant="error" title="Issues Detected">
+        <AlertBanner variant="error" title="检测到问题">
           <ul className="text-xs space-y-1">
             {podProblems.map((p, i) => (
               <li key={i} className="flex items-start gap-1.5">
@@ -441,7 +441,7 @@ export function PodRenderer({
       )}
 
       {/* Status section */}
-      <Section title="Status" icon={Server}>
+      <Section title="状态" icon={Server}>
         <PropertyList>
           {(() => {
             const phaseDisplay = getPodPhaseDisplay(data)
@@ -475,7 +475,7 @@ export function PodRenderer({
             <Property
               label={
                 <Tooltip content="The node this Pod is expected to run on, set by the scheduler or another component. It can change before the Pod is bound." position="right">
-                  <span className="border-b border-dotted border-theme-text-tertiary cursor-help">Nominated Node</span>
+                  <span className="border-b border-dotted border-theme-text-tertiary cursor-help">提名 Node</span>
                 </Tooltip>
               }
               value={<ResourceLink name={data.status.nominatedNodeName} kind="nodes" onNavigate={onNavigate} />}
@@ -501,7 +501,7 @@ export function PodRenderer({
                 }
                 position="right"
               >
-                <span className="border-b border-dotted border-theme-text-tertiary cursor-help">QoS Class</span>
+                <span className="border-b border-dotted border-theme-text-tertiary cursor-help">QoS 类别</span>
               </Tooltip>
             }
             value={data.status?.qosClass}
@@ -664,7 +664,7 @@ export function PodRenderer({
         <PolicySection data={policyData} loading={policyLoading} error={policyError} />
       )}
 
-      <Section title="Containers" icon={HardDrive} defaultExpanded>
+      <Section title="容器" icon={HardDrive} defaultExpanded>
         <div className="space-y-3">
           {/* Pod-level budget (spec.resources) is shared by all containers, so it
               stays its own row rather than being merged into the container rows. */}
@@ -672,7 +672,7 @@ export function PodRenderer({
             <div className="rounded-[10px] border border-dashed border-theme-border p-3">
               <div className="flex items-baseline justify-between gap-2 mb-2">
                 <span className="text-sm font-medium text-theme-text-primary">Pod (aggregate)</span>
-                <span className="text-xs text-theme-text-tertiary">Shared by all containers</span>
+                <span className="text-xs text-theme-text-tertiary">由所有容器共享</span>
               </div>
               <div className="text-xs text-theme-text-secondary space-y-1">
                 {podResources.requests && <div>Requests: {formatResources(podResources.requests)}</div>}
@@ -800,7 +800,7 @@ export function PodRenderer({
                   )}
                   {container.ports && container.ports.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span>Ports:</span>
+                      <span>端口：</span>
                       {container.ports.map((p: any) => (
                         canPortForward && renderPortAction ? (
                           <span key={`${p.name || ''}-${p.containerPort}-${p.protocol || 'TCP'}`} className="inline-flex items-center gap-1">
@@ -856,14 +856,14 @@ export function PodRenderer({
         />
       )}
       {hasEnvironmentDeclarations && environmentLoading && !environment && (
-        <Section title="Environment Variables" icon={List} defaultExpanded={false}>
-          <div className="text-xs text-theme-text-tertiary">Loading variable sources…</div>
+        <Section title="环境变量" icon={List} defaultExpanded={false}>
+          <div className="text-xs text-theme-text-tertiary">正在加载变量来源…</div>
         </Section>
       )}
       {hasEnvironmentDeclarations && environmentError && !environment && !environmentUpgrade && (
-        <Section title="Environment Variables" icon={List} defaultExpanded={false}>
+        <Section title="环境变量" icon={List} defaultExpanded={false}>
           <div className="space-y-2 text-xs">
-            <p className="text-theme-text-secondary">Variable sources could not be loaded.</p>
+            <p className="text-theme-text-secondary">无法加载变量来源。</p>
             <p className="text-theme-text-tertiary">{environmentError.message}</p>
           </div>
         </Section>
@@ -879,19 +879,19 @@ export function PodRenderer({
 
       {/* Resource Usage (from metrics-server) — hidden when Prometheus has CPU/memory data */}
       {!hideMetricsServer && !!(showTerminalUsage || currentMetrics?.containers?.length || hasMetricsHistory || metricsHistory?.collectionError || showMetricsUnavailable || noUsageYet) && (
-        <Section title="Resource Usage" icon={Activity} defaultExpanded>
+        <Section title="资源使用情况" icon={Activity} defaultExpanded>
           {isTerminal && (
             <div className="mb-3 text-sm text-theme-text-tertiary">
               Live resource usage has ended for this Pod.{metricsHistory && !hasMetricsHistory && !metricsHistoryLoading && !metricsHistoryError && ' No recorded usage is available.'}
             </div>
           )}
           {isTerminal && metricsHistoryLoading && (
-            <p className="mb-3 text-sm text-theme-text-tertiary">Loading recorded usage...</p>
+            <p className="mb-3 text-sm text-theme-text-tertiary">正在加载历史使用数据…</p>
           )}
           {isTerminal && metricsHistoryError && (
             <AlertBanner
               variant="warning"
-              title={metricsHistory ? 'Recorded usage could not be refreshed' : 'Recorded usage could not be loaded'}
+              title={metricsHistory ? '无法刷新历史使用数据' : '无法加载历史使用数据'}
               message={metricsHistoryError.message}
             />
           )}
@@ -901,7 +901,7 @@ export function PodRenderer({
           )}
           {metricsHistory?.collectionError && (
             <div className="mb-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
-              <span className="font-medium">{isTerminal ? 'Current cluster metrics collection error:' : 'Metrics collection error:'}</span>{' '}
+              <span className="font-medium">{isTerminal ? '当前集群指标收集错误：' : '指标收集错误：'}</span>{' '}
               <span className="break-all">{metricsHistory.collectionError}</span>
             </div>
           )}
@@ -942,7 +942,7 @@ export function PodRenderer({
                           />
                         </div>
                         <div>
-                          <div className="text-xs text-theme-text-tertiary mb-2">Memory</div>
+                          <div className="text-xs text-theme-text-tertiary mb-2">内存</div>
                           <MetricsChart
                             dataPoints={dataPoints}
                             type="memory"
@@ -966,7 +966,7 @@ export function PodRenderer({
                           </div>
                         </div>
                         <div>
-                          <div className="text-theme-text-tertiary mb-1">Memory</div>
+                          <div className="text-theme-text-tertiary mb-1">内存</div>
                           <div className="flex items-baseline gap-1">
                             <span className="text-sm font-medium text-purple-400">{currentContainerMetrics.usage.memory}</span>
                             {limits?.memory && (
@@ -976,7 +976,7 @@ export function PodRenderer({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-xs text-theme-text-tertiary">Collecting metrics data...</div>
+                      <div className="text-xs text-theme-text-tertiary">正在收集指标数据…</div>
                     )}
                   </div>
                 )
@@ -1120,7 +1120,7 @@ function PodPermissionsSection({
     <Section title={title} icon={Shield} defaultExpanded={hasBlastRadius}>
       {/* Blast-radius alert — only when something risky was detected. */}
       {blastReasons.length > 0 && (
-        <AlertBanner variant="warning" title="Blast radius">
+        <AlertBanner variant="warning" title="影响范围">
           <div className="text-xs">
             If this Pod is compromised, the attacker inherits the
             ServiceAccount's permissions, which include:
@@ -1174,7 +1174,7 @@ function PodPermissionsSection({
           name={saName}
           kind="serviceaccounts"
           namespace={namespace}
-          label="View full permissions →"
+          label="查看完整权限 →"
           onNavigate={onNavigate}
         />
       </div>

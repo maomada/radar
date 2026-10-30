@@ -7,5 +7,5 @@ vi.mock('./CNPGTrends', () => ({ useCNPGIntervalParams: () => null }))
 it('labels retained activity after a failed refresh', () => {
   const html = renderToStaticMarkup(<CNPGClusterActivity namespace="db" name="pg" />)
   expect(html).toContain('Last refresh failed: Activity timeout')
-  expect(html).toContain('3m ago')
+  expect(html).toContain('3分钟前')
 })

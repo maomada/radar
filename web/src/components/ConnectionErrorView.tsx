@@ -41,15 +41,15 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
   switch (parsed.provider) {
     case 'GKE': {
       const result: AuthHints = {
-        title: 'GKE Authentication Failed',
-        hints: ['Radar could not get Google Cloud credentials for this context.'],
-        authCommand: { label: 'Refresh Google Cloud credentials:', command: 'gcloud auth login' },
+        title: 'GKE 身份验证失败',
+        hints: ['Radar 无法获取此上下文的 Google Cloud 凭据。'],
+        authCommand: { label: '刷新 Google Cloud 凭据：', command: 'gcloud auth login' },
       }
       if (parsed.region && parsed.account && allShellSafe(parsed.clusterName, parsed.region, parsed.account)) {
         const isZone = /^[a-z]+-[a-z]+\d+-[a-z]$/.test(parsed.region)
         const flag = isZone ? '--zone' : '--region'
         result.fallbackCommand = {
-          label: 'If that doesn\'t work, refresh cluster credentials:',
+          label: '如果仍无效，请刷新集群凭据：',
           command: `gcloud container clusters get-credentials ${parsed.clusterName} ${flag} ${parsed.region} --project ${parsed.account}`,
         }
       }
@@ -58,16 +58,16 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
     case 'EKS': {
       const profileFlag = awsProfileFlag(awsProfile)
       const result: AuthHints = {
-        title: 'EKS Authentication Failed',
+        title: 'EKS 身份验证失败',
         hints: [
-          'Radar could not get AWS credentials for this context.',
-          'For AWS SSO contexts, the SSO session may need login.',
+          'Radar 无法获取此上下文的 AWS 凭据。',
+          '对于 AWS SSO 上下文，可能需要重新登录 SSO 会话。',
         ],
-        authCommand: { label: 'If this context uses AWS SSO, refresh credentials:', command: `aws sso login${profileFlag}` },
+        authCommand: { label: '如果此上下文使用 AWS SSO，请刷新凭据：', command: `aws sso login${profileFlag}` },
       }
       if (parsed.region && allShellSafe(parsed.clusterName, parsed.region)) {
         result.fallbackCommand = {
-          label: 'If that doesn\'t work, refresh cluster credentials:',
+          label: '如果仍无效，请刷新集群凭据：',
           command: `aws eks update-kubeconfig --name ${parsed.clusterName} --region ${parsed.region}${profileFlag}`,
         }
       }
@@ -75,17 +75,17 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
     }
     case 'AKS':
       return {
-        title: 'AKS Authentication Failed',
-        hints: ['Radar could not get Azure credentials for this context.'],
-        authCommand: { label: 'Refresh Azure credentials:', command: 'az login' },
-        fallbackCommand: { label: 'If that doesn\'t work, refresh cluster credentials:', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
+        title: 'AKS 身份验证失败',
+        hints: ['Radar 无法获取此上下文的 Azure 凭据。'],
+        authCommand: { label: '刷新 Azure 凭据：', command: 'az login' },
+        fallbackCommand: { label: '如果仍无效，请刷新集群凭据：', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
       }
     default:
       return {
-        title: 'Authentication Failed',
+        title: '身份验证失败',
         hints: [
-          'Radar could not get Kubernetes credentials for this context',
-          'Re-authenticate with your cloud provider and try again',
+          'Radar 无法获取此上下文的 Kubernetes 凭据',
+          '请向云服务提供商重新进行身份验证后重试',
         ],
       }
   }
@@ -98,26 +98,26 @@ export function getAuthRejectedHints(context: string, awsProfile?: string): Auth
     case 'EKS': {
       const profileFlag = awsProfileFlag(awsProfile)
       const result: AuthHints = {
-        title: 'EKS Could Not Authenticate This Request',
+        title: 'EKS 无法验证此请求',
         hints: [
-          'EKS returned HTTP 401, so Kubernetes could not authenticate this request.',
-          'The AWS credential may be missing, stale, or revoked, or its IAM principal may not be mapped through an EKS access entry or the cluster\'s legacy aws-auth configuration.',
-          'If the credential is current, ask a cluster admin to verify the mapping for the IAM principal used by this context.',
+          'EKS 返回 HTTP 401，因此 Kubernetes 无法验证此请求。',
+          'AWS 凭据可能缺失、已过期或已撤销；也可能是 IAM 主体尚未通过 EKS access entry 或集群旧版 aws-auth 配置完成映射。',
+          '如果凭据仍有效，请联系集群管理员核实此上下文所用 IAM 主体的映射。',
           profileFlag
-            ? 'The commands below use the AWS profile pinned by this context\'s kubeconfig exec block. If it also pins --role-arn, inspect that role instead.'
-            : 'The diagnostic uses the terminal\'s current AWS profile. If the kubeconfig exec block pins AWS_PROFILE or --role-arn, use that profile or role instead.',
-          'API and API_AND_CONFIG_MAP modes use access entries; CONFIG_MAP mode uses the aws-auth ConfigMap.',
+            ? '以下命令使用此上下文 kubeconfig exec 块指定的 AWS profile。如果其中也指定了 --role-arn，请改为检查该角色。'
+            : '此诊断使用终端当前的 AWS profile。如果 kubeconfig exec 块指定了 AWS_PROFILE 或 --role-arn，请改用相应 profile 或角色。',
+          'API 和 API_AND_CONFIG_MAP 模式使用 access entry；CONFIG_MAP 模式使用 aws-auth ConfigMap。',
         ],
         fallbackCommand: {
-          label: profileFlag ? 'If this profile uses AWS SSO, re-login and retry:' : 'If this context uses the current AWS SSO profile, re-login and retry:',
+          label: profileFlag ? '如果此 profile 使用 AWS SSO，请重新登录后重试：' : '如果此上下文使用当前 AWS SSO profile，请重新登录后重试：',
           command: `aws sso login${profileFlag}`,
         },
       }
       if (parsed.region && allShellSafe(parsed.clusterName, parsed.region)) {
         result.authCommand = {
           label: profileFlag
-            ? 'Inspect the caller and authentication mode for the pinned AWS profile:'
-            : 'Inspect the caller and authentication mode for the current terminal AWS profile:',
+            ? '检查指定 AWS profile 的调用主体和身份验证模式：'
+            : '检查终端当前 AWS profile 的调用主体和身份验证模式：',
           command: `aws sts get-caller-identity${profileFlag} && aws eks describe-cluster --name ${parsed.clusterName} --region ${parsed.region}${profileFlag} --query cluster.accessConfig.authenticationMode --output text`,
         }
         // A diagnostic, not a re-auth — the "Authenticate in terminal" button
@@ -128,18 +128,18 @@ export function getAuthRejectedHints(context: string, awsProfile?: string): Auth
     }
     case 'GKE': {
       const result: AuthHints = {
-        title: 'GKE Could Not Authenticate This Request',
+        title: 'GKE 无法验证此请求',
         hints: [
-          'GKE returned HTTP 401, so Kubernetes could not authenticate this request.',
-          'The credential or auth plugin may be missing or misconfigured, or the OAuth token may be stale or revoked.',
+          'GKE 返回 HTTP 401，因此 Kubernetes 无法验证此请求。',
+          '凭据或身份验证插件可能缺失或配置错误，OAuth token 也可能已过期或撤销。',
         ],
-        authCommand: { label: 'Refresh Google Cloud credentials:', command: 'gcloud auth login' },
+        authCommand: { label: '刷新 Google Cloud 凭据：', command: 'gcloud auth login' },
       }
       if (parsed.region && parsed.account && allShellSafe(parsed.clusterName, parsed.region, parsed.account)) {
         const isZone = /^[a-z]+-[a-z]+\d+-[a-z]$/.test(parsed.region)
         const flag = isZone ? '--zone' : '--region'
         result.fallbackCommand = {
-          label: 'If that doesn\'t work, refresh cluster credentials:',
+          label: '如果仍无效，请刷新集群凭据：',
           command: `gcloud container clusters get-credentials ${parsed.clusterName} ${flag} ${parsed.region} --project ${parsed.account}`,
         }
       }
@@ -147,21 +147,21 @@ export function getAuthRejectedHints(context: string, awsProfile?: string): Auth
     }
     case 'AKS':
       return {
-        title: 'AKS Could Not Authenticate This Request',
+        title: 'AKS 无法验证此请求',
         hints: [
-          'AKS returned HTTP 401, so Kubernetes could not authenticate this request.',
-          'The credential may be missing, stale, or revoked — re-authenticating usually resolves this.',
+          'AKS 返回 HTTP 401，因此 Kubernetes 无法验证此请求。',
+          '凭据可能缺失、已过期或已撤销——重新进行身份验证通常可以解决此问题。',
         ],
-        authCommand: { label: 'Refresh Azure credentials:', command: 'az login' },
-        fallbackCommand: { label: 'If that doesn\'t work, refresh cluster credentials:', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
+        authCommand: { label: '刷新 Azure 凭据：', command: 'az login' },
+        fallbackCommand: { label: '如果仍无效，请刷新集群凭据：', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
       }
     default:
       return {
-        title: 'Kubernetes Could Not Authenticate This Request',
+        title: 'Kubernetes 无法验证此请求',
         hints: [
-          'The Kubernetes API returned HTTP 401, so it could not authenticate this request.',
-          'The kubeconfig user may not have supplied a credential, or its credential may be expired or revoked.',
-          'If the cluster maps identities explicitly, the principal used by this context may not be mapped yet.',
+          'Kubernetes API 返回 HTTP 401，因此无法验证此请求。',
+          'kubeconfig 用户可能未提供凭据，或凭据已过期或撤销。',
+          '如果集群显式映射身份，此上下文所用主体可能尚未完成映射。',
         ],
       }
   }
@@ -169,11 +169,11 @@ export function getAuthRejectedHints(context: string, awsProfile?: string): Auth
 
 function getAuthPluginStuckHints(): AuthHints {
   return {
-    title: 'Credential Plugin Stopped Responding',
+    title: '凭据插件未响应',
     hints: [
-      'The credential command configured by this kubeconfig did not return before the deadline.',
-      'Check that your cloud-provider CLI and its identity-provider or network dependencies are responsive.',
-      'Radar will keep checking in the background and reconnect when the credential command recovers.',
+      '此 kubeconfig 配置的凭据命令未能在时限内返回。',
+      '请检查云服务商 CLI 及其身份提供商或网络依赖是否正常响应。',
+      'Radar 会在后台持续检查，并在凭据命令恢复后重新连接。',
     ],
   }
 }
@@ -181,22 +181,22 @@ function getAuthPluginStuckHints(): AuthHints {
 function getTimeoutHints(context: string, awsProfile?: string): AuthHints | null {
   const parsed = parseContextName(context)
   const baseHints = [
-    'The Kubernetes API did not respond before the deadline.',
-    'Check VPN, firewall rules, and whether the cluster endpoint is reachable.',
+    'Kubernetes API 未能在时限内响应。',
+    '请检查 VPN、防火墙规则以及集群端点是否可访问。',
   ]
 
   switch (parsed.provider) {
     case 'GKE': {
       const result: AuthHints = {
-        title: 'Connection Timed Out',
-        hints: [...baseHints, 'If the endpoint is reachable, Google Cloud credentials may need refresh.'],
-        authCommand: { label: 'If network access looks healthy, refresh Google Cloud credentials:', command: 'gcloud auth login' },
+        title: '连接超时',
+        hints: [...baseHints, '如果端点可访问，可能需要刷新 Google Cloud 凭据。'],
+        authCommand: { label: '如果网络访问正常，请刷新 Google Cloud 凭据：', command: 'gcloud auth login' },
       }
       if (parsed.region && parsed.account && allShellSafe(parsed.clusterName, parsed.region, parsed.account)) {
         const isZone = /^[a-z]+-[a-z]+\d+-[a-z]$/.test(parsed.region)
         const flag = isZone ? '--zone' : '--region'
         result.fallbackCommand = {
-          label: 'If that does not work, refresh cluster credentials:',
+          label: '如果仍无效，请刷新集群凭据：',
           command: `gcloud container clusters get-credentials ${parsed.clusterName} ${flag} ${parsed.region} --project ${parsed.account}`,
         }
       }
@@ -205,13 +205,13 @@ function getTimeoutHints(context: string, awsProfile?: string): AuthHints | null
     case 'EKS': {
       const profileFlag = awsProfileFlag(awsProfile)
       const result: AuthHints = {
-        title: 'Connection Timed Out',
-        hints: [...baseHints, 'If the endpoint is reachable, AWS credentials or SSO may need refresh.'],
-        authCommand: { label: 'If this context uses AWS SSO and network access looks healthy, refresh credentials:', command: `aws sso login${profileFlag}` },
+        title: '连接超时',
+        hints: [...baseHints, '如果端点可访问，可能需要刷新 AWS 凭据或 SSO。'],
+        authCommand: { label: '如果此上下文使用 AWS SSO 且网络访问正常，请刷新凭据：', command: `aws sso login${profileFlag}` },
       }
       if (parsed.region && allShellSafe(parsed.clusterName, parsed.region)) {
         result.fallbackCommand = {
-          label: 'If that does not work, refresh cluster credentials:',
+          label: '如果仍无效，请刷新集群凭据：',
           command: `aws eks update-kubeconfig --name ${parsed.clusterName} --region ${parsed.region}${profileFlag}`,
         }
       }
@@ -219,10 +219,10 @@ function getTimeoutHints(context: string, awsProfile?: string): AuthHints | null
     }
     case 'AKS':
       return {
-        title: 'Connection Timed Out',
-        hints: [...baseHints, 'If the endpoint is reachable, Azure credentials may need refresh.'],
-        authCommand: { label: 'If network access looks healthy, refresh Azure credentials:', command: 'az login' },
-        fallbackCommand: { label: 'If that does not work, refresh cluster credentials:', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
+        title: '连接超时',
+        hints: [...baseHints, '如果端点可访问，可能需要刷新 Azure 凭据。'],
+        authCommand: { label: '如果网络访问正常，请刷新 Azure 凭据：', command: 'az login' },
+        fallbackCommand: { label: '如果仍无效，请刷新集群凭据：', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
       }
     default:
       return null
@@ -231,55 +231,55 @@ function getTimeoutHints(context: string, awsProfile?: string): AuthHints | null
 
 const errorHints: Record<string, { title: string; hints: string[] }> = {
   config: {
-    title: 'Kubeconfig Problem',
+    title: 'kubeconfig 配置问题',
     hints: [
-      'Radar could not load a usable kubeconfig for this context',
-      'If the file exists, check the local Radar logs for the exact parse or load failure',
-      'If no kubeconfig is configured, Radar checks ~/.kube/config; set KUBECONFIG or pass --kubeconfig <path> for another location',
+      'Radar 无法为此上下文加载可用的 kubeconfig',
+      '如果文件存在，请查看本地 Radar 日志以了解具体解析或加载失败原因',
+      '如果未配置 kubeconfig，Radar 会检查 ~/.kube/config；如需指定其他位置，请设置 KUBECONFIG 或传入 --kubeconfig <path>',
     ],
   },
   rbac: {
-    title: 'Insufficient Permissions',
+    title: '权限不足',
     hints: [
-      'Your user account can connect but lacks required RBAC permissions',
-      'Ask your cluster admin for a ClusterRole with list/watch access',
-      'For read-only access, the built-in "view" ClusterRole is usually sufficient',
-      'You can also try: kubectl auth can-i --list',
+      '你的用户账号可以连接，但缺少所需的 RBAC 权限',
+      '请联系集群管理员授予包含 list/watch 权限的 ClusterRole',
+      '只读访问通常使用内置的 "view" ClusterRole 即可',
+      '你也可以尝试：kubectl auth can-i --list',
     ],
   },
   network: {
-    title: 'Network Unreachable',
+    title: '网络不可达',
     hints: [
-      'The cluster may be unreachable from your network',
-      'Check if VPN connection is required',
-      'Verify firewall rules allow access',
-      'Confirm the cluster is running',
+      '当前网络可能无法访问集群',
+      '检查是否需要连接 VPN',
+      '确认防火墙规则允许访问',
+      '确认集群正在运行',
     ],
   },
   tls: {
-    title: 'Certificate Error',
+    title: '证书错误',
     hints: [
-      'Radar reached the Kubernetes API, but the TLS handshake failed',
-      'If the error mentions "bad certificate" or "certificate required", the cluster rejected Radar\'s client certificate — it may have expired (kubeadm certs expire after a year). Renew it (e.g. kubeadm certs renew) or re-download the kubeconfig',
-      'Otherwise check the kubeconfig cluster server hostname and certificate-authority settings',
-      'If this cluster intentionally uses a private CA, refresh the kubeconfig for this context',
+      'Radar 已连接到 Kubernetes API，但 TLS 握手失败',
+      '如果错误提到 "bad certificate" 或 "certificate required"，说明集群拒绝了 Radar 客户端证书——证书可能已过期（kubeadm 证书有效期为一年）。请续期（例如运行 kubeadm certs renew）或重新下载 kubeconfig',
+      '否则请检查 kubeconfig 中集群服务器主机名和 certificate-authority 设置',
+      '如果此集群有意使用私有 CA，请刷新此上下文的 kubeconfig',
     ],
   },
   timeout: {
-    title: 'Connection Timed Out',
+    title: '连接超时',
     hints: [
-      'The cluster is taking too long to respond',
-      'The cluster may be under heavy load',
-      'Network latency may be too high',
-      'Try again or check cluster health',
+      '集群响应时间过长',
+      '集群可能负载过高',
+      '网络延迟可能过高',
+      '请重试或检查集群健康状况',
     ],
   },
   unknown: {
-    title: 'Connection Failed',
+    title: '连接失败',
     hints: [
-      'Check your kubeconfig is valid',
-      'Verify the cluster endpoint is correct',
-      'Try switching to a different context',
+      '请检查 kubeconfig 是否有效',
+      '请确认集群端点正确',
+      '尝试切换到其他上下文',
     ],
   },
 }
@@ -305,22 +305,22 @@ export function CopyableCommand({ command, onRunInTerminal }: { command: string;
         ))}
       </code>
       {onRunInTerminal && (
-        <Tooltip content="Run in terminal" wrapperClassName="shrink-0">
+        <Tooltip content="在终端中运行" wrapperClassName="shrink-0">
           <button
             type="button"
             onClick={() => onRunInTerminal(command)}
-            aria-label="Run command in terminal"
+            aria-label="在终端中运行命令"
             className="shrink-0 text-theme-text-tertiary hover:text-theme-text-secondary transition-colors"
           >
             <TerminalSquare className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
       )}
-      <Tooltip content="Copy to clipboard" wrapperClassName="shrink-0">
+      <Tooltip content="复制到剪贴板" wrapperClassName="shrink-0">
         <button
           type="button"
           onClick={handleCopy}
-          aria-label="Copy command to clipboard"
+          aria-label="复制命令到剪贴板"
           className="shrink-0 text-theme-text-tertiary hover:text-theme-text-secondary transition-colors"
         >
           {copied ? (
@@ -383,12 +383,12 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
       : commandInfo.authCommand.command
     openLocalTerminal({
       initialCommand: cmd,
-      title: 'Auth',
+      title: '身份验证',
     })
   }
 
   const handleRunInTerminal = (command: string) => {
-    openLocalTerminal({ initialCommand: command, title: 'Auth' })
+    openLocalTerminal({ initialCommand: command, title: '身份验证' })
   }
 
   return (
@@ -400,12 +400,12 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
           </div>
 
           <h2 className="text-xl font-semibold text-theme-text-primary mb-2">
-            {connection.errorType === 'config' ? 'Cannot Load Cluster Configuration' : 'Cannot Connect to Cluster'}
+            {connection.errorType === 'config' ? '无法加载集群配置' : '无法连接到集群'}
           </h2>
 
           <div className="mb-6 space-y-1">
             <p className="text-sm text-theme-text-secondary inline-flex items-center gap-1.5">
-              Context: {connection.context ? (
+              上下文：{connection.context ? (
                 <ClusterName name={connection.context} />
               ) : (
                 <span className="inline-code">(none)</span>
@@ -414,7 +414,7 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
 
             {connection.clusterName && (
               <p className="text-sm text-theme-text-secondary">
-                Cluster: <span className="inline-code">{connection.clusterName}</span>
+                集群：<span className="inline-code">{connection.clusterName}</span>
               </p>
             )}
           </div>
@@ -441,7 +441,7 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
                     className="mt-3 w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium btn-brand rounded-md"
                   >
                     <TerminalSquare className="w-3.5 h-3.5" />
-                    Authenticate in terminal
+                  在终端中完成身份验证
                   </button>
                 )}
               </div>
@@ -462,7 +462,7 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
                   className="flex items-center gap-1 text-xs font-medium text-theme-text-tertiary hover:text-theme-text-secondary transition-colors"
                 >
                   <CollapseChevron open={showRawError} className="h-3.5 w-3.5" />
-                  Raw error
+                  原始错误
                 </button>
                 <Collapse open={showRawError} id="connection-raw-error">
                   <div className="mt-2 bg-theme-elevated border border-theme-border rounded-md p-3 overflow-auto max-h-32">
@@ -489,21 +489,21 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
               ) : (
                 <>
                   <RefreshCw className="w-4 h-4" />
-                  Retry Connection
+                  重试连接
                 </>
               )}
             </button>
 
-            {connection.context && <ContextSwitcher triggerName="Switch context" />}
+            {connection.context && <ContextSwitcher triggerName="切换上下文" />}
           </div>
 
           {isAuthError && (
             <p className="mt-4 text-xs text-theme-text-tertiary">
               {isAuthRejected
-                ? 'Radar re-checks in the background — access changes are picked up automatically. Use Retry Connection to check immediately.'
+                ? 'Radar 会在后台重新检查并自动获取访问权限变更。点击“重试连接”可立即检查。'
                 : isAuthPluginStuck
-                  ? 'Radar re-checks in the background and reconnects when the credential plugin responds. Use Retry Connection to check immediately.'
-                  : 'Radar re-checks in the background and reconnects once credentials are refreshed. Use Retry Connection to check immediately.'}
+                  ? 'Radar 会在后台重新检查，并在凭据插件响应后重新连接。点击“重试连接”可立即检查。'
+                  : 'Radar 会在后台重新检查，并在凭据刷新后重新连接。点击“重试连接”可立即检查。'}
             </p>
           )}
         </div>

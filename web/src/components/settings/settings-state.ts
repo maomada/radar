@@ -14,7 +14,7 @@ export type IntegrationSectionId = 'prometheus' | 'cost' | 'argocd'
 export type PendingSectionId = IntegrationSectionId | 'ai'
 
 export const pendingSectionLabels: Record<PendingSectionId, string> = {
-  prometheus: 'Metrics', cost: 'Cost', argocd: 'Argo CD', ai: 'AI investigations',
+  prometheus: '指标', cost: '成本', argocd: 'Argo CD', ai: 'AI 调查',
 }
 
 export function pendingSections(dirty: Record<PendingSectionId, boolean>): PendingSectionId[] {
@@ -44,7 +44,7 @@ export function shouldShowSettingsFooter(input: {
 export function costSourceApplyLabel(
   source: 'auto' | 'prometheus' | 'kubecost',
 ): string {
-  return source === 'prometheus' ? 'Apply source' : 'Test & apply source'
+  return source === 'prometheus' ? '应用数据源' : '测试并应用数据源'
 }
 
 export function prometheusHeadersFromRows(

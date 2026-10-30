@@ -103,7 +103,7 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
     <>
       {/* Problems alert - shown at top when there are genuine issues */}
       {hasProblems && (
-        <AlertBanner variant={lifecycle.level === 'unhealthy' ? 'error' : 'warning'} title="Issues Detected" items={problems} />
+        <AlertBanner variant={lifecycle.level === 'unhealthy' ? 'error' : 'warning'} title="检测到问题" items={problems} />
       )}
 
       {lifecycle.removing ? (
@@ -111,19 +111,19 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
           variant={lifecycle.level === 'unhealthy' ? 'error' : lifecycle.level === 'degraded' ? 'warning' : 'info'}
           title={lifecycle.delayed ? `${lifecycle.label} — taking longer than expected` : lifecycle.label}
           message={lifecycle.delayed
-            ? 'Check remaining pods, disruption budgets and controller events. Do not uncordon during removal.'
-            : 'This node is marked for removal. New pods are kept off it while the controller prepares or completes removal.'}
+            ? '请检查剩余 Pod、干扰预算和控制器事件。节点移除期间不要恢复调度。'
+            : '此节点已标记为待移除。控制器准备或完成移除期间，不会有新的 Pod 调度到此节点。'}
         >
           <div className="mt-2 space-y-2 text-xs">
             <p>{lifecycle.startedAt !== undefined ? `Marked for removal ${formatRelativeAgeTime(new Date(lifecycle.startedAt).toISOString())}.` : 'Removal start time is not reported.'}</p>
-            {removalPlanLoading && <p>Checking remaining pods and disruption budgets…</p>}
-            {removalPlanError && <p>Drain details unavailable: {removalPlanError}</p>}
-            {!removalPlanLoading && !removalPlanError && !currentPlan && <p>Pod and disruption-budget checks are not available from this host.</p>}
+            {removalPlanLoading && <p>正在检查剩余 Pod 和干扰预算…</p>}
+            {removalPlanError && <p>驱逐详情不可用：{removalPlanError}</p>}
+            {!removalPlanLoading && !removalPlanError && !currentPlan && <p>此主机无法获取 Pod 和干扰预算检查结果。</p>}
             {currentPlan && (
               <>
                 <p>{currentPlan.pods.length} pods in the current snapshot · {terminationKnown ? `${terminatingPods} terminating` : 'termination state unavailable from this Radar'} · {currentPlan.summary.skip} skipped by drain estimate (DaemonSet, static or completed).</p>
                 <p className="text-theme-text-secondary">Checked {formatRelativeAgeTime(currentPlan.generatedAt)}. This is a snapshot, not an eviction history. Disruption-budget checks estimate what the Eviction API would allow now.</p>
-                <p className="text-theme-text-secondary">Removal controllers can also hold pods marked karpenter.sh/do-not-disrupt or cluster-autoscaler.kubernetes.io/safe-to-evict=false. Those policies are not evaluated by this drain estimate.</p>
+                <p className="text-theme-text-secondary">移除控制器也可能因 karpenter.sh/do-not-disrupt 或 cluster-autoscaler.kubernetes.io/safe-to-evict=false 标记而保留 Pod。此驱逐估算不会评估这些策略。</p>
                 <ul className="max-h-48 overflow-y-auto space-y-1">
                   {currentPlan.pods.map(pod => (
                     <li key={`${pod.namespace}/${pod.name}`} className="flex justify-between gap-2">
@@ -134,7 +134,7 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
                 </ul>
                 {!currentPlan.pdbsEvaluated && <p>Disruption-budget checks are incomplete: {currentPlan.pdbError}</p>}
                 {possibleBlockers.length > 0 && (
-                  <AlertBanner variant="warning" title="Disruption budgets may block removal" items={possibleBlockers.map(pod => `${pod.namespace}/${pod.name}: ${pod.reason}`)} />
+                  <AlertBanner variant="warning" title="干扰预算可能阻止节点移除" items={possibleBlockers.map(pod => `${pod.namespace}/${pod.name}: ${pod.reason}`)} />
                 )}
               </>
             )}
@@ -143,25 +143,25 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
       ) : isCordoned ? (
         <AlertBanner
           variant="warning"
-          title="Cordoned"
-          message="New pods won't be scheduled here. The node may be under maintenance; who cordoned it is not recorded. Resume scheduling only after confirming maintenance has finished."
+          title="已禁止调度"
+          message="不会有新 Pod 调度到此节点。节点可能正在维护；系统未记录是谁禁止了调度。请确认维护已结束后再恢复调度。"
         />
       ) : null}
 
       {/* Node Info */}
-      <Section title="Node Info" icon={Server}>
+      <Section title="节点信息" icon={Server}>
         <PropertyList>
           <Property label="OS" value={nodeInfo.osImage} />
-          <Property label="Architecture" value={nodeInfo.architecture} />
-          <Property label="Kernel" value={nodeInfo.kernelVersion} />
-          <Property label="Container Runtime" value={nodeInfo.containerRuntimeVersion} />
+          <Property label="架构" value={nodeInfo.architecture} />
+          <Property label="内核" value={nodeInfo.kernelVersion} />
+          <Property label="容器运行时" value={nodeInfo.containerRuntimeVersion} />
           <Property label="Kubelet" value={nodeInfo.kubeletVersion} />
           <Property label="Kube-Proxy" value={nodeInfo.kubeProxyVersion} />
         </PropertyList>
       </Section>
 
       {/* Capacity */}
-      <Section title="Capacity" icon={HardDrive}>
+      <Section title="容量" icon={HardDrive}>
         <div className="space-y-2">
           {[
             {
@@ -199,15 +199,15 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
               <div className="text-xs font-medium text-theme-text-secondary mb-1">{row.label}</div>
               <div className="space-y-0.5 text-xs">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-theme-text-tertiary">Capacity</span>
+                  <span className="text-theme-text-tertiary">容量</span>
                   <span className="text-theme-text-primary tabular-nums">{row.capacity ?? '-'}</span>
                 </div>
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-theme-text-tertiary">Allocatable</span>
+                  <span className="text-theme-text-tertiary">可分配</span>
                   <span className="text-theme-text-primary tabular-nums">{row.allocatable ?? '-'}</span>
                 </div>
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-theme-text-tertiary">In Use</span>
+                  <span className="text-theme-text-tertiary">已使用</span>
                   <span className="text-theme-text-primary font-medium tabular-nums">{row.inUse ?? '-'}</span>
                 </div>
               </div>
@@ -229,13 +229,13 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
 
       {/* Resource Usage (from metrics-server) — hidden when Prometheus has CPU/memory data */}
       {!hideMetricsServer && (currentMetrics?.usage || hasMetricsHistory || metricsHistory?.collectionError || showMetricsUnavailable) && (
-        <Section title="Resource Usage" icon={Activity} defaultExpanded>
+        <Section title="资源使用情况" icon={Activity} defaultExpanded>
           {showMetricsUnavailable && (
             <MetricsUnavailableNotice rawError={metricsHistory?.metricsUnavailableReason} diagnosis={metricsHistory?.metricsUnavailableDiagnosis} />
           )}
           {metricsHistory?.collectionError && (
             <div className="mb-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
-              <span className="font-medium">Metrics collection error:</span>{' '}
+                  <span className="font-medium">指标采集错误：</span>{' '}
               <span className="break-all">{metricsHistory.collectionError}</span>
             </div>
           )}
@@ -260,7 +260,7 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
               {/* Memory Usage with Chart */}
               <div className="card-inner-lg">
                 <div className="text-xs text-theme-text-tertiary mb-1 flex items-center justify-between">
-                  <span>Memory</span>
+                  <span>内存</span>
                   <span className="text-theme-text-quaternary">
                     {formatMemory(allocatable.memory) || formatMemory(capacity.memory) || '?'} allocatable
                   </span>
@@ -289,7 +289,7 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
               </div>
               <div className="card-inner-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-theme-text-primary">Memory</span>
+                  <span className="text-sm font-medium text-theme-text-primary">内存</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-lg font-medium text-purple-400">{formatMemory(currentMetrics.usage.memory)}</span>
@@ -300,7 +300,7 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
               </div>
             </div>
           ) : (
-            <div className="text-xs text-theme-text-tertiary">Collecting metrics data...</div>
+            <div className="text-xs text-theme-text-tertiary">正在收集指标数据…</div>
           )}
           {!showMetricsUnavailable && currentMetrics?.timestamp && (
             <div className="mt-2 text-xs text-theme-text-tertiary">
@@ -312,7 +312,7 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
 
       {/* Addresses */}
       {addresses.length > 0 && (
-        <Section title="Addresses" icon={Globe}>
+        <Section title="地址" icon={Globe}>
           <PropertyList>
             {addresses.map((addr: any) => (
               <Property key={`${addr.type}-${addr.address}`} label={addr.type} value={addr.address} />
@@ -323,13 +323,13 @@ export function NodeRenderer({ data, relationships, onViewPods, metrics, metrics
 
       {/* Platform Info */}
       {hasPlatformInfo && (
-        <Section title="Platform" icon={Tag}>
+        <Section title="平台" icon={Tag}>
           <PropertyList>
-            <Property label="Instance Type" value={instanceType} />
-            <Property label="Zone" value={zone} />
-            <Property label="Region" value={region} />
-            <Property label="Node Pool" value={nodePool} />
-            <Property label="Machine Family" value={machineFamily} />
+            <Property label="实例类型" value={instanceType} />
+            <Property label="可用区" value={zone} />
+            <Property label="区域" value={region} />
+            <Property label="节点池" value={nodePool} />
+            <Property label="机器系列" value={machineFamily} />
           </PropertyList>
         </Section>
       )}

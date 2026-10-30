@@ -60,8 +60,8 @@ describe("Integration settings state", () => {
   });
 
   it("only claims to test sources that the backend probes", () => {
-    expect(costSourceApplyLabel("auto")).toBe("Test & apply source");
-    expect(costSourceApplyLabel("kubecost")).toBe("Test & apply source");
-    expect(costSourceApplyLabel("prometheus")).toBe("Apply source");
+    expect(costSourceApplyLabel("auto")).toBe("测试并应用数据源");
+    expect(costSourceApplyLabel("kubecost")).toBe("测试并应用数据源");
+    expect(costSourceApplyLabel("prometheus")).toBe("应用数据源");
   });
 });

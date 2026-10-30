@@ -26,11 +26,11 @@ it('keeps the section hidden for selector Services unless the host enables it', 
 
 it('separates unavailable, loading and ready-empty inventory', () => {
   const error = renderToStaticMarkup(<ServiceRenderer {...props} endpointSlicesEnabled endpointSlices={[]} endpointSlicesError="Read denied" />)
-  expect(error).toContain('EndpointSlice inventory unavailable')
+  expect(error).toContain('EndpointSlice 清单不可用')
   expect(error).toContain('Read denied')
   expect(error).not.toContain('No EndpointSlices found')
-  expect(renderToStaticMarkup(<ServiceRenderer {...props} endpointSlicesEnabled endpointSlicesLoading />)).toContain('Loading EndpointSlices')
-  expect(renderToStaticMarkup(<ServiceRenderer {...props} endpointSlicesEnabled endpointSlices={[]} />)).toContain('No EndpointSlices found')
+  expect(renderToStaticMarkup(<ServiceRenderer {...props} endpointSlicesEnabled endpointSlicesLoading />)).toContain('正在加载 EndpointSlices…')
+  expect(renderToStaticMarkup(<ServiceRenderer {...props} endpointSlicesEnabled endpointSlices={[]} />)).toContain('此 Service 未找到 EndpointSlice。')
 })
 
 it('says when the inventory was cut off', () => {

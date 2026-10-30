@@ -81,7 +81,7 @@ export function FreshnessControl({
   // polled views keep it as a "check now" escape hatch.
   const showRefresh = !!onRefresh
 
-  const exact = showAge ? `Last updated ${new Date(dataUpdatedAt as number).toLocaleTimeString()}` : null
+  const exact = showAge ? `最近更新于 ${new Date(dataUpdatedAt as number).toLocaleTimeString()}` : null
   const age = showAge ? formatUpdatedAgo(Date.now() - (dataUpdatedAt as number)) : null
 
   // Tooltip is only rendered when it ADDS information beyond the visible label.
@@ -89,20 +89,20 @@ export function FreshnessControl({
   let tooltip: string | null
   let live = false
   if (connectionState === 'syncing') {
-    label = 'Loading cluster data…'
-    tooltip = 'Initial sync in progress — rows shown are live for the kinds that have finished loading.'
+    label = '正在加载集群数据…'
+    tooltip = '正在进行初始同步；已完成加载的资源类型会显示实时数据。'
   } else if (degraded) {
-    label = 'Reconnecting…'
-    tooltip = 'Not connected to the cluster — data may be stale until the connection is restored.'
+    label = '正在重新连接…'
+    tooltip = '尚未连接到集群；连接恢复前，数据可能已过期。'
   } else if (mode === 'auto' && paused) {
-    label = 'Paused'
-    tooltip = 'Live updates are paused — resume to keep this view current.'
+    label = '已暂停'
+    tooltip = '实时更新已暂停；恢复后此视图会继续保持最新。'
   } else if (mode === 'auto') {
-    label = 'Auto-updating'
-    tooltip = exact ?? 'Updates automatically as the data changes.'
+    label = '自动更新'
+    tooltip = exact ?? '数据变化时会自动更新。'
     live = true
   } else if (age) {
-    label = `Updated ${age}`
+    label = `更新于 ${age}`
     tooltip = exact
   } else {
     // Snapshot before its first load — render just the button, no stale text.
@@ -125,7 +125,7 @@ export function FreshnessControl({
         />
       )}
       <span className="tabular-nums">{label}</span>
-      {ageSuffix && <span className="tabular-nums text-theme-text-quaternary">· updated {ageSuffix}</span>}
+      {ageSuffix && <span className="tabular-nums text-theme-text-quaternary">· 已更新 {ageSuffix}</span>}
     </span>
   ) : null
 
@@ -136,14 +136,14 @@ export function FreshnessControl({
         ? <Tooltip content={tooltip} delay={100} position="bottom">{labelNode}</Tooltip>
         : labelNode)}
       {showRefresh && (
-        <Tooltip content="Refresh now" delay={100} position="bottom">
+        <Tooltip content="立即刷新" delay={100} position="bottom">
           <button
             type="button"
             onClick={refresh}
             // Only disable during the button's own refresh animation (prevents
             // double-trigger); stay clickable during background refetches.
             disabled={phase === 'spinning'}
-            aria-label="Refresh now"
+            aria-label="立即刷新"
             className="p-1.5 rounded-lg text-theme-text-tertiary hover:text-theme-text-secondary hover:bg-theme-hover transition-colors disabled:opacity-50"
           >
             {phase === 'success' ? (

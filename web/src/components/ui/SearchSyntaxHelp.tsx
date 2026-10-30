@@ -6,11 +6,11 @@ import { isTouchIntent } from '@skyhook-io/k8s-ui'
 
 // The query operators recognized by the search engine (internal/search/parse.go).
 const OPERATORS: { syntax: string; desc: string }[] = [
-  { syntax: 'ns:prod', desc: 'filter by namespace' },
-  { syntax: 'kind:Deployment', desc: 'filter by resource kind' },
-  { syntax: 'label:app=api', desc: 'filter by label' },
-  { syntax: 'image:nginx', desc: 'match container image' },
-  { syntax: 'redis cache', desc: 'multiple terms — all must match' },
+  { syntax: 'ns:prod', desc: '按命名空间筛选' },
+  { syntax: 'kind:Deployment', desc: '按资源类型筛选' },
+  { syntax: 'label:app=api', desc: '按标签筛选' },
+  { syntax: 'image:nginx', desc: '匹配容器镜像' },
+  { syntax: 'redis cache', desc: '多个关键词均需匹配' },
 ]
 
 // A "?" affordance that reveals the search query syntax on HOVER (a transient
@@ -68,7 +68,7 @@ export function SearchSyntaxHelp() {
         ref={btnRef}
         type="button"
         tabIndex={-1}
-        aria-label="Search syntax help"
+        aria-label="搜索语法帮助"
         aria-expanded={open}
         onMouseEnter={() => { if (!isTouchIntent()) { openedByHover.current = !open; show() } }}
         onMouseLeave={() => { openedByHover.current = false; scheduleHide() }}
@@ -90,7 +90,7 @@ export function SearchSyntaxHelp() {
           style={{ position: 'fixed', top: anchor.top, right: anchor.right, width: 280 }}
           className="z-[130] dialog shadow-theme-lg p-3"
         >
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary mb-2">Search syntax</div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary mb-2">搜索语法</div>
           <div className="space-y-1.5">
             {OPERATORS.map((op) => (
               <div key={op.syntax} className="flex items-baseline gap-2">
@@ -100,7 +100,7 @@ export function SearchSyntaxHelp() {
             ))}
           </div>
           <div className="mt-2.5 pt-2 border-t border-theme-border text-[11px] text-theme-text-tertiary">
-            Type <code className="text-theme-text-secondary">ns:</code> or <code className="text-theme-text-secondary">kind:</code> for value suggestions.
+            输入 <code className="text-theme-text-secondary">ns:</code> 或 <code className="text-theme-text-secondary">kind:</code> 可查看值建议。
           </div>
         </div>,
         document.body,

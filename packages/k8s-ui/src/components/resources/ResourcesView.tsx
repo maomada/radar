@@ -11,7 +11,7 @@ import { DialogPortal } from '../ui/DialogPortal'
 import { RestrictedState } from '../ui/RestrictedState'
 import { FetchResult } from '../ui/FetchResult'
 import { Input } from '../ui/Input'
-import { ColumnPickerList } from './ColumnPickerList'
+import { ColumnPickerList, columnDisplayLabel } from './ColumnPickerList'
 import { applyColumnOrder, sanitizeColumnOrder } from './column-order'
 import type { TopPodMetrics, TopNodeMetrics, ContainerResourceMetrics } from '../../types'
 import {
@@ -532,7 +532,7 @@ export function getColumnMinWidth(col: Column, extras?: Map<string, ExtraColumn>
   // reserve for any column that could ever carry one, and keep the width stable.
   const affordance = (isColumnSortable(col, extras) ? HEADER_SORT_AFFORDANCE_PX : 0)
     + (SKIP_FILTER_COLUMNS.has(col.key) ? 0 : HEADER_FILTER_AFFORDANCE_PX)
-  const headerFloor = HEADER_PADDING_PX + headerLabelWidth(col.label) + affordance
+  const headerFloor = HEADER_PADDING_PX + headerLabelWidth(columnDisplayLabel(col.label)) + affordance
   return Math.max(declared, Math.min(Math.ceil(headerFloor), HEADER_FLOOR_MAX_PX))
 }
 
@@ -6002,7 +6002,7 @@ export function ResourcesView({
       if (isColumnFilterableByDistinctCount(col.key, distinctCount)) {
         filterableColumns.push({
           key: col.key,
-          label: col.label,
+          label: columnDisplayLabel(col.label),
           values: Object.entries(valueCounts)
             .map(([value, count]) => ({ value, count }))
             .sort((a, b) => b.count - a.count),
@@ -6191,7 +6191,7 @@ export function ResourcesView({
       type="button"
       onClick={() => setKindsDrawerOpen(true)}
       aria-expanded={kindsDrawerOpen}
-      aria-label={`Resource kinds (showing ${selectedKind.kind})`}
+      aria-label={`资源类型（当前显示 ${selectedKind.kind}）`}
       className="flex shrink-0 items-center gap-1.5 rounded-lg border border-theme-border bg-theme-elevated px-2.5 py-1.5 text-sm font-medium text-theme-text-primary hover:bg-theme-hover"
     >
       <PanelLeft className="h-4 w-4 text-theme-text-tertiary" />
@@ -6210,7 +6210,7 @@ export function ResourcesView({
         <DialogPortal
           open={kindsDrawerOpen}
           onClose={() => setKindsDrawerOpen(false)}
-          ariaLabel="Resource kinds"
+          ariaLabel="资源类型"
           className="!ml-0 !mr-auto h-full w-72 max-w-[85vw] self-stretch overflow-hidden rounded-none border-y-0 border-l-0"
         >
           {renderSidebar('!w-full h-full border-r-0', true)}
@@ -6235,7 +6235,7 @@ export function ResourcesView({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-tertiary" />
               <Input
                 ref={searchInputRef}
-                placeholder={regexMode ? 'Search by regex... (press /)' : isTrivyKind ? 'Search names and findings... (press /)' : 'Search... (press /)'}
+                placeholder={regexMode ? '正则搜索…（按 /）' : isTrivyKind ? '搜索名称和发现项…（按 /）' : '搜索…（按 /）'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => {
@@ -6272,8 +6272,8 @@ export function ResourcesView({
                 type="button"
                 onClick={() => setRegexMode((v) => !v)}
                 aria-pressed={regexMode}
-                aria-label={regexMode ? 'Disable regex search' : 'Enable regex search'}
-                title={regexMode ? 'Regex search enabled — click to disable' : 'Enable regex search'}
+                aria-label={regexMode ? '关闭正则搜索' : '启用正则搜索'}
+                title={regexMode ? '正则搜索已启用 — 点击关闭' : '启用正则搜索'}
                 className={clsx(
                   'absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded transition-colors',
                   searchTerm ? 'right-9' : 'right-2',
@@ -6287,7 +6287,7 @@ export function ResourcesView({
               {searchTerm && (
                 <button
                   type="button"
-                  aria-label="Clear search"
+                  aria-label="清除搜索"
                   onClick={() => {
                     setSearchTerm('')
                     searchInputRef.current?.focus()
@@ -6299,7 +6299,7 @@ export function ResourcesView({
               )}
               {!searchRegex.error && findingsSearch?.truncated && (
                 <div className="absolute left-0 top-full mt-1 z-10 px-2 py-1 rounded bg-theme-elevated border border-theme-border text-xs text-theme-text-secondary shadow-theme-sm">
-                  Too many findings to search them all here; some weren't searched.
+                  发现项过多，无法在此全部搜索；部分内容未纳入搜索。
                 </div>
               )}
               {searchRegex.error && (
@@ -6307,7 +6307,7 @@ export function ResourcesView({
                   title={searchRegex.error}
                   className="absolute left-0 top-full mt-1 z-10 px-2 py-1 rounded bg-theme-elevated border border-red-500/40 text-[11px] text-red-400 shadow-theme-sm"
                 >
-                  Invalid regex pattern
+                  正则表达式无效
                 </div>
               )}
             </div>
@@ -6328,7 +6328,7 @@ export function ResourcesView({
                 )}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Problems</span>
+                <span>问题</span>
                 {problemFilters.length > 0 && (
                   <span className={clsx('badge-sm', SEVERITY_BADGE.error)}>
                     {problemFilters.length}
@@ -6339,8 +6339,8 @@ export function ResourcesView({
                 <div className="absolute right-0 top-full mt-1 min-w-48 phone:left-3 phone:right-3 phone:min-w-0 bg-theme-surface border border-theme-border rounded-lg shadow-xl z-50">
                   {problemFilters.length > 0 && (
                     <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-border">
-                      <span className="text-xs font-medium text-theme-text-secondary">Problems</span>
-                      <button onClick={() => { setProblemFilters([]); setShowProblemsDropdown(false) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 -mr-1 rounded transition-colors">Clear</button>
+                      <span className="text-xs font-medium text-theme-text-secondary">问题</span>
+                      <button onClick={() => { setProblemFilters([]); setShowProblemsDropdown(false) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 -mr-1 rounded transition-colors">清除</button>
                     </div>
                   )}
                   <div className="py-1">
@@ -6378,7 +6378,7 @@ export function ResourcesView({
                 )}
               >
                 <Tag className="w-3.5 h-3.5" />
-                <span>Labels</span>
+                <span>标签</span>
                 {activeLabelPairs.length > 0 && (
                   <span className={clsx('badge-sm', SEVERITY_BADGE.success)}>
                     {activeLabelPairs.length}
@@ -6396,7 +6396,7 @@ export function ResourcesView({
                       <div className="relative flex-1">
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-theme-text-tertiary" />
                         <Input
-                          placeholder="Search labels..."
+                          placeholder="搜索标签…"
                           value={labelSearch}
                           onChange={(e) => setLabelSearch(e.target.value)}
                           autoFocus
@@ -6404,7 +6404,7 @@ export function ResourcesView({
                         />
                       </div>
                       {activeLabelPairs.length > 0 && (
-                        <button onClick={() => { setLabelSelector(''); setShowLabelsDropdown(false) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 rounded transition-colors shrink-0">Clear</button>
+                        <button onClick={() => { setLabelSelector(''); setShowLabelsDropdown(false) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 rounded transition-colors shrink-0">清除</button>
                       )}
                     </div>
                     <div className="py-1 max-h-64 overflow-y-auto">
@@ -6424,7 +6424,7 @@ export function ResourcesView({
                         </button>
                       ))}
                       {filtered.length === 0 && (
-                        <div className="px-3 py-2 text-xs text-theme-text-disabled">No matches</div>
+                        <div className="px-3 py-2 text-xs text-theme-text-disabled">没有匹配项</div>
                       )}
                     </div>
                   </div>
@@ -6476,7 +6476,7 @@ export function ResourcesView({
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs selection selection-text hover:selection-strong transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Clear filters ({activeFilterCount})</span>
+                <span>清除筛选（{activeFilterCount}）</span>
               </button>
             </Tooltip>
           )}
@@ -6497,11 +6497,11 @@ export function ResourcesView({
             {showColumnPicker && (
               <div className="absolute right-0 top-full mt-1 z-50 bg-theme-surface border border-theme-border rounded-lg shadow-lg py-1 min-w-[200px] max-h-[400px] flex flex-col">
                 <div className="shrink-0 px-3 py-2 border-b border-theme-border flex items-center justify-between">
-                  <span className="text-xs font-medium text-theme-text-secondary uppercase">Columns</span>
+                  <span className="text-xs font-medium text-theme-text-secondary uppercase">列</span>
                   <button
                     onClick={resetColumnSettings}
                     className="text-xs text-theme-text-tertiary hover:text-theme-text-primary flex items-center gap-1"
-                    title="Reset to defaults"
+                    title="恢复默认值"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Reset
@@ -6562,7 +6562,7 @@ export function ResourcesView({
                       type="submit"
                       disabled={!customColumnDraft.path.trim()}
                       className="shrink-0 p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded disabled:opacity-40 disabled:hover:bg-transparent"
-                      title="Add column"
+                      title="添加列"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -6572,9 +6572,9 @@ export function ResourcesView({
             )}
           </div>
           {onCreateResource && (
-            <Tooltip content={`Create ${selectedKind.kind || 'resource'}`}>
+            <Tooltip content={`创建 ${selectedKind.kind || '资源'}`}>
               <button
-                aria-label={`Create ${selectedKind.kind || 'resource'}`}
+                aria-label={`创建 ${selectedKind.kind || '资源'}`}
                 onClick={() => onCreateResource(selectedKind)}
                 className="p-2 hover:bg-theme-elevated rounded-lg text-theme-text-secondary hover:text-theme-text-primary transition-colors"
               >
@@ -6603,10 +6603,10 @@ export function ResourcesView({
             </Tooltip>
           )}
           {canBulkSelect && (
-            <Tooltip content={isCheckboxMode ? 'Hide selection checkboxes' : 'Show selection checkboxes'}>
+            <Tooltip content={isCheckboxMode ? '隐藏选择框' : '显示选择框'}>
               <button
                 onClick={toggleCheckboxVisibility}
-                aria-label={isCheckboxMode ? 'Hide selection checkboxes' : 'Show selection checkboxes'}
+                aria-label={isCheckboxMode ? '隐藏选择框' : '显示选择框'}
                 aria-pressed={isCheckboxMode}
                 className={clsx(
                   'p-2 rounded-lg transition-colors',
@@ -6633,7 +6633,7 @@ export function ResourcesView({
         {showBulkBar && (
           <div className="flex items-center gap-3 px-4 py-2 bg-skyhook-500/10 border-b border-skyhook-400/20 shrink-0 phone:flex-wrap phone:gap-2 phone:px-3">
             <span className="text-sm font-medium text-theme-text-primary">
-              {checkedItems.length} selected
+              {checkedItems.length} 项已选
             </span>
             {canBulkRestartSelectedKind && (
               <button
@@ -6643,7 +6643,7 @@ export function ResourcesView({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand-muted disabled:opacity-50 disabled:pointer-events-none rounded-lg transition-colors"
               >
                 <RefreshCw className={clsx('w-3.5 h-3.5', isBulkRestarting && 'animate-spin')} />
-                {isBulkRestarting ? 'Restarting...' : 'Restart'}
+                {isBulkRestarting ? '正在重启…' : '重启'}
               </button>
             )}
             {canBulkScaleSelectedKind && (
@@ -6654,7 +6654,7 @@ export function ResourcesView({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-theme-elevated hover:bg-theme-hover disabled:opacity-50 disabled:pointer-events-none text-theme-text-primary border border-theme-border rounded-lg transition-colors"
               >
                 <Scale className="w-3.5 h-3.5" />
-                {isBulkScaling ? 'Scaling...' : 'Scale'}
+                {isBulkScaling ? '正在调整副本数…' : '调整副本数'}
               </button>
             )}
             {onBulkDelete && (
@@ -6665,7 +6665,7 @@ export function ResourcesView({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete
+                删除
               </button>
             )}
             <button
@@ -6673,7 +6673,7 @@ export function ResourcesView({
               onClick={clearBulkSelection}
               className="px-3 py-1.5 text-xs text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded-lg transition-colors"
             >
-              Clear selection
+              清除选择
             </button>
           </div>
         )}
@@ -6808,7 +6808,7 @@ export function ResourcesView({
                   className="flex items-center gap-1.5 mt-3 px-3 py-1.5 text-sm rounded-md bg-theme-elevated hover:bg-theme-border text-theme-text-secondary hover:text-theme-text-primary transition-colors"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  Clear filters
+                  清除筛选
                 </button>
               )}
             </div>
@@ -6830,7 +6830,7 @@ export function ResourcesView({
                       // row width on an icon-only column.
                       style={{ ...COMPARE_COLUMN_STYLE, ...phonePinnedLeft(compareMode, isCheckboxMode, 'compare') }}
                       className={clsx('px-2 py-3 text-xs font-medium uppercase tracking-wide bg-theme-base border-b border-r-subtle border-theme-border text-center text-skyhook-400', PHONE_PINNED_HEAD)}
-                      title="Compare mode"
+                      title="对比模式"
                     >
                       <GitCompare className="w-3.5 h-3.5 inline-block opacity-70" />
                     </th>
@@ -6843,7 +6843,7 @@ export function ResourcesView({
                         ref={(el) => { if (el) el.indeterminate = checkedItems.length > 0 && checkedItems.length < filteredResources.length }}
                         onChange={toggleCheckAll}
                         className="w-3.5 h-3.5 rounded border-theme-border accent-skyhook-500 cursor-pointer"
-                        title={checkedItems.length > 0 ? 'Deselect all' : 'Select all'}
+                      title={checkedItems.length > 0 ? '取消全选' : '全选'}
                       />
                     </th>
                   )}
@@ -6872,10 +6872,10 @@ export function ResourcesView({
                         <div className="flex items-center gap-1 overflow-hidden">
                           {col.tooltip ? (
                             <Tooltip content={col.tooltip} wrapperClassName="min-w-0">
-                              <span className="border-b border-dotted border-theme-text-tertiary truncate">{col.label}</span>
+                              <span className="border-b border-dotted border-theme-text-tertiary truncate">{columnDisplayLabel(col.label)}</span>
                             </Tooltip>
                           ) : (
-                            <HeaderLabel label={col.label} />
+                            <HeaderLabel label={columnDisplayLabel(col.label)} />
                           )}
                           {isSortable && (
                             <span className="text-theme-text-tertiary shrink-0">
@@ -6931,7 +6931,7 @@ export function ResourcesView({
                                     setOpenColumnFilter(null)
                                   }}
                                   className="rounded-r px-0.5 py-0.5 -my-0.5 selection-strong selection-text hover:bg-skyhook-500/30 transition-colors"
-                                  title="Clear filter"
+                                  title="清除筛选"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -6954,7 +6954,7 @@ export function ResourcesView({
                               )}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="flex items-center gap-1 p-1.5 border-b border-theme-border" role="group" aria-label={`${col.label} filter mode`}>
+                              <div className="flex items-center gap-1 p-1.5 border-b border-theme-border" role="group" aria-label={`${columnDisplayLabel(col.label)}筛选模式`}>
                                 <button
                                   onClick={() => setColumnFilterMode(col.key, false)}
                                   aria-pressed={!columnFilterExcludes[col.key]}
@@ -6964,7 +6964,7 @@ export function ResourcesView({
                                       ? 'selection-strong selection-text'
                                       : 'text-theme-text-secondary hover:bg-theme-elevated hover:text-theme-text-primary'
                                   )}
-                                  title="Show rows matching the selected values"
+                                  title="显示符合所选值的行"
                                 >
                                   Include
                                 </button>
@@ -6977,7 +6977,7 @@ export function ResourcesView({
                                       ? 'selection-strong selection-text'
                                       : 'text-theme-text-secondary hover:bg-theme-elevated hover:text-theme-text-primary'
                                   )}
-                                  title="Show rows that do NOT match the selected values"
+                                  title="显示不符合所选值的行"
                                 >
                                   Exclude
                                 </button>
@@ -6987,7 +6987,7 @@ export function ResourcesView({
                                   <div className="relative flex-1">
                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-theme-text-tertiary" />
                                     <Input
-                                      placeholder="Search..."
+                                      placeholder="搜索…"
                                       value={columnFilterSearch}
                                       onChange={(e) => setColumnFilterSearch(e.target.value)}
                                       autoFocus
@@ -6995,13 +6995,13 @@ export function ResourcesView({
                                     />
                                   </div>
                                   {activeFilterValues.length > 0 && (
-                                    <button onClick={() => { clearColumnFilter(col.key); setOpenColumnFilter(null) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 rounded transition-colors shrink-0">Clear</button>
+                                    <button onClick={() => { clearColumnFilter(col.key); setOpenColumnFilter(null) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 rounded transition-colors shrink-0">清除</button>
                                   )}
                                 </div>
                               ) : activeFilterValues.length > 0 ? (
                                 <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-border">
-                                  <span className="text-xs font-medium text-theme-text-secondary">{col.label}</span>
-                                  <button onClick={() => { clearColumnFilter(col.key); setOpenColumnFilter(null) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 -mr-1 rounded transition-colors">Clear</button>
+                                  <span className="text-xs font-medium text-theme-text-secondary">{columnDisplayLabel(col.label)}</span>
+                                  <button onClick={() => { clearColumnFilter(col.key); setOpenColumnFilter(null) }} className="text-xs text-theme-text-tertiary hover:text-theme-text-primary px-1 py-0.5 -mr-1 rounded transition-colors">清除</button>
                                 </div>
                               ) : null}
                               <div className="py-1 max-h-64 overflow-y-auto">
@@ -7027,7 +7027,7 @@ export function ResourcesView({
                                   )
                                 })}
                                 {filtered.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-theme-text-disabled">No matches</div>
+                                      <div className="px-3 py-2 text-xs text-theme-text-disabled">没有匹配项</div>
                                 )}
                               </div>
                               {col.key === 'namespace' && onApplyNamespacesToAllSections && activeFilterValues.length > 0 && !columnFilterExcludes[col.key] && (
@@ -7040,9 +7040,9 @@ export function ResourcesView({
                                         .then(() => clearColumnFilter(col.key), () => {})
                                     }}
                                     className="w-full text-left px-2 py-1.5 text-xs rounded text-theme-text-secondary hover:bg-theme-elevated hover:text-theme-text-primary transition-colors"
-                                    title="Scope every section to these namespaces in the header namespace picker"
+                      title="在页眉命名空间选择器中将每个分区限定为这些命名空间"
                                   >
-                                    Apply to all sections
+                                    应用到所有分区
                                   </button>
                                 </div>
                               )}
@@ -7141,10 +7141,10 @@ export function ResourcesView({
           onSuccess: () => setCheckedResources(current => new Set([...current].filter(key => !submittedKeys.has(key)))),
         })
       }}
-      title={`Delete ${checkedItems.length} ${selectedKind.kind}${checkedItems.length > 1 ? 's' : ''}?`}
+      title={`删除 ${checkedItems.length} 个 ${selectedKind.kind}？`}
       message={`You are about to delete ${checkedItems.length} resource${checkedItems.length > 1 ? 's' : ''}. This action cannot be undone.`}
       details={checkedItemDetails}
-      confirmLabel={bulkForceDelete ? `Force Delete ${checkedItems.length} resource${checkedItems.length > 1 ? 's' : ''}` : `Delete ${checkedItems.length} resource${checkedItems.length > 1 ? 's' : ''}`}
+      confirmLabel={bulkForceDelete ? `强制删除 ${checkedItems.length} 个资源` : `删除 ${checkedItems.length} 个资源`}
       variant="danger"
       isLoading={isBulkDeleting}
       isClosable
@@ -7157,7 +7157,7 @@ export function ResourcesView({
           onChange={(e) => setBulkForceDelete(e.target.checked)}
           className="w-4 h-4 rounded border-theme-border bg-theme-base text-red-600 focus:ring-red-500 focus:ring-offset-0"
         />
-        <span>Force delete (strips finalizers and bypasses grace period)</span>
+        <span>强制删除（移除 finalizer 并跳过宽限期）</span>
       </label>
     </ConfirmDialog>
     <ConfirmDialog
@@ -7171,10 +7171,10 @@ export function ResourcesView({
           },
         })
       }}
-      title={`Restart ${checkedItems.length} ${selectedKind.kind}${checkedItems.length > 1 ? 's' : ''}?`}
-      message={`This will trigger a rolling restart for ${checkedItems.length} selected workload${checkedItems.length > 1 ? 's' : ''}.`}
+      title={`重启 ${checkedItems.length} 个 ${selectedKind.kind}？`}
+      message={`将对所选的 ${checkedItems.length} 个工作负载触发滚动重启。`}
       details={checkedItemDetails}
-      confirmLabel={`Restart ${checkedItems.length} workload${checkedItems.length > 1 ? 's' : ''}`}
+      confirmLabel={`重启 ${checkedItems.length} 个工作负载`}
       variant="warning"
       isLoading={isBulkRestarting}
       isClosable
@@ -7190,10 +7190,10 @@ export function ResourcesView({
           },
         })
       }}
-      title={`Scale ${checkedItems.length} ${selectedKind.kind}${checkedItems.length > 1 ? 's' : ''}?`}
-      message={`Set every selected workload to exactly ${bulkScaleReplicas} replica${bulkScaleReplicas === 1 ? '' : 's'}.`}
+      title={`调整 ${checkedItems.length} 个 ${selectedKind.kind} 的副本数？`}
+      message={`将每个所选工作负载的副本数设置为 ${bulkScaleReplicas}。`}
       details={checkedItemDetails}
-      confirmLabel={`Scale to ${bulkScaleReplicas}`}
+      confirmLabel={`调整到 ${bulkScaleReplicas} 个副本`}
       variant={bulkScaleReplicas === 0 ? 'danger' : 'warning'}
       isLoading={isBulkScaling}
       isClosable
@@ -7202,7 +7202,7 @@ export function ResourcesView({
         <div className="flex items-center justify-center gap-3">
           <button
             type="button"
-            aria-label="Decrease replicas"
+            aria-label="减少副本数"
             onClick={() => setBulkScaleReplicas(Math.max(0, bulkScaleReplicas - 1))}
             disabled={bulkScaleReplicas <= 0}
             className="p-2 rounded-lg bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -7214,14 +7214,14 @@ export function ResourcesView({
             min="0"
             max="10000"
             value={bulkScaleReplicas}
-            aria-label="Replicas"
+            aria-label="副本数"
             onChange={(e) => setBulkScaleReplicas(Math.min(10000, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
             className="w-24 text-center text-2xl font-semibold bg-theme-elevated border border-theme-border rounded-lg py-2 text-theme-text-primary focus:outline-none focus:border-skyhook-500"
             autoFocus
           />
           <button
             type="button"
-            aria-label="Increase replicas"
+            aria-label="增加副本数"
             onClick={() => setBulkScaleReplicas(Math.min(10000, bulkScaleReplicas + 1))}
             disabled={bulkScaleReplicas >= 10000}
             className="p-2 rounded-lg bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -7230,10 +7230,10 @@ export function ResourcesView({
           </button>
         </div>
         <div className="text-xs text-theme-text-tertiary text-center">
-          {commonBulkScaleReplicas === null ? 'Current replicas vary across the selected workloads.' : `Current: ${commonBulkScaleReplicas} replicas`}
+          {commonBulkScaleReplicas === null ? '所选工作负载的当前副本数不一致。' : `当前副本数：${commonBulkScaleReplicas}`}
         </div>
         <p className="text-xs text-theme-text-secondary text-center">
-          All selected workloads will be set to the same replica count. Autoscalers may override it.
+          所选工作负载将设置为相同的副本数。自动伸缩器可能会覆盖此设置。
         </p>
       </div>
     </ConfirmDialog>
@@ -7393,7 +7393,7 @@ function CopyNameButton({ name }: { name: string }) {
         })
       }}
       className="shrink-0 p-0.5 text-theme-text-tertiary hover:text-theme-text-primary opacity-0 group-hover/row:opacity-100 transition-opacity"
-      title="Copy name"
+      title="复制名称"
     >
       {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
     </button>
@@ -8785,7 +8785,7 @@ function SecretCell({ resource, column }: { resource: any; column: string }) {
     }
     case 'expires': {
       if (certExpiryError) {
-        return <span className="text-sm text-theme-text-tertiary" title="Failed to load certificate expiry">!</span>
+        return <span className="text-sm text-theme-text-tertiary" title="加载证书到期时间失败">!</span>
       }
       const meta = resource.metadata || {}
       const key = `${meta.namespace}/${meta.name}`
@@ -8857,7 +8857,7 @@ function CronJobCell({ resource, column }: { resource: any; column: string }) {
         return <Tooltip content={issue.message}><Badge severity={issue.severity === 'critical' ? 'error' : 'warning'}>{issueTitle(issue)}</Badge></Tooltip>
       }
       if (operationalIssuesIncomplete) {
-        return <Tooltip content="The issue list is incomplete. This CronJob's status could not be checked."><Badge severity="neutral">Unknown</Badge></Tooltip>
+        return <Tooltip content="问题列表不完整，无法检查此 CronJob 的状态。"><Badge severity="neutral">未知</Badge></Tooltip>
       }
       const status = getCronJobStatus(resource)
       return (
@@ -9095,7 +9095,7 @@ export function buildContainerResourceTooltip(
       )}
       {podBudget && (
         <div className="flex flex-col leading-snug border-t border-theme-border/50 pt-1">
-          <span className="text-[11px] text-theme-text-tertiary truncate">Pod (shared)</span>
+          <span className="text-[11px] text-theme-text-tertiary truncate">Pod（共享）</span>
           <span className="text-xs font-mono text-theme-text-primary">
             {`${formatFn(podBudget.usage)} · ${Math.round((podBudget.usage / podBudget.limit) * 100)}% · ${formatFn(podBudget.limit)} limit${podBudget.request ? ` · req ${formatFn(podBudget.request)}` : ''}`}
           </span>
@@ -9150,7 +9150,7 @@ function NodeCell({ resource, column, majorityNodeMinorVersion }: { resource: an
       const { problems, healthy, readinessLabel } = getNodeConditions(resource)
       if (problems.length === 0 && !healthy) return <span className="text-theme-text-secondary">{readinessLabel}</span>
       if (healthy) {
-        return <span className="text-sm text-green-400">Healthy</span>
+        return <span className="text-sm text-green-400">健康</span>
       }
       return (
         <Tooltip content={problems.join(', ')}>

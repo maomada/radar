@@ -58,7 +58,7 @@ describe('ResourcesSidebar count visibility', () => {
 
     expect(html).toContain('HorizontalPodAutoscaler')
     expect(html).toContain('–')
-    expect(html).toContain('aria-label="Count unavailable. Open to view resources."')
+    expect(html).toContain('aria-label="计数不可用。打开以查看资源。"')
   })
 
   it('hides confirmed-empty resources by default', () => {
@@ -91,7 +91,7 @@ describe('ResourcesSidebar count visibility', () => {
     expect(html).toContain('>0</')
   })
 
-  it('keeps pinned confirmed-empty resources visible in Favorites', () => {
+  it('keeps pinned confirmed-empty resources visible in 收藏', () => {
     const html = renderToString(
       <ResourcesSidebar
         selectedKind={null}
@@ -104,7 +104,7 @@ describe('ResourcesSidebar count visibility', () => {
       />
     )
 
-    expect(html).toContain('Favorites')
+    expect(html).toContain('收藏')
     expect(html).toContain('HorizontalPodAutoscaler')
   })
 })
@@ -147,12 +147,12 @@ describe('ResourcesSidebar category workspaces', () => {
         }}
       />
     )
-    expect(html).toContain('Views')
+    expect(html).toContain('视图')
     expect(html).toContain('Overview')
     expect(html).toContain('pg-orders')
     expect(html).toContain('Counts for namespace payments')
-    expect(html).toContain('Resource kinds')
-    expect(html).toMatch(/aria-expanded="false"[^>]*>(?:(?!<\/button>).)*Resource kinds/)
+    expect(html).toContain('资源类型')
+    expect(html).toMatch(/aria-expanded="false"[^>]*>(?:(?!<\/button>).)*资源类型/)
     expect(html).not.toContain('selection-strong selection-text">Pod')
   })
 

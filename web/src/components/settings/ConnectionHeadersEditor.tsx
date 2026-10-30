@@ -25,10 +25,10 @@ export function ConnectionHeadersEditor({
   return (
     <section className="mt-4 space-y-2">
       <h4 className="text-sm font-medium text-theme-text-primary">
-        Authentication headers
+        身份验证请求头
       </h4>
       <p className="text-xs text-theme-text-tertiary">
-        Optional. Saved values stay unchanged unless you replace or remove them.
+        可选。除非替换或移除，否则已保存的值保持不变。
       </p>
       {rows.map((row, index) => {
         const saved = index < keys.length
@@ -39,27 +39,27 @@ export function ConnectionHeadersEditor({
           <div key={index} className="space-y-1">
             <div className="flex items-center gap-2">
               <Input
-                aria-label={`Header ${index + 1} name`}
+                aria-label={`第 ${index + 1} 个请求头名称`}
                 value={row.key}
                 disabled={saved}
                 onChange={(e) => update(index, { key: e.target.value })}
-                placeholder="Header name"
+                placeholder="请求头名称"
                   className="min-w-0 flex-1 px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
               />
               <Input
-                aria-label={`${row.key || 'New header'} value`}
+                aria-label={`${row.key || '新请求头'}的值`}
                 type="password"
                 autoComplete="new-password"
                 disabled={environment || row.action === 'clear'}
                 value={row.value ?? ''}
                 placeholder={
                   row.action === 'clear'
-                    ? 'Will be removed'
+                    ? '将被移除'
                     : environment
-                      ? 'From environment'
+                      ? '来自环境变量'
                       : saved
-                        ? 'Saved value'
-                        : 'Value'
+                        ? '已保存的值'
+                        : '值'
                 }
                 onChange={(e) =>
                   update(index, {
@@ -73,7 +73,7 @@ export function ConnectionHeadersEditor({
                 <button
                   type="button"
                   className="text-xs text-accent-text hover:underline shrink-0"
-                  aria-label={`${row.action === 'clear' ? 'Undo removal of' : 'Remove'} ${row.key || 'new header'}`}
+                  aria-label={`${row.action === 'clear' ? '撤销移除' : '移除'} ${row.key || '新请求头'}`}
                   onClick={() =>
                     saved
                       ? update(index, {
@@ -83,13 +83,13 @@ export function ConnectionHeadersEditor({
                       : onChange(rows.filter((_, i) => i !== index))
                   }
                 >
-                  {row.action === 'clear' ? 'Undo' : 'Remove'}
+                  {row.action === 'clear' ? '撤销' : '移除'}
                 </button>
               )}
             </div>
             {environment && (
               <p className="text-xs text-theme-text-tertiary">
-                Environment reference · edit this header in clusters.json.
+                环境变量引用 · 请在 clusters.json 中编辑此请求头。
               </p>
             )}
           </div>
@@ -102,7 +102,7 @@ export function ConnectionHeadersEditor({
           onChange([...rows, { key: '', action: 'set', value: '' }])
         }
       >
-        Add header
+        添加请求头
       </button>
     </section>
   )

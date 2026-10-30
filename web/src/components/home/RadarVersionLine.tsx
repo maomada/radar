@@ -45,7 +45,7 @@ export function RadarVersionLine({
         className="inline-flex items-center gap-1 text-accent-text hover:text-accent transition-colors"
       >
         <Megaphone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        What's new
+        更新内容
       </button>
     </span>
   )
@@ -69,34 +69,34 @@ export function RadarVersionLine({
     : null
 
   let detail = managerLoading
-    ? 'Checking how this installation is managed.'
-    : 'The installation manager could not be confirmed. Open the in-cluster upgrade instructions.'
+    ? '正在检查此安装的管理方式。'
+    : '无法确认安装管理器。请打开集群内升级说明。'
   let onClick: (() => void) | undefined
   const actionClassName = `inline-flex items-center gap-1 transition-colors ${upgradeActionClassName(updateStatus.tier)}`
 
   if (manager?.ownership === 'helm' && manager.namespace && manager.release) {
     if (onNavigateToHelmRelease) {
-      detail = `Managed by Helm release ${manager.namespace}/${manager.release}. Open the release to upgrade.`
+      detail = `由 Helm 发布 ${manager.namespace}/${manager.release} 管理。打开该发布进行升级。`
       onClick = () => onNavigateToHelmRelease(manager.namespace!, manager.release!)
     } else {
-      detail = `Managed by Helm release ${manager.namespace}/${manager.release}. Open the in-cluster upgrade instructions.`
+      detail = `由 Helm 发布 ${manager.namespace}/${manager.release} 管理。打开集群内升级说明。`
     }
   } else if (controller && gitOpsPath) {
     const objectName = `${controller.namespace ? `${controller.namespace}/` : ''}${controller.name}`
     if (onNavigateToGitOps) {
-      detail = `Managed by ${controller.kind} ${objectName}. Open it to upgrade through GitOps.`
+      detail = `由 ${controller.kind} ${objectName} 管理。打开它并通过 GitOps 升级。`
       onClick = () => onNavigateToGitOps(gitOpsPath)
     } else {
-      detail = `Managed by ${controller.kind} ${objectName}. Open the in-cluster upgrade instructions and apply the change through GitOps.`
+      detail = `由 ${controller.kind} ${objectName} 管理。打开集群内升级说明并通过 GitOps 应用更改。`
     }
   } else if (manager?.ownership === 'gitops') {
     detail = manager.controller
-      ? `This installation appears to be managed through GitOps (${manager.controller}). Open the upgrade instructions and apply the change through its source of truth.`
-      : 'This installation appears to be managed through GitOps. Open the upgrade instructions and apply the change through its source of truth.'
+      ? `此安装似乎由 GitOps（${manager.controller}）管理。打开升级说明，并通过其真实来源应用更改。`
+      : '此安装似乎由 GitOps 管理。打开升级说明，并通过其真实来源应用更改。'
   }
 
   const ageDetail = updateAgeDetail(updateStatus)
-  const accessibleLabel = `${displayVersion(latestVersion)} available${ageDetail ? `. ${ageDetail}` : ''} — ${detail}`
+  const accessibleLabel = `可用版本 ${displayVersion(latestVersion)}${ageDetail ? `。${ageDetail}` : ''} — ${detail}`
   const action = managerLoading ? (
     <span className={actionClassName}>
       <UpgradeLabel version={latestVersion} />
@@ -147,16 +147,16 @@ function upgradeActionClassName(tier: VersionUpdateTier): string {
 }
 
 function updateAgeDetail(status: ReturnType<typeof getVersionUpdateStatus>): string | undefined {
-  if (status.majorVersionBehind) return 'A major Radar upgrade is available.'
+  if (status.majorVersionBehind) return '有可用的 Radar 主版本升级。'
   if (status.tier !== 'stale' || !status.minorVersionsBehind) return undefined
-  return `This installation is ${status.minorVersionsBehind} minor releases behind.`
+  return `此安装落后 ${status.minorVersionsBehind} 个次版本。`
 }
 
 function UpgradeLabel({ version }: { version: string }) {
   return (
     <>
       <ArrowUpCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span><span className="font-mono">{displayVersion(version)}</span> available</span>
+      <span>可用版本 <span className="font-mono">{displayVersion(version)}</span></span>
     </>
   )
 }

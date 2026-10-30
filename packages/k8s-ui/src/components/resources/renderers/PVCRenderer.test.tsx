@@ -15,8 +15,8 @@ describe('PVCRenderer', () => {
     )
 
     expect(html).toContain('Pending')
-    expect(html).toContain('not yet bound')
-    expect(html).toContain('check the StorageClass')
+    expect(html).toContain('尚未绑定')
+    expect(html).toContain('检查 StorageClass')
     expect(html).not.toContain('This is normal')
     expect(html).not.toContain('expected indefinitely')
   })
@@ -41,8 +41,8 @@ describe('PVCRenderer', () => {
     )
 
     expect(html).toContain('Unused for about')
-    expect(html).toContain('No non-terminal Pod currently references this claim')
-    expect(html).toContain('Verify its retention policy and data ownership')
+    expect(html).toContain('当前没有非终止状态的 Pod 引用此存储声明。')
+    expect(html).toContain('删除前请确认保留策略和数据归属。')
     expect(html).toContain('bg-gray-400/20')
     expect(html).not.toContain('failing')
     expect(html).not.toContain('bg-emerald-500/20')
@@ -61,7 +61,7 @@ describe('PVCRenderer', () => {
           }}
         />,
       )
-      expect(html).not.toContain('No non-terminal Pod currently references this claim')
+      expect(html).not.toContain('当前没有非终止状态的 Pod 引用此存储声明。')
     }
   })
 })

@@ -40,13 +40,13 @@ export function MyPermissionsContent({ active }: { active: boolean }) {
       {/* Identity + namespace selector */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[180px]">
-          <label className="block text-xs text-theme-text-tertiary mb-1">Identity</label>
+          <label className="block text-xs text-theme-text-tertiary mb-1">身份</label>
           <div className="px-2 py-1.5 text-sm bg-theme-elevated rounded border border-theme-border text-theme-text-primary truncate">
             {authMe?.username || '(current kubeconfig user)'}
           </div>
         </div>
         <div className="flex-1 min-w-[180px]">
-          <label className="block text-xs text-theme-text-tertiary mb-1">Namespace</label>
+          <label className="block text-xs text-theme-text-tertiary mb-1">命名空间</label>
           <select
             value={namespace}
             onChange={(e) => { userPicked.current = true; setNamespace(e.target.value) }}

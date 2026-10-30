@@ -45,7 +45,7 @@ async function renderOpen(scope: Partial<NamespaceScopeView>, props: Partial<Nam
   await act(async () => {
     root.render(<NamespacePicker scope={{ ...baseScope, ...scope }} onApply={vi.fn()} {...props} />)
   })
-  const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="Switch active namespaces"]')!
+  const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="切换当前命名空间"]')!
   const warning = trigger.querySelector('.lucide-triangle-alert, .lucide-alert-triangle') !== null
   const tooltip = document.querySelector('[data-testid="tooltip"]')?.textContent ?? ''
   await act(async () => { trigger.click() })
@@ -55,20 +55,20 @@ async function renderOpen(scope: Partial<NamespaceScopeView>, props: Partial<Nam
 describe('NamespacePicker incomplete-list notice', () => {
   it.each(['namespace', 'restricted'] as const)('offers the host action for a non-authoritative list in %s mode', async (mode) => {
     const { text } = await renderOpen({ mode }, { limitedListHelp: help })
-    expect(text).toContain('Missing a namespace?')
+    expect(text).toContain('找不到所需的命名空间？')
     expect(document.querySelector('[data-testid="help"]')).not.toBeNull()
   })
 
   it('says nothing about the list when the host has no action to offer', async () => {
     const { warning, text } = await renderOpen({})
     expect(warning).toBe(false)
-    expect(text).not.toContain('Missing a namespace?')
+    expect(text).not.toContain('找不到所需的命名空间？')
   })
 
   it('says nothing when the list is authoritative', async () => {
     const { warning, text } = await renderOpen({ authoritative: true }, { limitedListHelp: help })
     expect(warning).toBe(false)
-    expect(text).not.toContain('Missing a namespace?')
+    expect(text).not.toContain('找不到所需的命名空间？')
     expect(document.querySelector('[data-testid="help"]')).toBeNull()
   })
 
@@ -77,8 +77,8 @@ describe('NamespacePicker incomplete-list notice', () => {
       { actives: [], accessibleNamespaces: [], mode: 'restricted' },
       { limitedListHelp: help },
     )
-    expect(text).toContain('No namespaces yet.')
-    expect(text).toContain('Missing a namespace?')
+    expect(text).toContain('尚无命名空间。')
+    expect(text).toContain('找不到所需的命名空间？')
   })
 
   // The picker can't tell an unconfigured list from a configured or timed-out
@@ -90,27 +90,27 @@ describe('NamespacePicker incomplete-list notice', () => {
 
   it('says Radar can\u2019t list namespaces when the host can help and nothing is picked', async () => {
     const { tooltip } = await renderOpen({ actives: [], mode: 'restricted' }, { limitedListHelp: help })
-    expect(tooltip).toBe('Radar can\u2019t list namespaces on this cluster.')
+    expect(tooltip).toBe('Radar 无法列出此集群中的命名空间。')
   })
 
   // A picked view keeps describing its filter; the footer carries the help.
   it('keeps the filter tooltip once a namespace is picked', async () => {
     const { tooltip, text } = await renderOpen({ mode: 'namespace' }, { limitedListHelp: help })
-    expect(tooltip).toBe('View is filtered to namespace team-a. Click to switch or reset.')
-    expect(text).toContain('Missing a namespace?')
+    expect(tooltip).toBe('当前视图已筛选为命名空间 team-a。点击以切换或重置。')
+    expect(text).toContain('找不到所需的命名空间？')
   })
 
   // Without a host action the list is usually the viewer's complete RBAC view
   // (auth-enabled installs, Radar Cloud), so say what it is rather than warn.
   it('describes an RBAC-scoped list with nothing picked', async () => {
     const { tooltip, text } = await renderOpen({ actives: [], mode: 'restricted' })
-    expect(tooltip).toBe('Showing the namespaces your account can access.')
-    expect(text).not.toContain('Missing a namespace?')
+    expect(tooltip).toBe('正在显示你的账号有权访问的命名空间。')
+    expect(text).not.toContain('找不到所需的命名空间？')
   })
 
   it('keeps the usual tooltip for an authoritative list', async () => {
     const { tooltip } = await renderOpen({ actives: [], mode: 'cluster-wide', authoritative: true })
-    expect(tooltip).toBe('Currently viewing all namespaces. Click to narrow the view.')
+    expect(tooltip).toBe('当前正在查看所有命名空间。点击以缩小范围。')
   })
 
   // The backend keeps saved picks through a failed namespace load, when the
@@ -125,7 +125,7 @@ describe('NamespacePicker incomplete-list notice', () => {
         />,
       )
     })
-    const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="Switch active namespaces"]')!
+    const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="切换当前命名空间"]')!
     await act(async () => { trigger.click() })
 
     const row = Array.from(document.querySelectorAll('label')).find(l => l.textContent?.includes('team-b'))
@@ -133,7 +133,7 @@ describe('NamespacePicker incomplete-list notice', () => {
     expect(checkbox?.checked).toBe(true)
 
     await act(async () => { checkbox!.click() })
-    const done = Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Done')!
+    const done = Array.from(document.querySelectorAll('button')).find(b => b.textContent === '完成')!
     await act(async () => { done.click() })
     expect(onApply).toHaveBeenCalledWith(['team-a'])
   })
@@ -143,7 +143,7 @@ describe('NamespacePicker Only button', () => {
   const scope = { ...baseScope, actives: ['team-a'], accessibleNamespaces: ['team-a', 'team-b', 'team-c'] }
 
   const triggerButton = () =>
-    document.querySelector<HTMLButtonElement>('button[aria-label="Switch active namespaces"]')!
+    document.querySelector<HTMLButtonElement>('button[aria-label="切换当前命名空间"]')!
 
   async function open(onApply = vi.fn()) {
     await act(async () => {
@@ -154,17 +154,17 @@ describe('NamespacePicker Only button', () => {
   }
 
   const onlyButton = (ns: string) =>
-    document.querySelector<HTMLButtonElement>(`button[aria-label="Show only ${ns}"]`)!
+    document.querySelector<HTMLButtonElement>(`button[aria-label="仅选择 ${ns}"]`)!
   const row = (ns: string) =>
     Array.from(document.querySelectorAll('label')).find(l => l.textContent?.includes(ns))!
   const checkbox = (ns: string) => row(ns).querySelector<HTMLInputElement>('input[type="checkbox"]')!
   const doneButton = () =>
-    Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Done')!
+    Array.from(document.querySelectorAll('button')).find(b => b.textContent === '完成')!
   const isOpen = () => document.querySelector('input[type="checkbox"]') !== null
 
   it('puts an Only button on every row', async () => {
     await open()
-    for (const ns of ['team-a', 'team-b', 'team-c']) expect(onlyButton(ns).textContent).toBe('Only')
+    for (const ns of ['team-a', 'team-b', 'team-c']) expect(onlyButton(ns).textContent).toBe('仅此项')
   })
 
   it('applies just that namespace and closes the dropdown', async () => {
@@ -224,15 +224,15 @@ describe('NamespacePicker Only button', () => {
     expect(document.activeElement).toBe(only)
   })
 
-  it.each(['Only', 'Done', 'Clear all'])('reopens from active namespaces after an unacknowledged %s apply', async (action) => {
+  it.each(['仅此项', '完成', '清除全部'])('reopens from active namespaces after an unacknowledged %s apply', async (action) => {
     const onApply = await open()
-    if (action === 'Only') {
+    if (action === '仅此项') {
       await act(async () => { onlyButton('team-c').click() })
-    } else if (action === 'Done') {
+    } else if (action === '完成') {
       await act(async () => { checkbox('team-b').click() })
       await act(async () => { doneButton().click() })
     } else {
-      const clear = document.querySelector<HTMLButtonElement>('button[aria-label="Clear namespace selection"]')!
+      const clear = document.querySelector<HTMLButtonElement>('button[aria-label="清除命名空间选择"]')!
       await act(async () => { clear.click() })
     }
     expect(onApply).toHaveBeenCalledTimes(1)

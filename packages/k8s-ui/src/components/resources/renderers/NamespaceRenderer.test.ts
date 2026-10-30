@@ -50,12 +50,12 @@ describe('namespace deletion diagnostics', () => {
         { type: 'NamespaceDeletionDiscoveryFailure', status: 'False', reason: 'ResourcesDiscovered', message: 'All resources successfully discovered' },
       ] },
     } }))
-    expect(html).toContain('Terminating for')
+    expect(html).toContain('终止时长')
     expect(html).toContain('>2h<')
-    expect(html).toContain('Namespace finalizers')
+    expect(html).toContain('命名空间 Finalizer')
     expect(html).toContain('kubernetes')
     expect(html).not.toContain('metadata.example.com/not-the-namespace-finalizer')
-    expect(html).toContain('Conditions (3) · 2 failing')
+    expect(html).toContain('条件（3） · 2 项失败')
     expect(html).toContain('SomeResourcesRemain')
     expect(html).toContain('configmaps. has 1 resource instances')
     expect(html).toContain('example.com/hold in 1 resource instances')
@@ -68,9 +68,9 @@ describe('namespace deletion diagnostics', () => {
       status: { phase: 'Active' },
     } }))
     expect(html).toContain('Active')
-    expect(html).not.toContain('Terminating for')
-    expect(html).not.toContain('Conditions (')
-    expect(html).not.toContain('Namespace finalizers')
+    expect(html).not.toContain('终止时长')
+    expect(html).not.toContain('条件（')
+    expect(html).not.toContain('命名空间 Finalizer')
   })
 
   it('does not substitute creation age when a terminating namespace lacks a deletion timestamp', () => {
@@ -79,8 +79,8 @@ describe('namespace deletion diagnostics', () => {
       status: { phase: 'Terminating', conditions: [] },
     } }))
     expect(html).toContain('Terminating')
-    expect(html).not.toContain('Terminating for')
-    expect(html).not.toContain('Conditions (')
+    expect(html).not.toContain('终止时长')
+    expect(html).not.toContain('条件（')
     expect(html).not.toContain('Namespace finalizers')
   })
 
@@ -90,7 +90,7 @@ describe('namespace deletion diagnostics', () => {
         { type: 'NamespaceDeletionDiscoveryFailure', status: 'Unknown', reason: 'DiscoveryPending', message: 'Waiting for discovery' },
       ] },
     } }))
-    expect(html).toContain('Conditions (1)')
+    expect(html).toContain('条件（1）')
     expect(html).toContain('Waiting for discovery')
     expect(html).not.toContain('failing')
   })

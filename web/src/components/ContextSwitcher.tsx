@@ -72,7 +72,7 @@ export const ContextSwitcher = forwardRef<ContextSwitcherHandle, ContextSwitcher
       const groupLabel = hasMultipleAccounts && p.provider
         ? `${p.provider}${p.account ? ` · ${p.account}` : ''}`
         : hasMultipleAccounts
-          ? 'Other'
+          ? '其他'
           : undefined
       return {
         id: p.context.name,
@@ -112,7 +112,7 @@ export const ContextSwitcher = forwardRef<ContextSwitcherHandle, ContextSwitcher
   // Fall back to clusterInfo.context for the very-early window before
   // /api/contexts has resolved.
   const currentParsed = currentId ? parsedById.get(currentId) : undefined
-  const currentRaw = triggerName || currentParsed?.raw || clusterInfo?.context || currentCtx?.name || 'Unknown'
+  const currentRaw = triggerName || currentParsed?.raw || clusterInfo?.context || currentCtx?.name || '未知'
   const currentNameQualifier = triggerName
     ? undefined
     : visibleContextQualifier(currentParsed?.nameQualifier, currentCtx?.source, hasMultipleSources)

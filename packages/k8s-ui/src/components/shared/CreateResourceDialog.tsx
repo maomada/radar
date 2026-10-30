@@ -71,7 +71,7 @@ export function CreateResourceDialog({
   open,
   onClose,
   onBack,
-  backLabel = 'Back',
+  backLabel = '返回',
   initialYaml = '',
   title,
   onApply,
@@ -185,7 +185,7 @@ export function CreateResourceDialog({
 
   const finishApply = useCallback(
     (results: ApplyResult[], appliedMode: 'apply' | 'create', wasDryRun: boolean, submittedYaml: string) => {
-      const action = appliedMode === 'create' ? 'Created' : 'Applied'
+      const action = appliedMode === 'create' ? '已创建' : '已应用'
       const dryRunLabel = wasDryRun ? ' (dry run)' : ''
       if (results.length === 1) {
         const result = results[0]
@@ -314,7 +314,7 @@ export function CreateResourceDialog({
 
   const handleSubmit = useCallback(async () => {
     if (!yaml.trim()) {
-      setError('YAML content is required')
+      setError('必须填写 YAML 内容')
       return
     }
     setError(null)
@@ -341,7 +341,7 @@ export function CreateResourceDialog({
       })
       finishApply(results, mode, dryRun, yaml)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unknown error')
+      setError(caught instanceof Error ? caught.message : '未知错误')
       if (!onPreview) recoverPartialCreate(caught, yaml, mode, dryRun)
     }
   }, [yaml, mode, dryRun, force, onApply, onPreview, finishApply, recoverPartialCreate])
@@ -361,7 +361,7 @@ export function CreateResourceDialog({
       })
       finishApply(results, preview.mode, false, preview.yaml)
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Unknown error'
+      const message = caught instanceof Error ? caught.message : '未知错误'
       setError(message)
       if (recoverPartialCreate(caught, preview.yaml, preview.mode, false)) return
       if (onPreview) {
@@ -384,9 +384,9 @@ export function CreateResourceDialog({
     }
   }, [preview, onApply, onPreview, finishApply, recoverPartialCreate])
 
-  const dialogTitle = title || 'Create Resource'
+  const dialogTitle = title || '创建资源'
   const showModeControls = !lockMode
-  const submitLabel = onPreview ? 'Review' : mode === 'create' ? 'Create' : 'Apply'
+  const submitLabel = onPreview ? '审阅' : mode === 'create' ? '创建' : '应用'
 
   return (
     <DialogPortal
@@ -411,7 +411,7 @@ export function CreateResourceDialog({
           isApplying={isApplying}
           applyError={error}
           applyLabel={
-            preview.mode === 'create' ? 'Create reviewed resources' : 'Apply reviewed changes'
+            preview.mode === 'create' ? '创建已审阅的资源' : '应用已审阅的更改'
           }
           onClose={handleClose}
           onBack={() => {
@@ -424,11 +424,11 @@ export function CreateResourceDialog({
         <>
           <div className="flex shrink-0 items-center justify-between border-b border-theme-border px-5 py-3.5">
             <h2 id={titleId} className="text-sm font-semibold text-theme-text-primary">{dialogTitle}</h2>
-            <Tooltip content="Close">
+            <Tooltip content="关闭">
               <button
                 type="button"
                 onClick={handleClose}
-                aria-label="Close"
+                aria-label="关闭"
                 className="rounded p-1 text-theme-text-secondary transition-colors hover:bg-theme-hover"
               >
                 <X className="h-4 w-4" />
@@ -444,10 +444,10 @@ export function CreateResourceDialog({
                 className="flex items-center gap-1.5 rounded-md border border-theme-border px-2.5 py-1 text-xs font-medium text-theme-text-secondary transition-colors hover:bg-theme-hover hover:text-theme-text-primary"
               >
                 <Upload className="h-3.5 w-3.5" />
-                Import YAML file
+                导入 YAML 文件
               </button>
               <span className="text-xs text-theme-text-tertiary">
-                or drop a YAML file into the editor
+                或将 YAML 文件拖放到编辑器中
               </span>
               <input
                 ref={fileInputRef}
@@ -480,7 +480,7 @@ export function CreateResourceDialog({
               {importing && (
                 <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md border border-theme-border bg-theme-base/85">
                   <span className="text-sm font-medium text-theme-text-primary">
-                    Loading {importing}…
+                    正在加载 {importing}…
                   </span>
                 </div>
               )}
@@ -489,8 +489,8 @@ export function CreateResourceDialog({
                   <span className="flex items-center gap-2 text-sm font-medium text-theme-text-primary">
                     <Upload className="h-4 w-4" />
                     {drag === 'multiple-files'
-                      ? 'Drop a single YAML file'
-                      : 'Drop YAML file to load'}
+                      ? '拖放单个 YAML 文件'
+                      : '拖放 YAML 文件以加载'}
                   </span>
                 </div>
               )}
@@ -499,7 +499,7 @@ export function CreateResourceDialog({
 
           {!onPreview && <div className="px-4"><CrossplaneYamlApplyNotice yaml={pauseContextYaml} baselineUnavailable={mode === 'apply'} /></div>}
           {(error || previewError || partialCreates.length > 0) && (
-            <ApplyErrorBanner error={error || previewError || 'Resources were created before the previous attempt stopped.'} partialCreates={partialCreates} strictCreate={lockMode && mode === 'create'} hasPreview={Boolean(onPreview)} />
+            <ApplyErrorBanner error={error || previewError || '上次尝试停止前已创建部分资源。'} partialCreates={partialCreates} strictCreate={lockMode && mode === 'create'} hasPreview={Boolean(onPreview)} />
           )}
           {success && (
             <div className="mx-5 mb-2 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
@@ -512,13 +512,13 @@ export function CreateResourceDialog({
             <div className="flex items-center gap-3">
               {showModeControls && (
                 <Tooltip
-                  content="Apply: create or update (idempotent). Create: fail if exists."
+                  content="应用：创建或更新（幂等）。创建：资源已存在时失败。"
                   position="bottom"
                 >
                   <div
                     className="flex items-center rounded-md border border-theme-border bg-theme-base p-0.5"
                     role="radiogroup"
-                    aria-label="Apply mode"
+                    aria-label="应用模式"
                   >
                     {(['apply', 'create'] as const).map((option) => (
                       <button
@@ -533,7 +533,7 @@ export function CreateResourceDialog({
                             : 'text-theme-text-tertiary hover:text-theme-text-secondary'
                         }`}
                       >
-                        {option}
+                        {option === 'apply' ? '应用' : '创建'}
                       </button>
                     ))}
                   </div>
@@ -542,7 +542,7 @@ export function CreateResourceDialog({
 
               {!onPreview && (
                 <Tooltip
-                  content="Validate against the cluster without persisting changes"
+                  content="对照集群验证，但不持久化更改"
                   position="bottom"
                 >
                   <label className="flex cursor-pointer items-center gap-1.5 text-xs text-theme-text-secondary">
@@ -552,14 +552,14 @@ export function CreateResourceDialog({
                       onChange={(event) => setDryRun(event.target.checked)}
                       className="h-3.5 w-3.5 rounded border-theme-border bg-theme-base"
                     />
-                    Dry run
+                    试运行
                   </label>
                 </Tooltip>
               )}
 
               {showModeControls && (
                 <Tooltip
-                  content="Override field ownership conflicts. An active controller may reconcile those fields back."
+                  content="覆盖字段所有权冲突。活跃控制器可能会将这些字段协调回原值。"
                   position="bottom"
                 >
                   <label
@@ -572,7 +572,7 @@ export function CreateResourceDialog({
                       onChange={(event) => setForce(event.target.checked)}
                       className="h-3.5 w-3.5 rounded border-theme-border bg-theme-base"
                     />
-                    Force
+                    强制应用
                   </label>
                 </Tooltip>
               )}
@@ -598,7 +598,7 @@ export function CreateResourceDialog({
                 onClick={handleClose}
                 className="rounded-lg px-3 py-1.5 text-xs text-theme-text-secondary transition-colors hover:bg-theme-hover"
               >
-                Cancel
+                取消
               </button>
               <button
                 type="button"
@@ -607,7 +607,7 @@ export function CreateResourceDialog({
                 className="btn-brand flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-medium disabled:cursor-not-allowed"
               >
                 {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {isPreviewing ? 'Previewing…' : isApplying ? `${submitLabel}…` : submitLabel}
+                {isPreviewing ? '正在预览…' : isApplying ? `${submitLabel}…` : submitLabel}
               </button>
             </div>
           </div>
@@ -629,9 +629,9 @@ export function CreateResourceDialog({
         }}
         variant="warning"
         showWarning={false}
-        title="Replace editor contents?"
-        message={`Loading ${pendingImport?.fileName ?? 'this file'} discards the YAML currently in the editor.`}
-        confirmLabel="Replace"
+        title="替换编辑器内容？"
+        message={`加载 ${pendingImport?.fileName ?? '此文件'} 会丢弃编辑器中当前的 YAML。`}
+        confirmLabel="替换"
       />
     </DialogPortal>
   )
@@ -650,8 +650,8 @@ function ApplyErrorBanner({ error, partialCreates, strictCreate, hasPreview }: {
         <div className="min-w-0 flex-1">
           <span className="font-medium">{parsed.summary}</span>
           {partialCreates.length > 0 && <p className="mt-1">
-            Created before it stopped: {partialCreates.map(result => `${result.kind} ${result.namespace ? `${result.namespace}/` : ''}${result.name}`).join(', ')}.
-            {' '}{recoveringWithReview ? 'Radar switched to Apply mode so you can review and continue from the current cluster state.' : `${strictCreate ? 'This dialog only creates. ' : ''}Remove the created objects from the manifest before retrying Create.`}
+            停止前已创建：{partialCreates.map(result => `${result.kind} ${result.namespace ? `${result.namespace}/` : ''}${result.name}`).join('、')}。
+            {' '}{recoveringWithReview ? 'Radar 已切换到“应用”模式，以便你审阅并根据当前集群状态继续。' : `${strictCreate ? '此对话框仅用于创建。' : ''}请从清单中移除已创建的对象，然后重试创建。`}
           </p>}
           {parsed.suggestion && !recoveringWithReview && (
             <p className="mt-1 text-red-500/80 dark:text-red-400/80">{parsed.suggestion}</p>

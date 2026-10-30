@@ -39,7 +39,7 @@ function CostCardContent({ data, onNavigate }: { data: OpenCostSummary; onNaviga
         <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
           <div className="flex items-center gap-2">
             <Coins className="w-4 h-4 text-accent-text" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-accent-text">Cost Insights</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-accent-text">成本概览</span>
             {namespaces.length > 0 && (
               <span className="badge-sm border border-theme-border bg-accent-muted text-accent-text">
                 {namespaces.length} ns
@@ -88,9 +88,9 @@ function CostCardContent({ data, onNavigate }: { data: OpenCostSummary; onNaviga
 
         <div className="px-4 py-1.5 border-t border-theme-border/50 flex items-center justify-between">
           <span className="text-[10px] text-theme-text-tertiary">
-            {currency} &middot; projected from {costFreshnessLabel(data.source, data.window, data.dataThrough)}
+            {currency} &middot; 预计值来源：{costFreshnessLabel(data.source, data.window, data.dataThrough)}
             {currency !== DEFAULT_COST_CURRENCY && (
-              <> &middot; no conversion</>
+              <> &middot; 未换算</>
             )}
           </span>
           <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-accent-text">

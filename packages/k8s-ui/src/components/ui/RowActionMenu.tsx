@@ -25,7 +25,7 @@ interface RowActionMenuProps {
   compact?: boolean
 }
 
-export function RowActionMenu({ items, ariaLabel = 'Row actions', compact = true }: RowActionMenuProps) {
+export function RowActionMenu({ items, ariaLabel = '行操作', compact = true }: RowActionMenuProps) {
   const [open, setOpen] = useState(false)
   const { shouldRender, isOpen } = useAnimatedUnmount(open, overlayExitMs('menu'))
   // Flip the menu above the trigger when it would otherwise spill past the

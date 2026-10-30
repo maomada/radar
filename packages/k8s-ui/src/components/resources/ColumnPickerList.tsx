@@ -7,6 +7,32 @@ import { isMac } from '../../utils/platform'
 import { moveColumn, pinnedColumnCount } from './column-order'
 import type { Column } from './ResourcesView'
 
+const COLUMN_DISPLAY_LABELS: Record<string, string> = {
+  Name: '名称',
+  Namespace: '命名空间',
+  Containers: '容器',
+  Status: '状态',
+  Memory: '内存',
+  Restarts: '重启次数',
+  Node: '节点',
+  Age: '运行时长',
+  Kind: '类型',
+  Type: '类型',
+  Ready: '就绪',
+  Desired: '期望副本数',
+  Available: '可用副本数',
+  Created: '创建时间',
+  Reason: '原因',
+  Labels: '标签',
+  Images: '镜像',
+  Owner: '所有者',
+  'API Version': 'API 版本',
+}
+
+export function columnDisplayLabel(label: string): string {
+  return COLUMN_DISPLAY_LABELS[label] ?? label
+}
+
 interface ColumnPickerListProps {
   /** Every offered column, in display order. */
   columns: Column[]
@@ -51,7 +77,7 @@ export function ColumnPickerList({
     if (!next) return false
     onReorder(next)
     const col = columns.find(c => c.key === key)
-    setAnnouncement(`${col?.label ?? key} moved to position ${pinned + next.indexOf(key) + 1} of ${columns.length}.`)
+    setAnnouncement(`${columnDisplayLabel(col?.label ?? key)}已移动到第 ${pinned + next.indexOf(key) + 1} 列，共 ${columns.length} 列。`)
     return true
   }
 
@@ -63,8 +89,8 @@ export function ColumnPickerList({
     refocus.current = e.target instanceof HTMLElement ? e.target : null
     if (!commitMove(key, movableIndex + (up ? -1 : 1))) {
       refocus.current = null
-      const label = columns.find(c => c.key === key)?.label ?? key
-      setAnnouncement(up ? `${label} is already at the top.` : `${label} is already at the bottom.`)
+      const label = columnDisplayLabel(columns.find(c => c.key === key)?.label ?? key)
+      setAnnouncement(up ? `${label}已位于最顶部。` : `${label}已位于最底部。`)
     }
   }
 
@@ -82,7 +108,7 @@ export function ColumnPickerList({
   return (
     <>
       <span id={hintId} className="sr-only">
-        {mac ? 'Press Option+Up Arrow or Option+Down Arrow to move this column.' : 'Press Alt+Up Arrow or Alt+Down Arrow to move this column.'}
+        {mac ? '按 Option+↑ 或 Option+↓ 移动此列。' : '按 Alt+↑ 或 Alt+↓ 移动此列。'}
       </span>
       <span className="sr-only" role="status" aria-live="polite">{announcement}</span>
       {columns.map((col, i) => {
@@ -119,7 +145,7 @@ export function ColumnPickerList({
               <span aria-hidden className="pointer-events-none absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent" />
             )}
             {movable ? (
-              <Tooltip content={mac ? 'Drag to reorder, or press ⌥↑ / ⌥↓' : 'Drag to reorder, or press Alt+↑ / Alt+↓'} position="left">
+              <Tooltip content={mac ? '拖动以重新排序，或按 ⌥↑ / ⌥↓' : '拖动以重新排序，或按 Alt+↑ / Alt+↓'} position="left">
                 <span
                   aria-hidden
                   draggable
@@ -152,8 +178,8 @@ export function ColumnPickerList({
               <span className={clsx(
                 'text-sm truncate',
                 col.key === 'name' ? 'text-theme-text-tertiary' : 'text-theme-text-primary'
-              )} title={col.tooltip || col.label}>
-                {col.label}
+              )} title={col.tooltip || columnDisplayLabel(col.label)}>
+                {columnDisplayLabel(col.label)}
               </span>
             </label>
             {isCustom && (
@@ -161,7 +187,7 @@ export function ColumnPickerList({
                 type="button"
                 onClick={() => onRemoveCustom(col.key)}
                 className="shrink-0 p-0.5 text-theme-text-tertiary hover:text-red-500 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                title="Remove column"
+                title="移除列"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

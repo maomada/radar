@@ -117,16 +117,16 @@ const savedCredential: Record<IntegrationKind, string> = {
 function describeSource(kind: IntegrationKind, source: { url: string; secretSet: boolean; headerKeys: string[]; mode?: string; clusterId?: string }) {
   if (source.url) return source.url
   if (kind === 'cost' && source.mode === 'prometheus') return 'OpenCost metrics'
-  if (source.secretSet || source.headerKeys.length > 0) return `Auto-discovery with ${savedCredential[kind]}`
-  if (source.clusterId) return 'Auto-discovery with a Kubecost cluster mapping'
-  return 'Auto-discovery'
+  if (source.secretSet || source.headerKeys.length > 0) return `自动发现（使用已保存的${savedCredential[kind]}）`
+  if (source.clusterId) return '自动发现（使用 Kubecost 集群映射）'
+  return '自动发现'
 }
 // Cost's reset also returns the source picker to Automatic, so it can't share
 // the endpoint-only "auto-discovery" wording.
 const automaticAction: Record<IntegrationKind, string> = {
-  metrics: 'Use auto-discovery',
-  argocd: 'Use auto-discovery',
-  cost: 'Reset to Automatic'
+  metrics: '使用自动发现',
+  argocd: '使用自动发现',
+  cost: '重置为自动'
 }
 function sameIdentity(a?: TargetIdentity, b?: TargetIdentity) {
   return !!a && !!b && a.server === b.server && a.user === b.user &&
@@ -244,7 +244,7 @@ export function LocalConnectionSettings({
       .then(async (response) => {
         const data = (await response.json().catch(() => ({}))) as ConnectionResponse
         if (!response.ok)
-          throw new Error(data.error || 'Could not load other clusters’ settings.')
+          throw new Error(data.error || '无法加载其他集群的设置。')
         if (!controller.signal.aborted && getApiBase() === base) {
           setCatalog(data.connections)
           setCatalogError(false)
@@ -336,7 +336,7 @@ export function LocalConnectionSettings({
     update?: Update
   ): Promise<ConnectionResponse> => {
     if (request.current)
-      throw new Error('A settings request is already in progress.')
+      throw new Error('设置请求正在进行中。')
     catalogRequest.current?.abort()
     const controller = new AbortController()
     request.current = controller
@@ -374,7 +374,7 @@ export function LocalConnectionSettings({
         getApiBase() !== base ||
         !mounted.current
       )
-        throw new Error('Cluster changed; reload settings.')
+        throw new Error('集群已更改；请重新加载设置。')
       if (!response.ok)
         throw new ApiError(
           data.error || `Settings request failed (${response.status})`,
@@ -406,7 +406,7 @@ export function LocalConnectionSettings({
     setMessageRevision(data.profiles[kind].revision)
     setMessageWarning(!!data.error)
     setMessage(
-      data.error ? data.error : data.checked ? 'Saved · Connected' : 'Saved'
+      data.error ? data.error : data.checked ? '已保存 · 已连接' : '已保存'
     )
     return data
   }
@@ -480,7 +480,7 @@ export function LocalConnectionSettings({
         header.key.toLowerCase() === key.toLowerCase() && header.action === 'clear'))
       const keptSecret = credentialSource.secretSet && (!draft.secret || draft.secret.action === 'keep') && !draft.useCliToken
       if (keptHeaders || keptSecret) {
-        throw new Error(`Remove or replace the saved credentials, or choose ${automaticAction[kind]} to clear this connection.`)
+        throw new Error(`请移除或替换已保存的凭据，或选择“${automaticAction[kind]}”以清除此连接。`)
       }
     }
     const update: Update = automaticDraft && !draft.useCliToken
@@ -521,8 +521,8 @@ export function LocalConnectionSettings({
   const replacing = task === 'replace' || discoveryDraft
   const title =
     task === 'reconfirm'
-        ? 'Do these settings still apply to this cluster?'
-        : 'Use a different connection'
+        ? '这些设置是否仍适用于此集群？'
+        : '使用其他连接'
   const beginReplace = () => {
     resetDraft({
       ...profile,
@@ -585,7 +585,7 @@ export function LocalConnectionSettings({
   const reuseOptions = task === 'main' && profile.state !== 'launch' ? [
     ...(previous ? [{
       value: previousSource,
-      label: 'Previous global settings',
+      label: '之前的全局设置',
       description: previous.error
         ? `Can’t be used: ${previous.error.replace(/\.$/, '')}. Fix it in ~/.radar/config.json.`
         : describeSource(kind, previous),
@@ -603,9 +603,9 @@ export function LocalConnectionSettings({
         <SelectMenu
           variant="text"
           value=""
-          placeholder="Copy settings from…"
-          ariaLabel="Copy settings from…"
-          searchPlaceholder="Search clusters or URLs"
+          placeholder="复制设置自…"
+          ariaLabel="复制设置自…"
+          searchPlaceholder="搜索集群或 URL"
           disabled={!!pending}
           options={reuseOptions}
           onChange={value => {
@@ -620,9 +620,9 @@ export function LocalConnectionSettings({
       )}
       {catalogError && (
         <span role="status" className="text-xs text-theme-text-secondary">
-          Could not load other clusters.{' '}
+          无法加载其他集群。{' '}
           <button type="button" className="text-accent-text hover:underline" onClick={() => setCatalogRetry(retry => retry + 1)}>
-            Retry
+            重试
           </button>
         </span>
       )}
@@ -655,8 +655,8 @@ export function LocalConnectionSettings({
     ? removedList ?? 'cost settings'
     : `${names[kind]} ${removedList ?? 'settings'}`
   const discoveryNotice = kind === 'cost'
-    ? `Saving resets this cluster’s cost source to Automatic and removes its saved ${removedPhrase}. Other clusters are unchanged.`
-    : `Saving switches this cluster to auto-discovery and removes its saved ${removedPhrase}. Other clusters are unchanged.`
+    ? `保存后将把此集群的成本来源重置为“自动”，并移除其已保存的${removedPhrase}。其他集群不受影响。`
+    : `保存后将为此集群切换到自动发现，并移除其已保存的${removedPhrase}。其他集群不受影响。`
   const useMetricsForCost =
     pending?.action === 'auto' && pending.mode === 'prometheus'
   // Paused settings have no editor, so an automatic reset there can only come
@@ -664,20 +664,20 @@ export function LocalConnectionSettings({
   const decliningPaused =
     pending?.action === 'auto' && !useMetricsForCost && profile.state === 'target_changed'
   const confirmationTitle = useMetricsForCost
-    ? 'Use metrics for cost data?'
+      ? '使用指标作为成本数据来源？'
     : decliningPaused
-      ? kind === 'cost' ? 'Reset cost source to Automatic?' : 'Use auto-discovery instead?'
-      : 'Replace saved connection?'
+      ? kind === 'cost' ? '将成本来源重置为“自动”？' : '改用自动发现？'
+      : '替换已保存的连接？'
   const confirmationLabel = useMetricsForCost
-    ? 'Use metrics connection'
+    ? '使用指标连接'
     : decliningPaused
       ? automaticAction[kind]
-      : 'Replace connection'
+      : '替换连接'
   const confirmationMessage = useMetricsForCost
-      ? `Remove the saved Kubecost connection, credentials and cluster mapping for ${removalContext || 'this cluster'} and use its metrics connection for cost data. Other clusters are unchanged.`
+      ? `移除 ${removalContext || '此集群'} 已保存的 Kubecost 连接、凭据和集群映射，并使用其指标连接作为成本数据来源。其他集群不受影响。`
       : decliningPaused
-        ? `Remove the saved ${removedPhrase} for ${removalContext || 'this cluster'} and ${kind === 'cost' ? 'reset its cost source to Automatic' : 'use auto-discovery'}? Other clusters are unchanged.`
-        : `Replace the saved ${names[kind]} connection for ${removalContext || 'this cluster'} with your changes? Other clusters are unchanged.`
+        ? `移除 ${removalContext || '此集群'} 已保存的${removedPhrase}，并${kind === 'cost' ? '将成本来源重置为“自动”' : '改用自动发现'}？其他集群不受影响。`
+        : `将 ${removalContext || '此集群'} 已保存的 ${names[kind]} 连接替换为你的更改？其他集群不受影响。`
   if (pending)
     confirmationCopy.current = {
       title: confirmationTitle,
@@ -698,7 +698,7 @@ export function LocalConnectionSettings({
     <fieldset
       ref={region}
       tabIndex={-1}
-      aria-label={`${names[kind]} connection settings`}
+      aria-label={`${names[kind]}连接设置`}
       disabled={busy}
       className="min-w-0 space-y-4 outline-none"
       onKeyDown={(event) => {
@@ -735,7 +735,7 @@ export function LocalConnectionSettings({
       )}
       {confirmBack && (
         <div role="alert" className="card-inner-lg space-y-3">
-          <p className="text-sm">Discard your unapplied connection changes?</p>
+          <p className="text-sm">放弃尚未应用的连接更改？</p>
           <div className="flex gap-3 text-xs">
             <button
               type="button"
@@ -753,21 +753,21 @@ export function LocalConnectionSettings({
               className="text-theme-text-secondary hover:underline"
               onClick={leaveTask}
             >
-              Discard draft
+              放弃草稿
             </button>
           </div>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="min-w-0 break-words text-xs text-theme-text-secondary">
-          Cluster:{' '}
+          集群：{' '}
           <span className="font-medium text-theme-text-primary">
-            {profile.target.context || 'Not selected'}
+            {profile.target.context || '未选择'}
           </span>
         </p>
         {profile.target.source && (
-          <Tooltip content={<span className="block max-w-sm break-words">Settings belong to this kubeconfig entry: {profile.target.source} · {profile.target.inFileName}. Renaming or moving it creates a separate entry.</span>}>
-            <button type="button" aria-label="Cluster settings identity" className="text-theme-text-tertiary hover:text-theme-text-primary">
+          <Tooltip content={<span className="block max-w-sm break-words">设置属于此 kubeconfig 条目：{profile.target.source} · {profile.target.inFileName}。重命名或移动会创建单独的条目。</span>}>
+            <button type="button" aria-label="集群设置身份" className="text-theme-text-tertiary hover:text-theme-text-primary">
               <Info className="h-3.5 w-3.5" />
             </button>
           </Tooltip>
@@ -776,28 +776,26 @@ export function LocalConnectionSettings({
       </div>
       {!editor && connectionActions}
       {selected && <div className="text-xs text-theme-text-secondary space-y-1">
-        <p>Copied from <span className="font-medium">{selected.context}</span> · Unsaved</p>
-        <p>{selected.headerKeys.length > 0 || selected.secretSet ? 'Saved credentials will be copied when you save. ' : ''}Changes stay independent. Check that this backend serves this cluster.</p>
-        {selected.envHeaderKeys.length > 0 && <p>Environment-backed headers keep their references; changing those variables affects both clusters.</p>}
+        <p>已从 <span className="font-medium">{selected.context}</span> 复制 · 未保存</p>
+        <p>{selected.headerKeys.length > 0 || selected.secretSet ? '保存时会复制已保存的凭据。' : ''}这些设置保持独立。请确认此后端服务于当前集群。</p>
+        {selected.envHeaderKeys.length > 0 && <p>由环境变量提供的请求头会保留其引用；更改这些变量会影响两个集群。</p>}
       </div>}
       {legacyDraft && <div className="text-xs text-theme-text-secondary space-y-1">
-        <p>Copied from <span className="font-medium">previous global settings</span> · Unsaved</p>
-        <p>{legacyDraft.headerKeys.length > 0 || legacyDraft.secretSet ? 'Saved credentials will be copied when you save. ' : ''}These settings applied to every cluster before; {legacyDraft.url ? 'check that this backend serves' : 'check that they belong to'} {profile.target.context}.</p>
-        {legacyDraft.omitted.length > 0 && <p>Not copied: {legacyDraft.omitted.join(' and ')}, which belonged to another cluster.</p>}
-        {legacyDraft.envHeaderKeys.length > 0 && <p>Environment-backed headers keep their references.</p>}
+        <p>已从 <span className="font-medium">之前的全局设置</span> 复制 · 未保存</p>
+        <p>{legacyDraft.headerKeys.length > 0 || legacyDraft.secretSet ? '保存时会复制已保存的凭据。' : ''}这些设置此前适用于所有集群；请确认此后端服务于 {profile.target.context}。</p>
+        {legacyDraft.omitted.length > 0 && <p>未复制：{legacyDraft.omitted.join('、')}；这些设置属于其他集群。</p>}
+        {legacyDraft.envHeaderKeys.length > 0 && <p>环境变量请求头将保留其引用。</p>}
       </div>}
       {task === 'main' && (
         <>
           {profile.state === 'launch' ? (
             <div className="card-inner-lg space-y-2">
-              <Badge tone="note">Set for this launch</Badge>
+              <Badge tone="note">仅本次启动生效</Badge>
               <p className="text-sm break-all">
-                {profile.url || 'Auto-discovery'}
+                {profile.url || '自动发现'}
               </p>
               <p className="text-xs text-theme-text-secondary">
-                This override stays with this context. Restart without its
-                startup flags or environment configuration to edit saved
-                settings.
+                此覆盖设置仅对当前上下文生效。若要编辑已保存的设置，请在不使用这些启动标志或环境配置的情况下重新启动。
               </p>
               {profile.error && (
                 <p role="alert" className="text-xs text-warning-text">
@@ -810,12 +808,12 @@ export function LocalConnectionSettings({
             <div className="card-inner-lg space-y-3">
               <Badge severity="warning">
                 {profile.state === 'target_changed'
-                  ? 'Cluster changed'
-                  : 'Settings unavailable'}
+                  ? '集群已更改'
+                  : '设置不可用'}
               </Badge>
               <p className="text-sm text-theme-text-secondary">
                 {profile.state === 'target_changed'
-                  ? `The server, certificate authority, proxy or user for this context changed, so its saved ${names[kind]} settings are paused. Review them to keep using them here, or ${kind === 'cost' ? 'reset this cluster to Automatic' : 'use auto-discovery instead'}.`
+                  ? `此上下文的服务器、证书颁发机构、代理或用户已更改，因此已暂停其已保存的 ${names[kind]} 设置。请查看并确认是否继续在此处使用，或${kind === 'cost' ? '将此集群重置为“自动”' : '改用自动发现'}。`
                   : profile.error}
               </p>
               {profile.state === 'target_changed' && (
@@ -828,14 +826,14 @@ export function LocalConnectionSettings({
                       openTask('reconfirm')
                     }}
                   >
-                    Review changes
+                    查看更改
                   </button>
                   <button
                     type="button"
                     className="text-xs text-accent-text hover:underline"
                     onClick={() => confirm({ action: 'auto', ...(kind === 'cost' ? { mode: 'auto' } : {}) })}
                   >
-                    {kind === 'cost' ? automaticAction.cost : 'Use auto-discovery instead'}
+                    {kind === 'cost' ? automaticAction.cost : '改用自动发现'}
                   </button>
                 </div>
               )}
@@ -845,7 +843,7 @@ export function LocalConnectionSettings({
                   className="text-xs text-accent-text hover:underline"
                   onClick={() => void loadTask('main')}
                 >
-                  Reload latest settings
+                  重新加载最新设置
                 </button>
               )}
               {hasSavedConfiguration && (
@@ -854,7 +852,7 @@ export function LocalConnectionSettings({
                   className="block text-xs text-accent-text"
                   onClick={beginReplace}
                 >
-                  Use a different connection
+                  使用其他连接
                 </button>
               )}
             </div>
@@ -957,40 +955,37 @@ export function LocalConnectionSettings({
       {task === 'reconfirm' && (
         <div className="space-y-4">
           <p className="text-sm text-theme-text-secondary">
-            The server, certificate authority, proxy or user for this context
-            changed since these settings were saved. Keep an integration only
-            if its backend serves this cluster; otherwise Radar would show
-            another cluster’s data.
+            自保存这些设置后，此上下文的服务器、证书颁发机构、代理或用户已发生变化。仅当后端服务于此集群时才保留集成，否则 Radar 可能显示其他集群的数据。
           </p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs">
             {previousIdentity && previousIdentity.server === currentIdentity.server ? (
               <>
-                <dt className="text-theme-text-tertiary">Server</dt>
-                <dd className="break-all">{currentIdentity.server} (unchanged)</dd>
+                <dt className="text-theme-text-tertiary">服务器</dt>
+                <dd className="break-all">{currentIdentity.server}（未更改）</dd>
               </>
             ) : (
               <>
-                <dt className="text-theme-text-tertiary">Previous server</dt>
+                <dt className="text-theme-text-tertiary">之前的服务器</dt>
                 <dd className="break-all">
-                  {previousIdentity?.server || 'Not recorded'}
+                  {previousIdentity?.server || '未记录'}
                 </dd>
-                <dt className="text-theme-text-tertiary">Current server</dt>
+                <dt className="text-theme-text-tertiary">当前服务器</dt>
                 <dd className="break-all">{currentIdentity.server}</dd>
               </>
             )}
-            <dt className="text-theme-text-tertiary">User reference</dt>
+            <dt className="text-theme-text-tertiary">用户标识</dt>
             <dd>
               {previousIdentity && previousIdentity.user === currentIdentity.user
-                ? `${currentIdentity.user || '—'} (unchanged)`
+                ? `${currentIdentity.user || '—'}（未更改）`
                 : `${previousIdentity?.user || '—'} → ${currentIdentity.user || '—'}`}
             </dd>
-            <dt className="text-theme-text-tertiary">Trust / proxy</dt>
+            <dt className="text-theme-text-tertiary">信任 / 代理</dt>
             <dd>
               {!previousIdentity
-                ? 'Not recorded'
+                ? '未记录'
                 : trustChanges.length
                   ? trustChanges.join(' · ')
-                  : 'Unchanged'}
+                  : '未更改'}
             </dd>
           </dl>
           {reviewKinds
@@ -1007,7 +1002,7 @@ export function LocalConnectionSettings({
                     )
                   }
                 />
-                {names[k]} · {snapshot[k].url || 'Auto-discovery'}
+                {names[k]} · {snapshot[k].url || '自动发现'}
               </label>
             ))}
           <button
@@ -1018,7 +1013,7 @@ export function LocalConnectionSettings({
               void act({ action: 'reconfirm', kinds: acceptedChanges })
             }
           >
-            Keep selected settings for this cluster
+            在此集群保留所选设置
           </button>
           {separateReviewKinds.length > 0 && (
             <p className="text-xs text-theme-text-secondary">
@@ -1038,7 +1033,7 @@ export function LocalConnectionSettings({
             onClick={() => void loadTask('main')}
             className="underline"
           >
-            {dirty ? 'Discard draft & reload' : 'Reload latest settings'}
+            {dirty ? '放弃草稿并重新加载' : '重新加载最新设置'}
           </button>
         </p>
       )}

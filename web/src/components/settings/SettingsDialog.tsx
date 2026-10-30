@@ -136,7 +136,7 @@ function normalizeStartup(c: Config) {
   }
 }
 
-const localIntegrationCaption = 'Saved for this cluster · applies when you save, no restart.'
+const localIntegrationCaption = '按集群保存；保存后生效，无需重启。'
 
 export function SettingsDialog({
   open,
@@ -608,17 +608,17 @@ export function SettingsDialog({
           <div className="flex min-w-0 items-center gap-2">
             <Settings className="w-5 h-5 shrink-0 text-theme-text-secondary" />
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-              <h2 id="settings-dialog-title" className="text-lg font-semibold text-theme-text-primary">Settings</h2>
+              <h2 id="settings-dialog-title" className="text-lg font-semibold text-theme-text-primary">设置</h2>
               <span className="break-all text-[11px] text-theme-text-tertiary">
                 Radar{versionInfo?.currentVersion ? ` v${versionInfo.currentVersion.replace(/^v/, '')}` : ''}
-                <span className="text-theme-text-disabled"> · by Skyhook</span>
+                <span className="text-theme-text-disabled"> · Skyhook 出品</span>
               </span>
               <UpdateNotification placement="settings" />
             </div>
           </div>
           <button
             onClick={() => requestCloseRef.current()}
-            aria-label="Close settings"
+            aria-label="关闭设置"
             disabled={settingsBusy}
             className="shrink-0 p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded disabled:opacity-50"
           >
@@ -669,23 +669,23 @@ export function SettingsDialog({
             )}
 
             {draftFrozen && <div role="status" className="mb-4 space-y-2 rounded-md border border-theme-border p-3 text-sm text-theme-text-secondary">
-              <p>The cluster changed while you had unsaved edits. Your previous draft is still shown below, but cannot be applied to this cluster.</p>
+              <p>集群已更改，且你有尚未保存的编辑。下方仍显示之前的草稿，但无法应用到此集群。</p>
               <button type="button" disabled={isSwitching} className="text-xs text-accent-text hover:underline disabled:opacity-50" onClick={() => {
                 metricsDraft.current = { open, scope: settingsScope, dirty: false }
                 setDraftFrozen(false)
                 setReloadVersion((version) => version + 1)
-              }}>Discard draft and load current cluster</button>
+              }}>放弃草稿并加载当前集群</button>
             </div>}
             {!configData && !['overview', 'perms', 'ai', 'privacy'].includes(section) ? (
-              <p className="text-sm text-theme-text-secondary">{loadError ? 'Configuration is unavailable. Close Settings and try again.' : 'Loading configuration…'}</p>
+              <p className="text-sm text-theme-text-secondary">{loadError ? '配置不可用。请关闭设置后重试。' : '正在加载配置…'}</p>
             ) : <div inert={draftFrozen || settingsBusy || undefined} className={draftFrozen ? 'opacity-60' : undefined}>
             {operatorManaged && section !== 'perms' && section !== 'ai' && section !== 'privacy' && <div className="mb-4"><OperatorManagedNotice /></div>}
             {/* Overview — status at a glance; the landing section */}
             <div className={clsx(section !== 'overview' && 'hidden')} role="tabpanel" inert={section !== 'overview' || undefined}>
               <div className="mb-1">
-                <h3 ref={overviewHeading} tabIndex={-1} className="text-base font-semibold text-theme-text-primary outline-none">Overview</h3>
+                <h3 ref={overviewHeading} tabIndex={-1} className="text-base font-semibold text-theme-text-primary outline-none">总览</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
-                  What this Radar is connected to right now — select a row for details.
+                  查看 Radar 当前连接的对象 — 选择一行查看详情。
                 </p>
               </div>
               {configData?.management === 'local' && configData.integrationProfiles && canEditConfig && (
@@ -702,7 +702,7 @@ export function SettingsDialog({
             {/* My permissions — usable by everyone, rendered inline (no launcher) */}
             <div className={clsx(section !== 'perms' && 'hidden')} role="tabpanel" inert={section !== 'perms' || undefined}>
               <div className="mb-1">
-                <h3 className="text-base font-semibold text-theme-text-primary">My permissions</h3>
+                <h3 className="text-base font-semibold text-theme-text-primary">我的权限</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
                   What your current identity can do in this cluster — roles bound to you and your
                   effective, flattened permissions.
@@ -717,13 +717,13 @@ export function SettingsDialog({
             <SectionPane
               id="connection"
               active={section}
-              title="Connection"
+              title="连接"
               managed={operatorManaged ? <OperatorSettingsSummary section="connection" config={configData} /> : undefined}
               caption="Kubeconfig and server changes take effect on next launch."
               locked={!canEditConfig}
             >
               <div className="space-y-4">
-                <SubHeading>Cluster</SubHeading>
+                <SubHeading>集群</SubHeading>
                 <ClusterSection
                   config={editedConfig}
                   effectiveConfig={configData?.effective}
@@ -732,7 +732,7 @@ export function SettingsDialog({
                 />
               </div>
               <div className="space-y-4 border-t border-theme-border-subtle pt-4">
-                <SubHeading>Server</SubHeading>
+                <SubHeading>服务器</SubHeading>
                 <ServerSection
                   config={editedConfig}
                   effectiveConfig={configData?.effective}
@@ -756,9 +756,9 @@ export function SettingsDialog({
             <SectionPane
               id="prometheus"
               active={section}
-              title="Metrics"
+              title="指标"
               managed={operatorManaged ? <OperatorSettingsSummary section="prometheus" config={configData} /> : undefined}
-              caption={configData?.integrationProfiles ? localIntegrationCaption : 'Connect and manage your metrics backend.'}
+              caption={configData?.integrationProfiles ? localIntegrationCaption : '连接和管理指标后端。'}
               live
               locked={!canEditConfig}
             >
@@ -790,9 +790,9 @@ export function SettingsDialog({
             <SectionPane
               id="cost"
               active={section}
-              title="Cost"
+              title="成本"
               managed={operatorManaged ? <OperatorSettingsSummary section="cost" config={configData} /> : undefined}
-              caption={configData?.integrationProfiles ? `${localIntegrationCaption} Display currency applies to all clusters.` : 'Choose where Radar gets cost data and how amounts are labeled.'}
+              caption={configData?.integrationProfiles ? `${localIntegrationCaption} 显示货币适用于所有集群。` : '选择 Radar 获取成本数据的方式以及金额的显示标签。'}
               live
               locked={!canEditConfig}
             >
@@ -839,7 +839,7 @@ export function SettingsDialog({
               active={section}
               title="Argo CD"
               managed={operatorManaged ? <OperatorSettingsSummary section="argocd" config={configData} /> : undefined}
-              caption={configData?.integrationProfiles ? localIntegrationCaption : 'Applies immediately — no restart.'}
+              caption={configData?.integrationProfiles ? localIntegrationCaption : '按集群保存；保存后生效，无需重启。'}
               live
               locked={!canEditConfig}
             >
@@ -884,16 +884,16 @@ export function SettingsDialog({
                 installed) or an enable explainer (when not). */}
             <div className={clsx(section !== 'ai' && 'hidden')} role="tabpanel" inert={section !== 'ai' || undefined}>
               <div className="mb-4">
-                <h3 className="text-base font-semibold text-theme-text-primary">AI investigations</h3>
+                <h3 className="text-base font-semibold text-theme-text-primary">AI 调查</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
                   {operatorManaged
                     ? 'AI investigations are available in local Radar and Radar Cloud.'
                     : diag.hosted
                     ? `Investigate incidents with ${diag.agentLabel} — reading logs, events, and topology to understand what's happening.`
-                    : "Investigate incidents with an AI agent that runs on your own machine — reading logs, events, and topology to understand what's happening. No Radar cloud, no API key."}
+                    : "使用在你自己的机器上运行的 AI 代理调查事件 — 读取日志、事件和拓扑以了解当前情况。无需 Radar Cloud 或 API 密钥。"}
                 </p>
               </div>
-              {operatorManaged ? <p className="text-sm text-theme-text-secondary">Local AI investigations are unavailable in a shared installation. Use local Radar with an agent CLI, or Radar Cloud.</p> : aiAvailable ? (
+              {operatorManaged ? <p className="text-sm text-theme-text-secondary">共享安装中无法使用本地 AI 调查。请在本地 Radar 中配合 Agent CLI 使用，或使用 Radar Cloud。</p> : aiAvailable ? (
                 <div className="space-y-4">
                   <AISettingsSection
                     available={diag.available}
@@ -931,7 +931,7 @@ export function SettingsDialog({
 
             {/* Privacy: the usage-stats choice. Readable by everyone; only a local
                 install can change it here. */}
-            <SectionPane id="privacy" active={section} title="Privacy" caption="Applies immediately." live>
+            <SectionPane id="privacy" active={section} title="隐私" caption="立即生效。" live>
               <PrivacySection active={section === 'privacy'} />
             </SectionPane>
 
@@ -939,9 +939,9 @@ export function SettingsDialog({
             <SectionPane
               id="advanced"
               active={section}
-              title="Advanced"
+              title="高级"
               managed={operatorManaged ? <OperatorSettingsSummary section="advanced" config={configData} /> : undefined}
-              caption="Takes effect on next launch."
+              caption="下次启动时生效。"
               locked={!canEditConfig}
             >
               <div className="space-y-4">
@@ -957,7 +957,7 @@ export function SettingsDialog({
                 />
               </div>
               <div className="space-y-4 border-t border-theme-border-subtle pt-4">
-                <SubHeading>Timeline</SubHeading>
+                <SubHeading>时间线</SubHeading>
                 <TimelineSection
                   config={editedConfig}
                   effectiveConfig={configData?.effective}
@@ -1031,7 +1031,7 @@ export function SettingsDialog({
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    {(!configData?.integrationProfiles || configDirty || !!reviewSection) && <Tooltip content="Discard unsaved changes and revert to the last saved values">
+              {(!configData?.integrationProfiles || configDirty || !!reviewSection) && <Tooltip content="放弃未保存的更改并恢复为上次保存的值">
                       <button
                         onClick={discardChanges}
                         disabled={settingsBusy || draftFrozen || targetChangedWithDraft || (!configDirty && !formDirty)}
@@ -1128,14 +1128,14 @@ function NavItem({
       {disabled ? (
         <Lock className="w-3 h-3 shrink-0 text-theme-text-tertiary" />
       ) : item.dirty ? (
-        <Tooltip content="Unsaved changes" delay={200} wrapperClassName="flex shrink-0">
+        <Tooltip content="有未保存的更改" delay={200} wrapperClassName="flex shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-accent" />
         </Tooltip>
       ) : null}
     </button>
   )
   return disabled ? (
-    <Tooltip content="Owner access required" delay={200} wrapperClassName={horizontal ? 'shrink-0' : 'w-full'}>
+    <Tooltip content="需要所有者权限" delay={200} wrapperClassName={horizontal ? 'shrink-0' : 'w-full'}>
       {button}
     </Tooltip>
   ) : (
@@ -1202,21 +1202,21 @@ function OperatorSettingsSummary({ section, config }: { section: SettingsSection
   let detail: string | undefined
   switch (section) {
     case 'connection':
-      rows = [['Cluster connection', cluster?.inCluster ? 'Pod service account' : cluster?.context ?? 'Connecting…'], ['Server port', c.port ?? '—']]
+      rows = [['集群连接', cluster?.inCluster ? 'Pod 服务账户' : cluster?.context ?? '正在连接…'], ['服务端口', c.port ?? '—']]
       detail = 'The operator selects the cluster and connection settings at startup.'
       break
     case 'prometheus':
       rows = [
-        ['Status', promError ? 'Status unavailable' : !prom ? 'Checking…' : prom.connected ? 'Connected' : prom.discovering ? 'Discovering…' : 'Not connected'],
-        ['Endpoint', prom?.address || c.prometheusUrl || 'Auto-discovery'],
+        ['状态', promError ? '状态不可用' : !prom ? '正在检查…' : prom.connected ? '已连接' : prom.discovering ? '正在发现…' : '未连接'],
+        ['端点', prom?.address || c.prometheusUrl || '自动发现'],
         ['Headers', config.prometheusHeaderKeys?.join(', ') || 'None configured'],
       ]
       detail = prom?.error
       break
     case 'argocd':
       rows = [
-        ['Status', argoError ? 'Status unavailable' : !argo ? 'Checking…' : argo.connected ? 'Connected' : argo.connecting ? 'Connecting…' : 'Not connected'],
-        ['Endpoint', argo?.address || c.argoCdUrl || 'Auto-discovery'],
+        ['状态', argoError ? '状态不可用' : !argo ? '正在检查…' : argo.connected ? '已连接' : argo.connecting ? '正在连接…' : '未连接'],
+        ['端点', argo?.address || c.argoCdUrl || '自动发现'],
         ['Token', config.argoCdTokenSet ? 'Configured' : 'None configured'],
         ['TLS verification', c.argoCdInsecureTls ? 'Disabled' : 'Enabled'],
       ]
@@ -1226,9 +1226,9 @@ function OperatorSettingsSummary({ section, config }: { section: SettingsSection
       rows = [
         ['Status', costError ? 'Status unavailable' : !cost ? 'Checking…' : cost.available ? 'Available' : 'Unavailable'],
         ['Source preference', costSourcePreferenceLabel(c.costSource)],
-        ['Kubecost endpoint', c.kubecostUrl || 'Auto-discovery'],
-        ['Kubecost cluster ID', c.kubecostClusterId || 'Detected automatically'],
-        ['API key', config.kubecostApiKeySet ? 'Configured' : 'None configured'],
+        ['Kubecost 端点', c.kubecostUrl || '自动发现'],
+        ['Kubecost 集群 ID', c.kubecostClusterId || '自动检测'],
+        ['API 密钥', config.kubecostApiKeySet ? '已配置' : '未配置'],
         ['Currency override', c.opencostCurrency || 'Automatic'],
       ]
       detail = config.kubecostEnvError || (cost?.reason ? costIntegrationUnavailableMessage(cost.reason) ?? undefined : undefined)
@@ -1261,7 +1261,7 @@ function LockWall() {
     <div className="rounded-md border border-theme-border bg-theme-elevated/50 p-4 flex items-start gap-3">
       <Lock className="w-4 h-4 mt-0.5 shrink-0 text-theme-text-tertiary" />
       <div className="min-w-0">
-        <p className="text-sm font-medium text-theme-text-primary">Owner access required</p>
+        <p className="text-sm font-medium text-theme-text-primary">需要所有者权限</p>
         <p className="mt-0.5 text-xs text-theme-text-tertiary">
           These settings (kubeconfig, server port, timeline, integrations) affect
           every user of this Radar instance, so they're limited to owners. Ask an
@@ -1319,19 +1319,19 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
 
   const rows: OverviewRow[] = [
     {
-      id: 'connection', icon: Boxes, label: 'Cluster',
+      id: 'connection', icon: Boxes, label: '集群',
       tone: cluster ? 'ok' : 'unknown',
-      value: cluster?.context ?? 'Connecting…',
+      value: cluster?.context ?? '正在连接…',
       detail: cluster ? `Kubernetes ${cluster.kubernetesVersion} · ${cluster.nodeCount} nodes` : undefined,
     },
     {
-      id: 'prometheus', icon: Activity, label: 'Metrics',
+      id: 'prometheus', icon: Activity, label: '指标',
       tone: prom?.connected ? 'ok' : prom?.discovering ? 'unknown' : prom?.error ? 'warn' : 'off',
-      value: prom?.connected ? 'Connected' : prom?.discovering ? 'Discovering…' : 'Not connected',
+      value: prom?.connected ? '已连接' : prom?.discovering ? '正在发现…' : '未连接',
       detail: prom?.connected ? prom.address : prom?.discovering ? undefined : prom?.error ? 'Open Metrics for connection details.' : undefined,
     },
     {
-      id: costConfigurationAction(cost?.reason).section, icon: Coins, label: 'Cost',
+      id: costConfigurationAction(cost?.reason).section, icon: Coins, label: '成本',
       tone: cost?.available ? 'ok' : cost ? (costMissing ? 'off' : 'warn') : 'unknown',
       value: cost?.available
         ? costSourceLabel(cost.source)
@@ -1345,7 +1345,7 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
     {
       id: 'argocd', icon: GitBranch, label: 'Argo CD',
       tone: argo?.connected ? (argo.reason ? 'warn' : 'ok') : argo?.connecting ? 'unknown' : argo?.configured || argo?.reason ? 'warn' : 'off',
-      value: argo?.connected ? (argo.anonymous ? 'Connected · no token needed' : 'Connected') : argo?.connecting ? 'Connecting…' : 'Not connected',
+      value: argo?.connected ? (argo.anonymous ? '已连接 · 无需令牌' : '已连接') : argo?.connecting ? '正在连接…' : '未连接',
       detail: argo?.reason ? 'Open Argo CD for connection details.' : argo?.connected ? argo.address : undefined,
     },
     {
@@ -1356,7 +1356,7 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
       copyable: mcpOn,
     },
     {
-      id: 'ai', icon: Sparkles, label: 'AI investigations',
+      id: 'ai', icon: Sparkles, label: 'AI 调查',
       ...aiOverviewStatus(aiAvailable, diag.setupState, diag.cliOverride, diag.agentsCheckFailed),
       detail: aiAvailable ? agentLabel : undefined,
     },
@@ -1392,7 +1392,7 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
                 )}
               </div>
               {row.copyable && (
-                <Tooltip content="Copy MCP URL" wrapperClassName="shrink-0">
+                <Tooltip content="复制 MCP URL" wrapperClassName="shrink-0">
                   <button
                     onClick={(e) => { e.stopPropagation(); copyMcp() }}
                     className="p-1 text-theme-text-tertiary hover:text-theme-text-primary hover:bg-theme-elevated rounded transition-colors"
@@ -1492,7 +1492,7 @@ function AIUnavailableNotice({
     // The agent probe hasn't answered. Saying anything about the CLI or the
     // deployment here would be a guess.
     return agentsCheckFailed && !checkingAgents
-      ? panel("Couldn't check for agent CLIs", 'Try again.', checkAgain)
+      ? panel("无法检查 Agent CLI", '请重试。', checkAgain)
       : panel('Checking…')
   }
   if (setupState === 'off') {
@@ -1513,9 +1513,9 @@ function AIUnavailableNotice({
   }
   if (setupState === 'needs-restart') {
     return panel(
-      "AI investigations aren't available right now",
+      "AI 调查目前不可用",
       <>
-        {agentsCheckFailed && !checkingAgents ? "Couldn't check. Try again." : 'Try again in a moment.'}
+        {agentsCheckFailed && !checkingAgents ? "检查失败。请重试。" : '请稍后重试。'}
         {unchanged && ' Still not available.'}
       </>,
       checkAgain,
@@ -1524,14 +1524,13 @@ function AIUnavailableNotice({
   return panel(
     'No supported agent CLI found',
     <>
-      Install <span className="text-theme-text-secondary">Claude Code</span>,{' '}
+      安装 <span className="text-theme-text-secondary">Claude Code</span>、{' '}
       <span className="text-theme-text-secondary">Codex</span>,{' '}
-      <span className="text-theme-text-secondary">Cursor</span> (
-      <span className="font-mono">cursor-agent</span>), or{' '}
-      <span className="text-theme-text-secondary">OpenCode</span>, and this tab will show the
-      agent, model, and effort controls.
-      {agentsCheckFailed && !checkingAgents && " Couldn't check. Try again."}
-      {unchanged && ' Still not found.'}
+      <span className="text-theme-text-secondary">Cursor</span>（
+      <span className="font-mono">cursor-agent</span>），或{' '}
+      <span className="text-theme-text-secondary">OpenCode</span>，此标签页将显示 Agent、模型和工作强度选项。
+      {agentsCheckFailed && !checkingAgents && ' 无法检查，请重试。'}
+      {unchanged && ' 仍未找到。'}
     </>,
     checkAgain,
   )
@@ -1556,33 +1555,33 @@ function ClusterSection({
   return (
     <>
       <ConfigField
-        label="Primary Kubeconfig"
-        help="File path loaded before additional directories"
+        label="主要 Kubeconfig"
+        help="优先于其他目录加载的文件路径"
         value={config.kubeconfig ?? ''}
         effectiveValue={effectiveConfig?.kubeconfig}
-        placeholder={hasKubeconfigDirs ? 'No primary file configured' : '~/.kube/config'}
+        placeholder={hasKubeconfigDirs ? '未配置主要文件' : '~/.kube/config'}
         onChange={(v) => onChange('kubeconfig', v || undefined)}
       />
       <ConfigArrayField
-        label="Kubeconfig Directories"
-        help="Additional kubeconfig directories. Without a primary file, they replace KUBECONFIG"
+        label="Kubeconfig 目录"
+        help="其他 kubeconfig 目录。未设置主要文件时，这些目录将替代 KUBECONFIG"
         value={config.kubeconfigDirs}
         effectiveValue={effectiveConfig?.kubeconfigDirs}
         placeholder="/path/to/dir1, /path/to/dir2"
         onChange={(v) => onChange('kubeconfigDirs', v)}
       />
       <ConfigField
-        label="Default Namespace"
-        help="Startup default only — change the active namespace live anytime from the header switcher"
+        label="默认命名空间"
+        help="仅作为启动时的默认值 — 可随时通过顶部切换器更改当前命名空间"
         value={config.namespace ?? ''}
         effectiveValue={effectiveConfig?.namespace}
-        placeholder="All namespaces"
+        placeholder="全部命名空间"
         onChange={(v) => onChange('namespace', v || undefined)}
       />
       {isDesktop && (
         <ConfigToggle
-          label="Reopen on the last used cluster"
-          description="Come back to the cluster you were working in. Turn off to use your kubeconfig's current context on the next Desktop start."
+          label="重新打开上次使用的集群"
+          description="返回上次使用的集群。关闭后，Desktop 下次启动时将使用 kubeconfig 中的当前上下文。"
           value={config.restoreLastDesktopContext ?? true}
           onChange={(v) => onChange('restoreLastDesktopContext', v ? undefined : false)}
         />
@@ -1607,30 +1606,30 @@ function ServerSection({
   return (
     <>
       <ConfigNumberField
-        label="Port"
+        label="端口"
         help={isDesktop
-          ? 'Fixed server port (leave empty for random). Set this to keep a stable MCP endpoint.'
-          : 'Server port'}
+          ? '固定服务器端口（留空则随机分配）。设置后可保持 MCP 端点稳定。'
+          : '服务器端口'}
         value={config.port}
         effectiveValue={effectiveConfig?.port}
-        placeholder={isDesktop ? 'Random' : '9280'}
+        placeholder={isDesktop ? '随机' : '9280'}
         onChange={(v) => onChange('port', v)}
       />
 
       {showBrowserLaunchControls && (
         <>
           <ConfigToggle
-            label="Open browser on start"
-            description="Automatically open the Radar UI in your browser when Radar starts — turn off to run headless and open the URL yourself."
+            label="启动时打开浏览器"
+            description="Radar 启动时自动在浏览器中打开界面 — 关闭后将以无头模式运行，请自行打开 URL。"
             value={!(config.noBrowser ?? false)}
             onChange={(v) => onChange('noBrowser', !v ? true : undefined)}
           />
           <ConfigField
-            label="Browser"
-            help="Browser to open the UI in — a macOS app name (Google Chrome, Safari) or a Linux/Windows command (google-chrome). Leave blank for your system default."
+            label="浏览器"
+            help="用于打开界面的浏览器 — 可填写 macOS 应用名称（Google Chrome、Safari）或 Linux/Windows 命令（google-chrome）。留空则使用系统默认浏览器。"
             value={config.browser ?? ''}
             effectiveValue={effectiveConfig?.browser}
-            placeholder="System default"
+            placeholder="系统默认"
             onChange={(v) => onChange('browser', v || undefined)}
           />
         </>
@@ -1652,22 +1651,22 @@ function TimelineSection({
     <>
       <div>
         <label className="block text-sm font-medium text-theme-text-primary mb-1">
-          Storage Backend
+          存储后端
         </label>
         <select
           value={config.timelineStorage ?? 'memory'}
           onChange={(e) => onChange('timelineStorage', e.target.value === 'memory' ? undefined : e.target.value as 'sqlite')}
           className="w-full px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary focus:outline-none focus:border-skyhook-500"
         >
-          <option value="memory">Memory (default)</option>
-          <option value="sqlite">SQLite (persistent)</option>
+          <option value="memory">内存（默认）</option>
+          <option value="sqlite">SQLite（持久化）</option>
         </select>
         <EffectiveHint current={config.timelineStorage} effective={effectiveConfig?.timelineStorage} />
       </div>
 
       <ConfigNumberField
-        label="History Limit"
-        help="Maximum events to retain"
+        label="历史记录上限"
+        help="保留的最大事件数"
         value={config.historyLimit}
         effectiveValue={effectiveConfig?.historyLimit}
         placeholder="10000"
@@ -1840,7 +1839,7 @@ function CostSection({
     <div className="space-y-5">
       {integration ? (
         <div className="space-y-4">
-          <SubHeading>This cluster</SubHeading>
+        <SubHeading>此集群</SubHeading>
           {integration}
         </div>
       ) : <>{sourceEnvManaged && (
@@ -1866,9 +1865,9 @@ function CostSection({
       )}
 
       <div className="space-y-4 rounded-lg border border-theme-border bg-theme-base/40 p-4">
-        <p className="text-sm font-semibold text-theme-text-primary">Cost source</p>
+        <p className="text-sm font-semibold text-theme-text-primary">成本数据源</p>
         <div>
-          <label htmlFor="cost-source" className="mb-1 block text-sm font-medium text-theme-text-primary">Data source</label>
+          <label htmlFor="cost-source" className="mb-1 block text-sm font-medium text-theme-text-primary">数据源</label>
           <p id="cost-source-help" className="mb-1 text-xs text-theme-text-tertiary">
             Automatic uses existing OpenCost metrics first, then Kubecost. Leave it selected unless
             you need to force one source.
@@ -1880,7 +1879,7 @@ function CostSection({
             onChange={(value) => { onChangeSource(value as typeof source); setApply({ status: 'idle' }) }}
             disabled={sourceEnvManaged}
             className="w-full"
-            ariaLabel="Cost data source"
+            ariaLabel="成本数据源"
             ariaDescribedBy={sourceEnvManaged ? 'cost-source-help cost-source-managed' : 'cost-source-help'}
           />
         </div>
@@ -1899,16 +1898,15 @@ function CostSection({
               aria-controls="cost-advanced-connection"
             >
               <CollapseChevron open={advancedOpen} className="h-3.5 w-3.5" />
-              Advanced connection settings
+              高级连接设置
             </button>
             <Collapse open={advancedOpen}>
               <div id="cost-advanced-connection" className="pt-3">
                 <div className="space-y-3 rounded-md border border-theme-border-subtle bg-theme-base/60 p-3">
                   <div>
-                    <label htmlFor="cost-kubecost-url" className="mb-1 block text-sm font-medium text-theme-text-primary">Kubecost Aggregator URL</label>
+                    <label htmlFor="cost-kubecost-url" className="mb-1 block text-sm font-medium text-theme-text-primary">Kubecost 聚合器 URL</label>
                     <p id="cost-kubecost-url-help" className="mb-1 text-xs text-theme-text-tertiary">
-                      Leave blank when Kubecost runs in this cluster. Enter the central Aggregator URL
-                      for an agent-only or federated setup.
+                      如果 Kubecost 运行在此集群中，请留空。仅代理或联合部署时填写中心聚合器 URL。
                     </p>
                     <Input
                       id="cost-kubecost-url"
@@ -1916,16 +1914,15 @@ function CostSection({
                       value={url}
                       onChange={(event) => { onChangeUrl(event.target.value); setApply({ status: 'idle' }) }}
                       disabled={sourceEnvManaged}
-                      placeholder="Auto-discover, or https://kubecost.example.com"
+                      placeholder="自动发现，或填写 https://kubecost.example.com"
                       className="w-full px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="cost-kubecost-cluster-id" className="mb-1 block text-sm font-medium text-theme-text-primary">Kubecost cluster ID</label>
+                    <label htmlFor="cost-kubecost-cluster-id" className="mb-1 block text-sm font-medium text-theme-text-primary">Kubecost 集群 ID</label>
                     <p id="cost-kubecost-cluster-id-help" className="mb-1 text-xs text-theme-text-tertiary">
-                      Usually detected automatically. Set it only if detection fails or the Kubecost
-                      server contains data for more than one cluster. Use the <code>CLUSTER_ID</code>{' '}
-                      value configured on the FinOps Agent or Aggregator.
+                      通常会自动检测。仅在检测失败或 Kubecost 服务器包含多个集群的数据时设置。请使用 FinOps Agent 或聚合器中配置的 <code>CLUSTER_ID</code>{' '}
+                      值。
                     </p>
                     <Input
                       id="cost-kubecost-cluster-id"
@@ -1933,7 +1930,7 @@ function CostSection({
                       value={clusterId}
                       onChange={(event) => { onChangeClusterId(event.target.value); setApply({ status: 'idle' }) }}
                       disabled={sourceEnvManaged}
-                      placeholder="Detected automatically"
+                      placeholder="自动检测"
                       className="w-full px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
                     />
                   </div>
@@ -1942,18 +1939,18 @@ function CostSection({
             </Collapse>
           </div>
           <div>
-            <label htmlFor="cost-kubecost-api-key" className="mb-1 block text-sm font-medium text-theme-text-primary">API key (optional)</label>
+                    <label htmlFor="cost-kubecost-api-key" className="mb-1 block text-sm font-medium text-theme-text-primary">API 密钥（可选）</label>
             <p id="cost-kubecost-api-key-help" className="mb-1 text-xs text-theme-text-tertiary">
-              Only needed when Kubecost requires authentication.{' '}
+              仅在 Kubecost 要求身份验证时需要。{' '}
               {url.trim() === '' && (
-                <>Auto-discovery can use the Aggregator&apos;s <code>tcp-api-rbac:9008</code> endpoint when SAML/OIDC protects port 9004; setting a key disables that fallback. </>
+                <>当 SAML/OIDC 保护端口 9004 时，自动发现可使用 Aggregator 的 <code>tcp-api-rbac:9008</code> 端点；设置密钥后将停用此回退方式。 </>
               )}
               {deploymentMode === 'local' ? (
-                <>Radar stores it unencrypted in this machine&apos;s owner-only config file (<code>~/.radar/config.json</code>) and never returns it through the API.</>
+                <>Radar 会将其以未加密形式保存在此设备仅所有者可访问的配置文件（<code>~/.radar/config.json</code>）中，且不会通过 API 返回。</>
               ) : (
-                <>For this in-cluster deployment, create a Kubernetes Secret and set the Helm value <code>cost.kubecost.existingSecret</code>. A key entered here is stored unencrypted in this pod&apos;s temporary owner-only config file and can disappear when the pod restarts. Radar never returns it through the API.</>
+                <>对于此集群内部署，请创建 Kubernetes Secret 并设置 Helm 值 <code>cost.kubecost.existingSecret</code>。在此输入的密钥将以未加密形式保存在此 Pod 的临时配置文件中，Pod 重启时可能丢失。Radar 不会通过 API 返回该密钥。</>
               )}
-              {apiKeySet && !apiKeyCleared ? ' A key is configured.' : ''}
+              {apiKeySet && !apiKeyCleared ? ' 已配置密钥。' : ''}
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -1971,7 +1968,7 @@ function CostSection({
               {apiKeySet && !apiKeyCleared && !sourceEnvManaged && (
                 <button
                   type="button"
-                  aria-label="Remove saved Kubecost API key"
+                  aria-label="移除已保存的 Kubecost API 密钥"
                   onClick={() => { setApiKey(''); setApiKeyTouched(false); setApiKeyCleared(true); setApply({ status: 'idle' }) }}
                   className="px-2 py-1.5 text-xs text-theme-text-tertiary hover:text-theme-text-primary"
                 >
@@ -2022,7 +2019,7 @@ function CostSection({
                 <>
                   <ResourceRefBadge resourceRef={apply.service} onClick={onNavigateToResource} />
                   <span className="text-theme-text-tertiary">in {apply.service.namespace}</span>
-                  <span className="text-theme-text-tertiary">· port <span className="font-mono">{apply.service.port}</span></span>
+              <span className="text-theme-text-tertiary">· 端口 <span className="font-mono">{apply.service.port}</span></span>
                 </>
               ) : apply.address ? (
                 <span className="break-all font-mono text-theme-text-tertiary">{apply.address}</span>
@@ -2034,7 +2031,7 @@ function CostSection({
           )}
           {draftDirty && apply.status === 'idle' && (
             <p key="dirty" role="status" aria-live="polite" className="animate-status-enter flex items-center gap-1 text-warning-text">
-              <AlertTriangle className="h-3 w-3 shrink-0" /> Unapplied source changes
+              <AlertTriangle className="h-3 w-3 shrink-0" /> 来源更改尚未应用
             </p>
           )}
         </div>
@@ -2043,26 +2040,25 @@ function CostSection({
 
       </>}
       <div className={integration ? 'space-y-4 border-t border-theme-border-subtle pt-4' : 'rounded-lg border border-theme-border bg-theme-base/40 p-4'}>
-        {integration && <SubHeading>All clusters</SubHeading>}
+        {integration && <SubHeading>所有集群</SubHeading>}
         <div>
           <label htmlFor="cost-currency" className="block text-sm font-semibold text-theme-text-primary">
-            Display currency
+            显示货币
           </label>
           {integration
-            ? <p className="mt-1 text-xs text-theme-text-secondary">Saved automatically.</p>
-            : deploymentMode === 'local' && <p className="mt-1 text-xs text-theme-text-secondary">Display preference · all local clusters. Saved automatically.</p>}
+            ? <p className="mt-1 text-xs text-theme-text-secondary">自动保存。</p>
+            : deploymentMode === 'local' && <p className="mt-1 text-xs text-theme-text-secondary">显示偏好 · 适用于所有本地集群。自动保存。</p>}
           <p id="cost-currency-help" className="mb-1 mt-0.5 text-xs text-theme-text-tertiary">
-            Automatic uses the currency reported by the active cost source, or USD when unavailable.
-            Overrides relabel amounts; Radar does not convert them.
+            “自动”使用当前成本来源报告的货币；不可用时使用 USD。覆盖设置只会更改金额显示标签，Radar 不会进行货币换算。
           </p>
           <SelectMenu
             id="cost-currency"
             value={currencyDraft}
             options={currencyOptionsForValue(currencyDraft)}
             onChange={(value) => { void saveCurrency(value) }}
-            ariaLabel="Display currency"
+            ariaLabel="显示货币"
             ariaDescribedBy="cost-currency-help"
-            searchPlaceholder="Search currencies by name or code"
+            searchPlaceholder="按名称或代码搜索货币"
             disabled={settingsSaving || currencySave.status === 'saving'}
             className="w-full"
           />
@@ -2134,21 +2130,21 @@ function MCPSection({
         Full mode also allows changes. Settings take effect after restarting Radar.
       </p>
       <ConfigToggle
-        label="MCP Server"
+        label="MCP 服务"
         value={mcpEnabled}
         onChange={onToggle}
       />
 
-      {mcpEnabled && <ConfigToggle label="Read-only MCP" value={readOnly} onChange={onReadOnlyChange} />}
+      {mcpEnabled && <ConfigToggle label="只读 MCP" value={readOnly} onChange={onReadOnlyChange} />}
       {mcpEnabled && capabilities.mcpEnabled && (
         <div className="space-y-2 pl-0.5">
           <div>
-            <label className="block text-xs text-theme-text-secondary mb-1">Running MCP Endpoint</label>
+            <label className="block text-xs text-theme-text-secondary mb-1">运行中的 MCP 端点</label>
             <div className="flex items-center gap-2">
               <code className="flex-1 px-2.5 py-1.5 text-xs font-mono bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary truncate">
                 {mcpUrl}
               </code>
-              <Tooltip content="Copy MCP URL" wrapperClassName="shrink-0">
+              <Tooltip content="复制 MCP URL" wrapperClassName="shrink-0">
               <button
                 onClick={handleCopy}
                 className="p-1.5 text-theme-text-tertiary hover:text-theme-text-primary hover:bg-theme-elevated rounded-md transition-colors"
@@ -2301,20 +2297,17 @@ function ArgoCDEnvManagedField({
     return (
       <div>
         <p className="text-xs text-theme-text-tertiary mb-3">
-          Powers the full Git-rendered desired-vs-live diff on GitOps Application pages — what Git
-          declares vs what&apos;s actually running.
+          为 GitOps 应用页面提供完整的 Git 声明与集群实际运行状态之间的差异视图。
         </p>
         <div className="rounded-md border border-red-500/30 bg-red-500/[0.07] p-3">
           <p className="flex items-center gap-1.5 text-sm font-medium text-red-600 dark:text-red-400/90">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            Environment Argo CD configuration is invalid
+            环境变量中的 Argo CD 配置无效
           </p>
           <p className="mt-1 text-xs text-theme-text-secondary break-words">{envError}</p>
           <p className="mt-2 text-xs text-theme-text-tertiary">
-            The deployment sets <code className="inline-code">RADAR_ARGOCD_TOKEN</code> (or{' '}
-            <code className="inline-code">RADAR_ARGOCD_TOKEN_FILE</code>), but it couldn&apos;t be
-            used, so the deep diff is disabled. Fix the deployment&apos;s environment or Secret and
-            restart; check the Radar pod logs for details.
+            部署设置了 <code className="inline-code">RADAR_ARGOCD_TOKEN</code>（或{' '}
+            <code className="inline-code">RADAR_ARGOCD_TOKEN_FILE</code>），但无法使用，因此深度差异视图已停用。请修复部署的环境变量或 Secret 并重启；详情请查看 Radar Pod 日志。
           </p>
         </div>
       </div>
@@ -2323,62 +2316,59 @@ function ArgoCDEnvManagedField({
   return (
     <div>
       <p className="text-xs text-theme-text-tertiary mb-3">
-        Powers the full Git-rendered desired-vs-live diff on GitOps Application pages — what Git
-        declares vs what&apos;s actually running.
+        为 GitOps 应用页面提供完整的 Git 声明与集群实际运行状态之间的差异视图。
       </p>
       <div className="rounded-md border border-skyhook-500/30 bg-skyhook-500/[0.07] p-3">
         <p className="flex items-center gap-1.5 text-sm font-medium text-theme-text-primary">
           <Terminal className="w-3.5 h-3.5 shrink-0 text-skyhook-500" />
-          Configured from the environment
+          由环境变量配置
         </p>
         <p className="mt-1 text-xs text-theme-text-tertiary">
-          The token is provided by the deployment via{' '}
-          <code className="inline-code">RADAR_ARGOCD_TOKEN</code> (or{' '}
-          <code className="inline-code">RADAR_ARGOCD_TOKEN_FILE</code>), so this integration is
-          read-only here. Edit the deployment&apos;s environment or Secret and restart to change it.
+          部署通过{' '}
+          <code className="inline-code">RADAR_ARGOCD_TOKEN</code>（或{' '}
+          <code className="inline-code">RADAR_ARGOCD_TOKEN_FILE</code>）提供令牌，因此此处为只读。若要更改，请编辑部署的环境变量或 Secret 并重启。
         </p>
         <dl className="mt-3 space-y-1 text-xs">
           <div className="flex gap-2">
-            <dt className="w-24 shrink-0 text-theme-text-tertiary">Server</dt>
+            <dt className="w-24 shrink-0 text-theme-text-tertiary">服务器</dt>
             <dd className="min-w-0 truncate text-theme-text-secondary">
-              {url || 'auto-discovered in this cluster'}
+              {url || '在此集群中自动发现'}
             </dd>
           </div>
           <div className="flex gap-2">
-            <dt className="w-24 shrink-0 text-theme-text-tertiary">Token</dt>
-            <dd className="text-theme-text-secondary">provided via environment</dd>
+            <dt className="w-24 shrink-0 text-theme-text-tertiary">令牌</dt>
+            <dd className="text-theme-text-secondary">通过环境变量提供</dd>
           </div>
           <div className="flex gap-2">
-            <dt className="w-24 shrink-0 text-theme-text-tertiary">Status</dt>
+            <dt className="w-24 shrink-0 text-theme-text-tertiary">状态</dt>
             <dd className="min-w-0 truncate text-theme-text-secondary">
               {connectedAddress ? (
                 <>
                   <span className="inline-flex items-center gap-1">
                     <Check className="w-3 h-3 shrink-0 text-green-600 dark:text-green-400/80" />
-                    Connected at {connectedAddress}
+                    已连接至 {connectedAddress}
                   </span>
                   {statusReason && <span className="block whitespace-normal text-warning-text">{statusReason}</span>}
                 </>
               ) : connecting ? (
-                'Connecting…'
+                '正在连接…'
               ) : statusReason ? (
-                <span className="text-warning-text">Not connected — {statusReason}</span>
+                <span className="text-warning-text">未连接 — {statusReason}</span>
               ) : (
-                'Not connected'
+                '未连接'
               )}
             </dd>
           </div>
           {insecureTls && (
             <div className="flex gap-2">
               <dt className="w-24 shrink-0 text-theme-text-tertiary">TLS</dt>
-              <dd className="text-amber-600 dark:text-amber-400/80">verification skipped</dd>
+              <dd className="text-amber-600 dark:text-amber-400/80">已跳过验证</dd>
             </div>
           )}
         </dl>
       </div>
       <p className="mt-2 text-xs text-theme-text-tertiary">
-        If the diff isn&apos;t loading, verify the token is valid for this cluster&apos;s Argo CD and
-        check the Radar pod logs.
+        如果差异视图未加载，请确认令牌对该集群的 Argo CD 有效，并查看 Radar Pod 日志。
       </p>
     </div>
   )
@@ -2527,33 +2517,33 @@ function ArgoCDEditableField({
               if anonymous access gets restricted, or a URL to point Radar at a specific server.
             </>
           ) : (
-            <>Connected to Argo CD at {connectedAddress}.</>
+            <>已连接到 Argo CD：{connectedAddress}。</>
           )}
         </p>
       )}
 
       {serverConnecting && state.status === 'idle' && !anonymous && !connectedAddress && (
-        <p className="mb-3 text-xs text-theme-text-secondary">Connecting to Argo CD…</p>
+        <p className="mb-3 text-xs text-theme-text-secondary">正在连接 Argo CD…</p>
       )}
 
       {statusReason && state.status !== 'connected' && (
         <div className="mb-3 rounded-md border border-theme-border bg-theme-elevated p-3">
           <p className="flex items-center gap-1.5 text-sm font-medium text-warning-text">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            Argo CD connection needs attention
+            Argo CD 连接需要处理
           </p>
           <p className="mt-1 text-xs text-theme-text-secondary">{statusReason}</p>
         </div>
       )}
 
-      <label className="block text-sm font-medium text-theme-text-primary mb-1">Server URL</label>
+      <label className="block text-sm font-medium text-theme-text-primary mb-1">服务器 URL</label>
       <p className="text-xs text-theme-text-tertiary mb-1">
-        Leave blank to auto-discover the argocd-server in this cluster, or enter its API URL.
+        若要在此集群自动发现 argocd-server，请留空；也可以填写其 API URL。
       </p>
       <Input
         value={url}
         onChange={(e) => { onChangeUrl(e.target.value); clearStatus() }}
-        placeholder="auto-discover argocd-server"
+        placeholder="自动发现 argocd-server"
         className="w-full px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
       />
 
@@ -2563,7 +2553,7 @@ function ArgoCDEditableField({
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-sm font-medium text-theme-text-primary">
                 <Terminal className="w-3.5 h-3.5 shrink-0 text-skyhook-500" />
-                Argo CD CLI session found
+                已发现 Argo CD CLI 会话
               </p>
               <p className="mt-0.5 truncate text-xs text-theme-text-tertiary">
                 {cliSession.user && cliSession.user !== cliSession.server ? (
@@ -2579,22 +2569,21 @@ function ArgoCDEditableField({
               className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand rounded-md disabled:opacity-50"
             >
               {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plug className="w-3.5 h-3.5" />}
-              Use this session
+              使用此会话
             </button>
           </div>
           <p className="mt-2 text-[11px] text-theme-text-tertiary">
-            Reuses your <code className="inline-code">argocd login</code> token — nothing to generate or paste.
+            复用你的 <code className="inline-code">argocd login</code> 令牌 — 无需生成或粘贴。
           </p>
         </div>
       )}
 
       <label className="block text-sm font-medium text-theme-text-primary mt-3 mb-1">
-        {cliSession ? 'Or paste a token' : 'API token'}
+        {cliSession ? '或粘贴令牌' : 'API 令牌'}
       </label>
       <p className="text-xs text-theme-text-tertiary mb-1">
-        Lets Radar read your applications. Create one with{' '}
-        <code className="inline-code">argocd account generate-token</code>, or in the Argo CD UI under
-        Settings → Accounts.
+        该令牌允许 Radar 读取你的应用。可使用{' '}
+        <code className="inline-code">argocd account generate-token</code> 创建，也可在 Argo CD UI 的 Settings → Accounts 中创建。
       </p>
       <div className="flex items-center gap-2">
         <input
@@ -2602,7 +2591,7 @@ function ArgoCDEditableField({
           type="password"
           value={showConfiguredPlaceholder ? '' : token}
           onChange={(e) => { setToken(e.target.value); setTokenTouched(true); setTokenCleared(false); clearStatus() }}
-          placeholder={showConfiguredPlaceholder ? 'Saved value' : 'Argo CD API token'}
+          placeholder={showConfiguredPlaceholder ? '已保存的值' : 'Argo CD API 令牌'}
           className="flex-1 min-w-0 px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
         />
         {effectiveTokenSet && !tokenCleared && (
@@ -2610,12 +2599,12 @@ function ArgoCDEditableField({
             onClick={() => { setToken(''); setTokenTouched(false); setTokenCleared(true); clearStatus() }}
             className="shrink-0 px-2.5 py-1.5 text-xs font-medium text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded-md transition-colors"
           >
-            Remove
+            移除
           </button>
         )}
       </div>
       {tokenCleared && (
-        <p className="mt-1 text-xs text-amber-600 dark:text-amber-400/80">Token will be removed when you save.</p>
+        <p className="mt-1 text-xs text-amber-600 dark:text-amber-400/80">保存时将移除此令牌。</p>
       )}
 
       <label className="mt-2 flex items-center gap-2 cursor-pointer">
@@ -2625,7 +2614,7 @@ function ArgoCDEditableField({
           onChange={(e) => { onChangeInsecureTls(e.target.checked); clearStatus() }}
           className="h-3.5 w-3.5 accent-skyhook-600"
         />
-        <span className="text-xs text-theme-text-secondary">Skip TLS verification (self-signed Argo CD server)</span>
+        <span className="text-xs text-theme-text-secondary">跳过 TLS 验证（自签名 Argo CD 服务器）</span>
       </label>
 
       <div className="mt-3">
@@ -2635,20 +2624,20 @@ function ArgoCDEditableField({
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand rounded-md disabled:opacity-50"
         >
           {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plug className="w-3.5 h-3.5" />}
-          Connect &amp; save
+          连接并保存
         </button>
       </div>
 
       {state.status === 'connected' ? (
         <p className="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400/80">
           <Check className="w-3 h-3 shrink-0" />
-          Connected to Argo CD — applied, no restart needed
+          已连接到 Argo CD — 配置已应用，无需重启
         </p>
       ) : state.status === 'error' ? (
         <p className="mt-2 text-xs text-red-600 dark:text-red-400/80">{state.error}</p>
       ) : (
         <p className="mt-2 text-xs text-theme-text-tertiary">
-          Connecting verifies the URL and token before anything is saved.
+          连接前会验证 URL 和令牌，然后才会保存任何内容。
         </p>
       )}
     </div>
@@ -2795,7 +2784,7 @@ function EffectiveHint({
 
   return (
     <p className="text-xs text-amber-600 dark:text-amber-400/80 mt-0.5">
-      Currently running: {effectiveStr} (restart to apply)
+      当前运行配置：{effectiveStr}（重启后生效）
     </p>
   )
 }

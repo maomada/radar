@@ -330,7 +330,7 @@ export function ConditionsSection({
   return (
     <Section
       variant={variant}
-      title={`Conditions (${conditions.length})${failCount > 0 ? ` · ${failCount} failing` : ''}`}
+      title={`条件（${conditions.length}）${failCount > 0 ? ` · ${failCount} 项失败` : ''}`}
       defaultExpanded={defaultExpanded ?? conditions.length <= 6}
     >
       <div className="relative">
@@ -478,7 +478,7 @@ export function KnativeNotReadyBanner({ status, data, resourceType }: { status: 
   if (status.level !== 'unhealthy') return null
   const message = (data.status?.conditions || []).find((c: any) => c.type === 'Ready')?.message
     || `This ${resourceType} is not in a ready state.`
-  return <AlertBanner variant="error" title={`${resourceType} Not Ready`} message={message} />
+  return <AlertBanner variant="error" title={`${resourceType} 未就绪`} message={message} />
 }
 
 /** Problem type for ProblemAlerts component */
@@ -512,7 +512,7 @@ export function ProblemAlerts({ problems }: { problems: Problem[] }) {
         <AlertBanner
           key={i}
           variant={problem.color === 'red' ? 'error' : 'warning'}
-          title={problem.color === 'red' ? 'Issue Detected' : 'Warning'}
+          title={problem.color === 'red' ? '检测到问题' : '警告'}
           message={problem.message}
         />
       ))}
@@ -526,7 +526,7 @@ export function LabelsSection({ data }: { data: any }) {
   const count = Object.keys(labels).length
 
   return (
-    <Section title={`Labels (${count})`} icon={Tag} defaultExpanded={count <= 5}>
+    <Section title={`标签（${count}）`} icon={Tag} defaultExpanded={count <= 5}>
       <KeyValueBadgeList items={labels} />
     </Section>
   )
@@ -538,7 +538,7 @@ export function AnnotationsSection({ data }: { data: any }) {
   const count = Object.keys(annotations).length
 
   return (
-    <Section title={`Annotations (${count})`} defaultExpanded={count <= 3}>
+    <Section title={`注解（${count}）`} defaultExpanded={count <= 3}>
       <div className="space-y-1 max-h-48 overflow-y-auto">
         {Object.entries(annotations).map(([k, v]) => (
           <div key={k} className="text-xs">
@@ -558,7 +558,7 @@ export function MetadataSection({ data, onNavigate }: { data: any; onNavigate?: 
   const definition = customResourceDefinitionRef(data.apiVersion, data.kind)
 
   return (
-    <Section title="Metadata" defaultExpanded>
+    <Section title="元数据" defaultExpanded>
       <PropertyList>
         {definition && <Property label="Definition" value={<ResourceLink {...definition} onNavigate={onNavigate} />} />}
         <Property label="UID" value={meta.uid} />
@@ -597,7 +597,7 @@ export function PodTemplateSection({ template }: { template: any }) {
     <div className="space-y-2">
       {initContainers.length > 0 && (
         <>
-          <div className="text-xs text-theme-text-tertiary font-medium uppercase tracking-wide">Init Containers</div>
+          <div className="text-xs text-theme-text-tertiary font-medium uppercase tracking-wide">初始化容器</div>
           {initContainers.map((c: any) => (
             <div key={c.name} className="card-inner text-sm border-l-2 border-yellow-500/40">
               <div className="font-medium text-theme-text-primary">{c.name}</div>
@@ -614,7 +614,7 @@ export function PodTemplateSection({ template }: { template: any }) {
               <ContainerResourcesLine resources={c.resources} />
             </div>
           ))}
-          <div className="text-xs text-theme-text-tertiary font-medium uppercase tracking-wide mt-3">Containers</div>
+          <div className="text-xs text-theme-text-tertiary font-medium uppercase tracking-wide mt-3">容器</div>
         </>
       )}
       {containers.map((c: any) => (
@@ -680,7 +680,7 @@ export function ExternalLinksSection({ data }: { data: any }) {
   if (links.length === 0 && textProps.length === 0) return null
 
   return (
-    <Section title={`External Info (${links.length + textProps.length})`} icon={ExternalLink} defaultExpanded>
+    <Section title={`外部信息（${links.length + textProps.length}）`} icon={ExternalLink} defaultExpanded>
       <div className="space-y-2">
         {textProps.map(({ label, value }) => (
           <div key={label} className="text-sm">
@@ -730,7 +730,7 @@ export function AppInfoSection({ data }: { data: any }) {
   if (entries.length === 0) return null
 
   return (
-    <Section title="App Info" icon={Layers} defaultExpanded>
+    <Section title="应用信息" icon={Layers} defaultExpanded>
       <PropertyList>
         {entries.map(({ label, value }) => (
           <Property key={label} label={label} value={value} />
@@ -900,7 +900,7 @@ export function RelatedResourcesSection({ relationships, onNavigate, kind, track
   if (!hasRelationships) return null
 
   return (
-    <Section title="Related Resources" icon={Link} defaultExpanded>
+    <Section title="相关资源" icon={Link} defaultExpanded>
       <div className="space-y-3">
         {unanswered && <div className="text-xs text-theme-text-tertiary">{unanswered}</div>}
         {(relationships.owner || ownerMissing) && (
@@ -1391,8 +1391,8 @@ export function EventsSection({ events, updates = [], isLoading, eventsError, up
 
   if (isLoading) {
     return (
-      <Section title="Recent Events" defaultExpanded>
-        <div className="text-sm text-theme-text-tertiary">Loading events…</div>
+      <Section title="近期事件" defaultExpanded>
+        <div className="text-sm text-theme-text-tertiary">正在加载事件…</div>
       </Section>
     )
   }
@@ -1433,8 +1433,8 @@ export function EventsSection({ events, updates = [], isLoading, eventsError, up
 
   if (visible.length === 0) {
     return (
-      <Section title="Recent Events" defaultExpanded={!!(eventsError || updatesError)}>
-        <div className="text-sm text-theme-text-tertiary">No recent events</div>
+      <Section title="近期事件" defaultExpanded={!!(eventsError || updatesError)}>
+        <div className="text-sm text-theme-text-tertiary">没有近期事件</div>
         {errors}
         {toggle && <div className="mt-2">{toggle}</div>}
         {hint && <div className="mt-2">{hint}</div>}
@@ -1475,7 +1475,7 @@ export function EventsSection({ events, updates = [], isLoading, eventsError, up
   </div>
   )
   return (
-    <Section title={`Recent Events (${visible.length})`} defaultExpanded>
+    <Section title={`近期事件（${visible.length}）`} defaultExpanded>
       <div tabIndex={fullscreen ? undefined : 0} className={clsx('space-y-2', !fullscreen && 'max-h-64 overflow-y-auto')}>
         {(fullscreen ? visible.slice(0, 8) : visible).map(renderEvent)}
       </div>

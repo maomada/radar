@@ -138,7 +138,7 @@ export function ArgoCDConnectionForm({
     <fieldset disabled={busy} className="min-w-0 space-y-4">
       <p className="text-sm text-theme-text-secondary">
         Compare Git configuration with live resources and show Argo CD health.
-        Auto-discovery works without setup where anonymous reads are allowed.
+        在允许匿名读取的环境中，无需设置即可使用自动发现。
       </p>
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -158,7 +158,7 @@ export function ArgoCDConnectionForm({
           id={id}
           value={value.url}
           onChange={(e) => onChange({ ...value, url: e.target.value })}
-          placeholder="Auto-discover, or https://argocd.example.com"
+          placeholder="自动发现，或填写 https://argocd.example.com"
         />
         {connectionAction}
       </div>
@@ -337,7 +337,7 @@ export function CostConnectionForm({
                 id={id}
                 value={value.url}
                 onChange={(e) => onChange({ ...value, url: e.target.value })}
-                placeholder="Auto-discover, or https://kubecost.example.com"
+                placeholder="自动发现，或填写 https://kubecost.example.com"
               />
               {(!automatic || overridesOpen) && connectionAction}
             </div>
@@ -372,7 +372,7 @@ export function CostConnectionForm({
                 onChange={(e) =>
                   onChange({ ...value, clusterId: e.target.value })
                 }
-                placeholder="Detected automatically"
+                placeholder="自动检测"
               />
             </section>
           </div>

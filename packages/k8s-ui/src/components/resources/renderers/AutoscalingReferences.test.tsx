@@ -146,8 +146,8 @@ it.each(["v1", "", undefined])("keeps Object metric resources separate from the 
       await act(async () => button!.click());
       expect(onNavigate).toHaveBeenLastCalledWith(expected);
     }
-    expect(element.textContent).toContain("Object metric sources");
-    expect(element.textContent).toContain("This HPA's namespace");
+    expect(element.textContent).toContain("对象指标来源");
+    expect(element.textContent).toContain("此 HPA 的命名空间");
     expect(element.textContent).not.toContain("Namespace/cannot-escape");
   } finally {
     await act(async () => root.unmount());
@@ -260,7 +260,7 @@ it("pairs each diagnosis metric card with its declared Object source once", asyn
         { type: "Object", name: "Namespace/team/queue_depth", current: "7", status: "ok" },
         { type: "Object", name: "Service/stale/requests", current: "3", status: "status_only" },
       ] }} onNavigate={onNavigate} />));
-    expect(element.textContent).not.toContain("Object metric sources");
+    expect(element.textContent).not.toContain("对象指标来源");
     expect(element.textContent).not.toContain("ignored");
     const endpoints = [...element.querySelectorAll("button")].filter(button => button.textContent === "Endpoints/input");
     expect(endpoints).toHaveLength(2);
@@ -273,7 +273,7 @@ it("pairs each diagnosis metric card with its declared Object source once", asyn
     await act(async () => namespace!.click());
     expect(onNavigate).toHaveBeenLastCalledWith({ kind: "Namespace", group: "", namespace: "", name: "team" });
     expect([...element.querySelectorAll("button")].some(button => button.textContent === "Service/stale")).toBe(false);
-    for (const value of ["Current 10", "Current 20", "Current 7"]) expect(element.textContent).toContain(value);
+    for (const value of ["当前值 10", "当前值 20", "当前值 7"]) expect(element.textContent).toContain(value);
   } finally {
     await act(async () => root.unmount());
   }
