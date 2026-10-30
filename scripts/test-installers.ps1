@@ -58,7 +58,9 @@ if ($Scenario) {
     }
 
     . "$Root/install.ps1"
+    $InstallerExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     if ($Scenario -eq "success") {
+        if ($InstallerExitCode -ne 0) { Fail "Windows success fixture returned exit code $InstallerExitCode" }
         $Binary = Join-Path $InstallDir "kubectl-radar.exe"
         $Alias = Join-Path $InstallDir "radar.exe"
         if (-not (Test-Path -LiteralPath $Binary)) { Fail "missing Windows fixture binary" }
@@ -66,10 +68,13 @@ if ($Scenario) {
         if ((Get-Content -Raw -LiteralPath $Binary) -ne "radar fixture payload") {
             Fail "unexpected Windows fixture payload"
         }
-    } elseif (Test-Path -LiteralPath $InstallDir) {
-        Fail "rejected Windows install created its install directory"
+    } else {
+        if ($InstallerExitCode -eq 0) { Fail "Windows $Scenario fixture unexpectedly succeeded" }
+        if (Test-Path -LiteralPath $InstallDir) {
+            Fail "rejected Windows install created its install directory"
+        }
     }
-    exit 0
+    exit $InstallerExitCode
 }
 
 New-Item -ItemType Directory -Path $FixtureRoot -Force | Out-Null

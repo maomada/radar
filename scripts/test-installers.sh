@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 FIXTURE_DIR=$(mktemp -d)
 trap 'rm -rf "$FIXTURE_DIR"' EXIT HUP INT TERM
 
@@ -21,7 +21,7 @@ assert_not_exists() {
 ARCHIVE_DIR="$FIXTURE_DIR/archive"
 MOCK_BIN="$FIXTURE_DIR/bin"
 mkdir -p "$ARCHIVE_DIR" "$MOCK_BIN"
-printf '#!/bin/sh\nprintf "radar fixture %s\\n" "$*"\n' > "$ARCHIVE_DIR/kubectl-radar"
+printf '#!/bin/sh\nprintf "radar fixture %%s\\n" "$*"\n' > "$ARCHIVE_DIR/kubectl-radar"
 chmod 0755 "$ARCHIVE_DIR/kubectl-radar"
 tar -czf "$FIXTURE_DIR/radar_v0.0.0_linux_amd64.tar.gz" -C "$ARCHIVE_DIR" kubectl-radar
 ARCHIVE_SHA=$(sha256sum "$FIXTURE_DIR/radar_v0.0.0_linux_amd64.tar.gz" | awk '{print $1}')
@@ -120,7 +120,7 @@ fi
 assert_not_exists "$relative_dir"
 grep -Fq 'INSTALL_DIR must be an absolute path' "$FIXTURE_DIR/relative.log"
 
-grep -Fq 'INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"' "$ROOT/install.sh"
+grep -Fq "INSTALL_DIR=\"\${INSTALL_DIR:-/usr/local/bin}\"" "$ROOT/install.sh"
 if grep -Fq 'api.github.com' "$ROOT/install.sh" "$ROOT/install.ps1"; then
   fail 'installers must not use api.github.com for discovery'
 fi
