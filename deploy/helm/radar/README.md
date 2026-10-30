@@ -1,8 +1,13 @@
 # Radar Helm Chart
 
+Fork images and charts are published only by the manual workflow documented in
+[`docs/ci-cd.md`](../../../docs/ci-cd.md); no published fork version is
+implied by this source checkout. Upstream installers and update feeds do not
+deliver fork releases.
+
 Deploy Radar to your Kubernetes cluster for web-based cluster visualization and management.
 
-> **Maintainers**: this directory is the canonical source for the chart. The published copy at [`skyhook-io/helm-charts`](https://github.com/skyhook-io/helm-charts) is auto-synced by the `helm` job in [`.github/workflows/release.yml`](../../../.github/workflows/release.yml) on every Radar release — it overwrites `charts/radar/` there with the contents of this directory. Do not edit `helm-charts/charts/radar/` by hand; changes will be clobbered on the next release.
+> **Maintainers**: this directory is the canonical source. The owned OCI publishing flow and its prerequisites are in the CI/CD guide.
 
 > **See also:** [In-Cluster Deployment Guide](../../../docs/in-cluster.md) for ingress and DNS setup.
 
@@ -16,9 +21,8 @@ Deploy Radar to your Kubernetes cluster for web-based cluster visualization and 
 ### Quick Start
 
 ```bash
-helm repo add skyhook https://skyhook-io.github.io/helm-charts
-helm repo update skyhook
-helm upgrade --install radar skyhook/radar -n radar --create-namespace
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
+  --version "$VERSION" -n radar --create-namespace
 ```
 
 Access via port-forward:
@@ -33,8 +37,8 @@ it again, run `helm get notes radar -n radar`.
 ### With Ingress
 
 ```bash
-helm upgrade --install radar skyhook/radar \
-  -n radar --create-namespace \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
+  --version "$VERSION" -n radar --create-namespace \
   --set ingress.enabled=true \
   --set ingress.className=nginx \
   --set ingress.hosts[0].host=radar.example.com \
@@ -45,8 +49,8 @@ helm upgrade --install radar skyhook/radar \
 ### With TLS
 
 ```bash
-helm upgrade --install radar skyhook/radar \
-  -n radar --create-namespace \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
+  --version "$VERSION" -n radar --create-namespace \
   --set ingress.enabled=true \
   --set ingress.className=nginx \
   --set ingress.hosts[0].host=radar.example.com \
@@ -116,7 +120,7 @@ kubectl create namespace radar --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic radar-cloud-config -n radar \
   --from-literal=token=$TOKEN \
   --dry-run=client -o yaml | kubectl apply -f -
-helm upgrade --install radar skyhook/radar -n radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" -n radar \
   --set cloud.enabled=true \
   --set cloud.url=wss://api.radarhq.io/agent \
   --set cloud.clusterName=$CLUSTER_NAME \
@@ -183,7 +187,7 @@ there removes it.
    ```
 
    ```bash
-   helm upgrade --install radar skyhook/radar -n radar -f values.yaml
+   helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" -n radar -f values.yaml
    ```
 
    The `auth` and `rbac` values are the ones a single-cluster install from the
@@ -371,7 +375,7 @@ declaratively so it survives pod restarts and needs no interactive Settings past
 kubectl create secret generic radar-argocd-token -n radar \
   --from-literal=token=$ARGOCD_TOKEN \
   --dry-run=client -o yaml | kubectl apply -f -
-helm upgrade --install radar skyhook/radar -n radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" -n radar \
   --set argocd.existingSecret=radar-argocd-token
 ```
 
@@ -395,7 +399,7 @@ has no local Aggregator, so configure its central endpoint and cluster ID:
 kubectl create secret generic radar-kubecost -n radar \
   --from-literal=api-key="$KUBECOST_API_KEY" \
   --dry-run=client -o yaml | kubectl apply -f -
-helm upgrade --install radar skyhook/radar -n radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" -n radar \
   --set cost.source=kubecost \
   --set cost.kubecost.url=https://kubecost.example.com/model \
   --set cost.kubecost.clusterId=production-a \
@@ -413,7 +417,7 @@ trend charts remain unavailable for Kubecost.
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `replicaCount` | Number of replicas | `1` |
-| `image.repository` | Image repository | `ghcr.io/skyhook-io/radar` |
+| `image.repository` | Image repository | `ghcr.io/maomada/radar` |
 | `image.tag` | Image tag | Chart appVersion |
 | `service.type` | Service type | `ClusterIP` |
 | `service.port` | Service port | `9280` |
@@ -515,7 +519,7 @@ by `timeline.postgres.secretKey`.
 kubectl create secret generic radar-postgres -n radar \
   --from-literal=dsn='postgres://radar:password@postgres.example:5432/radar?sslmode=require' \
   --dry-run=client -o yaml | kubectl apply -f -
-helm upgrade --install radar skyhook/radar -n radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" -n radar \
   --set timeline.storage=postgres \
   --set timeline.postgres.existingSecret=radar-postgres \
   --set timeline.retention=720h

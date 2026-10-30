@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 # A new push to a PR cancels its running checks. Other runs get a unique group:
 # a shared one would queue main pushes and drop the pending ones.
 concurrency:
@@ -32,6 +35,7 @@ jobs:
       web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.web == 'true' }}
       app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.app == 'true' }}
       helm: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.helm == 'true' }}
+      containers: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.containers == 'true' }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         if: github.event_name == 'pull_request'
@@ -104,6 +108,21 @@ jobs:
             helm:
               - 'deploy/helm/**'
               - 'scripts/test-chart.sh'
+            containers:
+              - 'Dockerfile'
+              - 'Dockerfile.portal'
+              - '.dockerignore'
+              - 'scripts/validate_oci_archive.py'
+              - 'go.mod'
+              - 'go.sum'
+              - 'cmd/**'
+              - 'internal/**'
+              - 'pkg/**'
+              - 'web/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.npmrc'
 
   pkg:
     name: pkg (shared library)
@@ -201,7 +220,8 @@ jobs:
           RADAR_REQUIRE_POSTGRES_TESTS: "1"
         run: |
           pkgs=$(go list ./...)
-          go test $(grep -vx 'github.com/skyhook-io/radar/internal/server' <<<"$pkgs")
+          readarray -t pkgs_to_test < <(grep -vx 'github.com/skyhook-io/radar/internal/server' <<<"$pkgs")
+          go test "${pkgs_to_test[@]}"
 
       - name: Evaluate PVC and CNPG PromQL in Prometheus
         env:
@@ -457,3 +477,98 @@ jobs:
 
       - name: Run all helmfile unittests
         run: helmfile -f ./deploy/helm/ unittest
+
+  release-policy:
+    name: Release policy tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run release policy regression tests
+        run: python3 -m unittest discover -s scripts -p 'test_release*.py'
+      - name: Compile release tooling
+        run: >-
+          python3 -m py_compile
+          scripts/release_policy.py
+          scripts/test_release_policy.py
+          scripts/release_registry.py
+          scripts/test_release_registry.py
+          scripts/release_chart_package.py
+          scripts/test_release_chart_package.py
+          scripts/release_manifest.py
+          scripts/test_release_manifest.py
+          scripts/validate_oci_archive.py
+          scripts/test_release_oci_archive.py
+          scripts/test_release_workflow.py
+
+  workflow-lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26'
+          cache: false
+      - name: Lint workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 .github/workflows/*.yml
+
+  container-build:
+    name: Container build (${{ matrix.component }})
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: radar
+            dockerfile: Dockerfile
+          - component: radar-portal
+            dockerfile: Dockerfile.portal
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build Linux amd64 and arm64 as an OCI archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: full
+          platforms: linux/amd64,linux/arm64
+          push: false
+          outputs: type=oci,dest=${{ runner.temp }}/${{ matrix.component }}.oci.tar
+          provenance: false
+          build-args: |
+            VERSION=0.0.0-ci
+            SOURCE_REVISION=${{ github.sha }}
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y skopeo
+      - name: Inspect the archive and verify exact platform descriptors
+        env:
+          ARCHIVE: ${{ runner.temp }}/${{ matrix.component }}.oci.tar
+          RAW_MANIFEST: ${{ runner.temp }}/${{ matrix.component }}.manifest.json
+        run: |
+          skopeo inspect --raw "oci-archive:$ARCHIVE" > "$RAW_MANIFEST"
+          python3 scripts/validate_oci_archive.py validate \
+            --archive "$ARCHIVE" \
+            --raw-manifest "$RAW_MANIFEST"
+      - name: Copy all platforms to a local OCI layout without publishing
+        env:
+          COMPONENT: ${{ matrix.component }}
+          ARCHIVE: ${{ runner.temp }}/${{ matrix.component }}.oci.tar
+          RAW_MANIFEST: ${{ runner.temp }}/${{ matrix.component }}.manifest.json
+          LAYOUT: ${{ runner.temp }}/${{ matrix.component }}-oci-layout
+          LAYOUT_TAG: ci-validation
+        run: |
+          skopeo copy --all --preserve-digests \
+            "oci-archive:$ARCHIVE" "oci:$LAYOUT:$LAYOUT_TAG"
+          python3 scripts/validate_oci_archive.py verify-copy \
+            --layout "$LAYOUT" \
+            --raw-manifest "$RAW_MANIFEST" \
+            --tag "$LAYOUT_TAG"

@@ -1,5 +1,10 @@
 # In-Cluster Deployment
 
+Fork releases use the owned OCI images and charts documented in
+[`ci-cd.md`](ci-cd.md); upstream installers, update feeds, and package
+identities do not deliver fork releases. A version is usable only after the
+manual Release GHCR workflow has actually published it.
+
 Deploy Radar to your Kubernetes cluster for shared team access.
 
 For an optional independent registry of in-cluster and opted-in local
@@ -17,10 +22,12 @@ Choose the path that matches what you are trying to do:
 
 ## Quick Start
 
+Set `VERSION` to a version actually published by the manual Release GHCR
+workflow before running these commands.
+
 ```bash
-helm repo add skyhook https://skyhook-io.github.io/helm-charts
-helm repo update skyhook
-helm upgrade --install radar skyhook/radar -n radar --create-namespace
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
+  --version "$VERSION" -n radar --create-namespace
 ```
 
 Access via port-forward:
@@ -138,12 +145,11 @@ can also find likely releases with:
 helm list --all-namespaces --filter radar
 ```
 
-Update the chart repository, then upgrade while preserving the values already
-set on the release:
+Select a previously published version, then upgrade while preserving the
+values already set on the release:
 
 ```bash
-helm repo update skyhook
-helm upgrade radar skyhook/radar \
+helm upgrade radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" \
   --namespace radar \
   --reset-then-reuse-values \
   --wait
@@ -158,9 +164,9 @@ is not equivalent and can omit new defaults.
 
 If the deployment is managed from a values file, use that same file with
 `-f values.yaml` instead of `--reset-then-reuse-values` so Git remains the
-reproducible source of configuration. The command installs the latest published
-chart; add `--version X.Y.Z` to pin the exact version shown in Radar (without
-the leading `v`).
+reproducible source of configuration. Use a version that the owned Release GHCR
+workflow actually published and pin it with `--version X.Y.Z` (without a
+leading `v`).
 
 ### Argo CD or Flux
 
@@ -256,7 +262,7 @@ ingress:
 ```
 
 ```bash
-helm upgrade --install radar skyhook/radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" \
   -n radar -f values.yaml
 ```
 
@@ -369,7 +375,7 @@ wire up.
 
 3. **Deploy:**
    ```bash
-   helm upgrade --install radar skyhook/radar \
+   helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" \
      -n radar -f values.yaml
    ```
 
@@ -616,7 +622,7 @@ See [Helm Chart README](../deploy/helm/radar/README.md) for all available values
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `image.repository` | Container image | `ghcr.io/skyhook-io/radar` |
+| `image.repository` | Container image | `ghcr.io/maomada/radar` |
 | `image.tag` | Image tag | Chart appVersion |
 | `ingress.enabled` | Enable ingress | `false` |
 | `ingress.className` | Ingress class | `""` |

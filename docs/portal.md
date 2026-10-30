@@ -1,5 +1,9 @@
 # Self-hosted Radar Portal
 
+Fork releases use the owned OCI images and charts described in
+[`ci-cd.md`](ci-cd.md). Upstream installers, update feeds, and library
+identities do not deliver fork releases.
+
 Radar Portal is an optional, independent registry and viewer for multiple
 Radar instances, including in-cluster installations and explicitly configured
 local CLI or Desktop processes. Each eligible Radar reports its own metadata
@@ -47,15 +51,12 @@ not from browser input.
 From the repository root:
 
 ```bash
-docker build -f Dockerfile.portal -t registry.example.internal/radar-portal:dev .
-docker push registry.example.internal/radar-portal:dev
+docker build -f Dockerfile.portal --target full -t radar-portal:local .
 ```
 
-Replace the example registry with one you control. No Portal image is claimed
-to have been published. The independent chart source is
-`deploy/helm/radar-portal`; it is a local chart source and is not automatically
-published. It expects the image repository and an existing credential Secret
-to be supplied by the installer.
+For an owned fork image, use a version actually published by the manual
+Release GHCR workflow. No image is claimed to have been published by this
+documentation change.
 
 ## Deploy the Portal
 
@@ -76,13 +77,13 @@ tokens. The viewer username/password protect the UI and read API; registration
 tokens are only accepted by the ID-scoped registration API and are never
 accepted for viewer reads.
 
-Install the chart from this checkout, supplying your own image and Secret name:
+After a version is published by the manual workflow, install the owned OCI
+chart and reference your existing Secret:
 
 ```bash
-helm upgrade --install radar-portal deploy/helm/radar-portal \
+helm upgrade --install radar-portal oci://ghcr.io/maomada/charts/radar-portal \
   --namespace radar-portal --create-namespace \
-  --set image.repository=registry.example.internal/radar-portal \
-  --set image.tag=dev \
+  --version "$VERSION" \
   --set existingSecret=radar-portal-auth
 ```
 

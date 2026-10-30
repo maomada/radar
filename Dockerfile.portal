@@ -1,4 +1,4 @@
-FROM node:24-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY packages/k8s-ui/ ./packages/k8s-ui/
 COPY internal/portalui/ ./internal/portalui/
 RUN cd web && npx vite build --config vite.portal.config.ts
 
-FROM golang:1.26-alpine AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS backend-builder
 
 RUN apk add --no-cache ca-certificates
 
@@ -26,17 +26,23 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 COPY --from=frontend-builder /app/internal/portalui/dist/ internal/portalui/dist/
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+ARG SOURCE_REVISION=unknown
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags "-s -w" -o /radar-portal ./cmd/radar-portal
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot AS full
 
+ARG SOURCE_REVISION=unknown
+ARG VERSION=dev
 LABEL org.opencontainers.image.title="Radar Portal"
 LABEL org.opencontainers.image.description="Independent, self-hosted directory for registered Radar clusters"
-LABEL org.opencontainers.image.source="https://github.com/skyhook-io/radar"
-LABEL org.opencontainers.image.vendor="Skyhook"
+LABEL org.opencontainers.image.source="https://github.com/maomada/radar"
+LABEL org.opencontainers.image.vendor="maomada"
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
+LABEL org.opencontainers.image.version=$VERSION
 
 COPY --from=backend-builder /radar-portal /radar-portal
 
