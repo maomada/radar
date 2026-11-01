@@ -143,7 +143,7 @@ it.each(['Deployment', 'Pod', 'Pooler', 'ScheduledBackup'])('groups %s drawer ac
   expect(object.querySelector('button')).not.toBeNull()
   expect(utility.textContent).toContain('YAML')
   if (kind === 'Pod') expect(object.textContent).toContain('Terminal')
-  if (kind === 'Deployment') expect(object.textContent).toContain('Restart')
+  if (kind === 'Deployment') expect(object.textContent).toContain('重启')
   if (kind === 'ScheduledBackup') { expect(object.querySelectorAll('button')).toHaveLength(3); expect(object.textContent).toContain('Run blocked: no backup destination') }
   act(() => root.unmount())
 })

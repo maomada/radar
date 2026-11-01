@@ -232,9 +232,9 @@ export function ClusterHealthCard({
     <div className="rounded-xl bg-theme-surface shadow-theme-sm overflow-hidden">
       {/* Main health section - three columns; stacked on phones */}
       <div className="px-6 py-5 border-b border-theme-border/50 phone:px-4">
-        <div className="flex items-stretch gap-8 phone:flex-col phone:gap-5">
+        <div className="grid grid-cols-2 items-stretch gap-6 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,300px)] phone:grid-cols-1 phone:gap-5">
           {/* Left: Cluster info */}
-          <div className="flex flex-col justify-center w-[300px] shrink-0 pr-8 border-r border-theme-border/50 phone:w-auto phone:pr-0 phone:border-r-0">
+          <div className="flex min-w-0 flex-col justify-center pr-6 border-r border-theme-border/50 phone:pr-0 phone:border-r-0">
             <div className="flex items-center gap-2 mb-1.5">
               {platformInfo.icon ? (
                 <img src={platformInfo.icon} alt={platformInfo.name} className="w-5 h-5 object-contain" />
@@ -274,7 +274,7 @@ export function ClusterHealthCard({
                 />
               )}
               {radarVersion}
-              <span><span className="font-mono">{counts.namespaces}</span> namespaces</span>
+              <span><span className="font-mono">{counts.namespaces}</span> 个命名空间</span>
               {/* Show raw kubeconfig context as muted metadata only when
                   it differs from the headline AND we're in local mode
                   (in-cluster has no meaningful context name, cloud
@@ -307,7 +307,7 @@ export function ClusterHealthCard({
               >
                 <span className="flex items-center gap-1.5 mt-1 text-xs text-yellow-500">
                   <AlertTriangle className="w-3 h-3 shrink-0" />
-                  Version skew: v{nodeVersionSkew.minVersion} — v{nodeVersionSkew.maxVersion}
+                  版本不一致：v{nodeVersionSkew.minVersion} — v{nodeVersionSkew.maxVersion}
                 </span>
               </Tooltip>
             )}
@@ -322,7 +322,7 @@ export function ClusterHealthCard({
               >
                 <Radio className="w-3.5 h-3.5 text-purple-400 animate-pulse shrink-0" />
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1 text-left">
-                  <span className="text-xs font-medium text-purple-400">{caps.mcpReadOnly ? 'MCP Server Live (read-only)' : 'MCP Server Live'}</span>
+                  <span className="text-xs font-medium text-purple-400">{caps.mcpReadOnly ? 'MCP 服务运行中（只读）' : 'MCP 服务运行中'}</span>
                   <Tooltip content={mcpUrl} wrapperClassName="min-w-0">
                   <span className="text-[10px] text-theme-text-tertiary truncate font-mono">
                     HTTP · {mcpUrl}
@@ -337,7 +337,7 @@ export function ClusterHealthCard({
 
           {/* Center: Three health rings */}
           {/* Phones: the three rings share one row; each ring's status lines stack. */}
-          <div className="flex-1 flex items-center justify-center gap-12 phone:grid phone:grid-cols-3 phone:items-start phone:gap-2">
+          <div className="flex min-w-0 items-center justify-center gap-6 xl:gap-12 phone:grid phone:grid-cols-3 phone:items-start phone:gap-2">
             {/* Pods Ring */}
             {isRestricted('pods') ? (
               <RestrictedRing label="Pods" />
@@ -382,9 +382,9 @@ export function ClusterHealthCard({
                 <HealthRing segments={deploymentsRingSegments} size={88} strokeWidth={8} label={String(counts.deployments.total)} />
                 <span className="text-sm font-semibold uppercase tracking-wider text-theme-text-secondary phone:text-[11px] phone:tracking-wide">Deployments</span>
                 <div className="flex items-center gap-2 text-xs font-mono phone:flex-col phone:gap-0.5">
-                  <span className="text-green-500">{counts.deployments.available} available</span>
+                  <span className="text-green-500">{counts.deployments.available} 可用</span>
                   {counts.deployments.unavailable > 0 && (
-                    <span className="text-red-500">{counts.deployments.unavailable} unavailable</span>
+                    <span className="text-red-500">{counts.deployments.unavailable} 不可用</span>
                   )}
                 </div>
               </button>
@@ -417,7 +417,7 @@ export function ClusterHealthCard({
           </div>
 
           {/* Right: Resource utilization */}
-          <div className="flex flex-col justify-center w-[300px] shrink-0 pl-8 border-l border-theme-border/50 phone:w-auto phone:pl-0 phone:border-l-0">
+          <div className="col-span-2 flex min-w-0 flex-col justify-center border-t border-theme-border/50 pt-4 xl:col-span-1 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-6 phone:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <Boxes className="w-4 h-4 text-theme-text-tertiary" />
               <span className="text-[10px] uppercase tracking-wider text-theme-text-tertiary">资源使用情况</span>
@@ -450,7 +450,7 @@ export function ClusterHealthCard({
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-theme-text-tertiary">
                     <MemoryStick className="w-3.5 h-3.5 text-theme-text-tertiary" />
-                    Memory
+                    内存
                   </div>
                   {metricsServerAvailable && (
                     <ResourceBar
@@ -499,7 +499,7 @@ export function ClusterHealthCard({
               className={clsx('badge w-fit gap-1.5 hover:opacity-80 transition-opacity', hasCriticalIssues ? 'status-unhealthy' : 'status-degraded')}
             >
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>{pluralize(issueCount, 'Active Issue')}</span>
+              <span>{issueCount} 个活跃问题</span>
             </button>
             </Tooltip>
           )}

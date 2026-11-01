@@ -42,7 +42,7 @@ export function MyPermissionsContent({ active }: { active: boolean }) {
         <div className="flex-1 min-w-[180px]">
           <label className="block text-xs text-theme-text-tertiary mb-1">身份</label>
           <div className="px-2 py-1.5 text-sm bg-theme-elevated rounded border border-theme-border text-theme-text-primary truncate">
-            {authMe?.username || '(current kubeconfig user)'}
+            {authMe?.username || '（当前 kubeconfig 用户）'}
           </div>
         </div>
         <div className="flex-1 min-w-[180px]">
@@ -63,28 +63,28 @@ export function MyPermissionsContent({ active }: { active: boolean }) {
       </div>
 
       <p className="text-xs text-theme-text-tertiary">
-        Computed by the Kubernetes API via{' '}
+        由 Kubernetes API 通过{' '}
         <code className="inline-code">SelfSubjectRulesReview</code>.
-        Shows what you can do in <span className="text-theme-text-secondary">{namespace}</span>,
-        plus any cluster-scoped rules that apply everywhere.
+        显示你在 <span className="text-theme-text-secondary">{namespace}</span> 中可以执行的操作，
+        以及适用于所有位置的集群范围规则。
       </p>
 
       {whoami?.incomplete && (
         <div className="px-2.5 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 rounded">
-          The apiserver returned an incomplete rule set
+          apiserver 返回的规则集不完整
           {whoami.evaluationError ? ` (${whoami.evaluationError})` : ''}.
-          The list below may understate your actual permissions.
+          下面的列表可能低估你的实际权限。
         </div>
       )}
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-theme-text-tertiary">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          Querying apiserver…
+          正在查询 apiserver…
         </div>
       ) : error ? (
         <div className="text-sm text-red-400">
-          Failed to load: {(error as Error).message}
+          加载失败：{(error as Error).message}
         </div>
       ) : whoami ? (
         <PermissionsTable whoami={whoami} />
@@ -103,11 +103,11 @@ function PermissionsTable({ whoami }: { whoami: RBACWhoamiResponse }) {
     <div className="space-y-4">
       <div>
         <div className="text-xs font-medium text-theme-text-secondary uppercase tracking-wider mb-2">
-          Resource permissions ({resourceRules.length})
+          资源权限（{resourceRules.length}）
         </div>
         {resourceRules.length === 0 ? (
           <div className="text-sm text-theme-text-tertiary">
-            No resource permissions in this namespace.
+            此命名空间中没有资源权限。
           </div>
         ) : (
           <div className="space-y-2">
@@ -121,7 +121,7 @@ function PermissionsTable({ whoami }: { whoami: RBACWhoamiResponse }) {
       {nonResourceRules.length > 0 && (
         <div>
           <div className="text-xs font-medium text-theme-text-secondary uppercase tracking-wider mb-2">
-            Non-resource permissions ({nonResourceRules.length})
+            非资源权限（{nonResourceRules.length}）
           </div>
           <div className="space-y-1 text-xs">
             {nonResourceRules.map((r, i) => (
@@ -129,7 +129,7 @@ function PermissionsTable({ whoami }: { whoami: RBACWhoamiResponse }) {
                 {(r.verbs ?? []).map((v: string) => (
                   <span key={v} className={clsx('badge', rbacVerbBadgeClass(v))}>{v}</span>
                 ))}
-                <span className="text-theme-text-secondary">on</span>
+                <span className="text-theme-text-secondary">作用于</span>
                 {(r.nonResourceURLs ?? []).map((u: string) => (
                   <span key={u} className={clsx('badge', rbacNonResourceUrlBadgeClass)}>{u}</span>
                 ))}
@@ -152,9 +152,9 @@ function ResourceRuleRow({ rule }: { rule: { verbs?: string[]; apiGroups?: strin
       {verbs.map((v) => (
         <span key={v} className={clsx('badge', rbacVerbBadgeClass(v))}>{v}</span>
       ))}
-      <span className="text-theme-text-secondary">on</span>
+      <span className="text-theme-text-secondary">作用于</span>
       {resources.length === 0 ? (
-        <span className="text-theme-text-secondary italic">(no resources)</span>
+        <span className="text-theme-text-secondary italic">（无资源）</span>
       ) : (
         resources.map((r) => (
           <span key={r} className={clsx('badge', rbacResourceBadgeClass)}>
@@ -164,7 +164,7 @@ function ResourceRuleRow({ rule }: { rule: { verbs?: string[]; apiGroups?: strin
       )}
       {groups.length > 0 && groups.some((g) => g !== '') && (
         <>
-          <span className="text-theme-text-secondary">in</span>
+          <span className="text-theme-text-secondary">位于</span>
           {groups.map((g) => (
             <span key={g} className={clsx('badge', rbacApiGroupBadgeClass)}>
               {g === '' ? 'core' : g}
@@ -174,7 +174,7 @@ function ResourceRuleRow({ rule }: { rule: { verbs?: string[]; apiGroups?: strin
       )}
       {resourceNames.length > 0 && (
         <>
-          <span className="text-theme-text-secondary">named</span>
+          <span className="text-theme-text-secondary">名称为</span>
           {resourceNames.map((n) => (
             <span key={n} className={clsx('badge', rbacResourceNameBadgeClass)}>{n}</span>
           ))}
@@ -213,12 +213,12 @@ function RestrictedResources({ enabled }: { enabled: boolean }) {
     <div>
       <div className="text-xs font-medium text-theme-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
         <Lock className="w-3.5 h-3.5 text-amber-400" />
-        {reasons ? 'Restricted resources' : 'Restricted or unavailable'} ({forbidden.length})
+        {reasons ? '受限资源' : '受限或不可用'}（{forbidden.length}）
       </div>
       <p className="text-xs text-theme-text-tertiary mb-2">
         {reasons
-          ? 'These kinds are hidden by your permissions.'
-          : "Resource types Radar isn't showing you — usually because your RBAC doesn't allow listing them, sometimes because the type isn't installed or watched on this cluster. Either way, not an empty cluster."}
+          ? '这些资源类型因你的权限而隐藏。'
+          : 'Radar 未显示这些资源类型——通常是因为你的 RBAC 不允许列出它们，有时是因为该类型未在此集群中安装或监视。无论哪种情况，都不代表集群为空。'}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {forbidden.map((k) => (
@@ -236,7 +236,7 @@ function RestrictedResources({ enabled }: { enabled: boolean }) {
         rel="noreferrer"
         className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline mt-2"
       >
-        How to get access
+        如何获取访问权限
         <ExternalLink className="w-3 h-3" />
       </a>
     </div>

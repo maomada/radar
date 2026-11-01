@@ -34,7 +34,7 @@ import {
   costSourcePreferenceLabel,
   COST_SOURCE_OPTIONS,
 } from '../cost/source'
-import { costSourceApplyLabel, pendingSectionLabels, pendingSections, shouldShowSettingsFooter } from './settings-state'
+import { costSourceApplyLabel, pendingSectionLabels, pendingSections, SETTINGS_NAV_LABELS, shouldShowSettingsFooter } from './settings-state'
 import { PrometheusConfigField } from './PrometheusConfigField'
 import { LocalConnectionSettings, type IntegrationProfiles, type IntegrationKind } from './LocalConnectionSettings'
 import { LocalIntegrationStatus } from './LocalIntegrationStatus'
@@ -373,7 +373,7 @@ export function SettingsDialog({
       const committed = { ...body, opencostCurrency: saved.opencostCurrency }
       setEditedConfig((prev) => ({ ...prev, opencostCurrency: saved.opencostCurrency }))
       setConfigData((prev) => (prev ? { ...prev, file: committed } : prev))
-      setSaveMessage('Saved. Restart Radar to apply.')
+      setSaveMessage('已保存。重启 Radar 后生效。')
       return true
     } catch (err) {
       setSaveMessage(`Error: ${err}`)
@@ -545,15 +545,15 @@ export function SettingsDialog({
   // would only add visual weight. AI investigations is always shown (the section
   // explains how to enable it when no agent CLI is installed).
   const navItems: NavItemDef[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard, ownerOnly: false, dirty: false },
-    { id: 'perms', label: 'My permissions', icon: Shield, ownerOnly: false, dirty: false },
-    { id: 'connection', label: 'Connection', icon: Boxes, ownerOnly: true, dirty: connectionDirty },
-    { id: 'prometheus', label: 'Metrics', icon: Activity, ownerOnly: true, dirty: prometheusDirty },
-    { id: 'cost', label: 'Cost', icon: Coins, ownerOnly: true, dirty: costIntegrationDirty },
+    { id: 'overview', label: SETTINGS_NAV_LABELS.overview, icon: LayoutDashboard, ownerOnly: false, dirty: false },
+    { id: 'perms', label: SETTINGS_NAV_LABELS.perms, icon: Shield, ownerOnly: false, dirty: false },
+    { id: 'connection', label: SETTINGS_NAV_LABELS.connection, icon: Boxes, ownerOnly: true, dirty: connectionDirty },
+    { id: 'prometheus', label: SETTINGS_NAV_LABELS.prometheus, icon: Activity, ownerOnly: true, dirty: prometheusDirty },
+    { id: 'cost', label: SETTINGS_NAV_LABELS.cost, icon: Coins, ownerOnly: true, dirty: costIntegrationDirty },
     { id: 'argocd', label: 'Argo CD', icon: GitBranch, ownerOnly: true, dirty: localDirty.argocd },
-    { id: 'ai', label: 'AI investigations', icon: Sparkles, ownerOnly: false, dirty: aiDirty },
-    { id: 'privacy', label: 'Privacy', icon: EyeOff, ownerOnly: false, dirty: false },
-    { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal, ownerOnly: true, dirty: advancedDirty },
+    { id: 'ai', label: SETTINGS_NAV_LABELS.ai, icon: Sparkles, ownerOnly: false, dirty: aiDirty },
+    { id: 'privacy', label: SETTINGS_NAV_LABELS.privacy, icon: EyeOff, ownerOnly: false, dirty: false },
+    { id: 'advanced', label: SETTINGS_NAV_LABELS.advanced, icon: SlidersHorizontal, ownerOnly: true, dirty: advancedDirty },
   ]
 
   const showFooter = shouldShowSettingsFooter({
@@ -719,7 +719,7 @@ export function SettingsDialog({
               active={section}
               title="连接"
               managed={operatorManaged ? <OperatorSettingsSummary section="connection" config={configData} /> : undefined}
-              caption="Kubeconfig and server changes take effect on next launch."
+              caption="Kubeconfig 和服务器更改将在下次启动时生效。"
               locked={!canEditConfig}
             >
               <div className="space-y-4">
@@ -887,9 +887,9 @@ export function SettingsDialog({
                 <h3 className="text-base font-semibold text-theme-text-primary">AI 调查</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
                   {operatorManaged
-                    ? 'AI investigations are available in local Radar and Radar Cloud.'
+                    ? '本地 Radar 和 Radar Cloud 均可使用 AI 调查。'
                     : diag.hosted
-                    ? `Investigate incidents with ${diag.agentLabel} — reading logs, events, and topology to understand what's happening.`
+                    ? `使用 ${diag.agentLabel} 调查事件——读取日志、事件和拓扑以了解当前情况。`
                     : "使用在你自己的机器上运行的 AI 代理调查事件 — 读取日志、事件和拓扑以了解当前情况。无需 Radar Cloud 或 API 密钥。"}
                 </p>
               </div>
@@ -914,7 +914,7 @@ export function SettingsDialog({
                       busy={false}
                       onSave={saveAi}
                       onDiscard={discardAi}
-                      feedback={aiSaved ? { tone: 'success', message: 'Saved' } : undefined}
+                      feedback={aiSaved ? { tone: 'success', message: '已保存' } : undefined}
                     />
                   )}
                 </div>
@@ -980,8 +980,8 @@ export function SettingsDialog({
                   <div className="space-y-1 text-xs text-theme-text-secondary">
                     <p>
                     {formDirty
-                      ? `${pending.map(item => pendingSectionLabels[item]).join(', ')} changes are not saved.${configDirty ? ' Startup settings are unsaved.' : ''}`
-                      : 'Unsaved changes.'}
+                      ? `${pending.map(item => pendingSectionLabels[item]).join('、')}更改尚未保存。${configDirty ? '启动设置尚未保存。' : ''}`
+                      : '有未保存的更改。'}
                     </p>
                     {saveMessage && <p role="status" className={saveMessage.startsWith('Error') ? 'text-semantic-error' : undefined}>{saveMessage}</p>}
                   </div>
@@ -994,14 +994,14 @@ export function SettingsDialog({
                       disabled={settingsBusy}
                       className="px-3 py-1.5 text-xs font-medium text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded-md transition-colors disabled:opacity-50"
                     >
-                      Keep editing
+                      继续编辑
                     </button>
                     <button
                       onClick={finishClose}
                       disabled={settingsBusy}
                       className="px-3 py-1.5 text-xs font-medium text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded-md transition-colors disabled:opacity-50"
                     >
-                      Discard
+                      放弃
                     </button>
                     {reviewSection && (
                       <button
@@ -1013,7 +1013,7 @@ export function SettingsDialog({
                             : 'btn-brand',
                         )}
                       >
-                        Review {pendingSectionLabels[reviewSection]}
+                        查看{pendingSectionLabels[reviewSection]}
                       </button>
                     )}
                     {configDirty && canEditConfig && (
@@ -1023,7 +1023,7 @@ export function SettingsDialog({
                         className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium btn-brand rounded-md"
                       >
                         {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                        Save startup settings
+                        保存启动设置
                       </button>
                     )}
                   </div>
@@ -1038,7 +1038,7 @@ export function SettingsDialog({
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        {formDirty && (configDirty || pending.length > 1) ? 'Discard all changes' : 'Discard changes'}
+                        {formDirty && (configDirty || pending.length > 1) ? '放弃所有更改' : '放弃更改'}
                       </button>
                     </Tooltip>}
                     {saveMessage && (
@@ -1058,7 +1058,7 @@ export function SettingsDialog({
                             : 'btn-brand',
                         )}
                       >
-                        Review {pendingSectionLabels[reviewSection]}
+                        查看{pendingSectionLabels[reviewSection]}
                       </button>
                     )}
                     {configDirty && canEditConfig && (
@@ -1068,7 +1068,7 @@ export function SettingsDialog({
                         className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium btn-brand rounded-md"
                       >
                         {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                        Save startup settings
+                        保存启动设置
                       </button>
                     )}
                   </div>
@@ -1203,13 +1203,13 @@ function OperatorSettingsSummary({ section, config }: { section: SettingsSection
   switch (section) {
     case 'connection':
       rows = [['集群连接', cluster?.inCluster ? 'Pod 服务账户' : cluster?.context ?? '正在连接…'], ['服务端口', c.port ?? '—']]
-      detail = 'The operator selects the cluster and connection settings at startup.'
+      detail = '集群和连接设置由操作员在启动时选择。'
       break
     case 'prometheus':
       rows = [
         ['状态', promError ? '状态不可用' : !prom ? '正在检查…' : prom.connected ? '已连接' : prom.discovering ? '正在发现…' : '未连接'],
         ['端点', prom?.address || c.prometheusUrl || '自动发现'],
-        ['Headers', config.prometheusHeaderKeys?.join(', ') || 'None configured'],
+        ['请求头', config.prometheusHeaderKeys?.join(', ') || '未配置'],
       ]
       detail = prom?.error
       break
@@ -1217,27 +1217,27 @@ function OperatorSettingsSummary({ section, config }: { section: SettingsSection
       rows = [
         ['状态', argoError ? '状态不可用' : !argo ? '正在检查…' : argo.connected ? '已连接' : argo.connecting ? '正在连接…' : '未连接'],
         ['端点', argo?.address || c.argoCdUrl || '自动发现'],
-        ['Token', config.argoCdTokenSet ? 'Configured' : 'None configured'],
-        ['TLS verification', c.argoCdInsecureTls ? 'Disabled' : 'Enabled'],
+        ['API 令牌', config.argoCdTokenSet ? '已配置' : '未配置'],
+        ['TLS 验证', c.argoCdInsecureTls ? '已禁用' : '已启用'],
       ]
       detail = config.argoCdEnvError || argo?.reason
       break
     case 'cost':
       rows = [
-        ['Status', costError ? 'Status unavailable' : !cost ? 'Checking…' : cost.available ? 'Available' : 'Unavailable'],
-        ['Source preference', costSourcePreferenceLabel(c.costSource)],
+        ['状态', costError ? '状态不可用' : !cost ? '检查中…' : cost.available ? '可用' : '不可用'],
+        ['来源偏好', costSourcePreferenceLabel(c.costSource)],
         ['Kubecost 端点', c.kubecostUrl || '自动发现'],
         ['Kubecost 集群 ID', c.kubecostClusterId || '自动检测'],
         ['API 密钥', config.kubecostApiKeySet ? '已配置' : '未配置'],
-        ['Currency override', c.opencostCurrency || 'Automatic'],
+        ['货币覆盖', c.opencostCurrency || '自动'],
       ]
       detail = config.kubecostEnvError || (cost?.reason ? costIntegrationUnavailableMessage(cost.reason) ?? undefined : undefined)
       break
     case 'advanced':
       rows = [
-        ['MCP', c.mcp ? (c.mcpReadOnly ? 'Read-only' : 'Enabled') : 'Disabled'],
-        ['Timeline storage', c.timelineStorage || 'Memory'],
-        ['Event history limit', c.historyLimit ?? '—'],
+        ['MCP', c.mcp ? (c.mcpReadOnly ? '只读' : '已启用') : '已禁用'],
+        ['时间线存储', c.timelineStorage || '内存'],
+        ['事件历史上限', c.historyLimit ?? '—'],
       ]
       break
   }
@@ -1263,9 +1263,7 @@ function LockWall() {
       <div className="min-w-0">
         <p className="text-sm font-medium text-theme-text-primary">需要所有者权限</p>
         <p className="mt-0.5 text-xs text-theme-text-tertiary">
-          These settings (kubeconfig, server port, timeline, integrations) affect
-          every user of this Radar instance, so they're limited to owners. Ask an
-          owner if you need a change here.
+          这些设置（kubeconfig、服务器端口、时间线和集成）会影响此 Radar 实例的所有用户，因此仅所有者可以更改。如需调整，请联系所有者。
         </p>
       </div>
     </div>
@@ -1308,13 +1306,13 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
   const mcpUrl = mcpEndpointUrl(capabilities.mcpReadOnly)
   const costMissing = cost?.reason === 'no_prometheus' || cost?.reason === 'no_cost_source' || cost?.reason === 'no_metrics'
   const costUnavailableDetail = cost?.reason === 'no_prometheus'
-    ? 'Connect OpenCost metrics in Metrics.'
+    ? '请在“指标”中连接 OpenCost 指标。'
     : cost?.reason === 'no_metrics'
-      ? 'The active cost source returned no allocation data.'
+      ? '当前成本来源没有返回分配数据。'
       : cost?.reason === 'access_denied'
-        ? 'Your current permissions do not allow cost data.'
+        ? '你当前的权限不允许读取成本数据。'
         : cost?.reason
-          ? costIntegrationUnavailableMessage(cost.reason) ?? 'The active cost source could not provide data.'
+          ? costIntegrationUnavailableMessage(cost.reason) ?? '当前成本来源无法提供数据。'
           : undefined
 
   const rows: OverviewRow[] = [
@@ -1322,13 +1320,13 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
       id: 'connection', icon: Boxes, label: '集群',
       tone: cluster ? 'ok' : 'unknown',
       value: cluster?.context ?? '正在连接…',
-      detail: cluster ? `Kubernetes ${cluster.kubernetesVersion} · ${cluster.nodeCount} nodes` : undefined,
+      detail: cluster ? `Kubernetes ${cluster.kubernetesVersion} · ${cluster.nodeCount} 个节点` : undefined,
     },
     {
       id: 'prometheus', icon: Activity, label: '指标',
       tone: prom?.connected ? 'ok' : prom?.discovering ? 'unknown' : prom?.error ? 'warn' : 'off',
       value: prom?.connected ? '已连接' : prom?.discovering ? '正在发现…' : '未连接',
-      detail: prom?.connected ? prom.address : prom?.discovering ? undefined : prom?.error ? 'Open Metrics for connection details.' : undefined,
+      detail: prom?.connected ? prom.address : prom?.discovering ? undefined : prom?.error ? '打开“指标”查看连接详情。' : undefined,
     },
     {
       id: costConfigurationAction(cost?.reason).section, icon: Coins, label: '成本',
@@ -1336,8 +1334,8 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
       value: cost?.available
         ? costSourceLabel(cost.source)
         : cost
-          ? costMissing ? 'No cost data' : 'Unavailable'
-          : 'Checking…',
+          ? costMissing ? '无成本数据' : '不可用'
+          : '检查中…',
       detail: cost?.available
         ? costFreshnessLabel(cost.source, cost.window, cost.dataThrough)
         : costUnavailableDetail,
@@ -1346,12 +1344,12 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
       id: 'argocd', icon: GitBranch, label: 'Argo CD',
       tone: argo?.connected ? (argo.reason ? 'warn' : 'ok') : argo?.connecting ? 'unknown' : argo?.configured || argo?.reason ? 'warn' : 'off',
       value: argo?.connected ? (argo.anonymous ? '已连接 · 无需令牌' : '已连接') : argo?.connecting ? '正在连接…' : '未连接',
-      detail: argo?.reason ? 'Open Argo CD for connection details.' : argo?.connected ? argo.address : undefined,
+      detail: argo?.reason ? '打开 Argo CD 查看连接详情。' : argo?.connected ? argo.address : undefined,
     },
     {
       id: 'advanced', icon: Zap, label: 'MCP',
       tone: mcpOn ? 'ok' : 'off',
-      value: mcpOn ? (capabilities.mcpReadOnly ? 'Read-only' : 'On') : 'Off',
+      value: mcpOn ? (capabilities.mcpReadOnly ? '只读' : '开启') : '关闭',
       detail: mcpOn ? mcpUrl : undefined,
       copyable: mcpOn,
     },
@@ -1421,19 +1419,19 @@ function aiOverviewStatus(
   cliOverride: boolean,
   checkFailed: boolean,
 ): Pick<OverviewRow, 'tone' | 'value'> {
-  if (aiAvailable) return { tone: 'ok', value: 'Ready' }
+  if (aiAvailable) return { tone: 'ok', value: '已就绪' }
   if (cliOverride && (setupState === 'needs-install' || setupState === 'needs-restart')) {
-    return { tone: 'warn', value: "RADAR_AI_CLI_BIN can't be run" }
+    return { tone: 'warn', value: '无法运行 RADAR_AI_CLI_BIN' }
   }
   switch (setupState) {
     case 'unknown':
-      return checkFailed ? { tone: 'warn', value: "Couldn't check" } : { tone: 'unknown', value: 'Checking…' }
+      return checkFailed ? { tone: 'warn', value: '无法检查' } : { tone: 'unknown', value: '检查中…' }
     case 'needs-restart':
-      return { tone: 'warn', value: 'Not available right now' }
+      return { tone: 'warn', value: '当前不可用' }
     case 'off':
-      return { tone: 'off', value: 'Not available in this deployment' }
+      return { tone: 'off', value: '此部署不可用' }
     default:
-      return { tone: 'off', value: 'No agent CLI' }
+      return { tone: 'off', value: '无 Agent CLI' }
   }
 }
 
@@ -1478,7 +1476,7 @@ function AIUnavailableNotice({
       className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand rounded-md disabled:opacity-50"
     >
       <RotateCw className={clsx('w-3.5 h-3.5', checkingAgents && 'animate-spin')} />
-      {checkingAgents ? 'Checking…' : 'Check again'}
+      {checkingAgents ? '检查中…' : '重新检查'}
     </button>
   )
   const panel = (title: string, body?: ReactNode, action?: ReactNode) => (
@@ -1493,20 +1491,20 @@ function AIUnavailableNotice({
     // deployment here would be a guess.
     return agentsCheckFailed && !checkingAgents
       ? panel("无法检查 Agent CLI", '请重试。', checkAgain)
-      : panel('Checking…')
+      : panel('检查中…')
   }
   if (setupState === 'off') {
     return panel(
-      'Not available in this deployment',
-      'They need Radar running on your own computer, with MCP on and sign-in off.',
+      '此部署不可用',
+      '需要在你自己的电脑上运行 Radar，开启 MCP 并关闭登录。',
     )
   }
   if (cliOverride) {
     return panel(
-      "Radar can't run your RADAR_AI_CLI_BIN",
+      'Radar 无法运行 RADAR_AI_CLI_BIN',
       <>
-        Fix the path, or remove it and restart Radar.
-        {unchanged && " Still can't run it."}
+        修正路径，或移除该变量后重启 Radar。
+        {unchanged && ' 仍然无法运行。'}
       </>,
       checkAgain,
     )
@@ -1516,13 +1514,13 @@ function AIUnavailableNotice({
       "AI 调查目前不可用",
       <>
         {agentsCheckFailed && !checkingAgents ? "检查失败。请重试。" : '请稍后重试。'}
-        {unchanged && ' Still not available.'}
+        {unchanged && ' 仍然不可用。'}
       </>,
       checkAgain,
     )
   }
   return panel(
-    'No supported agent CLI found',
+    '未找到受支持的 Agent CLI',
     <>
       安装 <span className="text-theme-text-secondary">Claude Code</span>、{' '}
       <span className="text-theme-text-secondary">Codex</span>,{' '}
@@ -1856,10 +1854,10 @@ function CostSection({
             {sourceEnvError
               ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               : <Terminal className="h-3.5 w-3.5 shrink-0 text-skyhook-500" />}
-            {sourceEnvError ? 'Deployment cost configuration is invalid' : 'Configured by the deployment'}
+            {sourceEnvError ? '部署成本配置无效' : '由部署配置'}
           </p>
           <p className="mt-1 text-xs text-theme-text-tertiary">
-            {sourceEnvError ?? 'Edit the RADAR_COST_SOURCE and RADAR_KUBECOST_* environment variables or Helm values, then restart Radar to change the source.'}
+            {sourceEnvError ?? '如需更改数据源，请编辑 RADAR_COST_SOURCE 和 RADAR_KUBECOST_* 环境变量或 Helm values，然后重启 Radar。'}
           </p>
         </div>
       )}
@@ -1869,8 +1867,7 @@ function CostSection({
         <div>
           <label htmlFor="cost-source" className="mb-1 block text-sm font-medium text-theme-text-primary">数据源</label>
           <p id="cost-source-help" className="mb-1 text-xs text-theme-text-tertiary">
-            Automatic uses existing OpenCost metrics first, then Kubecost. Leave it selected unless
-            you need to force one source.
+            自动模式优先使用现有 OpenCost 指标，其次使用 Kubecost。除非需要强制指定来源，否则请保持此选项。
           </p>
           <SelectMenu
             id="cost-source"
@@ -1887,7 +1884,7 @@ function CostSection({
       {source !== 'prometheus' && (
         <div className="space-y-3 border-t border-theme-border-subtle pt-4">
           <p className="text-xs font-medium text-theme-text-secondary">
-            {source === 'auto' ? 'Kubecost fallback' : 'Kubecost connection'}
+            {source === 'auto' ? 'Kubecost 备用来源' : 'Kubecost 连接'}
           </p>
           <div>
             <button
@@ -2064,12 +2061,12 @@ function CostSection({
           />
           {currencySave.status === 'saving' && (
             <p role="status" aria-live="polite" className="mt-1 flex items-center gap-1 text-xs text-theme-text-tertiary">
-              <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+              <Loader2 className="h-3 w-3 animate-spin" /> 正在保存…
             </p>
           )}
           {currencySave.status === 'saved' && (
             <p role="status" aria-live="polite" className="mt-1 flex items-center gap-1 text-xs text-green-600 dark:text-green-400/80">
-              <Check className="h-3 w-3" /> {managed ? 'Saved for when the CLI or Helm override is removed' : 'Saved'}
+              <Check className="h-3 w-3" /> {managed ? '已保存，移除 CLI 或 Helm 覆盖设置后生效' : '已保存'}
             </p>
           )}
           {currencySave.status === 'failed' && (
@@ -2079,7 +2076,7 @@ function CostSection({
           )}
           {managed && (
             <p className="mt-2 text-xs text-amber-600 dark:text-amber-400/80">
-              CLI or Helm currently sets {effectiveCurrency || 'Automatic'}; that override stays active until it is removed.
+              CLI 或 Helm 当前设置为 {effectiveCurrency || '自动'}；移除该覆盖设置前，它会持续生效。
             </p>
           )}
         </div>
@@ -2126,8 +2123,8 @@ function MCPSection({
   return (
     <div className="space-y-3">
       <p className="text-xs text-theme-text-tertiary">
-        Lets AI tools query this cluster through Radar over the Model Context Protocol.
-        Full mode also allows changes. Settings take effect after restarting Radar.
+        允许 AI 工具通过 Radar 使用 Model Context Protocol 查询此集群。
+        完整模式还允许更改。设置会在重启 Radar 后生效。
       </p>
       <ConfigToggle
         label="MCP 服务"
@@ -2158,21 +2155,21 @@ function MCPSection({
           {isDesktop && !portPinned && (
             <div className="flex items-start gap-2 px-2.5 py-2 text-xs bg-amber-500/10 border border-amber-500/20 rounded-md">
               <span className="text-amber-700 dark:text-amber-300 flex-1">
-                Port changes on every restart. Pin it to keep a stable MCP endpoint.
+                端口每次重启都会变化。固定端口可保持 MCP 端点稳定。
               </span>
               <button
                 onClick={handlePinPort}
                 className="shrink-0 flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-white bg-amber-500/20 hover:bg-amber-500/30 rounded transition-colors"
               >
                 <Pin className="w-3 h-3" />
-                Pin port {currentPort}
+                固定端口 {currentPort}
               </button>
             </div>
           )}
 
           {isDesktop && portPinned && (
             <p className="text-xs text-green-600 dark:text-green-400/80 px-0.5">
-              Port is pinned. MCP endpoint will remain stable across restarts.
+              端口已固定。MCP 端点将在重启后保持稳定。
             </p>
           )}
         </div>

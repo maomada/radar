@@ -71,7 +71,7 @@ describe('Local saved connections', () => {
     const notice = () => renderToStaticMarkup(<PreviousIntegrationSettingsNotice profiles={profiles} onNavigate={vi.fn()} onDismissed={vi.fn()} />)
     const html = notice()
     expect(html).toContain('集成设置现按集群保存')
-    expect(html).toContain('查看 Metrics')
+    expect(html).toContain('查看 指标')
     expect(html).not.toContain('Review Argo CD')
     expect(html).not.toContain('Review Cost')
     profiles.metrics.legacy = { ...legacy, noticeDismissed: true }

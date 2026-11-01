@@ -33,15 +33,15 @@ export interface CategoryDef {
 
 export const WORKLOAD_CATEGORIES: CategoryDef[] = [
   { key: 'cpu', label: 'CPU', color: 'text-blue-400', chartColor: '#60a5fa', fillColor: '#60a5fa22' },
-  { key: 'memory', label: 'Memory', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
-  { key: 'network_rx', label: 'Net RX', color: 'text-emerald-400', chartColor: '#34d399', fillColor: '#34d39922' },
-  { key: 'network_tx', label: 'Net TX', color: 'text-orange-400', chartColor: '#fb923c', fillColor: '#fb923c22' },
-  { key: 'filesystem', label: 'Disk I/O', color: 'text-amber-400', chartColor: '#fbbf24', fillColor: '#fbbf2422' },
+  { key: 'memory', label: '内存', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
+  { key: 'network_rx', label: '网络接收', color: 'text-emerald-400', chartColor: '#34d399', fillColor: '#34d39922' },
+  { key: 'network_tx', label: '网络发送', color: 'text-orange-400', chartColor: '#fb923c', fillColor: '#fb923c22' },
+  { key: 'filesystem', label: '磁盘I/O', color: 'text-amber-400', chartColor: '#fbbf24', fillColor: '#fbbf2422' },
 ]
 
 export const NODE_CATEGORIES: CategoryDef[] = [
   { key: 'cpu', label: 'CPU', color: 'text-blue-400', chartColor: '#60a5fa', fillColor: '#60a5fa22' },
-  { key: 'memory', label: 'Memory', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
+  { key: 'memory', label: '内存', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
   { key: 'filesystem', label: 'Disk', color: 'text-amber-400', chartColor: '#fbbf24', fillColor: '#fbbf2422' },
 ]
 

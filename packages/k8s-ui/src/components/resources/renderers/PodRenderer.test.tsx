@@ -336,7 +336,7 @@ describe('PodRenderer resolved environment', () => {
       />,
     )
 
-    expect(html).toContain('Environment Variables')
+    expect(html).toContain('环境变量')
     expect(html).toContain('ConfigMap')
     expect(html).toContain('Secret')
     expect(html).toContain('(all keys)')

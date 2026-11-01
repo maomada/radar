@@ -205,7 +205,7 @@ function EnvVarsSection({
   const subtitle = multiContainer ? `${totalVars} vars across ${containersWithEnv.length} containers` : `${totalVars} vars`
 
   return (
-    <Section title={`Environment Variables  ·  ${subtitle}`} icon={List} defaultExpanded={false}>
+    <Section title={`环境变量  ·  ${subtitle}`} icon={List} defaultExpanded={false}>
       <div className="space-y-4">
         {upgrade && <RadarUpgradeNote requirement={upgrade} />}
         {allContainers.map((container: any) => {
@@ -392,19 +392,19 @@ export function PodRenderer({
   const renderImageName = (image: string) => {
     if (renderImageBrowser) {
       return (
-        <Tooltip content="Browse image filesystem from registry" delay={150} position="bottom">
+        <Tooltip content="浏览镜像仓库中的文件系统" delay={150} position="bottom">
           <button
             className="truncate text-blue-400 hover:text-blue-300 hover:underline text-left w-full"
             onClick={() => setSelectedImage(image)}
           >
-            Image: {image}
+            镜像：{image}
           </button>
         </Tooltip>
       )
     }
     return (
       <div className="truncate text-theme-text-secondary">
-        Image: {image}
+        镜像：{image}
       </div>
     )
   }
@@ -452,7 +452,7 @@ export function PodRenderer({
             )
             return (
               <Property
-                label="Phase"
+                label="阶段"
                 value={
                   phaseDisplay.hint ? (
                     <Tooltip content={phaseDisplay.hint} position="right">
@@ -465,7 +465,7 @@ export function PodRenderer({
               />
             )
           })()}
-          <Property label="Node" value={
+          <Property label="节点" value={
             data.spec?.nodeName ? <ResourceLink name={data.spec.nodeName} kind="nodes" onNavigate={onNavigate} /> : undefined
           } copyable onCopy={onCopy} copied={copied} />
           {/* A nomination outlives its meaning: the API server clears it on binding by
@@ -474,30 +474,30 @@ export function PodRenderer({
           {data.status?.nominatedNodeName && !data.spec?.nodeName && data.status?.phase === 'Pending' && !data.metadata?.deletionTimestamp && (
             <Property
               label={
-                <Tooltip content="The node this Pod is expected to run on, set by the scheduler or another component. It can change before the Pod is bound." position="right">
+                <Tooltip content="此 Pod 预期运行的节点，由调度器或其他组件设置。Pod 绑定前可能发生变化。" position="right">
                   <span className="border-b border-dotted border-theme-text-tertiary cursor-help">提名 Node</span>
                 </Tooltip>
               }
               value={<ResourceLink name={data.status.nominatedNodeName} kind="nodes" onNavigate={onNavigate} />}
             />
           )}
-          {data.spec?.priorityClassName && <Property label="Priority Class" value={
+          {data.spec?.priorityClassName && <Property label="优先级类别" value={
             <ResourceLink name={data.spec.priorityClassName} kind="priorityclasses" group="scheduling.k8s.io" onNavigate={onNavigate} />
           } />}
-          {data.spec?.runtimeClassName && <Property label="Runtime Class" value={
+          {data.spec?.runtimeClassName && <Property label="运行时类别" value={
             <ResourceLink name={data.spec.runtimeClassName} kind="runtimeclasses" group="node.k8s.io" onNavigate={onNavigate} />
           } />}
           <Property label="Pod IP" value={data.status?.podIP} copyable onCopy={onCopy} copied={copied} />
-          <Property label="Host IP" value={data.status?.hostIP} />
+          <Property label="主机IP" value={data.status?.hostIP} />
           <Property
             label={
               <Tooltip
                 content={
                   data.status?.qosClass === 'Guaranteed'
-                    ? 'Guaranteed: Pod has exact resource requests=limits. Least likely to be evicted.'
+                    ? 'Guaranteed：Pod 的资源请求与限制完全相同，最不容易被驱逐。'
                     : data.status?.qosClass === 'Burstable'
-                    ? 'Burstable: Pod has some resource requests/limits. May be evicted if node is under pressure.'
-                    : 'BestEffort: No resource requests/limits. First to be evicted under memory pressure.'
+                    ? 'Burstable：Pod 设置了部分资源请求或限制。节点资源紧张时可能被驱逐。'
+                    : 'BestEffort：未设置资源请求或限制。内存紧张时最先被驱逐。'
                 }
                 position="right"
               >
@@ -506,7 +506,7 @@ export function PodRenderer({
             }
             value={data.status?.qosClass}
           />
-          <Property label="Service Account" value={
+          <Property label="服务账号" value={
             data.spec?.serviceAccountName ? <ResourceLink name={data.spec.serviceAccountName} kind="serviceaccounts" namespace={data.metadata?.namespace || ''} onNavigate={onNavigate} /> : undefined
           } />
         </PropertyList>
@@ -514,7 +514,7 @@ export function PodRenderer({
 
       {/* Init Containers - shown only when present */}
       {initContainers.length > 0 && (
-        <Section title={`Init Containers (${initContainers.length})`} icon={CirclePlay} defaultExpanded>
+        <Section title={`初始化容器（${initContainers.length}）`} icon={CirclePlay} defaultExpanded>
           <div className="space-y-3">
             {initContainers.map((container: any, index: number) => {
               const status = initContainerStatuses.find((s: any) => s.name === container.name)
@@ -591,7 +591,7 @@ export function PodRenderer({
                         </Tooltip>
                       )}
                       {canViewLogs && (
-                        <Tooltip content="Logs" delay={150}>
+                        <Tooltip content="日志" delay={150}>
                           <button
                             onClick={() => handleOpenLogs(container.name)}
                             className="p-1 text-slate-400 hover:text-blue-400 hover:bg-slate-600/50 rounded transition-colors"
@@ -614,7 +614,7 @@ export function PodRenderer({
                     )}
                     {restarts > 0 && (
                       <div className={restarts > 5 ? 'text-red-400' : 'text-yellow-400'}>
-                        Restarts: {restarts}
+                        重启次数：{restarts}
                       </div>
                     )}
                     {/* Waiting reason detail */}
@@ -644,10 +644,10 @@ export function PodRenderer({
                     {(container.resources?.requests || container.resources?.limits) && (
                       <div className="flex gap-4 mt-1">
                         {container.resources?.requests && (
-                          <span>Requests: {formatResources(container.resources.requests)}</span>
+                          <span>请求：{formatResources(container.resources.requests)}</span>
                         )}
                         {container.resources?.limits && (
-                          <span>Limits: {formatResources(container.resources.limits)}</span>
+                          <span>限制：{formatResources(container.resources.limits)}</span>
                         )}
                       </div>
                     )}
@@ -675,8 +675,8 @@ export function PodRenderer({
                 <span className="text-xs text-theme-text-tertiary">由所有容器共享</span>
               </div>
               <div className="text-xs text-theme-text-secondary space-y-1">
-                {podResources.requests && <div>Requests: {formatResources(podResources.requests)}</div>}
-                {podResources.limits && <div>Limits: {formatResources(podResources.limits)}</div>}
+                {podResources.requests && <div>请求：{formatResources(podResources.requests)}</div>}
+                {podResources.limits && <div>限制：{formatResources(podResources.limits)}</div>}
               </div>
             </div>
           )}
@@ -723,7 +723,7 @@ export function PodRenderer({
                       </Tooltip>
                     )}
                     {canViewLogs && (
-                      <Tooltip content="Logs" delay={150}>
+                      <Tooltip content="日志" delay={150}>
                         <button
                           onClick={() => handleOpenLogs(container.name)}
                           className="p-1 text-slate-400 hover:text-blue-400 hover:bg-slate-600/50 rounded transition-colors"
@@ -746,7 +746,7 @@ export function PodRenderer({
                     const { color, label } = getRestartRecency(lastTermination?.finishedAt, restarts)
                     return (
                       <div className={color}>
-                        Restarts: {restarts}{label ? ` (last: ${label})` : ''}
+                        重启次数：{restarts}{label ? `（最近：${label}）` : ''}
                       </div>
                     )
                   })()}
@@ -824,10 +824,10 @@ export function PodRenderer({
                   {(container.resources?.requests || container.resources?.limits) && (
                     <div className="flex gap-4 mt-1">
                       {container.resources?.requests && (
-                        <span>Requests: {formatResources(container.resources.requests)}</span>
+                        <span>请求：{formatResources(container.resources.requests)}</span>
                       )}
                       {container.resources?.limits && (
-                        <span>Limits: {formatResources(container.resources.limits)}</span>
+                        <span>限制：{formatResources(container.resources.limits)}</span>
                       )}
                     </div>
                   )}
@@ -1078,12 +1078,12 @@ function PodPermissionsSection({
   error,
   onNavigate,
 }: PodPermissionsSectionProps) {
-  const title = `Permissions via ServiceAccount: ${saName}`
+  const title = `通过ServiceAccount获得的权限：${saName}`
 
   if (loading) {
     return (
       <Section title={title} icon={Shield}>
-        <div className="text-sm text-theme-text-tertiary">Loading RBAC graph…</div>
+        <div className="text-sm text-theme-text-tertiary">正在加载 RBAC 关系图…</div>
       </Section>
     )
   }
@@ -1122,8 +1122,7 @@ function PodPermissionsSection({
       {blastReasons.length > 0 && (
         <AlertBanner variant="warning" title="影响范围">
           <div className="text-xs">
-            If this Pod is compromised, the attacker inherits the
-            ServiceAccount's permissions, which include:
+            若此 Pod 遭到入侵，攻击者将继承 ServiceAccount 的权限，包括：
           </div>
           <ul className="mt-1.5 text-xs space-y-1">
             {blastReasons.map((r, i) => (
@@ -1140,18 +1139,15 @@ function PodPermissionsSection({
 
       {/* One-line summary */}
       <div className="text-xs text-theme-text-tertiary mb-3">
-        {directCount} direct binding{directCount === 1 ? '' : 's'} ·{' '}
-        {inheritedCount} inherited via group
-        {inheritedCount === 1 ? '' : 's'} ·{' '}
-        {ruleCount} distinct rule{ruleCount === 1 ? '' : 's'}
-        {rbacData.truncated && <span className="text-orange-400"> (truncated)</span>}
+        {directCount} 个直接绑定 · {inheritedCount} 个通过组继承 · {ruleCount} 条不同规则
+        {rbacData.truncated && <span className="text-orange-400">（已截断）</span>}
       </div>
 
       {/* Top-N most-permissive rules. When the SA has zero permissions,
        *  call that out explicitly — silence would look like a fetch error. */}
       {previewRules.length === 0 ? (
         <div className="text-sm text-theme-text-tertiary">
-          This ServiceAccount has no effective permissions in the cluster.
+          此 ServiceAccount 在集群中没有有效权限。
         </div>
       ) : (
         <div className="space-y-1">
@@ -1160,8 +1156,7 @@ function PodPermissionsSection({
           ))}
           {moreCount > 0 && (
             <div className="text-xs text-theme-text-tertiary">
-              +{moreCount} more rule{moreCount === 1 ? '' : 's'} — open the
-              ServiceAccount to see the full grant.
+              另有 {moreCount} 条规则 — 打开 ServiceAccount 查看完整授权。
             </div>
           )}
         </div>
@@ -1193,7 +1188,7 @@ function PodRulePreviewLine({ rule }: { rule: RBACPolicyRule }) {
       {verbs.map((v) => (
         <span key={v} className={clsx('badge', rbacVerbBadgeClass(v))}>{v}</span>
       ))}
-      <span className="text-theme-text-secondary">on</span>
+      <span className="text-theme-text-secondary">作用于</span>
       {isNonResource ? (
         nonResourceURLs.map((u) => (
           <span key={u} className="badge font-mono bg-theme-elevated text-theme-text-secondary">{u}</span>
@@ -1207,7 +1202,7 @@ function PodRulePreviewLine({ rule }: { rule: RBACPolicyRule }) {
       )}
       {!isNonResource && groups.length > 0 && groups.some((g) => g !== '') && (
         <>
-          <span className="text-theme-text-secondary">in</span>
+          <span className="text-theme-text-secondary">位于</span>
           {groups.map((g) => (
             <span key={g} className={clsx('badge', rbacApiGroupBadgeClass)}>
               {g === '' ? 'core' : g}

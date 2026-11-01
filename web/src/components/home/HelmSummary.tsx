@@ -130,7 +130,7 @@ export function HelmSummary({ data, onNavigate }: HelmSummaryProps) {
 
       <div className="px-4 py-1.5 border-t border-theme-border/50 flex items-center justify-between">
         <span className="text-[10px] text-theme-text-tertiary">
-          {data && data.releases && data.total > data.releases.length ? `+${data.total - data.releases.length} more` : ''}
+          {data && data.releases && data.total > data.releases.length ? `另有${data.total - data.releases.length}项` : ''}
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-theme-text-secondary group-hover:text-theme-text-primary transition-colors">
           打开 Helm

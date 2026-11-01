@@ -3,8 +3,24 @@ import {
   costSourceApplyLabel,
   prometheusHeadersFromRows,
   pendingSections,
+  SETTINGS_NAV_LABELS,
   shouldShowSettingsFooter,
 } from "./settings-state";
+
+describe("Chinese settings navigation", () => {
+  it("retains each section's display label while keeping Argo CD technical", () => {
+    expect(SETTINGS_NAV_LABELS).toEqual({
+      overview: "总览",
+      perms: "我的权限",
+      connection: "连接",
+      prometheus: "指标",
+      cost: "成本",
+      ai: "AI调查",
+      privacy: "隐私",
+      advanced: "高级",
+    });
+  });
+});
 
 describe("Prometheus header edits", () => {
   it("distinguishes unchanged, replacement and explicit clear", () => {

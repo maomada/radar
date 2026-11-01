@@ -822,8 +822,8 @@ export function ResourcesSidebar({
               <>
                 <Eye className="w-3.5 h-3.5" />
                 <span>
-                  Show {hiddenKindsCount + hiddenGroupsCount} empty
-                  {hiddenGroupsCount > 0 && ` (${hiddenGroupsCount} groups)`}
+                  显示 {hiddenKindsCount + hiddenGroupsCount} 个空类别
+                  {hiddenGroupsCount > 0 && `（${hiddenGroupsCount} 个分组）`}
                 </span>
               </>
             )}

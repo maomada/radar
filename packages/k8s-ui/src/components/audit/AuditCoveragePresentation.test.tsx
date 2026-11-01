@@ -5,21 +5,45 @@ import { ChecksView } from '../checks/ChecksView'
 import { FilterLocationProvider } from '../../filter-state'
 
 describe('audit coverage presentation', () => {
+  it('localizes known category labels and preserves unknown category names', () => {
+    const html = renderToString(
+      <AuditCard
+        data={{
+          passing: 3,
+          missingInputs: [],
+          warning: 1,
+          danger: 0,
+          categories: {
+            Efficiency: { passing: 1, warning: 1, danger: 0 },
+            Reliability: { passing: 1, warning: 0, danger: 0 },
+            Security: { passing: 1, warning: 0, danger: 0 },
+            FutureCategory: { passing: 0, warning: 0, danger: 0 },
+          },
+        }}
+        onNavigate={() => {}}
+      />,
+    )
+    expect(html).toContain('效率')
+    expect(html).toContain('可靠性')
+    expect(html).toContain('安全性')
+    expect(html).toContain('FutureCategory')
+  })
+
   for (const [passing, missingInputs, expected] of [
-    [0, [], 'No resources evaluated'],
-    [0, ['secrets'], 'Some checks could not run'],
-    [4, ['secrets'], 'Some checks could not run'],
-    [4, [], 'All checks passing'],
+    [0, [], '没有评估任何资源'],
+    [0, ['secrets'], '部分检查无法运行'],
+    [4, ['secrets'], '部分检查无法运行'],
+    [4, [], '全部检查通过'],
   ] as const) {
     it(`shows ${expected} with ${passing} passing and ${missingInputs.length} unavailable inputs`, () => {
       const html = renderToString(<AuditCard data={{ passing, missingInputs: [...missingInputs], warning: 0, danger: 0, categories: {} }} onNavigate={() => {}} />)
       expect(html).toContain(expected)
-      if (missingInputs.length || passing === 0) expect(html).not.toContain('All checks passing')
+      if (missingInputs.length || passing === 0) expect(html).not.toContain('全部检查通过')
     })
   }
   it('keeps a coverage warning alongside real findings', () => {
     const html = renderToString(<AuditCard data={{ passing: 1, missingInputs: ['secrets'], warning: 1, danger: 0, categories: { Security: { passing: 1, warning: 0, danger: 0 } } }} onNavigate={() => {}} />)
-    expect(html).toContain('Some checks could not run')
+    expect(html).toContain('部分检查无法运行')
     expect(html).not.toContain('All passing')
   })
   for (const [evaluated, missingInputs, expected] of [

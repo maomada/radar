@@ -73,7 +73,7 @@ describe('ResourcesSidebar count visibility', () => {
     )
 
     expect(html).not.toContain('HorizontalPodAutoscaler')
-    expect(html).toContain('Show')
+    expect(html.replace(/<!-- -->/g, '')).toContain('显示 1 个空类别')
   })
 
   it('keeps the selected confirmed-empty resource visible', () => {

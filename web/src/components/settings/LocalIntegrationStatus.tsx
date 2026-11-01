@@ -24,10 +24,10 @@ export function LocalIntegrationStatus({ kind, profile, argo, busy, changedAt }:
     if (query.isError) status = 'Status unavailable'
     else if (kind === 'metrics' && prom.data) {
       status = prom.data.connected ? 'Connected' : prom.data.discovering ? 'Discovering…' : 'Not connected'
-      detail = prom.data.connected ? !profile.url ? `Discovered: ${prom.data.address}` : undefined : prom.data.error
+      detail = prom.data.connected ? !profile.url ? `已发现：${prom.data.address}` : undefined : prom.data.error
     } else if (kind === 'argocd' && argo.data) {
       status = argo.data.connected ? argo.data.anonymous ? 'Connected · no token needed' : 'Connected' : argo.data.connecting ? 'Connecting…' : 'Not connected'
-      detail = argo.data.reason ?? (argo.data.connected && !profile.url ? `Discovered: ${argo.data.address}` : undefined)
+      detail = argo.data.reason ?? (argo.data.connected && !profile.url ? `已发现：${argo.data.address}` : undefined)
     } else if (kind === 'cost' && cost.data) {
       status = cost.data.available ? `Available · ${costSourceLabel(cost.data.source)}`
         : ['no_prometheus', 'no_cost_source', 'no_metrics'].includes(cost.data.reason ?? '') ? 'No cost data' : 'Unavailable'

@@ -580,9 +580,9 @@ function ContainerResourcesLine({ resources }: { resources: any }) {
   const effective = getEffectiveResources(resources)
   if (Object.keys(effective).length === 0) return null
   return (
-    <Tooltip content="Effective requests (requests, falling back to limits)" delay={150}>
+    <Tooltip content="有效请求（优先使用请求值，否则使用限制值）" delay={150}>
       <div className="text-xs text-theme-text-tertiary mt-1">
-        Resources: {formatResources(effective)}
+        资源: {formatResources(effective)}
       </div>
     </Tooltip>
   )
@@ -625,7 +625,7 @@ export function PodTemplateSection({ template }: { template: any }) {
           </Tooltip>
           {c.ports && (
             <div className="text-xs text-theme-text-tertiary mt-1">
-              Ports: {c.ports.map((p: any) => `${p.name ? `${p.name}: ` : ''}${p.containerPort}/${p.protocol || 'TCP'}`).join(', ')}
+              端口: {c.ports.map((p: any) => `${p.name ? `${p.name}: ` : ''}${p.containerPort}/${p.protocol || 'TCP'}`).join(', ')}
             </div>
           )}
           <ContainerResourcesLine resources={c.resources} />

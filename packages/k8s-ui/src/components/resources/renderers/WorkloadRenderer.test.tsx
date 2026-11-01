@@ -9,6 +9,38 @@ const deployment = {
 }
 
 describe('WorkloadRenderer', () => {
+  it('localizes workload template port and resource labels without translating values', () => {
+    const html = renderToString(
+      <WorkloadRenderer
+        kind="deployments"
+        data={{
+          ...deployment,
+          spec: {
+            ...deployment.spec,
+            template: {
+              spec: {
+                containers: [{
+                  name: 'api',
+                  image: 'example/api:latest',
+                  ports: [{ containerPort: 8080, protocol: 'TCP' }],
+                  resources: { requests: { cpu: '250m' } },
+                }],
+              },
+            },
+          },
+        }}
+      />,
+    )
+
+    const visibleText = html.replace(/<!-- -->/g, '')
+    expect(visibleText).toContain('端口: 8080/TCP')
+    expect(visibleText).toContain('资源:')
+    expect(html).toContain('example/api:latest')
+    expect(visibleText).toContain('CPU: 0.25 cores')
+    expect(visibleText).not.toContain('Ports:')
+    expect(visibleText).not.toContain('Resources:')
+  })
+
   it('shows a calm rollout notice even when every desired replica remains ready', () => {
     const html = renderToString(
       <WorkloadRenderer

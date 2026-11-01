@@ -110,13 +110,13 @@ interface Update {
 type Task = 'main' | 'reconfirm' | 'replace'
 const previousSource = '__previous__'
 const savedCredential: Record<IntegrationKind, string> = {
-  metrics: 'saved headers',
-  argocd: 'a saved token',
-  cost: 'a saved API key'
+  metrics: '请求头',
+  argocd: '令牌',
+  cost: 'API 密钥'
 }
 function describeSource(kind: IntegrationKind, source: { url: string; secretSet: boolean; headerKeys: string[]; mode?: string; clusterId?: string }) {
   if (source.url) return source.url
-  if (kind === 'cost' && source.mode === 'prometheus') return 'OpenCost metrics'
+  if (kind === 'cost' && source.mode === 'prometheus') return 'OpenCost 指标'
   if (source.secretSet || source.headerKeys.length > 0) return `自动发现（使用已保存的${savedCredential[kind]}）`
   if (source.clusterId) return '自动发现（使用 Kubecost 集群映射）'
   return '自动发现'
@@ -134,9 +134,9 @@ function sameIdentity(a?: TargetIdentity, b?: TargetIdentity) {
     !!a.insecureTls === !!b.insecureTls
 }
 const names: Record<IntegrationKind, string> = {
-  metrics: 'Metrics',
+  metrics: '指标',
   argocd: 'Argo CD',
-  cost: 'Cost'
+  cost: '成本'
 }
 export { names as integrationNames }
 
@@ -637,23 +637,23 @@ export function LocalConnectionSettings({
   const previousIdentity = profile.previousIdentity
   const currentIdentity = profile.target.identity
   const trustChanges = previousIdentity ? [
-    previousIdentity.trust !== currentIdentity.trust && 'CA trust changed',
-    previousIdentity.proxy !== currentIdentity.proxy && 'Proxy changed',
+    previousIdentity.trust !== currentIdentity.trust && 'CA 信任已更改',
+    previousIdentity.proxy !== currentIdentity.proxy && '代理已更改',
     (previousIdentity.tlsName !== currentIdentity.tlsName ||
-      previousIdentity.insecureTls !== currentIdentity.insecureTls) && 'TLS settings changed',
+      previousIdentity.insecureTls !== currentIdentity.insecureTls) && 'TLS 设置已更改',
   ].filter((change): change is string => !!change) : []
   const removedByDiscovery = [
-    profile.url && (kind === 'cost' ? 'Kubecost endpoint' : 'endpoint'),
+    profile.url && (kind === 'cost' ? 'Kubecost 端点' : '端点'),
     (profile.secretSet || profile.headerKeys.length > 0) &&
-      (kind === 'metrics' ? 'headers' : kind === 'argocd' ? 'API token' : 'API key'),
-    kind === 'cost' && profile.clusterId && 'Kubecost cluster mapping'
+      (kind === 'metrics' ? '请求头' : kind === 'argocd' ? 'API 令牌' : 'API 密钥'),
+    kind === 'cost' && profile.clusterId && 'Kubecost 集群映射'
   ].filter((item): item is string => !!item)
   const removedList: string | undefined = removedByDiscovery.length > 1
-    ? `${removedByDiscovery.slice(0, -1).join(', ')} and ${removedByDiscovery[removedByDiscovery.length - 1]}`
+    ? `${removedByDiscovery.slice(0, -1).join('、')}和${removedByDiscovery[removedByDiscovery.length - 1]}`
     : removedByDiscovery[0]
   const removedPhrase = kind === 'cost'
-    ? removedList ?? 'cost settings'
-    : `${names[kind]} ${removedList ?? 'settings'}`
+    ? removedList ?? '成本设置'
+    : `${names[kind]}${removedList ?? '设置'}`
   const discoveryNotice = kind === 'cost'
     ? `保存后将把此集群的成本来源重置为“自动”，并移除其已保存的${removedPhrase}。其他集群不受影响。`
     : `保存后将为此集群切换到自动发现，并移除其已保存的${removedPhrase}。其他集群不受影响。`
@@ -722,7 +722,7 @@ export function LocalConnectionSettings({
             className="flex items-center gap-1 text-xs text-accent-text"
           >
             <ArrowLeft className="h-3 w-3" />
-            Back to {names[kind]}
+            返回{names[kind]}
           </button>
           <h4
             ref={heading}
@@ -746,7 +746,7 @@ export function LocalConnectionSettings({
                 heading.current?.focus()
               }}
             >
-              Keep editing
+              继续编辑
             </button>
             <button
               type="button"
@@ -783,7 +783,11 @@ export function LocalConnectionSettings({
       {legacyDraft && <div className="text-xs text-theme-text-secondary space-y-1">
         <p>已从 <span className="font-medium">之前的全局设置</span> 复制 · 未保存</p>
         <p>{legacyDraft.headerKeys.length > 0 || legacyDraft.secretSet ? '保存时会复制已保存的凭据。' : ''}这些设置此前适用于所有集群；请确认此后端服务于 {profile.target.context}。</p>
-        {legacyDraft.omitted.length > 0 && <p>未复制：{legacyDraft.omitted.join('、')}；这些设置属于其他集群。</p>}
+        {legacyDraft.omitted.length > 0 && (
+          <p>
+            未复制：{legacyDraft.omitted.map((value) => value === 'Kubecost cluster mapping' ? 'Kubecost 集群映射' : value).join('、')}；这些设置属于其他集群。
+          </p>
+        )}
         {legacyDraft.envHeaderKeys.length > 0 && <p>环境变量请求头将保留其引用。</p>}
       </div>}
       {task === 'main' && (
@@ -1017,10 +1021,10 @@ export function LocalConnectionSettings({
           </button>
           {separateReviewKinds.length > 0 && (
             <p className="text-xs text-theme-text-secondary">
-              {separateReviewKinds.map((k) => names[k]).join(' and ')}{' '}
+              {separateReviewKinds.map((k) => names[k]).join('和')}{' '}
               {separateIdentityKnown
-                ? `${separateReviewKinds.length > 1 ? 'were' : 'was'} saved for a different previous cluster, so ${separateReviewKinds.length > 1 ? 'review them in their own tabs' : 'review it in its own tab'}.`
-                : `${separateReviewKinds.length > 1 ? 'need separate reviews in their own tabs' : 'needs a separate review in its own tab'}.`}
+                ? '此前已保存到其他集群，请在各自的设置页中查看。'
+                : '需要在各自的设置页中单独确认。'}
             </p>
           )}
         </div>

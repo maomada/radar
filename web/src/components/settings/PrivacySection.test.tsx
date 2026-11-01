@@ -55,7 +55,7 @@ describe('PrivacySection intro', () => {
   it('does not claim data stays on this machine for an in-cluster install', () => {
     const base = make({ state: 'off', source: 'deployment', canChange: false })
     const html = render({ ...base, preview: { ...base.preview, mode: 'in-cluster' } })
-    expect(html).toContain('from inside it')
+    expect(html).toContain('Radar 在集群内部读取此集群，并将读取的数据保存在那里。')
     expect(html).not.toContain('from this machine')
   })
 })

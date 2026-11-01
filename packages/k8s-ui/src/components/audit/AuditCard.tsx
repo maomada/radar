@@ -20,6 +20,12 @@ interface AuditCardProps {
 
 type SeverityLevel = 'success' | 'high' | 'medium' | 'neutral'
 
+const CATEGORY_LABELS: Record<string, string> = {
+  Efficiency: '效率',
+  Reliability: '可靠性',
+  Security: '安全性',
+}
+
 function getSeverityLevel(data: AuditCardData): SeverityLevel {
   if (data.warning + data.danger === 0) return data.missingInputs?.length || data.passing === 0 ? 'neutral' : 'success'
   const highRatio = data.danger / (data.warning + data.danger)
@@ -52,7 +58,7 @@ export function AuditCard({ data, onNavigate }: AuditCardProps) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
           <div className="flex items-center gap-2">
             <ClipboardCheck className={clsx('w-4 h-4', accentColor)} />
-            <span className={clsx('text-xs font-semibold uppercase tracking-wider', accentColor)}>Cluster Checks</span>
+            <span className={clsx('text-xs font-semibold uppercase tracking-wider', accentColor)}>集群检查</span>
             {issueCount > 0 ? (
               <span className={clsx('badge-sm', accentBg, accentColor)}>
                 {issueCount}
@@ -69,16 +75,16 @@ export function AuditCard({ data, onNavigate }: AuditCardProps) {
           {allPassing ? (
             <div className="flex flex-col items-center gap-2">
               <Check className={clsx('w-8 h-8', SEVERITY_TEXT.success)} />
-              <span className={clsx('text-sm font-medium', SEVERITY_TEXT.success)}>All checks passing</span>
+              <span className={clsx('text-sm font-medium', SEVERITY_TEXT.success)}>全部检查通过</span>
               {total > 0 && (
-                <span className="text-xs text-theme-text-tertiary">{total} checks across {Object.keys(data.categories).length} categories</span>
+                <span className="text-xs text-theme-text-tertiary">{total} 项检查，涵盖 {Object.keys(data.categories).length} 个类别</span>
               )}
             </div>
           ) : issueCount === 0 ? (
             <div className="flex flex-col items-center gap-2 text-center">
               {incomplete ? <AlertTriangle className="w-8 h-8 text-warning-text" /> : <ClipboardCheck className="w-8 h-8 text-theme-text-tertiary" />}
-              <span className="text-sm font-medium text-theme-text-primary">{incomplete ? 'Some checks could not run' : 'No resources evaluated'}</span>
-              <span className="text-xs text-theme-text-secondary">{incomplete ? 'No findings in the available data.' : 'Check the selected scope and check settings.'}</span>
+              <span className="text-sm font-medium text-theme-text-primary">{incomplete ? '部分检查无法运行' : '没有评估任何资源'}</span>
+              <span className="text-xs text-theme-text-secondary">{incomplete ? '当前可用数据中没有发现问题。' : '请检查所选范围和检查设置。'}</span>
             </div>
           ) : (
             <>
@@ -105,18 +111,18 @@ export function AuditCard({ data, onNavigate }: AuditCardProps) {
                   return (
                     <div key={category} className="flex items-center gap-2">
                       <span className={clsx('w-2 h-2 rounded-full shrink-0', dotColor)} />
-                      <span className="text-xs text-theme-text-secondary flex-1">{category}</span>
+                      <span className="text-xs text-theme-text-secondary flex-1">{CATEGORY_LABELS[category] ?? category}</span>
                       {catIssues > 0 ? (
                         <div className="flex items-center gap-2">
                           {counts.danger > 0 && (
-                            <span className={clsx('text-xs font-semibold tabular-nums', SEVERITY_TEXT_CLASS.high)}>{counts.danger} high</span>
+                            <span className={clsx('text-xs font-semibold tabular-nums', SEVERITY_TEXT_CLASS.high)}>{counts.danger} 高风险</span>
                           )}
                           {counts.warning > 0 && (
-                            <span className={clsx('text-xs font-semibold tabular-nums', SEVERITY_TEXT_CLASS.medium)}>{counts.warning} medium</span>
+                            <span className={clsx('text-xs font-semibold tabular-nums', SEVERITY_TEXT_CLASS.medium)}>{counts.warning} 中风险</span>
                           )}
                         </div>
                       ) : (
-                        <span className={clsx('text-xs font-semibold', incomplete ? 'text-theme-text-secondary' : SEVERITY_TEXT.success)}>{incomplete ? 'No findings' : 'All passing'}</span>
+                        <span className={clsx('text-xs font-semibold', incomplete ? 'text-theme-text-secondary' : SEVERITY_TEXT.success)}>{incomplete ? '没有发现问题' : '全部通过'}</span>
                       )}
                     </div>
                   )
@@ -126,14 +132,14 @@ export function AuditCard({ data, onNavigate }: AuditCardProps) {
           )}
         </div>
 
-        {incomplete && issueCount > 0 && <p className="px-4 pb-2 text-xs text-warning-text">Some checks could not run.</p>}
+        {incomplete && issueCount > 0 && <p className="px-4 pb-2 text-xs text-warning-text">部分检查无法运行。</p>}
 
         <div className="px-4 py-1.5 border-t border-theme-border/50 flex items-center justify-end">
           <span className={clsx(
             'flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors',
             accentColor,
           )}>
-            View Details
+            查看详情
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
           </span>
         </div>

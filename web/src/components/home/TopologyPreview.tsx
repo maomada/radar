@@ -256,7 +256,7 @@ export function TopologyPreview({ topology, namespaceSelected, onNavigate }: Top
       </div>
 
       <div className="px-4 py-1.5 border-t border-theme-border/50 flex items-center justify-end gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-theme-text-secondary group-hover:text-theme-text-primary transition-colors">
-        Open Topology
+        打开拓扑
         <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
       </div>
       </div>

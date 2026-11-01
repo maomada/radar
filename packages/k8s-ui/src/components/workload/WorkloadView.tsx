@@ -1630,7 +1630,7 @@ function LiveTrafficChip({ onClick }: { onClick: () => void }) {
         onClick={onClick}
         className="inline-flex items-center gap-1 rounded border border-theme-border bg-theme-elevated px-1.5 py-0.5 text-[11px] font-medium text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-hover transition-colors"
       >
-        Live traffic
+        实时流量
         <ArrowRight className="h-3 w-3 shrink-0" />
       </button>
     </Tooltip>

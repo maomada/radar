@@ -361,7 +361,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
             <Property label="更新策略" value={spec.updateStrategy?.type} />
           ) : (
             <>
-              <Property label="Strategy" value={spec.strategy?.type} />
+              <Property label="策略" value={spec.strategy?.type} />
               {spec.strategy?.rollingUpdate && (
                 <>
                   <Property label="最大超出数量" value={spec.strategy.rollingUpdate.maxSurge} />
@@ -372,7 +372,7 @@ export function WorkloadRenderer({ kind, data, onNavigate, onViewPods, onScale, 
           )}
           {isStatefulSet && (
             <>
-              <Property label="Service Name" value={
+              <Property label="服务名称" value={
                 spec.serviceName ? <ResourceLink name={spec.serviceName} kind="services" namespace={data.metadata?.namespace || ''} onNavigate={onNavigate} /> : undefined
               } />
               <Property label="Pod 管理策略" value={spec.podManagementPolicy || 'OrderedReady'} />
@@ -458,7 +458,7 @@ function WorkloadPermissionsSection({
   error,
   onNavigate,
 }: WorkloadPermissionsSectionProps) {
-  const title = `Permissions via ServiceAccount: ${saName}`
+  const title = `通过ServiceAccount获得的权限：${saName}`
   if (loading) {
     return (
       <Section title={title} icon={Shield}>
@@ -496,8 +496,7 @@ function WorkloadPermissionsSection({
       {blast.length > 0 && (
         <AlertBanner variant="warning" title="影响范围">
           <div className="text-xs">
-            Every Pod this workload spawns inherits the ServiceAccount's
-            permissions. Compromising any replica gives an attacker:
+            此工作负载创建的每个 Pod 都会继承 ServiceAccount 的权限。若任一副本遭到入侵，攻击者将获得：
           </div>
           <ul className="mt-1.5 text-xs space-y-1">
             {blast.map((r, i) => (
@@ -513,15 +512,13 @@ function WorkloadPermissionsSection({
       )}
 
       <div className="text-xs text-theme-text-tertiary mb-3">
-        {directCount} direct binding{directCount === 1 ? '' : 's'} ·{' '}
-        {inheritedCount} inherited via group{inheritedCount === 1 ? '' : 's'} ·{' '}
-        {ruleCount} distinct rule{ruleCount === 1 ? '' : 's'}
-        {rbacData.truncated && <span className="text-orange-400"> (truncated)</span>}
+        {directCount} 个直接绑定 · {inheritedCount} 个通过组继承 · {ruleCount} 条不同规则
+        {rbacData.truncated && <span className="text-orange-400">（已截断）</span>}
       </div>
 
       {preview.length === 0 ? (
         <div className="text-sm text-theme-text-secondary">
-          This ServiceAccount has no effective permissions in the cluster.
+          此 ServiceAccount 在集群中没有有效权限。
         </div>
       ) : (
         <div className="space-y-1">
@@ -530,8 +527,7 @@ function WorkloadPermissionsSection({
           ))}
           {more > 0 && (
             <div className="text-xs text-theme-text-tertiary">
-              +{more} more rule{more === 1 ? '' : 's'} — open the ServiceAccount
-              for full provenance.
+              另有 {more} 条规则 — 打开 ServiceAccount 查看完整授权来源。
             </div>
           )}
         </div>
@@ -561,7 +557,7 @@ function WorkloadRulePreviewLine({ rule }: { rule: RBACPolicyRule }) {
       {verbs.map((v) => (
         <span key={v} className={clsx('badge', rbacVerbBadgeClass(v))}>{v}</span>
       ))}
-      <span className="text-theme-text-secondary">on</span>
+      <span className="text-theme-text-secondary">作用于</span>
       {isNonResource ? (
         nonResourceURLs.map((u) => (
           <span key={u} className="badge font-mono bg-theme-elevated text-theme-text-secondary">{u}</span>
@@ -573,7 +569,7 @@ function WorkloadRulePreviewLine({ rule }: { rule: RBACPolicyRule }) {
       )}
       {!isNonResource && groups.length > 0 && groups.some((g) => g !== '') && (
         <>
-          <span className="text-theme-text-secondary">in</span>
+          <span className="text-theme-text-secondary">位于</span>
           {groups.map((g) => (
             <span key={g} className={clsx('badge', rbacApiGroupBadgeClass)}>{g === '' ? 'core' : g}</span>
           ))}

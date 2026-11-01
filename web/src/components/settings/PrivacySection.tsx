@@ -28,8 +28,8 @@ export function PrivacySection({ active }: { active: boolean }) {
     <div className="space-y-6">
       <p className="text-sm text-theme-text-secondary">
         {status.preview.mode === 'in-cluster' || status.preview.mode === 'cloud'
-          ? 'Radar reads this cluster from inside it and keeps what it reads there.'
-          : 'Radar reads your cluster from this machine and keeps what it reads here.'}
+          ? 'Radar 在集群内部读取此集群，并将读取的数据保存在那里。'
+          : 'Radar 从这台机器读取你的集群，并将读取的数据保存在这里。'}
       </p>
 
       <section className="space-y-3">
@@ -85,7 +85,7 @@ function SharedNote({ status }: { status: UsageDataStatus }) {
     <p className="text-xs text-theme-text-tertiary">
       适用于所有使用此 Radar 的用户。可通过以下方式设置：{' '}
       {status.preview.mode === 'in-cluster'
-        ? <>the Helm value <code className="inline-code">usageReporting.enabled</code></>
+        ? <>Helm 值 <code className="inline-code">usageReporting.enabled</code></>
         : <code className="inline-code">RADAR_USAGE_REPORTING=on</code>}.
     </p>
   )

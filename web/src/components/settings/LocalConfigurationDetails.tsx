@@ -76,7 +76,7 @@ export const integrationSettingsByClusterId = 'integration-settings-by-cluster'
 // Switching to auto-discovery keeps an empty record, so a record alone doesn't
 // mean anything is saved. An invalid record disables the integration instead.
 function integrationStatus(use: StoredConnection) {
-  if (use.error || use.mode !== 'auto' || use.url || use.secretSet || use.clusterId) return 'saved'
+  if (use.error || use.mode !== 'auto' || use.url || use.secretSet || use.clusterId) return '已保存'
   return use.integration === 'cost' ? '自动' : '自动发现'
 }
 
@@ -220,7 +220,7 @@ export function SavedClusterConnections({
         throw new Error(data.error || 'Could not remove the saved settings.')
       setUses(data.connections)
       setMessage(
-        `Removed the saved ${integrationNames[selected.integration]} settings for ${selected.context}.`,
+        `已移除 ${selected.context} 的已保存 ${integrationNames[selected.integration]} 设置。`,
       )
       focusSummary.current = true
       setSelected(null)
@@ -253,22 +253,20 @@ export function SavedClusterConnections({
         tabIndex={-1}
         className="text-sm font-semibold text-theme-text-primary outline-none"
       >
-        Integration settings by cluster
+        各集群的集成设置
       </h4>
       <div className="space-y-3 pt-2">
         <p className="text-xs text-theme-text-secondary">
-          Metrics, Argo CD and Cost settings saved for each kubeconfig entry.
-          Edit the current cluster’s in its own tab. Removing an entry applies
-          immediately and changes nothing in Kubernetes or the backend.
+          指标、Argo CD 和成本设置按 kubeconfig 条目分别保存。请在对应标签页中编辑当前集群的设置。移除条目会立即生效，不会更改 Kubernetes 或后端中的任何内容。
         </p>
         {loading && (
           <p role="status" className="text-xs text-theme-text-tertiary">
-            Loading integration settings…
+            正在加载集成设置…
           </p>
         )}
         {!loading && !error && clusters.size === 0 && (
           <p className="text-xs text-theme-text-tertiary">
-            No integration settings saved yet.
+            尚未保存任何集成设置。
           </p>
         )}
         {!loading &&
@@ -285,15 +283,15 @@ export function SavedClusterConnections({
                   </span>
                   {current ? (
                     <Badge tone="note" size="sm">
-                      Current cluster
+                      当前集群
                     </Badge>
                   ) : entry.availability === 'removed' ? (
                     <Badge tone="note" size="sm">
-                      Not in kubeconfig
+                      不在 kubeconfig 中
                     </Badge>
                   ) : entry.availability === 'unavailable' ? (
                     <Badge tone="note" size="sm">
-                      Kubeconfig not loaded
+                      未加载此 kubeconfig
                     </Badge>
                   ) : null}
                 </div>
@@ -302,9 +300,7 @@ export function SavedClusterConnections({
                 </p>
                 {!current && entry.availability === 'removed' && (
                   <p className="text-theme-text-secondary">
-                    This kubeconfig entry is gone, but its integration settings
-                    are still saved. To reuse one, select the new context and choose “Copy
-                    settings from…” in that integration’s settings.
+                    此 kubeconfig 条目已不存在，但其集成设置仍已保存。如需复用，请选择新的 context，并在对应集成设置中选择“从…复制设置”。
                   </p>
                 )}
                 {(current ||
