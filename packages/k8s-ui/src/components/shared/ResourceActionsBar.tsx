@@ -640,20 +640,20 @@ export function ResourceActionsBar({
           <Tooltip
             content={
               onCompareTo && onCompareAcrossClusters
-                ? `Compare ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                ? `比较 ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
                 : onCompareAcrossClusters
-                  ? `Compare across clusters`
-                  : `Compare to another ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                  ? `跨集群比较`
+                  : `与另一个 ${displayKindName(resource.kind, data?.kind).toLowerCase()} 比较`
             }
           >
             <button
               onClick={onCompareTo ?? onCompareAcrossClusters}
               aria-label={
                 onCompareTo && onCompareAcrossClusters
-                  ? `Compare ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                  ? `比较 ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
                   : onCompareAcrossClusters
-                    ? `Compare across clusters`
-                    : `Compare to another ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                    ? `跨集群比较`
+                    : `与另一个 ${displayKindName(resource.kind, data?.kind).toLowerCase()} 比较`
               }
               className="p-1.5 text-theme-text-secondary border border-theme-border-light rounded-lg hover:text-theme-text-primary hover:bg-theme-elevated transition-colors flex items-center"
             >

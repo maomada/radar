@@ -904,7 +904,7 @@ export function RelatedResourcesSection({ relationships, onNavigate, kind, track
       <div className="space-y-3">
         {unanswered && <div className="text-xs text-theme-text-tertiary">{unanswered}</div>}
         {(relationships.owner || ownerMissing) && (
-          <RelationshipGroup label="Owner" refs={relationships.owner ? [relationships.owner] : []} onNavigate={onNavigate} note={ownerMissing} />
+          <RelationshipGroup label="所有者" refs={relationships.owner ? [relationships.owner] : []} onNavigate={onNavigate} note={ownerMissing} />
         )}
         {(alsoOwnedBy.length > 0 || several) && (
           <RelationshipGroup
@@ -925,7 +925,7 @@ export function RelatedResourcesSection({ relationships, onNavigate, kind, track
         )}
         {((relationships.children && relationships.children.length > 0) || childrenCoverage?.text || (relationships.olderRevisions && relationships.olderRevisions.length > 0)) && (
           <RelationshipGroup
-            label="Children"
+            label="子资源"
             refs={dedupeResourceRefs(relationships.children ?? [])}
             onNavigate={onNavigate}
             note={childrenCoverage}
@@ -952,7 +952,7 @@ export function RelatedResourcesSection({ relationships, onNavigate, kind, track
           <RelationshipGroup label="Pods" refs={dedupeResourceRefs(relationships.pods)} onNavigate={onNavigate} />
         )}
         {configRefs.length > 0 && (
-          <RelationshipGroup label="Configuration" refs={dedupeResourceRefs(configRefs)} onNavigate={onNavigate} />
+          <RelationshipGroup label="配置" refs={dedupeResourceRefs(configRefs)} onNavigate={onNavigate} />
         )}
         {consumers.length > 0 && (
           <RelationshipGroup label="Used By" refs={dedupeResourceRefs(consumers)} onNavigate={onNavigate} />
@@ -967,7 +967,7 @@ export function RelatedResourcesSection({ relationships, onNavigate, kind, track
           <RelationshipGroup label="Disruption Budget" refs={dedupeResourceRefs(relationships.pdbs)} onNavigate={onNavigate} />
         )}
         {relationships.networkPolicies && relationships.networkPolicies.length > 0 && (
-          <RelationshipGroup label="Network Policies" refs={dedupeResourceRefs(relationships.networkPolicies)} onNavigate={onNavigate} />
+          <RelationshipGroup label="网络策略" refs={dedupeResourceRefs(relationships.networkPolicies)} onNavigate={onNavigate} />
         )}
         {relationships.resourceClaims && relationships.resourceClaims.length > 0 && (
           <RelationshipGroup label="Resource Claims" refs={dedupeResourceRefs(relationships.resourceClaims)} onNavigate={onNavigate} />

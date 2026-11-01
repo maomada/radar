@@ -74,12 +74,12 @@ it.each(['ScheduledBackup', 'Database', 'Publication', 'ClusterImageCatalog', 'D
   const root = createRoot(host)
   const name = 'a-long-object-name-that-needs-the-full-drawer-width'
   act(() => root.render(<WorkloadView {...props} name={name} resource={{ ...resource, kind }} expanded={false} onExpand={() => {}} onClose={() => {}} renderStatusBadge={() => <span>Reported status</span>} renderHeaderActions={() => <button>Object action</button>} />))
-  const expand = host.querySelector('[aria-label="Open full view"]')!
+  const expand = host.querySelector('[aria-label="打开完整视图"]')!
   const utilityRow = expand.parentElement!.parentElement!
   expect(utilityRow.classList.contains('shrink-0')).toBe(true)
   expect(utilityRow.classList.contains('flex-nowrap')).toBe(true)
-  expect(utilityRow.querySelector('[aria-label="Refresh"]')).not.toBeNull()
-  expect(utilityRow.querySelector('[aria-label="Close"]')).not.toBeNull()
+  expect(utilityRow.querySelector('[aria-label="刷新"]')).not.toBeNull()
+  expect(utilityRow.querySelector('[aria-label="关闭"]')).not.toBeNull()
   expect(utilityRow.textContent).not.toContain('Object action')
   // The name has its own line under the badges and controls, so a long one gets the drawer's full width.
   const title = host.querySelector('h2')!
@@ -107,12 +107,12 @@ it.each(['Deployment', 'Pod', 'ScheduledBackup', 'Database', 'Pooler'])('groups 
   const group = kind === 'Deployment' ? 'apps' : kind === 'Pod' ? '' : 'postgresql.cnpg.io'
   const data = { ...resource, kind, apiVersion: group ? `${group}/v1` : 'v1' }
   act(() => root.render(<WorkloadView {...props} kind={`${kind.toLowerCase()}s`} group={group} resource={data} expanded={false} onExpand={() => {}} onClose={() => {}} renderHeaderActions={header} actionsBarProps={{ renderDiagnose: () => <button>Diagnose</button> }} />))
-  const utility = host.querySelector('[aria-label="Open full view"]')!.parentElement!.parentElement!
+  const utility = host.querySelector('[aria-label="打开完整视图"]')!.parentElement!.parentElement!
   expect(utility.textContent).toContain('Diagnose')
   expect(host.querySelector('[data-action-group=object]')!.matches(':empty')).toBe(true)
   expect(header).toHaveBeenCalledTimes(1)
   act(() => root.render(<WorkloadView {...props} kind={`${kind.toLowerCase()}s`} group={group} resource={data} expanded renderHeaderActions={header} actionsBarProps={{ renderDiagnose: () => <button>Diagnose</button> }} />))
-  const refresh = host.querySelector('[aria-label="Refresh"]')!
+  const refresh = host.querySelector('[aria-label="刷新"]')!
   expect(refresh.parentElement!.parentElement!.textContent).toContain('Diagnose')
   act(() => root.unmount())
 })

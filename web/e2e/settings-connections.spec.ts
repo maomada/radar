@@ -3,7 +3,7 @@ import type { ConnectionResponse, IntegrationKind, IntegrationProfile, Integrati
 
 const integrations = [
   { kind: 'metrics', tab: '指标', field: '指标后端 URL', apply: '保存更改', reset: '使用自动发现', notice: /^保存后将为此集群切换到自动发现/ },
-  { kind: 'argocd', tab: 'Argo CD', field: 'Argo CD server URL', apply: '保存更改', reset: '使用自动发现', notice: /^保存后将为此集群切换到自动发现/ },
+  { kind: 'argocd', tab: 'Argo CD', field: 'Argo CD 服务器 URL', apply: '保存更改', reset: '使用自动发现', notice: /^保存后将为此集群切换到自动发现/ },
   { kind: 'cost', tab: '成本', field: 'Kubecost Aggregator URL', apply: '保存更改', reset: '重置为自动', notice: /^保存后将把此集群的成本来源重置为“自动”/ },
 ] as const
 
@@ -405,7 +405,7 @@ for (const integration of integrations) {
     expect(state.writes).toHaveLength(0)
     await field.fill('https://source.example/destination')
     if (integration.kind === 'cost') {
-      await expect(page.getByRole('textbox', { name: 'Kubecost cluster ID' })).toHaveValue('destination-cluster')
+      await expect(page.getByRole('textbox', { name: 'Kubecost 集群 ID' })).toHaveValue('destination-cluster')
     }
     await page.getByRole('button', { name: '保存更改', exact: true }).click()
     expect(state.writes).toHaveLength(0)
@@ -569,6 +569,10 @@ test('Cost explains query failures beside the connection status', async ({ page 
   await fixture(page)
   await page.route('**/api/opencost/summary', route => route.fulfill({ json: { available: false, source: 'kubecost', reason: 'query_error' } }))
   const dialog = await openSettings(page, 'Cost')
+  await expect(dialog.getByText('使用此集群指标连接中的 OpenCost 指标，或连接 Kubecost Aggregator。', { exact: true })).toBeVisible()
+  await dialog.getByRole('tab', { name: '我的权限', exact: true }).click()
+  await expect(dialog.getByText('查看当前身份在此集群中可以执行的操作，包括绑定的角色及汇总后的有效权限。', { exact: true })).toBeVisible()
+  await dialog.getByRole('tab', { name: '成本', exact: true }).click()
   await expect(dialog.getByRole('group', { name: '当前连接', exact: true })).toContainText('The selected cost source could not provide data.')
 })
 
@@ -614,7 +618,7 @@ for (const integration of integrations) {
     })
     const dialog = await openSettings(page, integration.tab)
     const field = dialog.getByRole('textbox', { name: integration.field, exact: true })
-    const credential = dialog.getByRole('textbox', { name: integration.kind === 'metrics' ? 'Authorization的值' : integration.kind === 'argocd' ? 'API token' : 'API key', exact: true })
+    const credential = dialog.getByRole('textbox', { name: integration.kind === 'metrics' ? 'Authorization的值' : integration.kind === 'argocd' ? 'API 令牌' : 'API 密钥', exact: true })
     const copy = dialog.getByRole('button', { name: '复制设置自…', exact: true })
     for (const context of ['staging', 'testing']) {
       await field.fill('https://unsaved.example')
@@ -663,8 +667,8 @@ test('copy after a target change warns before replacement and reload clears stal
   expect(state.writes[1].confirmRemoval).toBe(true)
 })
 
-async function chooseCostSource(page: Page, label: 'Automatic' | 'OpenCost metrics' | 'Kubecost') {
-  await page.getByRole('button', { name: /^Cost source:/ }).click()
+async function chooseCostSource(page: Page, label: '自动' | 'OpenCost 指标' | 'Kubecost') {
+  await page.getByRole('button', { name: /^成本来源:/ }).click()
   await page.getByRole('option', { name: new RegExp(`^${label}`) }).click()
 }
 
@@ -929,7 +933,7 @@ for (const integration of integrations) {
     await settings.getByRole('button', { name: '放弃', exact: true }).click()
     await expect(field).toHaveValue(`https://${integration.kind}.example`)
     if (integration.kind === 'metrics') await expect(page.getByRole('textbox', { name: 'Authorization的值', exact: true })).toHaveAttribute('placeholder', '已保存的值')
-    else await expect(page.getByRole('textbox', { name: integration.kind === 'argocd' ? 'API token' : 'API key', exact: true })).toHaveAttribute('placeholder', 'Saved value')
+    else await expect(page.getByRole('textbox', { name: integration.kind === 'argocd' ? 'API 令牌' : 'API 密钥', exact: true })).toHaveAttribute('placeholder', '已保存的值')
     await expect(save).toBeDisabled()
     await trigger.click()
     state.delayApply()
@@ -1128,7 +1132,7 @@ for (const integration of integrations.filter(item => item.kind !== 'metrics')) 
     const state = await fixture(page)
 
     await openSettings(page, integration.tab)
-    const credential = page.getByRole('textbox', { name: integration.kind === 'argocd' ? 'API token' : 'API key', exact: true })
+    const credential = page.getByRole('textbox', { name: integration.kind === 'argocd' ? 'API 令牌' : 'API 密钥', exact: true })
     await credential.fill('draft-secret')
     await page.getByRole('textbox', { name: integration.field, exact: true }).fill('')
     await page.getByRole('button', { name: '保存更改', exact: true }).click()
@@ -1141,7 +1145,7 @@ for (const integration of integrations.filter(item => item.kind !== 'metrics')) 
   })
 }
 
-for (const [tab, field] of [['Argo CD', 'API token'], ['Cost', 'API key']]) {
+for (const [tab, field] of [['Argo CD', 'API 令牌'], ['Cost', 'API 密钥']]) {
   test(`${tab}: erasing a new credential restores a clean draft`, async ({ page }) => {
     const state = await fixture(page)
     state.profiles.argocd.secretSet = false
@@ -1202,15 +1206,15 @@ test('discard clears drafts in all integration editors, including credentials an
   const dialog = await openSettings(page, 'Metrics')
   await page.getByRole('textbox', { name: 'Authorization的值' }).fill('draft-secret')
   await page.getByRole('tab', { name: 'Argo CD', exact: true }).click()
-  await page.getByRole('textbox', { name: 'API token', exact: true }).fill('draft-token')
+  await page.getByRole('textbox', { name: 'API 令牌', exact: true }).fill('draft-token')
   await page.getByRole('tab', { name: '成本', exact: true }).click()
-  await page.getByRole('textbox', { name: 'API key', exact: true }).fill('draft-key')
-  await page.getByRole('textbox', { name: 'Kubecost cluster ID', exact: true }).fill('draft-cluster')
+  await page.getByRole('textbox', { name: 'API 密钥', exact: true }).fill('draft-key')
+  await page.getByRole('textbox', { name: 'Kubecost 集群 ID', exact: true }).fill('draft-cluster')
   await dialog.getByRole('button', { name: '放弃所有更改', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'API key', exact: true })).toHaveValue('')
-  await expect(page.getByRole('textbox', { name: 'Kubecost cluster ID', exact: true })).toHaveValue('')
+  await expect(page.getByRole('textbox', { name: 'API 密钥', exact: true })).toHaveValue('')
+  await expect(page.getByRole('textbox', { name: 'Kubecost 集群 ID', exact: true })).toHaveValue('')
   await page.getByRole('tab', { name: 'Argo CD', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'API token', exact: true })).toHaveValue('')
+  await expect(page.getByRole('textbox', { name: 'API 令牌', exact: true })).toHaveValue('')
   await page.getByRole('tab', { name: '指标', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Authorization的值' })).toHaveValue('')
   await expect(page.getByRole('textbox', { name: 'Authorization的值' })).toHaveAttribute('placeholder', '已保存的值')
@@ -1224,7 +1228,7 @@ test('applying one integration preserves another integration draft for its own a
   await openSettings(page, 'Metrics')
   await page.getByRole('textbox', { name: '指标后端 URL' }).fill('https://metrics.example/draft')
   await page.getByRole('tab', { name: 'Argo CD', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Argo CD server URL' }).fill('https://argocd.example/applied')
+  await page.getByRole('textbox', { name: 'Argo CD 服务器 URL' }).fill('https://argocd.example/applied')
   await page.getByRole('button', { name: '保存更改', exact: true }).click()
   await expect(page.getByRole('tabpanel').getByText('已保存 · 已连接', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: '指标', exact: true }).click()
@@ -1238,7 +1242,7 @@ test('an in-flight apply cannot be discarded or closed as though it were cancell
   const state = await fixture(page)
   state.delayApply()
   const dialog = await openSettings(page, 'Argo CD')
-  await page.getByRole('textbox', { name: 'Argo CD server URL' }).fill('https://argocd.example/applied')
+  await page.getByRole('textbox', { name: 'Argo CD 服务器 URL' }).fill('https://argocd.example/applied')
   await page.getByRole('button', { name: '保存更改', exact: true }).click()
   await expect.poll(() => state.writes.length).toBe(1)
   await expect(dialog.getByRole('button', { name: '放弃', exact: true })).toBeDisabled()
@@ -1255,7 +1259,7 @@ test('Cost Auto hides optional overrides, but keeps entered credentials when col
   const state = await fixture(page)
   Object.assign(state.profiles.cost, { state: 'auto', mode: 'auto', url: '', secretSet: false })
   await openSettings(page, 'Cost')
-  const disclosure = page.getByRole('button', { name: /^Kubecost connection overrides/ })
+  const disclosure = page.getByRole('button', { name: /^Kubecost 连接覆盖设置/ })
   const url = page.getByRole('textbox', { name: 'Kubecost Aggregator URL' })
   await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
   await expect.poll(() => url.evaluate(el => !!el.closest('[inert]'))).toBe(true)
@@ -1264,19 +1268,19 @@ test('Cost Auto hides optional overrides, but keeps entered credentials when col
   await expect(page.getByText('自动保存。', { exact: true })).toBeVisible()
   await disclosure.click()
   await url.fill('https://cost.example')
-  await page.getByRole('textbox', { name: 'API key', exact: true }).fill('new-key')
+  await page.getByRole('textbox', { name: 'API 密钥', exact: true }).fill('new-key')
   await disclosure.click()
   await disclosure.click()
   await expect(url).toHaveValue('https://cost.example')
-  await expect(page.getByRole('textbox', { name: 'API key', exact: true })).toHaveValue('new-key')
+  await expect(page.getByRole('textbox', { name: 'API 密钥', exact: true })).toHaveValue('new-key')
   await chooseCostSource(page, 'Kubecost')
   await expect(disclosure).toBeHidden()
   await expect(url).toBeVisible()
-  await chooseCostSource(page, 'Automatic')
+  await chooseCostSource(page, '自动')
   await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
   await expect(url).toHaveValue('https://cost.example')
   await disclosure.click()
-  await expect(disclosure).toContainText('configured')
+  await expect(disclosure).toContainText('已配置')
   await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
 })
 
@@ -1338,7 +1342,7 @@ test('Cost source changes confirm removal only when a saved connection exists', 
   const state = await fixture(page)
   await openSettings(page, 'Cost')
   await page.getByRole('textbox', { name: 'Kubecost Aggregator URL', exact: true }).fill('')
-  await chooseCostSource(page, 'OpenCost metrics')
+  await chooseCostSource(page, 'OpenCost 指标')
   await page.getByRole('button', { name: '保存更改', exact: true }).click()
   const confirmation = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: '使用指标作为成本数据来源？', exact: true }) })
   await confirmation.getByRole('button', { name: '使用指标连接', exact: true }).click()
@@ -1561,7 +1565,9 @@ test('contextual Argo health and diff preserve benefits and open Argo settings',
   await expect(page.getByText('for the full Git-rendered diff.')).toBeVisible()
   await expect(page.getByText(previousHint)).toHaveCount(1)
   await page.getByRole('button', { name: 'Connect Argo CD', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: '设置', exact: true }).getByRole('tab', { name: 'Argo CD', exact: true })).toHaveAttribute('aria-selected', 'true')
+  const dialog = page.getByRole('dialog', { name: '设置', exact: true })
+  await expect(dialog.getByRole('tab', { name: 'Argo CD', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(dialog.getByText(/比较 Git 配置与实时资源/)).toBeVisible()
   expect(state.writes).toHaveLength(0)
 })
 
@@ -1582,26 +1588,26 @@ test('Cost reset focuses the source picker, which works from the keyboard', asyn
   const state = await fixture(page)
   await openSettings(page, 'Cost')
   const reset = page.getByRole('button', { name: '重置为自动', exact: true })
-  const source = page.getByRole('button', { name: /^Cost source:/ })
+  const source = page.getByRole('button', { name: /^成本来源:/ })
   await reset.focus()
   await page.keyboard.press('Enter')
   await expect(source).toBeFocused()
-  await expect(source).toContainText('Automatic')
+  await expect(source).toContainText('自动')
   await page.keyboard.press('ArrowDown')
-  await expect(page.getByRole('option', { name: /^Automatic/ })).toBeFocused()
+  await expect(page.getByRole('option', { name: /^自动/ })).toBeFocused()
   await page.keyboard.press('End')
   await expect(page.getByRole('option', { name: /^Kubecost/ })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(source).toBeFocused()
-  await expect(source).toHaveAccessibleName('Cost source: Kubecost')
+  await expect(source).toHaveAccessibleName('成本来源: Kubecost')
   await page.keyboard.press('Enter')
   await expect(page.getByRole('option', { name: /^Kubecost/ })).toBeFocused()
   await page.keyboard.press('ArrowUp')
-  await expect(page.getByRole('option', { name: /^OpenCost metrics/ })).toBeFocused()
+  await expect(page.getByRole('option', { name: /^OpenCost 指标/ })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(page.getByRole('option', { name: /^Kubecost/ })).not.toBeFocused()
   await expect(source).toHaveAttribute('aria-expanded', 'false')
-  await expect(source).toHaveAccessibleName('Cost source: Kubecost')
+  await expect(source).toHaveAccessibleName('成本来源: Kubecost')
   await source.focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('option', { name: /^Kubecost/ })).toBeFocused()

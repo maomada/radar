@@ -704,8 +704,7 @@ export function SettingsDialog({
               <div className="mb-1">
                 <h3 className="text-base font-semibold text-theme-text-primary">我的权限</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
-                  What your current identity can do in this cluster — roles bound to you and your
-                  effective, flattened permissions.
+                  查看当前身份在此集群中可以执行的操作，包括绑定的角色及汇总后的有效权限。
                 </p>
               </div>
               <div className="mt-3">

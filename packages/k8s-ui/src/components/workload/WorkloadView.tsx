@@ -988,7 +988,7 @@ export function WorkloadView({
             <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5">
               {diagnoseAction}
               {onExpand && (
-                <Tooltip content="Open full view" delay={150} position="bottom">
+                <Tooltip content="打开完整视图" delay={150} position="bottom">
                   <button
                     onClick={() => onExpand({ yaml: showYaml })}
                     // Pre-mount the fullscreen view on hover/press so the click starts
@@ -997,13 +997,13 @@ export function WorkloadView({
                     onPointerDown={onExpandIntent}
                     onPointerLeave={onCancelExpandIntent}
                     className="p-1.5 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded"
-                    aria-label="Open full view"
+                    aria-label="打开完整视图"
                   >
                     <Maximize2 className="w-4 h-4" />
                   </button>
                 </Tooltip>
               )}
-              <Tooltip content="Refresh" delay={150} position="bottom">
+              <Tooltip content="刷新" delay={150} position="bottom">
                 <button
                   onClick={() => refetch()}
                   disabled={isRefreshAnimating}
@@ -1011,7 +1011,7 @@ export function WorkloadView({
                     'p-1.5 hover:bg-theme-elevated rounded disabled:opacity-50 transition-colors duration-500',
                     refreshPhase === 'success' ? 'text-emerald-400' : 'text-theme-text-secondary hover:text-theme-text-primary'
                   )}
-                  aria-label="Refresh"
+                  aria-label="刷新"
                 >
                   {refreshPhase === 'success'
                     ? <Check className="w-4 h-4 stroke-[2.5]" />
@@ -1020,8 +1020,8 @@ export function WorkloadView({
                 </button>
               </Tooltip>
               {onClose && (
-                <Tooltip content="Close (Esc)" delay={150} position="bottom">
-                  <button onClick={onClose} className="p-1.5 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded" aria-label="Close">
+                <Tooltip content="关闭（Esc）" delay={150} position="bottom">
+                  <button onClick={onClose} className="p-1.5 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded" aria-label="关闭">
                     <X className="w-4 h-4" />
                   </button>
                 </Tooltip>
@@ -1033,11 +1033,11 @@ export function WorkloadView({
           <div className="px-4 pb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-theme-text-primary truncate">{name}</h2>
-              <Tooltip content="Copy name" delay={150}>
+              <Tooltip content="复制名称" delay={150}>
                 <button
                   onClick={() => copyToClipboard(name, 'name')}
                   className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded shrink-0"
-                  aria-label="Copy name"
+                  aria-label="复制名称"
                 >
                   {copied === 'name' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
@@ -1187,11 +1187,11 @@ export function WorkloadView({
         const nameAndCopy = (
           <>
             <h1 className="text-lg font-semibold text-theme-text-primary truncate">{name}</h1>
-            <Tooltip content="Copy name" delay={150}>
+            <Tooltip content="复制名称" delay={150}>
               <button
                 onClick={() => copyToClipboard(name, 'name')}
                 className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded shrink-0"
-                aria-label="Copy name"
+                aria-label="复制名称"
               >
                 {copied === 'name' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -1290,7 +1290,7 @@ export function WorkloadView({
         <>
           {headerActions}
           {diagnoseAction}
-          <Tooltip content="Refresh" delay={150} position="bottom">
+          <Tooltip content="刷新" delay={150} position="bottom">
             <button
               onClick={() => refetch()}
               disabled={isRefreshAnimating}
@@ -1298,7 +1298,7 @@ export function WorkloadView({
                 'p-1.5 mt-0.5 hover:bg-theme-elevated rounded disabled:opacity-50 transition-colors duration-500',
                 refreshPhase === 'success' ? 'text-emerald-400' : 'text-theme-text-secondary hover:text-theme-text-primary'
               )}
-              aria-label="Refresh"
+              aria-label="刷新"
             >
               {refreshPhase === 'success'
                 ? <Check className="w-5 h-5 stroke-[2.5]" />
