@@ -23,16 +23,34 @@ const VIEW_CATEGORY_ORDER: ShortcutCategory[] = [
 ]
 
 const VIEW_LABELS: Record<string, string> = {
-  home: 'Home',
-  topology: 'Topology',
-  resources: 'Resources',
-  timeline: 'Timeline',
+  home: '首页',
+  topology: '拓扑',
+  resources: '资源',
+  timeline: '时间线',
   helm: 'Helm',
   gitops: 'GitOps',
-  traffic: 'Live Traffic',
+  traffic: '实时流量',
+  issues: '问题',
+  applications: '应用',
+  checks: '检查',
+  capacity: '容量',
+  cost: '成本',
 }
 
 type ShortcutEntry = { description: string; keys: string[] }
+const CATEGORY_LABELS: Record<ShortcutCategory, string> = {
+  Navigation: '导航',
+  General: '通用',
+  Drawer: '抽屉',
+  Dock: '停靠栏',
+  Search: '搜索',
+  Table: '表格',
+  'Resource Actions': '资源操作',
+  Topology: '拓扑',
+  Timeline: '时间线',
+  Helm: 'Helm',
+  GitOps: 'GitOps',
+}
 
 function KbdKey({ children }: { children: string }) {
   return (
@@ -101,7 +119,7 @@ function CategoryBlock({ category, entries }: { category: string; entries: Short
   return (
     <div>
       <h3 className="text-xs font-semibold text-theme-text-tertiary uppercase tracking-wider mb-2.5">
-        {category}
+        {CATEGORY_LABELS[category as ShortcutCategory] ?? category}
       </h3>
       <div className="space-y-1.5">
         {entries.map(entry => (
@@ -251,7 +269,7 @@ export function ShortcutHelpOverlay({ onClose, currentView, isOpen = true }: Sho
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-theme-border">
-          <h2 className="text-base font-semibold text-theme-text-primary">Keyboard Shortcuts</h2>
+          <h2 className="text-base font-semibold text-theme-text-primary">键盘快捷键</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-md text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-hover transition-colors"
@@ -289,7 +307,7 @@ export function ShortcutHelpOverlay({ onClose, currentView, isOpen = true }: Sho
           {/* Empty state */}
           {isEmpty && (
             <p className="text-sm text-theme-text-tertiary text-center py-8">
-              No keyboard shortcuts registered.
+              尚未注册键盘快捷键。
             </p>
           )}
         </div>
@@ -297,8 +315,8 @@ export function ShortcutHelpOverlay({ onClose, currentView, isOpen = true }: Sho
         {/* Footer */}
         <div className="px-5 py-2.5 border-t border-theme-border bg-theme-surface/50">
           <div className="flex items-center justify-between text-xs text-theme-text-tertiary">
-            <span>Press <KbdKey>?</KbdKey> to toggle this overlay</span>
-            <span>Press <KbdKey>Esc</KbdKey> to close</span>
+            <span>按 <KbdKey>?</KbdKey> 显示或隐藏此面板</span>
+            <span>按 <KbdKey>Esc</KbdKey> 关闭</span>
           </div>
         </div>
       </div>

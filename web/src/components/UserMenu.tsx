@@ -98,7 +98,7 @@ export function UserMenu({ variant = 'topbar', pinned = true }: UserMenuProps = 
           aria-hidden
           className="pointer-events-none absolute left-full top-1/2 z-50 ml-1 hidden -translate-y-1/2 whitespace-nowrap rounded-md border border-theme-border bg-theme-hover px-2.5 py-1 text-[13px] font-medium text-theme-text-primary opacity-0 shadow-lg shadow-black/30 transition-opacity duration-75 group-hover/item:block group-hover/item:opacity-100"
         >
-          Account
+          账户
         </span>
       )}
 
@@ -122,11 +122,11 @@ export function UserMenu({ variant = 'topbar', pinned = true }: UserMenuProps = 
             className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-theme-text-secondary hover:bg-theme-hover transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Logout
+            退出登录
           </button>
           {authMe.authMode === 'proxy' && !authMe.proxyLogoutConfigured && (
             <p className="px-3 py-1.5 text-[11px] text-theme-text-tertiary border-t border-theme-border">
-              Logout clears the Radar session. The auth proxy may sign you back in automatically.
+              退出登录会清除 Radar 会话。身份验证代理可能会自动重新登录。
             </p>
           )}
         </div>

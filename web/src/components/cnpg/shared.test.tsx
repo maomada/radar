@@ -35,7 +35,7 @@ it('keeps workspace data with its failed-refresh reason and age', () => {
   const html = renderToStaticMarkup(<CNPGScreenGate query={query} fleet={{} as any}>{() => <span>retained Cluster</span>}</CNPGScreenGate>)
   expect(html).toContain('retained Cluster')
   expect(html).toContain('Last refresh failed: Workspace timeout')
-  expect(html).toContain('2m ago')
+  expect(html).toContain('2分钟前')
 })
 
 it('scopes unread kinds to the screen and its namespace, with details folded', () => {

@@ -95,7 +95,7 @@ export const ClusterSwitcher = forwardRef<ClusterSwitcherHandle, ClusterSwitcher
   showCurrentBullet = true,
   loading = false,
   disabled = false,
-  emptyText = 'No clusters',
+  emptyText = '暂无集群',
   footerSlot,
   errorSlot,
   className = '',
@@ -235,7 +235,7 @@ export const ClusterSwitcher = forwardRef<ClusterSwitcherHandle, ClusterSwitcher
         {loading ? (
           <>
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span className={`${TRIGGER_NAME_MAX_WIDTH} block truncate`}>Switching…</span>
+            <span className={`${TRIGGER_NAME_MAX_WIDTH} block truncate`}>正在切换…</span>
           </>
         ) : (
           // ClusterName parses the context (provider badge for GKE/EKS/AKS,
@@ -274,8 +274,8 @@ export const ClusterSwitcher = forwardRef<ClusterSwitcherHandle, ClusterSwitcher
               // open the dropdown for the full label.
               <span
                 className="shrink-0 inline-flex items-center text-theme-text-tertiary opacity-80"
-                title={`From kubeconfig: ${currentSourceLabel}`}
-                aria-label={`From kubeconfig: ${currentSourceLabel}`}
+                title={`来自 kubeconfig：${currentSourceLabel}`}
+                aria-label={`来自 kubeconfig：${currentSourceLabel}`}
               >
                 <FolderOpen className="w-3 h-3" />
               </span>
@@ -299,7 +299,7 @@ export const ClusterSwitcher = forwardRef<ClusterSwitcherHandle, ClusterSwitcher
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={onSearchKeyDown}
-                  placeholder="Search clusters..."
+                  placeholder="搜索集群…"
                   className="w-full bg-theme-base text-theme-text-primary text-xs rounded px-2 py-1.5 pl-7 pr-7 border border-theme-border-light focus:outline-none focus:ring-1 focus:ring-[var(--color-brand)] placeholder:text-theme-text-tertiary"
                 />
                 {search && (
@@ -318,7 +318,7 @@ export const ClusterSwitcher = forwardRef<ClusterSwitcherHandle, ClusterSwitcher
           <div className="max-h-[400px] overflow-y-auto">
             {flat.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs text-theme-text-tertiary">
-                {search ? `No clusters match "${search}"` : emptyText}
+                {search ? `没有符合“${search}”的集群` : emptyText}
               </div>
             ) : (
               groups.map((group, gi) => (
@@ -404,7 +404,7 @@ export const ClusterSwitcher = forwardRef<ClusterSwitcherHandle, ClusterSwitcher
                             // both to truncate.
                             <div
                               className="flex items-center gap-0.5 text-[10px] text-theme-text-tertiary opacity-80 mt-0.5"
-                              title={`From kubeconfig: ${item.sourceLabel}`}
+                              title={`来自 kubeconfig：${item.sourceLabel}`}
                             >
                               <FolderOpen className="w-2.5 h-2.5 shrink-0" />
                               <MiddleEllipsis text={item.sourceLabel} className="font-mono" />

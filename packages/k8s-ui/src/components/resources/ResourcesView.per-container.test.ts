@@ -154,13 +154,13 @@ describe('buildContainerResourceTooltip with a pod-level budget', () => {
     )
     expect(html).not.toContain('no limit')
     expect(html).toContain('pod limit')
-    expect(html).toContain('Pod (shared)')
+    expect(html).toContain('Pod（共享）')
     expect(html).toContain('400m · 40% · 1000m limit · req 500m')
   })
 
   it('keeps "no limit" when there is no pod-level budget', () => {
     const html = renderToStaticMarkup(buildContainerResourceTooltip('CPU', containers, 'cpu', fmt))
     expect(html).toContain('no limit')
-    expect(html).not.toContain('Pod (shared)')
+    expect(html).not.toContain('Pod（共享）')
   })
 })

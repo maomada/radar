@@ -33,7 +33,7 @@ import { readActionFor, canonicalReadCode } from '../../utils/read-actions'
 interface FetchResultProps {
   loading: boolean
   error?: unknown
-  /** Body line for 404 (resource fetched, server says missing). Default "Resource not found". */
+  /** Body line for 404 (resource fetched, server says missing). */
   notFoundMessage?: string
   /** Pin to parent height. Existing call sites use "h-32" or "h-full". */
   className?: string
@@ -44,7 +44,7 @@ interface FetchResultProps {
 export function FetchResult({
   loading,
   error,
-  notFoundMessage = 'Resource not found',
+  notFoundMessage = '未找到资源',
   className = 'h-32',
   onRetry,
 }: FetchResultProps) {
@@ -95,7 +95,7 @@ function ErrorSurface({ error, notFoundMessage, className, onRetry }: ErrorSurfa
           className="mt-1 flex items-center gap-1.5 rounded-md border border-theme-border bg-theme-elevated px-3 py-1.5 text-xs text-theme-text-secondary hover:bg-theme-hover hover:text-theme-text-primary"
         >
           <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-          Retry
+          重试
         </button>
       )}
     </div>
@@ -112,40 +112,40 @@ function classify(error: unknown, notFoundMessage: string): Classified {
   if (isFetchError(error)) {
     switch (error.status) {
       case 403:
-        return { headline: 'Access denied', detail: error.message, icon: ShieldOff }
+        return { headline: '无权访问', detail: error.message, icon: ShieldOff }
       case 404:
         return { headline: notFoundMessage, detail: error.message, icon: AlertTriangle }
       case 401:
-        return { headline: 'Sign-in required', detail: error.message, icon: LogIn }
+        return { headline: '需要登录', detail: error.message, icon: LogIn }
       case 503:
         // The cluster is connected; one kind's informer missed its sync
         // deadline, so "Cluster unavailable" would send the reader the wrong way.
         if (canonicalReadCode(errorCodeOf(error)) === 'kind_sync_timed_out') {
-          return { headline: "Couldn't load this view", detail: error.message, icon: AlertTriangle }
+          return { headline: "无法加载此视图", detail: error.message, icon: AlertTriangle }
         }
         // Shares the collector's action, but it is the cluster connection
         // that is down rather than one read.
         if (errorCodeOf(error) === 'cluster_disconnected') {
-          return { headline: 'Cluster unavailable', detail: error.message, icon: ServerCrash }
+          return { headline: '集群不可用', detail: error.message, icon: ServerCrash }
         }
         // Radar's own identity or collection can't serve the read: neither
         // the cluster being down nor the reader's access.
         if (readActionFor(errorCodeOf(error)) === 'radar_config') {
-          return { headline: "Radar can't read this", detail: error.message, icon: ShieldOff }
+          return { headline: "Radar 无法读取此内容", detail: error.message, icon: ShieldOff }
         }
         // The cluster is healthy and still loading — the retry policies keep
         // these surfaces polling, but a caller without one must not tell the
         // user a connecting cluster is down.
         if (errorCodeOf(error) === 'cluster_connecting' || errorCodeOf(error) === 'kind_sync_pending') {
-          return { headline: 'Cluster is still loading', detail: error.message, icon: AlertTriangle }
+          return { headline: '集群仍在加载', detail: error.message, icon: AlertTriangle }
         }
-        return { headline: 'Cluster unavailable', detail: error.message, icon: ServerCrash }
+        return { headline: '集群不可用', detail: error.message, icon: ServerCrash }
       default:
-        return { headline: "Couldn't load this view", detail: error.message, icon: AlertTriangle }
+        return { headline: "无法加载此视图", detail: error.message, icon: AlertTriangle }
     }
   }
   // Network failures (no .status), DOMException for AbortError, anything thrown without our shape.
-  return { headline: "Couldn't load this view", detail: errorMessageOf(error), icon: AlertTriangle }
+  return { headline: "无法加载此视图", detail: errorMessageOf(error), icon: AlertTriangle }
 }
 
 function errorCodeOf(error: unknown): unknown {
@@ -174,8 +174,8 @@ function CopyErrorButton({ text }: { text: string }) {
       type="button"
       onClick={onCopy}
       className="flex-shrink-0 p-1 rounded text-theme-text-tertiary hover:text-theme-text-secondary hover:bg-theme-hover"
-      title={copied ? 'Copied' : 'Copy error'}
-      aria-label={copied ? 'Copied' : 'Copy error'}
+      title={copied ? '已复制' : '复制错误'}
+      aria-label={copied ? '已复制' : '复制错误'}
     >
       {copied ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
     </button>

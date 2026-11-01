@@ -34,10 +34,10 @@ describe("NetworkPolicyCoverageCard", () => {
 
     expect(html).toContain("30%");
     expect(html).toContain("(50% if staged applied)");
-    expect(html).toContain("Covered workloads");
-    expect(html).toContain("Covered if staged");
-    expect(html).toContain("Uncovered workloads");
-    expect(html).toContain("Uncovered if staged");
+    expect(html).toContain("已覆盖工作负载");
+    expect(html).toContain("暂存后已覆盖");
+    expect(html).toContain("未覆盖工作负载");
+    expect(html).toContain("暂存后未覆盖");
     // The delta segment's tone carries the direction: amber for coverage the
     // staged set would add. Its wording lives in a Tooltip portal, which server
     // rendering does not emit, so the class is what an assertion can reach.

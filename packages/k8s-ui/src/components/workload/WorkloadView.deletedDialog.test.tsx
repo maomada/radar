@@ -31,7 +31,7 @@ it('closes an open Delete dialog when the object is deleted elsewhere', async ()
         actionsBarProps={{ onDelete: vi.fn() }}
       />,
     )
-  const dialogOpen = () => document.body.textContent?.includes('Are you sure you want to delete') ?? false
+  const dialogOpen = () => document.body.textContent?.includes('确定要删除') ?? false
 
   await act(async () => render(null))
   await act(async () => { element.querySelector<HTMLButtonElement>('button:has(svg.lucide-trash-2)')!.click() })

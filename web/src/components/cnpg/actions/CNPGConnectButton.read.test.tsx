@@ -22,7 +22,7 @@ it('shows and retries a failed Cluster read in Connect', () => {
   act(() => root.render(<MemoryRouter><CNPGConnectButton namespace="db" name="pg" /></MemoryRouter>))
   expect(host.textContent).toContain('Radar cannot read this Cluster with your access')
   expect(host.textContent).toContain('Last refresh failed: Read failed')
-  expect(host.textContent).toContain('2m ago')
+  expect(host.textContent).toContain('2分钟前')
   expect(host.textContent).not.toContain('Cluster could not be read:')
   act(() => root.unmount()); host.remove()
 })

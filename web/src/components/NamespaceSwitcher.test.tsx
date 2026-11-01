@@ -27,7 +27,7 @@ describe('NamespaceSwitcher namespace help', () => {
 
   it('links to the namespace docs in local Radar without auth', () => {
     const html = renderToStaticMarkup(<NamespaceSwitcher />)
-    expect(html).toContain('How to add namespaces')
+    expect(html).toContain('如何添加命名空间')
     expect(html).toContain('#namespaces-missing-from-the-picker')
   })
 

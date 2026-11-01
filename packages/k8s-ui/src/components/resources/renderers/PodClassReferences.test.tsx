@@ -36,7 +36,7 @@ describe('PodRenderer class references', () => {
 
   it('does not infer a class from numeric priority alone', () => {
     const html = renderToStaticMarkup(<PodRenderer data={{ ...data, spec: { containers: [], priority: 1000 } }} onCopy={() => {}} copied={null} />)
-    expect(html).not.toContain('Priority Class')
-    expect(html).not.toContain('Runtime Class')
+    expect(html).not.toContain('优先级类别')
+    expect(html).not.toContain('运行时类别')
   })
 })

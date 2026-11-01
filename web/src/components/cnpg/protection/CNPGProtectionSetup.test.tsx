@@ -107,7 +107,7 @@ it('does not interpret denied schedule inventory as an absent schedule', () => {
 
 it('shows the upgrade path before offering setup writes against an older Radar', () => {
   state.support = 'unsupported'
-  expect(text()).toContain('need a newer Radar')
+  expect(text()).toContain('需要更新版本的 Radar')
   expect(text()).not.toContain('Choose existing ObjectStore')
 })
 

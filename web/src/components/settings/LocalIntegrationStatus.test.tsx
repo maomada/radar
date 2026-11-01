@@ -40,13 +40,13 @@ const render = (data: Record<string, unknown>) => {
 describe('LocalIntegrationStatus for Argo CD', () => {
   it('says Connecting while the first connection is being made', () => {
     const html = render({ configured: true, connected: false, connecting: true })
-    expect(html).toContain('Connecting…')
-    expect(html).not.toContain('Not connected')
+    expect(html).toContain('正在连接…')
+    expect(html).not.toContain('未连接')
   })
 
   it('shows why the last read failed on a working connection', () => {
     const html = render({ configured: true, connected: true, address: 'https://argocd', reason: "Radar's last read from Argo CD failed: the request timed out." })
-    expect(html).toContain('Connected')
+    expect(html).toContain('已连接')
     expect(html).toContain('the request timed out')
   })
 })

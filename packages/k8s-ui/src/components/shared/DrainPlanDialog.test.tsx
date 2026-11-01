@@ -93,47 +93,47 @@ describe('DrainPlanContent', () => {
       planSupported: false,
       planUpgrade: { feature: 'Drain plans', minimumVersion: 'v1.14.0', currentVersion: 'v1.13.1' },
     })
-    expect(html).toContain('Drain plans')
-    expect(html).toContain('need Radar v1.14 or newer on this cluster.')
-    expect(html).not.toContain('Computing the plan')
+    expect(html).toContain('驱逐计划')
+    expect(html).toContain('需要 Radar v1.14 或更高版本。')
+    expect(html).not.toContain('正在计算计划')
   })
 
   it('shows per-pod outcomes with reasons and calls the result an estimate', () => {
     const html = render({ plan: plan([pod('web', 'may-block', { pdb: 'shop/web', reason: 'PodDisruptionBudget shop/web currently allows no disruptions' }), pod('agent', 'skip')]) })
-    expect(html).toContain('may block')
+    expect(html).toContain('可能受阻')
     expect(html).toContain('shop/web')
     expect(html).toContain('currently allows no disruptions')
     expect(html).toContain('agent reason')
-    expect(html).toContain('Estimated at')
-    expect(html).toContain('About this estimate')
+    expect(html).toContain('估算时间')
+    expect(html).toContain('关于此估算')
   })
 
   it('distinguishes expected exclusions from protected workloads before draining', () => {
     const html = render({ plan: plan([pod('agent', 'skip', { expectedSkip: true }), pod('bare', 'skip', { expectedSkip: false })]) })
-    expect(html).toContain('left by design')
-    expect(html).toContain('requires attention')
+    expect(html).toContain('按设计保留')
+    expect(html).toContain('需要关注')
     expect(html).toContain('bare reason')
   })
 
   it('offers a refresh only when the host can recompute the plan', () => {
     const p = plan([pod('web', 'evict')])
-    expect(render({ plan: p, onRefreshPlan: noop })).toContain('Recompute the plan')
-    expect(render({ plan: p })).not.toContain('Recompute the plan')
+    expect(render({ plan: p, onRefreshPlan: noop })).toContain('重新计算计划')
+    expect(render({ plan: p })).not.toContain('重新计算计划')
   })
 
   it('exposes the estimate caveat on a focusable trigger', () => {
     const html = render({ plan: plan([pod('web', 'evict')]) })
-    expect(html).toMatch(/<button[^>]*aria-label="About this estimate"/)
+    expect(html).toMatch(/<button[^>]*aria-label="关于此估算"/)
   })
 
   it('offers a retry on a failed plan only when the host can recompute it', () => {
-    expect(render({ error: 'boom', onRefreshPlan: noop })).toContain('Try again')
-    expect(render({ error: 'boom' })).not.toContain('Try again')
+    expect(render({ error: 'boom', onRefreshPlan: noop })).toContain('请重试')
+    expect(render({ error: 'boom' })).not.toContain('请重试')
   })
 
   it('shows a loading state instead of a stale plan', () => {
     const html = render({ loading: true, plan: plan([pod('web', 'evict')]) })
-    expect(html).toContain('Computing the plan')
+    expect(html).toContain('正在计算计划')
     expect(html).not.toContain('web reason')
   })
 
@@ -143,29 +143,31 @@ describe('DrainPlanContent', () => {
   })
 
   it('names the pods whose emptyDir data would go, and asks for no second tick', () => {
-    const p = plan([pod('cache', 'evict', { emptyDir: true }), pod('web', 'evict')], { deleteEmptyDirData: true })
+    const p = plan([pod('cache', 'evict', { emptyDir: true }), pod('cache-2', 'evict', { emptyDir: true }), pod('web', 'evict')], { deleteEmptyDirData: true })
     const html = render({ plan: p, options: emptyDirOn })
-    expect(html).toContain('emptyDir data will be discarded')
+    expect(html).toContain('emptyDir 数据将被丢弃')
     expect(html).toContain('shop/cache')
+    expect(html).toContain('将驱逐的 2 个 Pod 使用 emptyDir：shop/cache, shop/cache-2。')
+    expect(html).not.toContain('2 个 Pods')
     expect(html).not.toMatch(/<input[^>]*type="checkbox"[^>]*class="mt-0\.5/)
   })
 
   it('says nothing about discarding emptyDir data while the option is off', () => {
     const html = render({ plan: plan([pod('cache', 'skip', { emptyDir: true })]) })
-    expect(html).not.toContain('emptyDir data will be discarded')
+    expect(html).not.toContain('emptyDir 数据将被丢弃')
   })
 
   it('warns when PodDisruptionBudgets could not be evaluated and does not print a zero for them', () => {
     const p = { ...plan([pod('web', 'evict')]), pdbsEvaluated: false, pdbError: 'list poddisruptionbudgets: forbidden' }
     const html = render({ plan: p })
-    expect(html).toContain('PodDisruptionBudgets were not evaluated')
+    expect(html).toContain('未评估 PodDisruptionBudget')
     expect(html).toContain('forbidden')
-    expect(html).toContain('PodDisruptionBudgets not evaluated')
-    expect(html).not.toContain('0 may block')
+    expect(html).toContain('未评估 PodDisruptionBudget')
+    expect(html).not.toContain('0 个可能受 PodDisruptionBudget 阻止')
   })
 
   it('warns honestly when the estimate shows no emptyDir pod', () => {
     const html = render({ plan: plan([pod('web', 'evict')], { deleteEmptyDirData: true }), options: emptyDirOn })
-    expect(html).toContain('No pod that would be evicted uses emptyDir right now')
+    expect(html).toContain('目前没有将被驱逐的 Pod 使用 emptyDir')
   })
 })

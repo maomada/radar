@@ -55,10 +55,10 @@ function CredentialField({
           }
           placeholder={
             value.action === 'clear'
-              ? 'Will be removed'
+              ? '将被移除'
               : saved
-                ? 'Saved value'
-                : 'Optional'
+                ? '已保存的值'
+                : '可选'
           }
           className="block w-full min-w-0 px-3 py-2 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500 flex-1"
         />
@@ -74,14 +74,14 @@ function CredentialField({
               )
             }
           >
-            {value.action === 'keep' ? 'Remove' : 'Undo'}
+            {value.action === 'keep' ? '移除' : '撤销'}
           </button>
         )}
       </div>
       <p className="text-xs text-theme-text-tertiary">
         {value.action === 'clear'
-          ? 'Will be removed when you save.'
-          : 'Leave unchanged to keep the saved value.'}
+          ? '保存时将移除。'
+          : '保持不变即可保留已保存的值。'}
       </p>
     </section>
   )
@@ -137,8 +137,8 @@ export function ArgoCDConnectionForm({
   return (
     <fieldset disabled={busy} className="min-w-0 space-y-4">
       <p className="text-sm text-theme-text-secondary">
-        Compare Git configuration with live resources and show Argo CD health.
-        Auto-discovery works without setup where anonymous reads are allowed.
+        比较 Git 配置与实时资源，并显示 Argo CD 健康状态。
+        在允许匿名读取的环境中，无需设置即可使用自动发现。
       </p>
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -146,24 +146,23 @@ export function ArgoCDConnectionForm({
             htmlFor={id}
             className="block text-sm font-medium text-theme-text-primary"
           >
-            Argo CD server URL
+            Argo CD 服务器 URL
           </label>
         </div>
         <p className="text-xs text-theme-text-tertiary">
-          Reachable from Radar. Leave empty to discover the server in this
-          cluster.
+          地址必须可从 Radar 访问。留空以自动发现此集群中的服务器。
         </p>
         <Input
           className="block w-full min-w-0 px-3 py-2 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
           id={id}
           value={value.url}
           onChange={(e) => onChange({ ...value, url: e.target.value })}
-          placeholder="Auto-discover, or https://argocd.example.com"
+          placeholder="自动发现，或填写 https://argocd.example.com"
         />
         {connectionAction}
       </div>
       <CredentialField
-        label="API token"
+        label="API 令牌"
         saved={secretSet}
         value={secret}
         onChange={setSecret}
@@ -171,7 +170,7 @@ export function ArgoCDConnectionForm({
       {cliSession && (
         <div className="text-xs text-theme-text-secondary space-y-1">
           <p>
-            CLI session available: {cliSession.user} at {cliSession.server}
+            可用 CLI 会话：{cliSession.user}，服务器：{cliSession.server}
           </p>
           <button
             type="button"
@@ -179,7 +178,7 @@ export function ArgoCDConnectionForm({
             onClick={() => void apply(true)}
             className="text-accent-text hover:underline disabled:opacity-50"
           >
-            Connect using CLI token
+            使用 CLI 令牌连接
           </button>
         </div>
       )}
@@ -191,18 +190,17 @@ export function ArgoCDConnectionForm({
             onChange({ ...value, insecureTls: e.target.checked })
           }
         />
-        Skip TLS verification (self-signed server)
+        跳过 TLS 验证（自签名服务器）
       </label>
       {value.insecureTls && (
         <p className="text-xs text-warning-text">
-          Server identity will not be verified. Use only for a trusted server.
+          不会验证服务器身份。仅用于受信任的服务器。
         </p>
       )}
       {value.url.startsWith('http://') &&
         (secretSet || secret.action === 'set') && (
           <p className="text-xs text-warning-text">
-            Credentials will travel over unencrypted HTTP. Prefer HTTPS outside
-            a trusted private network.
+            凭据将通过未加密的 HTTP 传输。在受信任的私有网络之外，请优先使用 HTTPS。
           </p>
         )}
       <FormSaveActions
@@ -267,8 +265,7 @@ export function CostConnectionForm({
   return (
     <fieldset disabled={busy} className="min-w-0 space-y-4">
       <p className="text-sm text-theme-text-secondary">
-        Use OpenCost metrics from this cluster's metrics connection, or connect
-        to a Kubecost Aggregator.
+        使用此集群指标连接中的 OpenCost 指标，或连接 Kubecost Aggregator。
       </p>
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -276,12 +273,12 @@ export function CostConnectionForm({
             htmlFor={`${id}-source`}
             className="text-sm font-medium text-theme-text-primary"
           >
-            Cost source
+            成本来源
           </label>
         </div>
         <SelectMenu
           id={`${id}-source`}
-          ariaLabel="Cost source"
+          ariaLabel="成本来源"
           value={value.mode}
           options={COST_SOURCE_OPTIONS}
           onChange={(mode) => {
@@ -309,8 +306,8 @@ export function CostConnectionForm({
             value.clusterId ||
             secretSet ||
             secret.action !== 'keep'
-              ? 'Kubecost connection overrides · configured'
-              : 'Kubecost connection overrides (optional)'
+              ? 'Kubecost 连接覆盖设置 · 已配置'
+              : 'Kubecost 连接覆盖设置（可选）'
           }
           summaryClassName={
             automatic
@@ -329,20 +326,19 @@ export function CostConnectionForm({
                 Kubecost Aggregator URL
               </label>
               <p className="text-xs text-theme-text-tertiary">
-                Leave empty for discovery in this cluster. Use the central
-                Aggregator URL for a federated setup.
+                留空以自动发现此集群中的服务。联邦部署请使用中心 Aggregator URL。
               </p>
               <Input
                 className="block w-full min-w-0 px-3 py-2 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
                 id={id}
                 value={value.url}
                 onChange={(e) => onChange({ ...value, url: e.target.value })}
-                placeholder="Auto-discover, or https://kubecost.example.com"
+                placeholder="自动发现，或填写 https://kubecost.example.com"
               />
               {(!automatic || overridesOpen) && connectionAction}
             </div>
             <CredentialField
-              label="API key"
+              label="API 密钥"
               saved={secretSet}
               value={secret}
               onChange={setSecret}
@@ -350,8 +346,7 @@ export function CostConnectionForm({
             {value.url.startsWith('http://') &&
               (secretSet || secret.action === 'set') && (
                 <p className="text-xs text-warning-text">
-                  The API key will travel over unencrypted HTTP. Prefer HTTPS
-                  outside a trusted private network.
+                  API 密钥将通过未加密的 HTTP 传输。在受信任的私有网络之外，请优先使用 HTTPS。
                 </p>
               )}
             <section className="space-y-1 border-t border-theme-border pt-4">
@@ -359,11 +354,10 @@ export function CostConnectionForm({
                 htmlFor={`${id}-cluster`}
                 className="block text-sm font-medium text-theme-text-primary"
               >
-                Kubecost cluster ID
+                Kubecost 集群 ID
               </label>
               <p className="text-xs text-theme-text-tertiary">
-                The FinOps Agent's CLUSTER_ID, not the kubeconfig context
-                name. Leave empty to detect it. Applies only to this cluster.
+                FinOps Agent 的 CLUSTER_ID，而非 kubeconfig context 名称。留空以自动检测，仅适用于此集群。
               </p>
               <Input
                 className="block w-full min-w-0 px-3 py-2 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
@@ -372,7 +366,7 @@ export function CostConnectionForm({
                 onChange={(e) =>
                   onChange({ ...value, clusterId: e.target.value })
                 }
-                placeholder="Detected automatically"
+                placeholder="自动检测"
               />
             </section>
           </div>

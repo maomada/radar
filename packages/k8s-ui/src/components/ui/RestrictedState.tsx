@@ -96,20 +96,17 @@ export function RestrictedState({ kindLabel, group = '', resource, reason, compa
       {isUnavailable ? (
         // Radar's ServiceAccount can't read this kind — a user grant won't help.
         <>
-          <p className="text-theme-text-secondary font-medium">{kindLabel} isn't available here</p>
+          <p className="text-theme-text-secondary font-medium">{kindLabel} 在此处不可用</p>
           <p className="text-sm mt-1 max-w-md">
-            Radar can't read {kindLabel} resources in this cluster — the type may not be installed,
-            or read access isn't granted to Radar's ServiceAccount (some kinds, like RBAC objects
-            and Secrets, are off unless enabled in the Radar chart). Granting your own identity
-            access won't surface it.
+            Radar 无法读取此集群中的 {kindLabel} 资源 — 该类型可能尚未安装，
+            或 Radar 的 ServiceAccount 尚未获授读取权限（某些类型，如 RBAC 对象和 Secret，除非在 Radar chart 中启用，否则默认关闭）。授予你自己的身份访问权限也不会使其显示。
           </p>
         </>
       ) : (
         <>
-          <p className="text-theme-text-secondary font-medium">You don't have access to {kindLabel}</p>
+          <p className="text-theme-text-secondary font-medium">你无权访问 {kindLabel}</p>
           <p className="text-sm mt-1 max-w-md">
-            Your Kubernetes RBAC doesn't allow listing {kindLabel} resources in this cluster. This
-            isn't an empty cluster — Radar is hiding what your identity can't read.
+            你的 Kubernetes RBAC 不允许在此集群中列出 {kindLabel} 资源。这并不表示集群为空 — Radar 正在隐藏你的身份无权读取的内容。
           </p>
 
           <div className="mt-3 w-full max-w-md">
@@ -119,14 +116,13 @@ export function RestrictedState({ kindLabel, group = '', resource, reason, compa
               className="flex items-center gap-1.5 mx-auto text-sm text-theme-text-secondary hover:text-theme-text-primary transition-colors"
             >
               <CollapseChevron open={expanded} className="w-4 h-4" />
-              How to get access
+              如何获取访问权限
             </button>
 
             <Collapse open={expanded} id={accessDisclosure.panelId}>
               <div className="mt-2 text-left">
                 <p className="text-xs text-theme-text-tertiary mb-2">
-                  Apply this, or send it to whoever administers your cluster, to grant your identity
-                  read access.
+                  应用此配置，或发送给集群管理员，以授予你的身份读取权限。
                 </p>
                 <div className="rounded-md border border-theme-border bg-theme-base overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-border bg-theme-elevated">
@@ -138,7 +134,7 @@ export function RestrictedState({ kindLabel, group = '', resource, reason, compa
                       className="flex items-center gap-1 text-xs text-theme-text-secondary hover:text-theme-text-primary transition-colors"
                     >
                       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      {copied ? 'Copied' : 'Copy'}
+                      {copied ? '已复制' : '复制'}
                     </button>
                   </div>
                   <pre className="text-xs p-3 max-h-72 overflow-auto text-theme-text-secondary">

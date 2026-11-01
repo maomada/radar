@@ -2617,8 +2617,8 @@ describe("integrationBlock version skew", () => {
     const html = renderToString(
       <>{integrationBlock(undefined, new RadarFeatureUnsupportedError("capacity", { currentVersion: "v1.7.2" }), false, "Loading")}</>,
     );
-    expect(html).toContain("Capacity needs a newer Radar on this cluster");
-    expect(html).toContain("Available from Radar v1.9. This cluster runs v1.7.2.");
+    expect(html).toContain("此集群需要更新版本的 Radar 才能使用容量");
+    expect(html).toContain("Radar v1.9 起提供此功能。此集群当前运行 v1.7.2。");
     expect(html).not.toContain("Capacity unavailable");
   });
 
@@ -2627,7 +2627,7 @@ describe("integrationBlock version skew", () => {
       <>{integrationBlock(undefined, new ApiError("nodepool not found", 404, { error: "nodepool not found" }), false, "Loading")}</>,
     );
     expect(html).toContain("Capacity unavailable");
-    expect(html).not.toContain("needs a newer Radar");
+    expect(html).not.toContain("此集群需要更新版本的 Radar");
   });
 
   it("keeps ordinary failures on the generic error state", () => {
@@ -2635,7 +2635,7 @@ describe("integrationBlock version skew", () => {
       <>{integrationBlock(undefined, new ApiError("boom", 500), false, "Loading")}</>,
     );
     expect(html).toContain("Capacity unavailable");
-    expect(html).not.toContain("needs a newer Radar");
+    expect(html).not.toContain("此集群需要更新版本的 Radar");
   });
 });
 

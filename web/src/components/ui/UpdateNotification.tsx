@@ -244,7 +244,7 @@ export function UpdateNotification({ placement = 'floating' }: { placement?: 'fl
         <button
           onClick={inSettings ? () => { setExpanded(false); triggerRef.current?.focus() } : handleDismiss}
           className="absolute top-2 right-2 p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded"
-          aria-label={inSettings ? 'Close update details' : 'Dismiss'}
+          aria-label={inSettings ? '关闭更新详情' : '关闭通知'}
         >
           <X className="w-4 h-4" />
         </button>
@@ -302,11 +302,11 @@ function UpdateIcon({ state }: { state: DesktopUpdateState }) {
 function UpdateTitle({ state }: { state: DesktopUpdateState }) {
   switch (state) {
     case 'ready':
-      return <>Update Ready</>
+      return <>更新已就绪</>
     case 'applying':
-      return <>Applying Update...</>
+      return <>正在应用更新…</>
     default:
-      return <>Update Available</>
+      return <>有可用更新</>
   }
 }
 
@@ -378,7 +378,7 @@ function DesktopUpdateControls({
       return (
         <div className="mt-2 flex items-center gap-2">
           <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
-          <p className="text-xs text-theme-text-secondary">Applying update...</p>
+          <p className="text-xs text-theme-text-secondary">正在应用更新…</p>
         </div>
       )
 

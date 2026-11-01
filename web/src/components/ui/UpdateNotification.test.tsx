@@ -39,7 +39,7 @@ describe('UpdateNotification', () => {
 
   it('keeps the update popup for local installations', () => {
     const html = renderNotification()
-    expect(html).toContain('Update Available')
+    expect(html).toContain('有可用更新')
     expect(html).toContain('1.3.0')
   })
 

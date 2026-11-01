@@ -55,16 +55,16 @@ export function PVCRenderer({ data, onNavigate, extraSections }: PVCRendererProp
       {isLost && !operationalIssuesShown && (
         <AlertBanner
           variant="error"
-          title="Issues Detected"
-          message="PVC has lost its bound volume"
+          title="发现问题"
+          message="PVC 已丢失其绑定的 Volume"
         />
       )}
 
       {isPending && (
         <AlertBanner
           variant="info"
-          title="Pending — not yet bound"
-          message="A PVC stays Pending while its volume is provisioned, or for a WaitForFirstConsumer StorageClass until a Pod that mounts it is scheduled. If it stays Pending, check the StorageClass, its provisioner, and storage quota."
+          title="Pending — 尚未绑定"
+          message="PVC 在 Volume 配置期间会保持 Pending；使用 WaitForFirstConsumer StorageClass 时，则会等到挂载它的 Pod 被调度后再绑定。如果一直处于 Pending，请检查 StorageClass、配置器和存储配额。"
         />
       )}
 
@@ -72,11 +72,11 @@ export function PVCRenderer({ data, onNavigate, extraSections }: PVCRendererProp
         <AlertBanner
           variant="info"
           title={unused.lastTransitionTime ? `Unused for about ${formatAge(unused.lastTransitionTime)}` : 'Unused'}
-          message="No non-terminal Pod currently references this claim. Verify its retention policy and data ownership before deleting it."
+          message="当前没有非终止状态的 Pod 引用此存储声明。删除前请确认保留策略和数据归属。"
         />
       )}
 
-      <Section title="Status" icon={HardDrive}>
+      <Section title="状态" icon={HardDrive}>
         <PropertyList>
           <Property
             label="Phase"
@@ -90,21 +90,21 @@ export function PVCRenderer({ data, onNavigate, extraSections }: PVCRendererProp
               </span>
             }
           />
-          <Property label="Capacity" value={status.capacity?.storage} />
-          <Property label="Requested" value={spec.resources?.requests?.storage} />
+          <Property label="容量" value={status.capacity?.storage} />
+          <Property label="请求量" value={spec.resources?.requests?.storage} />
           <Property label="Storage Class" value={
             spec.storageClassName ? <ResourceLink name={spec.storageClassName} kind="storageclasses" namespace="" onNavigate={onNavigate} /> : undefined
           } />
-          <Property label="Access Modes" value={formatAccessModes(spec.accessModes)} />
-          <Property label="Volume Mode" value={spec.volumeMode} />
-          <Property label="Volume Name" value={
+          <Property label="访问模式" value={formatAccessModes(spec.accessModes)} />
+          <Property label="Volume 模式" value={spec.volumeMode} />
+          <Property label="Volume 名称" value={
             spec.volumeName ? <ResourceLink name={spec.volumeName} kind="persistentvolumes" namespace="" onNavigate={onNavigate} /> : undefined
           } />
         </PropertyList>
       </Section>
 
       {hasProvisionerInfo && (
-        <Section title="Provisioner Info">
+        <Section title="配置器信息">
           <PropertyList>
             <Property label="Provisioner" value={provisioner} />
             <Property label="Selected Node" value={selectedNode} />

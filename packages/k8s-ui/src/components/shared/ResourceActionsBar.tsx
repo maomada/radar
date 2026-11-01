@@ -336,7 +336,7 @@ export function ResourceActionsBar({
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand-muted rounded-lg"
               >
                 <FileText className="w-3.5 h-3.5" />
-                Logs
+                日志
                 {containers.length > 1 && <ChevronDown className="w-3 h-3 ml-0.5" />}
               </button>
               {showLogsMenu && containers.length > 1 && (
@@ -442,7 +442,7 @@ export function ResourceActionsBar({
               className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium btn-brand-muted rounded-lg"
             >
               <Box className="w-3.5 h-3.5" />
-              Set image
+              设置镜像
             </button>
           )}
           {onRestart && (
@@ -458,15 +458,15 @@ export function ResourceActionsBar({
                 className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium btn-brand-muted rounded-lg"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRestarting ? 'animate-spin' : ''}`} />
-                Restart
+                重启
               </button>
               <span className="sr-only" aria-live="polite">
-                {isRestarting ? 'Restarting workload' : ''}
+                {isRestarting ? '正在重启工作负载' : ''}
               </span>
             </>
           )}
           {isRollbackKind && onRollback && (
-            <Tooltip content={hasMultipleRevisions ? 'View revision history and rollback' : 'Only one revision exists'} delay={150}>
+            <Tooltip content={hasMultipleRevisions ? '查看修订历史并回滚' : '仅存在一个修订版本'} delay={150}>
               <button
                 onClick={() => setShowRevisions(true)}
                 disabled={!hasMultipleRevisions}
@@ -478,7 +478,7 @@ export function ResourceActionsBar({
                 )}
               >
                 <History className="w-3.5 h-3.5" />
-                Rollback
+                回滚
               </button>
             </Tooltip>
           )}
@@ -575,7 +575,7 @@ export function ResourceActionsBar({
           className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium btn-brand-muted rounded-lg"
         >
           <FileText className="w-3.5 h-3.5" />
-          Logs
+          日志
         </button>
       )}
 
@@ -584,13 +584,13 @@ export function ResourceActionsBar({
         <button
           onClick={(e) => onCopyCommand(
             `kubectl logs job/${resource.name} -n ${resource.namespace} -f`,
-            'Logs command copied',
+            '日志命令已复制',
             e
           )}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand-muted rounded-lg"
         >
           <FileText className="w-3.5 h-3.5" />
-          Logs
+          日志
         </button>
       )}
 
@@ -598,13 +598,13 @@ export function ResourceActionsBar({
         <button
           onClick={(e) => onCopyCommand(
             `argo logs ${resource.name} -n ${resource.namespace}`,
-            'Logs command copied',
+            '日志命令已复制',
             e
           )}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium btn-brand-muted rounded-lg"
         >
           <FileText className="w-3.5 h-3.5" />
-          Logs
+          日志
         </button>
       )}
 
@@ -640,20 +640,20 @@ export function ResourceActionsBar({
           <Tooltip
             content={
               onCompareTo && onCompareAcrossClusters
-                ? `Compare ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                ? `比较 ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
                 : onCompareAcrossClusters
-                  ? `Compare across clusters`
-                  : `Compare to another ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                  ? `跨集群比较`
+                  : `与另一个 ${displayKindName(resource.kind, data?.kind).toLowerCase()} 比较`
             }
           >
             <button
               onClick={onCompareTo ?? onCompareAcrossClusters}
               aria-label={
                 onCompareTo && onCompareAcrossClusters
-                  ? `Compare ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                  ? `比较 ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
                   : onCompareAcrossClusters
-                    ? `Compare across clusters`
-                    : `Compare to another ${displayKindName(resource.kind, data?.kind).toLowerCase()}`
+                    ? `跨集群比较`
+                    : `与另一个 ${displayKindName(resource.kind, data?.kind).toLowerCase()} 比较`
               }
               className="p-1.5 text-theme-text-secondary border border-theme-border-light rounded-lg hover:text-theme-text-primary hover:bg-theme-elevated transition-colors flex items-center"
             >
@@ -685,9 +685,9 @@ export function ResourceActionsBar({
       )}
 
       {onDelete && !((kind === 'node' || kind === 'nodes') && data?.metadata?.deletionTimestamp) && (
-        <Tooltip content={isDeleting ? 'Deleting resource' : 'Delete resource'}>
+        <Tooltip content={isDeleting ? '正在删除资源' : '删除资源'}>
           <button
-            aria-label={isDeleting ? 'Deleting resource' : 'Delete resource'}
+            aria-label={isDeleting ? '正在删除资源' : '删除资源'}
             disabled={isDeleting}
             onClick={() => setShowDeleteConfirm(true)}
             className="p-1.5 text-theme-text-secondary border border-theme-border-light rounded-lg hover:text-red-400 hover:border-red-400/50 hover:bg-red-500/10 transition-colors"
@@ -1304,7 +1304,7 @@ export function RevisionHistoryDialog({ kind, namespace, name, open, onClose, re
                             onClick={() => setConfirmRevision(rev.number)}
                             className="px-2 py-0.5 text-xs font-medium text-amber-400 hover:text-white hover:bg-amber-600 border border-amber-400/50 hover:border-amber-600 rounded transition-colors"
                           >
-                            Rollback
+                            回滚
                           </button>
                         )}
                       </div>

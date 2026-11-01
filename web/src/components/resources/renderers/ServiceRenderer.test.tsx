@@ -48,7 +48,7 @@ it('says when the server cut the inventory off', () => {
 it('surfaces a failed lookup instead of an empty inventory', () => {
   mock.serviceQuery = { error: new Error('insufficient permissions to list endpointslices') }
   const html = render()
-  expect(html).toContain('EndpointSlice inventory unavailable')
+  expect(html).toContain('EndpointSlice 清单不可用')
   expect(html).toContain('insufficient permissions to list endpointslices')
   expect(html).not.toContain('No EndpointSlices found')
 })

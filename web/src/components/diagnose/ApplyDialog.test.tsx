@@ -129,7 +129,7 @@ it("explains pause conditionally even when the proposed fix removes it, without 
   const resourceData = { metadata: { name: "archive", annotations: { "crossplane.io/paused": "true" } }, spec: { providerConfigRef: { name: "default" } } };
   const result = renderToStaticMarkup(<ApplyDialog open onClose={() => {}} onConfirm={() => {}} agentLabel="Local agent" resourceLabel="Bucket archive" context="fixture" fix="Remove the pause annotation." gitOpsGuard={unmanaged} resourceData={resourceData} />);
   expect(result).toContain("Pause affects reconciliation");
-  expect(result).toContain("requests resumption");
-  expect(result).not.toContain("will resume");
+  expect(result).toContain("移除此注解会请求恢复协调");
+  expect(result).not.toContain("会恢复协调");
   expect(applyButton(result)).not.toContain('disabled=""');
 });

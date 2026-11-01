@@ -8,7 +8,7 @@ vi.mock('../../api/usage-data', () => ({
   useMarkUsagePromptShown: () => vi.fn(),
 }))
 
-import { UsageDataAsk } from './UsageDataAsk'
+import { USAGE_DATA_COPY, UsageDataAsk } from './UsageDataAsk'
 
 function status(patch: Partial<UsageDataStatus>): UsageDataStatus {
   return exampleStatus({ preview: exampleReport({ views: {} }), ...patch })
@@ -20,10 +20,24 @@ const render = (s: UsageDataStatus | undefined) =>
 describe('UsageDataAsk', () => {
   it('asks an undecided user who can decide', () => {
     const html = render(status({}))
-    expect(html).toContain('Help improve Radar')
-    expect(html).toContain('Anonymous, with no third-party trackers.')
-    expect(html).toContain('See what')
-    expect(html).toContain('Send usage stats')
+    expect(html).toContain(USAGE_DATA_COPY.title)
+    expect(html).toContain(USAGE_DATA_COPY.description)
+    expect(html).toContain(USAGE_DATA_COPY.readMore)
+    expect(html).toContain(USAGE_DATA_COPY.send)
+    expect(html).toContain(USAGE_DATA_COPY.decline)
+  })
+
+  it('keeps the usage prompt controls and acknowledgements in Chinese', () => {
+    expect(USAGE_DATA_COPY).toMatchObject({
+      title: '帮助改进Radar',
+      description: '匿名统计，不使用第三方跟踪器。',
+      readMore: '查看发送内容',
+      send: '发送使用情况统计',
+      decline: '暂不发送',
+      close: '关闭',
+      thanks: '谢谢。你可以随时在“设置”>“隐私”中更改。',
+      declined: '不会发送任何内容。你可以随时在“设置”>“隐私”中更改。',
+    })
   })
 
   it('stays out of the way once answered or where the viewer cannot decide', () => {

@@ -135,18 +135,18 @@ const VIEW_ENTRIES: {
   icon: React.ComponentType<{ className?: string }>;
   shortcut: string;
 }[] = [
-  { view: "home", label: "Home", icon: Home, shortcut: "g h" },
-  { view: "resources", label: "Resources", icon: List, shortcut: "g r" },
-  { view: "issues", label: "Issues", icon: AlertTriangle, shortcut: "g i" },
-  { view: "topology", label: "Topology", icon: Network, shortcut: "g t" },
-  { view: "applications", label: "Applications", icon: Boxes, shortcut: "g a" },
-  { view: "timeline", label: "Timeline", icon: Clock, shortcut: "g l" },
+  { view: "home", label: "首页", icon: Home, shortcut: "g h" },
+  { view: "resources", label: "资源", icon: List, shortcut: "g r" },
+  { view: "issues", label: "问题", icon: AlertTriangle, shortcut: "g i" },
+  { view: "topology", label: "拓扑", icon: Network, shortcut: "g t" },
+  { view: "applications", label: "应用", icon: Boxes, shortcut: "g a" },
+  { view: "timeline", label: "时间线", icon: Clock, shortcut: "g l" },
   { view: "helm", label: "Helm", icon: Package, shortcut: "g m" },
   { view: "gitops", label: "GitOps", icon: GitBranch, shortcut: "g o" },
-  { view: "traffic", label: "Live Traffic", icon: Activity, shortcut: "g f" },
-  { view: "checks", label: "Checks", icon: ShieldCheck, shortcut: "g u" },
-  { view: "capacity", label: "Capacity", icon: Gauge, shortcut: "g p" },
-  { view: "cost", label: "Cost", icon: Coins, shortcut: "g c" },
+  { view: "traffic", label: "实时流量", icon: Activity, shortcut: "g f" },
+  { view: "checks", label: "检查", icon: ShieldCheck, shortcut: "g u" },
+  { view: "capacity", label: "容量", icon: Gauge, shortcut: "g p" },
+  { view: "cost", label: "成本", icon: Coins, shortcut: "g c" },
 ];
 
 export function useCommandItems(cb: CommandItemCallbacks): CommandItem[] {
@@ -160,7 +160,7 @@ export function useCommandItems(cb: CommandItemCallbacks): CommandItem[] {
     for (const v of VIEW_ENTRIES) {
       result.push({
         id: `view-${v.view}`,
-        label: `Go to ${v.label}`,
+        label: `前往${v.label}`,
         category: "Views",
         icon: v.icon,
         shortcut: v.shortcut,
@@ -251,7 +251,7 @@ export function useCommandItems(cb: CommandItemCallbacks): CommandItem[] {
       }
       result.push({
         id: "ns-all",
-        label: "All Namespaces",
+        label: "全部命名空间",
         category: "Namespaces",
         action: () => cb.onSetNamespaces([]),
       });
@@ -259,7 +259,7 @@ export function useCommandItems(cb: CommandItemCallbacks): CommandItem[] {
 
     result.push({
       id: "action-theme",
-      label: "Toggle Theme",
+      label: "切换主题",
       category: "Actions",
       icon: Sun,
       shortcut: "t",
@@ -268,7 +268,7 @@ export function useCommandItems(cb: CommandItemCallbacks): CommandItem[] {
     if (cb.onShowWhatsNew) {
       result.push({
         id: "action-whats-new",
-        label: "What's new",
+        label: "更新内容",
         category: "Actions",
         icon: Megaphone,
         action: () => cb.onShowWhatsNew?.(),
@@ -278,7 +278,7 @@ export function useCommandItems(cb: CommandItemCallbacks): CommandItem[] {
     if (cb.onShowDiagnostics) {
       result.push({
         id: "action-diagnostics",
-        label: "Diagnostics",
+        label: "诊断",
         category: "Actions",
         icon: Stethoscope,
         action: () => cb.onShowDiagnostics?.(),

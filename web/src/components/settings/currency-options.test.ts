@@ -9,7 +9,7 @@ describe('currency options', () => {
   it('offers Auto followed by named ISO 4217 currencies', () => {
     expect(CURRENCY_OPTIONS[0]).toEqual({
       value: '',
-      label: 'Automatic (from the cost source)',
+      label: '自动（使用成本来源的货币）',
     })
     expect(CURRENCY_OPTIONS).toContainEqual({
       value: 'EUR',

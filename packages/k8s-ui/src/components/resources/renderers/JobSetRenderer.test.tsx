@@ -209,7 +209,7 @@ describe('JobSetRenderer', () => {
     ]
     const html = render(data)
 
-    expect(html).toContain('Issue Detected')
+    expect(html).toContain('检测到问题')
     expect(html).toContain('Global restart limit reached')
   })
 
@@ -220,7 +220,7 @@ describe('JobSetRenderer', () => {
     const html = render(data)
 
     expect(html).toContain('Completed')
-    expect(html).not.toContain('Issue Detected')
+    expect(html).not.toContain('检测到问题')
     expect(html).toContain('Stale failure')
   })
 

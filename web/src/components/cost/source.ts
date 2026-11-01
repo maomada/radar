@@ -10,13 +10,13 @@ export function isCostConfigurable(reason?: string): boolean {
 export type CostSourcePreference = 'auto' | CostDataSource
 
 export const COST_SOURCE_OPTIONS: { value: CostSourcePreference; label: string; description: string }[] = [
-  { value: 'auto', label: 'Automatic', description: 'OpenCost metrics when available, otherwise Kubecost' },
-  { value: 'prometheus', label: 'OpenCost metrics', description: 'From the metrics connection' },
-  { value: 'kubecost', label: 'Kubecost', description: 'From a Kubecost Aggregator' },
+  { value: 'auto', label: '自动', description: '优先使用可用的 OpenCost 指标，否则使用 Kubecost' },
+  { value: 'prometheus', label: 'OpenCost 指标', description: '来自指标连接' },
+  { value: 'kubecost', label: 'Kubecost', description: '来自 Kubecost Aggregator' },
 ]
 
 export function costSourcePreferenceLabel(preference?: string): string {
-  return COST_SOURCE_OPTIONS.find(option => option.value === (preference || 'auto'))?.label ?? preference ?? 'Automatic'
+  return COST_SOURCE_OPTIONS.find(option => option.value === (preference || 'auto'))?.label ?? preference ?? '自动'
 }
 
 export function costSourceLabel(source?: CostDataSource): string {

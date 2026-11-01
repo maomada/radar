@@ -37,18 +37,18 @@ export function LargeClusterNamespacePicker({ namespaces, onSelect, ranked = fal
           ref={inputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search namespaces..."
+          placeholder="搜索命名空间…"
           className="w-full bg-theme-base text-theme-text-primary text-sm rounded-lg px-3 py-2 pl-9 border border-theme-border-light focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-theme-text-tertiary"
         />
       </div>
       <div className="max-h-[240px] overflow-y-auto rounded-lg border border-theme-border bg-theme-base">
         {!namespaces ? (
           <div className="px-3 py-6 text-center text-sm text-theme-text-tertiary">
-            Loading namespaces…
+            正在加载命名空间…
           </div>
         ) : filtered.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-theme-text-tertiary">
-            No namespaces match &ldquo;{search}&rdquo;
+            没有与“{search}”匹配的命名空间
           </div>
         ) : (
           filtered.map((ns) => (
@@ -67,8 +67,8 @@ export function LargeClusterNamespacePicker({ namespaces, onSelect, ranked = fal
       {sorted.length > 0 && (
         <p className="mt-2 text-xs text-theme-text-tertiary text-center">
           {filtered.length === sorted.length
-            ? `${sorted.length} namespaces`
-            : `${filtered.length} of ${sorted.length} namespaces`}
+            ? `${sorted.length} 个命名空间`
+            : `${filtered.length} / ${sorted.length} 个命名空间`}
         </p>
       )}
     </div>

@@ -75,8 +75,8 @@ describe('RelatedResourcesSection ownership', () => {
     const html = renderToString(<RelatedResourcesSection relationships={{ managers: [app], manages: [rs] }} onNavigate={() => {}} />)
     expect(html).toContain('Managed By')
     expect(html).toContain('Manages')
-    expect(html).not.toContain('Owner')
-    expect(html).not.toContain('Children')
+    expect(html).not.toContain('所有者')
+    expect(html).not.toContain('子资源')
   })
 
   it('says which kinds a children list did not check', () => {
@@ -100,7 +100,7 @@ describe('RelatedResourcesSection ownership', () => {
   it('adds nothing to a complete children list, or one from an older Radar', () => {
     for (const relationships of [{ children: [rs], ownership: { children: { complete: true } } }, { children: [rs] }]) {
       const html = renderToString(<RelatedResourcesSection relationships={relationships} />)
-      expect(html).toContain('Children')
+      expect(html).toContain('子资源')
       expect(html).not.toContain('Not checked')
     }
   })
@@ -122,7 +122,7 @@ describe('RelatedResourcesSection ownership', () => {
     ]
     for (const [ownership, text] of cases) {
       const html = renderToString(<RelatedResourcesSection relationships={{ ownership }} />)
-      expect(html).toContain('Owner')
+      expect(html).toContain('所有者')
       expect(html).toContain(text)
     }
   })
@@ -131,13 +131,13 @@ describe('RelatedResourcesSection ownership', () => {
     const html = renderToString(<RelatedResourcesSection relationships={{ owners: [rs, cm], ownership: { primaryOwnerState: 'several', children: { complete: true } } }} />)
     expect(html).toContain('<span>Owners<!-- --> (2)</span>')
     expect(html).toContain('None of them is its controller.')
-    expect(html).not.toContain('<span>Owner</span>')
+    expect(html).not.toContain('<span>所有者</span>')
     expect(html).not.toContain('Also Owned By')
   })
 
   it('lists other owners beside a missing controller as also owned by', () => {
     const html = renderToString(<RelatedResourcesSection relationships={{ owners: [cm], ownership: { primaryOwnerState: 'gone', ownerRef: rs, children: { complete: true } } }} />)
-    expect(html).toContain('<span>Owner</span>')
+    expect(html).toContain('<span>所有者</span>')
     expect(html).toContain('ReplicaSet web-7d9f8 no longer exists.')
     expect(html).toContain('Also Owned By')
   })
@@ -160,7 +160,7 @@ describe('RelatedResourcesSection ownership', () => {
     const loading = renderToString(
       <RelatedResourcesSection relationships={{ ownership: { children: { complete: false, notChecked: [{ kind: 'Pod', namespace: 'shop', reason: 'kind_sync_pending' }] } } }} />,
     )
-    expect(loading).toContain('Children')
+    expect(loading).toContain('子资源')
     expect(loading).toContain('Couldn&#x27;t check Pod (still loading).')
     const routine = renderToString(
       <RelatedResourcesSection relationships={{ ownership: { children: { complete: false, notChecked: [{ kind: 'Lease', namespace: 'shop', reason: 'radar_kind_not_collected' }] } } }} />,
@@ -173,7 +173,7 @@ describe('RelatedResourcesSection ownership', () => {
     const owner = renderToString(
       <RelatedResourcesSection kind="services" relationships={{ ownership: { children: { complete: false, notChecked: [{ kind: 'EndpointSlice', namespace: 'shop', reason: 'radar_kind_not_collected' }] } } }} />,
     )
-    expect(owner).toContain('Children')
+    expect(owner).toContain('子资源')
     expect(owner).toContain('No children among the kinds Radar checked.')
     const ownerComplete = renderToString(<RelatedResourcesSection kind="services" relationships={{ ownership: { children: { complete: true } } }} />)
     expect(ownerComplete).toBe('')
@@ -317,7 +317,7 @@ describe('RelatedResourcesSection', () => {
       />,
     )
 
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Node')
     expect(html).toContain('worker-1')
     expect(html).toContain('<button')
@@ -362,14 +362,14 @@ describe('versioned dependency projections', () => {
     const html = renderToString(<RelatedResourcesSection relationships={{ dependencies: [issuer], configRefs: [issuer], dependents: [certificate], consumers: [certificate] }} onNavigate={() => {}} />)
     expect(html).toContain('Depends On')
     expect(html).toContain('Required By')
-    expect(html).not.toContain('Configuration')
+    expect(html).not.toContain('配置')
     expect(html).not.toContain('Used By')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
 
   it('preserves configuration and consumer groups when dependency fields are absent', () => {
     const html = renderToString(<RelatedResourcesSection relationships={{ configRefs: [issuer], consumers: [certificate] }} />)
-    expect(html).toContain('Configuration')
+    expect(html).toContain('配置')
     expect(html).toContain('Used By')
     expect(html).not.toContain('Depends On')
   })
@@ -398,7 +398,7 @@ describe('monitors projection', () => {
   it('renders Monitored By alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ monitors: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Monitored By')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -409,7 +409,7 @@ describe('monitorTargets projection', () => {
   it('renders Monitors alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ monitorTargets: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Monitors')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -420,7 +420,7 @@ describe('backends projection', () => {
   it('renders Routes To alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ backends: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Routes To')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -431,7 +431,7 @@ describe('routedFrom projection', () => {
   it('renders Routed From alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ routedFrom: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Routed From')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -442,7 +442,7 @@ describe('protects projection', () => {
   it('renders Selects alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ protects: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Selects')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -453,7 +453,7 @@ describe('healthChecks projection', () => {
   it('renders Health Checks alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ healthChecks: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Health Checks')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -464,7 +464,7 @@ describe('stagedPolicies projection', () => {
   it('renders Staged Policies alone and deduplicates by API group', () => {
     const ref = { kind: 'Widget', group: 'one.example', namespace: 'demo', name: 'shared' }
     const html = renderToString(<RelatedResourcesSection relationships={{ stagedPolicies: [ref, ref, { ...ref, group: 'two.example' }] }} onNavigate={() => {}} />)
-    expect(html).toContain('Related Resources')
+    expect(html).toContain('相关资源')
     expect(html).toContain('Staged Policies')
     expect(html.match(/<button/g)).toHaveLength(3)
   })
@@ -509,10 +509,10 @@ describe('RelatedResourcesSection capped lists', () => {
     const pods = Array.from({ length: 12 }, (_, i) => ({ kind: 'Pod', namespace: 'shop', name: `web-${i}` }))
     const text = (relationships: Relationships) => renderToString(<RelatedResourcesSection relationships={relationships} onNavigate={() => {}} />).replace(/<!-- -->/g, '')
     const capped = text({ children: pods, ownership: { children: { complete: false, truncated: true } } })
-    expect(capped).toContain('Children (12+)')
+    expect(capped).toContain('子资源 (12+)')
     expect(capped).toContain('Show the 12 listed')
     const whole = text({ children: pods, ownership: { children: { complete: true } } })
-    expect(whole).toContain('Children (12)')
+    expect(whole).toContain('子资源 (12)')
     expect(whole).toContain('Show all 12')
   })
 })

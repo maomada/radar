@@ -4,7 +4,7 @@ import { BarChart3, X } from 'lucide-react'
 import { useMarkUsagePromptShown, useSetUsageData, type UsageDataStatus } from '../../api/usage-data'
 import { useVersionCheck } from '../../api/client'
 import { isUpdateDismissed } from '../ui/UpdateNotification'
-import { UsageDataAnswered, UsageDataBlurb } from './UsageDataAsk'
+import { USAGE_DATA_COPY, UsageDataAnswered, UsageDataBlurb } from './UsageDataAsk'
 import { useAnimatedUnmount } from '../../hooks/useAnimatedUnmount'
 import { TRANSITION_MENU, overlayExitMs, overlayTransitionStyle } from '../../utils/animation'
 
@@ -93,7 +93,7 @@ export function UsageDataPrompt({ status }: { status: UsageDataStatus | undefine
   return (
     <div
       role="dialog"
-      aria-label="Help improve Radar"
+      aria-label={USAGE_DATA_COPY.title}
       inert={!show || undefined}
       className={clsx(
         'fixed bottom-4 right-4 z-40 w-[21rem] max-w-[calc(100vw-2rem)] rounded-xl border border-theme-border bg-theme-surface shadow-theme-lg overflow-hidden origin-bottom-right',
@@ -108,7 +108,7 @@ export function UsageDataPrompt({ status }: { status: UsageDataStatus | undefine
           <button
             type="button"
             onClick={() => setDismissed(true)}
-            aria-label="Close"
+            aria-label={USAGE_DATA_COPY.close}
             className="absolute top-2.5 right-2.5 p-1 rounded text-theme-text-tertiary hover:text-theme-text-primary hover:bg-theme-elevated"
           >
             <X className="w-3.5 h-3.5" />
@@ -125,7 +125,7 @@ export function UsageDataPrompt({ status }: { status: UsageDataStatus | undefine
                 onClick={() => choose(true)}
                 className="btn-brand px-3 py-1 text-xs font-medium rounded-md whitespace-nowrap disabled:opacity-50"
               >
-                Send usage stats
+                {USAGE_DATA_COPY.send}
               </button>
               <button
                 type="button"
@@ -133,7 +133,7 @@ export function UsageDataPrompt({ status }: { status: UsageDataStatus | undefine
                 onClick={() => choose(false)}
                 className="px-3 py-1 text-xs font-medium rounded-md text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated disabled:opacity-50"
               >
-                No thanks
+                {USAGE_DATA_COPY.decline}
               </button>
             </div>
           </div>

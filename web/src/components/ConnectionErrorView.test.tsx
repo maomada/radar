@@ -24,7 +24,7 @@ vi.mock('../contexts/CapabilitiesContext', () => ({
   useCapabilitiesContext: () => capabilitiesMock,
 }))
 vi.mock('./ContextSwitcher', () => ({
-  ContextSwitcher: () => <button>Switch context</button>,
+  ContextSwitcher: () => <button>切换上下文</button>,
 }))
 vi.mock('./ui/Tooltip', () => ({
   Tooltip: ({ children }: { children: ReactNode }) => children,
@@ -61,8 +61,8 @@ describe('ConnectionErrorView authentication guidance', () => {
       'aws sts get-caller-identity && aws eks describe-cluster --name prod --region us-east-1 --query cluster.accessConfig.authenticationMode --output text',
     )
     expect(hints.hideAuthButton).toBe(true)
-    expect(markup).toContain('EKS Could Not Authenticate This Request')
-    expect(markup).not.toContain('Authenticate in terminal')
+    expect(markup).toContain('EKS 无法验证此请求')
+    expect(markup).not.toContain('在终端中完成身份验证')
   })
 
   it('does not offer interpolated commands for hostile EKS context values', () => {
@@ -111,10 +111,10 @@ describe('ConnectionErrorView authentication guidance', () => {
   })
 
   it('selects dedicated guidance for a stuck credential plugin', () => {
-    expect(selectConnectionHints('auth-plugin-stuck', 'eks-context')?.title).toBe('Credential Plugin Stopped Responding')
+    expect(selectConnectionHints('auth-plugin-stuck', 'eks-context')?.title).toBe('凭据插件未响应')
 
     const markup = renderError('auth-plugin-stuck', 'eks-context')
-    expect(markup).toContain('Credential Plugin Stopped Responding')
+    expect(markup).toContain('凭据插件未响应')
     expect(markup).not.toContain('aws sso login')
   })
 
@@ -122,7 +122,7 @@ describe('ConnectionErrorView authentication guidance', () => {
     const original = 'arn:aws:eks:us-east-1:123456789012:cluster/prod'
     const hints = selectConnectionHints('auth', `${original} (secondary)`, original)
 
-    expect(hints?.title).toBe('EKS Authentication Failed')
+    expect(hints?.title).toBe('EKS 身份验证失败')
     expect(hints?.fallbackCommand?.command).toBe(
       'aws eks update-kubeconfig --name prod --region us-east-1',
     )
@@ -149,7 +149,7 @@ describe('ConnectionErrorView authentication guidance', () => {
   it('renders placeholder AKS commands without a run affordance', () => {
     const markup = renderError('auth-rejected', 'clusterUser_platform_prod')
 
-    expect(markup.match(/aria-label="Run command in terminal"/g)).toHaveLength(1)
+    expect(markup.match(/aria-label="在终端中运行命令"/g)).toHaveLength(1)
     expect(markup).toContain('&lt;cluster&gt;')
     expect(markup).toContain('&lt;rg&gt;')
   })
@@ -157,7 +157,7 @@ describe('ConnectionErrorView authentication guidance', () => {
   it('renders copy-only commands without a run affordance', () => {
     const markup = renderToStaticMarkup(<CopyableCommand command="placeholder" />)
 
-    expect(markup).not.toContain('aria-label="Run command in terminal"')
+    expect(markup).not.toContain('aria-label="在终端中运行命令"')
   })
 
   it('keeps recovery commands copyable without offering an unavailable local terminal', () => {
@@ -165,11 +165,11 @@ describe('ConnectionErrorView authentication guidance', () => {
 
     const markup = renderError('auth', 'gke_project_us-east1_prod')
 
-    expect(markup).toContain('Refresh Google Cloud credentials')
+    expect(markup).toContain('刷新 Google Cloud 凭据')
     expect(markup).toContain('>gcloud</span>')
-    expect(markup).toContain('aria-label="Copy command to clipboard"')
-    expect(markup).not.toContain('aria-label="Run command in terminal"')
-    expect(markup).not.toContain('Authenticate in terminal')
+    expect(markup).toContain('aria-label="复制命令到剪贴板"')
+    expect(markup).not.toContain('aria-label="在终端中运行命令"')
+    expect(markup).not.toContain('在终端中完成身份验证')
   })
 })
 
@@ -177,17 +177,17 @@ describe('ConnectionErrorView kubeconfig guidance', () => {
   it('keeps the actionable error and context switch visible for a broken context', () => {
     const markup = renderError('config', 'prod')
 
-    expect(markup).toContain('Cannot Load Cluster Configuration')
-    expect(markup).toContain('Kubeconfig Problem')
+    expect(markup).toContain('无法加载集群配置')
+    expect(markup).toContain('kubeconfig 配置问题')
     expect(markup).toContain('aria-expanded="false"')
     expect(markup).toContain('id="connection-raw-error"')
     expect(markup).toContain('safe error')
-    expect(markup).toContain('Switch context')
+    expect(markup).toContain('切换上下文')
   })
 
   it('does not offer context switching when no context was loaded', () => {
     const markup = renderError('config', '')
 
-    expect(markup).not.toContain('Switch context')
+    expect(markup).not.toContain('切换上下文')
   })
 })

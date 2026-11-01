@@ -1723,11 +1723,11 @@ function DiagnoseFromWorkloadHint({
 }) {
   if (services.length === 0) return null
   return (
-    <Section title="Trace network path">
+    <Section title="追踪网络路径">
       <div className="flex items-start gap-2 text-xs text-theme-text-secondary">
         <Stethoscope className="w-4 h-4 mt-0.5 shrink-0 text-theme-text-tertiary" aria-hidden />
         <div className="flex-1 min-w-0">
-          {services.length === 1 ? 'Exposed by Service ' : 'Exposed by Services '}
+          {'由 Service 暴露：'}
           {services.map((svc, i) => (
             <span key={`${svc.namespace ?? ''}/${svc.name}`}>
               <span className="font-medium text-theme-text-primary">{svc.name}</span>
@@ -1739,7 +1739,7 @@ function DiagnoseFromWorkloadHint({
               navigate away and restart the investigation somewhere else. */}
           <span className="text-theme-text-tertiary">. </span>
           <button type="button" onClick={onOpenReachability} className="font-medium text-accent-text hover:underline">
-            Trace the traffic path →
+            追踪流量路径 →
           </button>
         </div>
       </div>
@@ -2243,7 +2243,7 @@ function DrawerMetricsContent({
       {['Deployment', 'StatefulSet', 'DaemonSet'].includes(kind) && (
         <div className="px-4 pt-3">
           <button className="text-xs text-accent hover:underline" onClick={() => navigate(`${buildWorkloadPath({ kind, namespace, name })}?tab=metrics&metricsRange=${chartRange}`)}>
-            Open request and resource dashboard →
+            打开请求与资源仪表盘 →
           </button>
         </div>
       )}

@@ -38,28 +38,28 @@ export const WORKLOAD_METRIC_CATEGORIES: MetricCategoryDef[] = [
   },
   {
     key: "memory",
-    label: "Memory",
+    label: "内存",
     color: "text-purple-400",
     chartColor: "#c084fc",
     fillColor: "#c084fc22",
   },
   {
     key: "network_rx",
-    label: "Net RX",
+    label: "网络接收",
     color: "text-emerald-400",
     chartColor: "#34d399",
     fillColor: "#34d39922",
   },
   {
     key: "network_tx",
-    label: "Net TX",
+    label: "网络发送",
     color: "text-orange-400",
     chartColor: "#fb923c",
     fillColor: "#fb923c22",
   },
   {
     key: "filesystem",
-    label: "Disk I/O",
+    label: "磁盘I/O",
     color: "text-amber-400",
     chartColor: "#fbbf24",
     fillColor: "#fbbf2422",
@@ -76,7 +76,7 @@ export const NODE_METRIC_CATEGORIES: MetricCategoryDef[] = [
   },
   {
     key: "memory",
-    label: "Memory",
+    label: "内存",
     color: "text-purple-400",
     chartColor: "#c084fc",
     fillColor: "#c084fc22",
@@ -143,10 +143,10 @@ export function describePodCoverage(
   // workload Radar cannot resolve pods for reports an error instead of a
   // count, so this line never stands for "Radar could not tell".
   if (pods === 0)
-    return "This workload has no pods running, so there is nothing to chart";
+    return "此工作负载没有正在运行的 Pod，因此没有可绘制的图表";
   const total = metrics.podsTotal ?? pods;
-  const count = total > pods ? `first ${pods} of ${total}` : `${pods}`;
-  return `${count} current pod${total === 1 ? "" : "s"}; pods replaced during the window are not included`;
+  const count = total > pods ? `共 ${total} 个当前 Pod 中的前 ${pods} 个` : `${pods} 个当前 Pod`;
+  return `${count}；不包含此时间窗口内已被替换的 Pod`;
 }
 
 export interface PrometheusChartsViewProps {

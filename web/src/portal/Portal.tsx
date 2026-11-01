@@ -38,7 +38,7 @@ function Endpoint({ id, url, readOnly }: { id: string; url: string; readOnly: bo
   return <div className="rounded-lg border border-theme-border bg-theme-base p-3">
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
       <span className="text-xs font-medium text-theme-text-secondary">{readOnly ? '只读端点 · 推荐用于诊断' : '完整端点 · 包含写操作'}</span>
-      <Badge tone={readOnly ? 'accent1' : 'note'} size="sm">{readOnly ? 'READ ONLY' : 'READ / WRITE'}</Badge>
+      <Badge tone={readOnly ? 'accent1' : 'note'} size="sm">{readOnly ? '只读' : '读写'}</Badge>
     </div>
     <code className="portal-mono block break-all text-xs leading-relaxed text-theme-text-primary">{url}</code>
     <div className="mt-2 flex flex-wrap gap-2">
@@ -72,13 +72,13 @@ function ClusterCard({ cluster, outdated }: { cluster: PortalCluster; outdated: 
       <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-theme-border pt-4 text-xs">
         <div><dt className="text-theme-text-tertiary">Radar 版本</dt><dd className="portal-mono mt-1 break-all">{cluster.radarVersion || '未上报'}</dd></div>
         <div><dt className="text-theme-text-tertiary">Kubernetes 连接 · 上次上报</dt><dd className="mt-1">{connectionLabels[cluster.connectionState] || '未知'}</dd></div>
-        {cluster.runtimeMode === 'local' && <div className="col-span-2"><dt className="text-theme-text-tertiary">Context · 上次上报，不锁定跳转目标</dt><dd className="portal-mono mt-1 break-all">{cluster.kubeContext || '尚未确认'}</dd></div>}
+        {cluster.runtimeMode === 'local' && <div className="col-span-2"><dt className="text-theme-text-tertiary">上下文（Context）· 上次上报，不锁定跳转目标</dt><dd className="portal-mono mt-1 break-all">{cluster.kubeContext || '尚未确认'}</dd></div>}
         {cluster.clusterName && <div className="col-span-2"><dt className="text-theme-text-tertiary">Kubernetes 集群 · 上次上报</dt><dd className="portal-mono mt-1 break-all">{cluster.clusterName}</dd></div>}
         <div className="col-span-2"><dt className="text-theme-text-tertiary">Radar 访问地址</dt><dd className="portal-mono mt-1 break-all">{cluster.radarUrl}</dd></div>
       </dl>
       <div className="mt-5 border-t border-theme-border pt-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 text-sm font-medium"><Plug size={16} className="text-accent-text" />Radar MCP Server</h3>
+          <h3 className="flex items-center gap-2 text-sm font-medium"><Plug size={16} className="text-accent-text" />Radar MCP 服务</h3>
           <span className="text-xs text-theme-text-tertiary">{cluster.mcp.mode === 'disabled' ? '未启用' : 'Streamable HTTP'}</span>
         </div>
         <div className="space-y-2">
@@ -184,7 +184,7 @@ export function Portal() {
     </header>
     <main className="mx-auto max-w-[1800px] px-5 py-8 lg:px-10">
       <div className="flex flex-wrap items-end justify-between gap-5">
-        <div><p className="portal-mono mb-2 text-xs text-accent-text">FLEET DIRECTORY</p><h1 className="text-3xl font-semibold">集群总览</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-theme-text-secondary">一个入口，连接所有 Radar。查看集群上报信息，进入独立控制台，或接入 MCP 工具。</p></div>
+        <div><p className="portal-mono mb-2 text-xs text-accent-text">集群目录</p><h1 className="text-3xl font-semibold">集群总览</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-theme-text-secondary">一个入口，连接所有 Radar。查看集群上报信息，进入独立控制台，或接入 MCP 工具。</p></div>
         <a href="#onboarding" className="portal-control inline-flex items-center gap-2"><BookOpen size={16} />集群接入指南 <ExternalLink size={14} /></a>
       </div>
       <section aria-label="目录摘要" className="my-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -205,7 +205,7 @@ export function Portal() {
       </section>
       <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-theme-text-tertiary"><Activity size={15} className="mt-0.5 shrink-0" />心跳仅表示 Radar 最近向门户报到，不代表集群健康，也不保证 Radar 页面或 MCP 接口可从你的网络访问。</p>
       <Onboarding />
-      <footer className="mt-8 flex flex-wrap justify-between gap-3 text-xs text-theme-text-tertiary"><span>Radar Portal · 集中展示，独立访问</span><span>本地与集群内 Radar 均可选择注册</span></footer>
+      <footer className="mt-8 flex flex-wrap justify-between gap-3 text-xs text-theme-text-tertiary"><span>Radar 集群门户 · 集中展示，独立访问</span><span>本地与集群内 Radar 均可选择注册</span></footer>
     </main>
   </div>
 }

@@ -117,7 +117,7 @@ describe('IssueRow', () => {
     }))
 
     expect(html).toContain('2d')
-    expect(html).toContain('since deploy')
+    expect(html).toContain('自部署起')
   })
 
   it('promotes after-healthy timing in the collapsed row', () => {
@@ -162,7 +162,7 @@ describe('IssueRow', () => {
     expect(html).toContain('30m')
     expect(html).toContain('since deletion')
     expect(html).toContain('pending since deletion was requested')
-    expect(html).not.toContain('since creation')
+    expect(html).not.toContain('自创建起')
     expect(html).not.toContain('first reconciliation')
   })
 
@@ -201,7 +201,7 @@ describe('IssueRow', () => {
 
     expect(html).toContain('workload never healthy')
     expect(html).toContain('exact onset unknown; owner workload never became healthy after deployment')
-    expect(html).not.toContain('since deploy')
+    expect(html).not.toContain('自部署起')
   })
 
   it('qualifies a workload regression when the issue onset is unknown', () => {
@@ -323,16 +323,19 @@ describe('onset provenance copy', () => {
 
 describe('issueTiming', () => {
   it('keeps deployment wording for deployment-like creation failures', () => {
-    expect(issueTiming(mk({
+    const deployment = issueTiming(mk({
       kind: 'Deployment',
       group: 'apps',
       issue_timing: 'started_at_resource_creation',
       issue_timing_basis: 'condition',
-    }))).toMatchObject({
+    }))
+    expect(deployment).toMatchObject({
       kind: 'creation',
-      chip: 'since deploy',
-      meta: 'present since deployment or first reconciliation',
+      chip: '自部署起',
+      meta: '自部署或首次协调时即存在',
+      tooltip: '故障信号始于部署或首次协调期间。',
     })
+    expect(`${deployment?.chip} ${deployment?.meta} ${deployment?.tooltip}`).not.toMatch(/since deploy|since creation/i)
 
     expect(issueTiming(mk({
       kind: 'Rollout',
@@ -341,8 +344,9 @@ describe('issueTiming', () => {
       issue_timing_basis: 'condition',
     }))).toMatchObject({
       kind: 'creation',
-      chip: 'since deploy',
-      meta: 'present since deployment or first reconciliation',
+      chip: '自部署起',
+      meta: '自部署或首次协调时即存在',
+      tooltip: '故障信号始于部署或首次协调期间。',
     })
   })
 
@@ -353,17 +357,22 @@ describe('issueTiming', () => {
       issue_timing_basis: 'pod_creation',
     }))).toMatchObject({
       kind: 'creation',
-      chip: 'since deploy',
+      chip: '自部署起',
+      tooltip: '故障信号始于部署或首次协调期间。',
     })
 
-    expect(issueTiming(mk({
+    const creation = issueTiming(mk({
       kind: 'Pod',
       issue_timing: 'started_at_resource_creation',
       issue_timing_basis: 'phase',
-    }))).toMatchObject({
+    }))
+    expect(creation).toMatchObject({
       kind: 'creation',
-      chip: 'since creation',
+      chip: '自创建起',
+      meta: '自创建或首次协调时即存在',
+      tooltip: '故障信号始于资源创建或首次协调期间。',
     })
+    expect(`${creation?.chip} ${creation?.meta} ${creation?.tooltip}`).not.toMatch(/since deploy|since creation/i)
   })
 
   it('uses self-explanatory copy when exact onset and independent timing have different scopes', () => {
@@ -418,8 +427,9 @@ describe('issueTiming', () => {
       issue_timing_basis: 'phase',
     }))).toMatchObject({
       kind: 'creation',
-      chip: 'since creation',
-      meta: 'present since creation or first reconciliation',
+      chip: '自创建起',
+      meta: '自创建或首次协调时即存在',
+      tooltip: '故障信号始于资源创建或首次协调期间。',
     })
   })
 

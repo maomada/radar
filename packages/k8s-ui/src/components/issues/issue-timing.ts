@@ -165,16 +165,16 @@ export function issueTiming(issue: Issue): IssueTimingDisplay | null {
       if (isDeploymentLikeCreation(issue)) {
         return {
           kind: 'creation',
-          chip: 'since deploy',
-          meta: 'present since deployment or first reconciliation',
-          tooltip: 'Failing signal began during deployment or first reconciliation.',
+          chip: '自部署起',
+          meta: '自部署或首次协调时即存在',
+          tooltip: '故障信号始于部署或首次协调期间。',
         };
       }
       return {
         kind: 'creation',
-        chip: 'since creation',
-        meta: 'present since creation or first reconciliation',
-        tooltip: 'Failing signal began during resource creation or first reconciliation.',
+        chip: '自创建起',
+        meta: '自创建或首次协调时即存在',
+        tooltip: '故障信号始于资源创建或首次协调期间。',
       };
     }
     default:

@@ -307,14 +307,13 @@ export function msToNextBucket(elapsedMs: number): number {
   return 86_400_000 - (elapsed % 86_400_000)
 }
 
-// Freshness phrasing for "Updated X" indicators: just now / Xm ago / Xh ago /
-// over a day ago. An exact day count is noise for an auto-refresh signal, so
-// anything past 24h collapses to "over a day ago".
+// Freshness phrasing for "Updated X" indicators. An exact day count is noise
+// for an auto-refresh signal, so anything past 24h collapses to "超过一天".
 export function formatUpdatedAgo(elapsedMs: number): string {
   const bucket = formatLastUpdatedBucket(elapsedMs)
-  if (bucket === 'just now') return 'just now'
-  if (bucket.endsWith('d')) return 'over a day ago'
-  return `${bucket} ago`
+  if (bucket === 'just now') return '刚刚'
+  if (bucket.endsWith('d')) return '超过一天'
+  return `${bucket.slice(0, -1)}${bucket.endsWith('m') ? '分钟' : '小时'}前`
 }
 
 // Timestamps written moments ago (a lease renewal, a sync) can land slightly in

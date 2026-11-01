@@ -155,6 +155,13 @@ type Row =
   | { id: string; kind: 'viewAll'; query: string; count: number }
 
 const COMMAND_CATEGORY_ORDER = ['Views', 'Resource Kinds', 'Namespaces', 'Clusters', 'Actions']
+const COMMAND_CATEGORY_LABELS: Record<string, string> = {
+  Views: '视图',
+  'Resource Kinds': '资源类型',
+  Namespaces: '命名空间',
+  Clusters: '集群',
+  Actions: '操作',
+}
 const PAGE = 8
 const STRONG_KIND = 100 // exact (150) or prefix (100) kind-name match
 
@@ -185,7 +192,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
     recordRecent,
     onViewAllResults,
     launcherShowsViews = true,
-    placeholder = 'Search resources & commands…',
+    placeholder = '搜索资源和命令…',
     size = 'default',
     autoFocus = false,
   },
@@ -488,7 +495,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
           <div ref={listRef} className="max-h-[60vh] overflow-y-auto py-1">
             {recentRows.length > 0 && (
               <div>
-                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">Recently viewed</div>
+                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">最近查看</div>
                 {recentRows.map((row) => row.kind === 'resource' && (
                   <ResourceRow key={row.id} hit={row.hit} selected={row.id === selectedId} onSelect={() => selectRow(row.id)} onActivate={() => execute(row)} />
                 ))}
@@ -497,7 +504,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
 
             {leadingKinds.length > 0 && (
               <div>
-                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">Resource Kinds</div>
+                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">资源类型</div>
                 {leadingKinds.map((item) => {
                   const id = `cmd:${item.id}`
                   return <CommandRow key={id} item={item} tokens={queryTokens} selected={id === selectedId} onSelect={() => selectRow(id)} onActivate={() => execute(toCmdRow(item))} />
@@ -508,9 +515,9 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
             {searchActive && (
               <>
                 <div className="flex items-center justify-between px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">
-                  <span>Resources</span>
+                  <span>资源</span>
                   {isFetching && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {!isFetching && !isError && totalMatched > total && <span className="normal-case font-normal">showing {total} of {totalMatched}</span>}
+                  {!isFetching && !isError && totalMatched > total && <span className="normal-case font-normal">显示 {total} 项，共 {totalMatched} 项</span>}
                 </div>
                 {/* Above the rows: with a full page of hits a note below them
                     would sit under the fold. */}
@@ -520,14 +527,14 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
                 }} />}
                 {isError ? (
                   <div className="flex items-center gap-2 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Search is unavailable right now.
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> 搜索暂时不可用。
                   </div>
                 ) : resourceRows.length === 0 && (!isFetching || currentData) ? (
                   <div className="px-3 py-2 text-xs text-theme-text-tertiary">
-                    {shownNote ? 'No matches in what Radar searched.' : <>No resources match{freeText ? <> “{freeText}”</> : ''}.</>}
+                    {shownNote ? 'Radar 已搜索范围内没有匹配项。' : <>没有资源匹配{freeText ? <>“{freeText}”</> : ''}。</>}
                     {hasNsPill && (
                       <button onMouseDown={(e) => { e.preventDefault(); clearNsPills() }} className="ml-1.5 text-[var(--color-brand)] hover:underline">
-                        Remove namespace filter
+                        移除命名空间筛选
                       </button>
                     )}
                   </div>
@@ -546,7 +553,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
 
             {commandGroups.map((group) => (
               <div key={group.category}>
-                <div className="px-3 py-1 mt-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">{group.category}</div>
+                <div className="px-3 py-1 mt-1 text-[10px] font-semibold uppercase tracking-wider text-theme-text-tertiary">{COMMAND_CATEGORY_LABELS[group.category] ?? group.category}</div>
                 {group.items.map((item) => {
                   const id = `cmd:${item.id}`
                   return <CommandRow key={id} item={item} tokens={queryTokens} selected={id === selectedId} onSelect={() => selectRow(id)} onActivate={() => execute({ id, kind: 'command', command: item })} />
@@ -563,18 +570,18 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
                 className={clsx('w-full flex items-center gap-2.5 px-3 py-1.5 mt-1 text-left border-t border-theme-border transition-colors', viewAllRow.id === selectedId ? 'selection' : 'hover:bg-theme-elevated/40')}
               >
                 <Search className="w-4 h-4 shrink-0 text-theme-text-tertiary" />
-                <span className="text-sm text-[var(--color-brand)]">See all {viewAllRow.count} result{viewAllRow.count === 1 ? '' : 's'}</span>
+                <span className="text-sm text-[var(--color-brand)]">查看全部 {viewAllRow.count} 项结果</span>
                 <CornerDownLeft className="w-3 h-3 ml-auto shrink-0 text-theme-text-tertiary" />
               </button>
             )}
           </div>
           <div className="flex items-center gap-3 px-3 py-1.5 border-t border-theme-border text-[11px] text-theme-text-tertiary">
             <span className="flex items-center gap-1">
-              <CornerDownLeft className="w-3 h-3" /> {submitToSearch && searchActive && selectedIndex < 0 ? 'search all' : 'open'}
+              <CornerDownLeft className="w-3 h-3" /> {submitToSearch && searchActive && selectedIndex < 0 ? '搜索全部' : '打开'}
             </span>
-            <span>↑↓ navigate</span>
-            <span>⇞⇟ page</span>
-            <span>esc close</span>
+            <span>↑↓ 导航</span>
+            <span>⇞⇟ 翻页</span>
+            <span>Esc 关闭</span>
           </div>
     </>
   )
@@ -604,7 +611,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
         onSuggestingChange={setSuggesting}
         modifierOptions={modifierOptions}
         placeholder={placeholder}
-        aria-label="Search resources and commands"
+        aria-label="搜索资源和命令"
         inputRef={inputRef}
         leftSlot={<Search className={hero ? 'w-5 h-5 shrink-0 text-theme-text-tertiary' : 'w-3.5 h-3.5 shrink-0 text-theme-text-tertiary'} />}
         rightSlot={

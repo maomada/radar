@@ -120,28 +120,28 @@ export function ActivitySummary({ namespaces, topology, onNavigate }: ActivitySu
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-theme-text-tertiary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">Timeline</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">时间线</span>
         </div>
-        <span className="text-xs text-theme-text-tertiary">last {SPAN_MINUTES}m</span>
+        <span className="text-xs text-theme-text-tertiary">过去 {SPAN_MINUTES} 分钟</span>
       </div>
 
       {/* Mini swimlanes */}
       <div className="flex-1 min-h-0 overflow-hidden px-4 py-1.5">
         {isLoading ? (
           <div className="flex items-center justify-center h-full py-4 text-xs text-theme-text-tertiary">
-            Loading…
+            加载中…
           </div>
         ) : error ? (
           <div className="flex items-center justify-center h-full py-4 text-xs text-theme-text-tertiary">
-            Could not load activity
+            无法加载活动
           </div>
         ) : !hasActivity ? (
           <div className="flex flex-col items-center justify-center h-full py-4 text-xs text-theme-text-tertiary">
-            <span>No recent activity</span>
+            <span>最近没有活动</span>
             {hasLimitedAccess && (
               <span className="flex items-center gap-1 mt-1.5 text-[11px] text-amber-400/80">
                 <Shield className="w-3 h-3" />
-                Some resource types are not monitored due to RBAC restrictions
+                部分资源类型因 RBAC 限制未监控
               </span>
             )}
           </div>
@@ -159,15 +159,15 @@ export function ActivitySummary({ namespaces, topology, onNavigate }: ActivitySu
 
             {/* Time axis */}
             <div className="flex items-center justify-between text-[10px] text-theme-text-tertiary pt-1">
-              <span>{SPAN_MINUTES}m ago</span>
-              <span>now</span>
+              <span>{SPAN_MINUTES} 分钟前</span>
+              <span>现在</span>
             </div>
           </div>
         )}
       </div>
 
       <div className="px-4 py-1.5 border-t border-theme-border/50 flex items-center justify-end gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-theme-text-secondary group-hover:text-theme-text-primary transition-colors">
-        Open Timeline
+        打开时间线
         <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
       </div>
       </div>

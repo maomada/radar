@@ -32,7 +32,7 @@ it('disables size editing for denied patch access and names the grant', () => {
   expect(render()).not.toMatch(/<button[^>]*disabled=""[^>]*>Edit size…/)
   state.error = new Error('Permission timeout')
   expect(render()).toContain('Last refresh failed: Permission timeout')
-  expect(render()).toContain('2m ago')
+  expect(render()).toContain('2分钟前')
   expect(render()).not.toMatch(/<button[^>]*disabled=""[^>]*>Edit size…/)
   state.noData = true
   expect(render()).toContain('Permissions could not be checked: Permission timeout')

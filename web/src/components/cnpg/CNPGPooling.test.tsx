@@ -42,8 +42,8 @@ it('labels retained pressure and readiness after their refreshes fail', () => {
   expect(html).toContain('0/2 ready')
   expect(html).toContain('Last refresh failed: Readiness timeout')
   expect(html).toContain('Last refresh failed: Pressure timeout')
-  expect(html).toContain('3m ago')
-  expect(html).toContain('2m ago')
+  expect(html).toContain('3分钟前')
+  expect(html).toContain('2分钟前')
   live.failed = false
 })
 

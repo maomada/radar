@@ -23,7 +23,7 @@ export function CertificateHealthCard({ data, onNavigate }: CertificateHealthCar
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
         <div className="flex items-center gap-2">
           <Shield className={clsx('w-4 h-4', accentColor)} />
-          <span className={clsx('text-xs font-semibold uppercase tracking-wider', accentColor)}>TLS Certificates</span>
+          <span className={clsx('text-xs font-semibold uppercase tracking-wider', accentColor)}>TLS 证书</span>
           <span className={clsx('badge-sm', accentBg, accentColor)}>
             {data.total}
           </span>
@@ -64,10 +64,10 @@ export function CertificateHealthCard({ data, onNavigate }: CertificateHealthCar
 
         {/* Breakdown */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-4 w-full">
-          <BucketRow label="Healthy" count={data.healthy} tone="healthy" />
-          <BucketRow label="Warning" subtitle="< 30d" count={data.warning} tone="degraded" />
-          <BucketRow label="Critical" subtitle="< 7d" count={data.critical} tone="alert" />
-          <BucketRow label="Expired" count={data.expired} tone="unhealthy" />
+          <BucketRow label="健康" count={data.healthy} tone="healthy" />
+          <BucketRow label="警告" subtitle="< 30d" count={data.warning} tone="degraded" />
+          <BucketRow label="严重" subtitle="< 7d" count={data.critical} tone="alert" />
+          <BucketRow label="已过期" count={data.expired} tone="unhealthy" />
         </div>
       </div>
 
@@ -77,7 +77,7 @@ export function CertificateHealthCard({ data, onNavigate }: CertificateHealthCar
           accentColor,
           hasIssues ? 'group-hover:text-red-400' : hasWarnings ? 'group-hover:text-yellow-400' : 'group-hover:text-green-400'
         )}>
-          View Secrets
+          查看 Secrets
           <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>

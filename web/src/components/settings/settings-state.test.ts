@@ -3,8 +3,24 @@ import {
   costSourceApplyLabel,
   prometheusHeadersFromRows,
   pendingSections,
+  SETTINGS_NAV_LABELS,
   shouldShowSettingsFooter,
 } from "./settings-state";
+
+describe("Chinese settings navigation", () => {
+  it("retains each section's display label while keeping Argo CD technical", () => {
+    expect(SETTINGS_NAV_LABELS).toEqual({
+      overview: "总览",
+      perms: "我的权限",
+      connection: "连接",
+      prometheus: "指标",
+      cost: "成本",
+      ai: "AI调查",
+      privacy: "隐私",
+      advanced: "高级",
+    });
+  });
+});
 
 describe("Prometheus header edits", () => {
   it("distinguishes unchanged, replacement and explicit clear", () => {
@@ -60,8 +76,8 @@ describe("Integration settings state", () => {
   });
 
   it("only claims to test sources that the backend probes", () => {
-    expect(costSourceApplyLabel("auto")).toBe("Test & apply source");
-    expect(costSourceApplyLabel("kubecost")).toBe("Test & apply source");
-    expect(costSourceApplyLabel("prometheus")).toBe("Apply source");
+    expect(costSourceApplyLabel("auto")).toBe("测试并应用数据源");
+    expect(costSourceApplyLabel("kubecost")).toBe("测试并应用数据源");
+    expect(costSourceApplyLabel("prometheus")).toBe("应用数据源");
   });
 });

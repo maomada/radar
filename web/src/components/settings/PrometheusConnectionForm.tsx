@@ -122,17 +122,17 @@ export function PrometheusConnectionForm({
     <div>
       <div className="mb-4 space-y-1">
         <p className="text-sm text-theme-text-secondary">
-          Connect a Prometheus-compatible backend, such as Prometheus, VictoriaMetrics, Thanos or Grafana Mimir.
+          连接 Prometheus 兼容后端，例如 Prometheus、VictoriaMetrics、Thanos 或 Grafana Mimir。
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-1 mb-1">
-        <label htmlFor={urlId} className="text-sm font-medium text-theme-text-primary">Metrics backend URL</label>
-        <Tooltip content="Use a base URL reachable from Radar, not your browser. Include the backend path prefix, but not /api/v1/query. Available charts depend on the metrics collected.">
-          <button type="button" aria-label="Metrics URL help" className="text-theme-text-tertiary"><Info className="w-3.5 h-3.5" /></button>
+        <label htmlFor={urlId} className="text-sm font-medium text-theme-text-primary">指标后端 URL</label>
+        <Tooltip content="URL 必须可由 Radar 服务器访问；仅浏览器可以访问还不够。请包含后端路径前缀，但不要包含 /api/v1/query。可用图表取决于已收集的指标。">
+          <button type="button" aria-label="指标 URL 帮助" className="text-theme-text-tertiary"><Info className="w-3.5 h-3.5" /></button>
         </Tooltip>
       </div>
       <p className="text-xs text-theme-text-tertiary mb-1">
-        Leave empty to discover a backend in this cluster.
+        留空以自动发现此集群中的后端。
       </p>
       <div className="flex items-center gap-2">
         <Input
@@ -146,42 +146,42 @@ export function PrometheusConnectionForm({
       </div>
       {connectionAction}
       {!onApplyOperations && <p className="mt-2 text-xs text-theme-text-tertiary">
-        {local ? 'Applies only to this cluster.' : 'Changes affect this Radar installation. Use deployment settings for configuration that survives Pod replacement.'}
+        {local ? '仅应用于此集群。' : '更改将影响此 Radar 安装。若要在 Pod 替换后保留配置，请使用部署设置。'}
       </p>}
       {value.startsWith('http://') && (configuredHeaderKeys.length > 0 || operations.some(operation => operation.action === 'set')) && (
-        <p className="mt-2 text-xs text-warning-text">Headers will travel over unencrypted HTTP. Prefer HTTPS outside a trusted private network.</p>
+        <p className="mt-2 text-xs text-warning-text">请求头将通过未加密的 HTTP 传输。在可信的私有网络之外，请优先使用 HTTPS。</p>
       )}
       {serverManaged && (
         <p className="mt-2 text-xs text-theme-text-secondary">
-          Server controlled by startup configuration. To set or change the server,
-          {local ? ' update the startup flags or environment references and restart Radar.' : ' update the deployment configuration (such as Helm values) and restart Radar.'}
+          服务器由启动配置控制。若要设置或更改服务器，
+          {local ? '请更新启动标志或环境变量引用，然后重启 Radar。' : '请更新部署配置（例如 Helm values），然后重启 Radar。'}
         </p>
       )}
       {urlFromFlag && (
         <p className="mt-1 text-xs text-theme-text-secondary">
-          Path edits apply until restart; the URL supplied at launch will then be restored.
+          路径更改仅在重启前生效；重启后将恢复启动时提供的 URL。
         </p>
       )}
 
       {onApplyOperations ? <ConnectionHeadersEditor keys={configuredHeaderKeys} environmentKeys={environmentHeaderKeys} value={operations} onChange={setOperations} /> : <section className="mt-5 border-t border-theme-border pt-4">
-        <h4 className="text-sm font-medium text-theme-text-primary mb-2">Authentication headers</h4>
+        <h4 className="text-sm font-medium text-theme-text-primary mb-2">身份验证请求头</h4>
         <p className="text-xs text-theme-text-tertiary mb-3">
-          Optional authentication or tenant headers, such as Authorization or X-Scope-OrgID. Requires a backend URL.
-          {!headersManaged && storedKeys.length > 0 && ' Changing servers requires replacing or clearing the saved headers.'}
+          可选的身份验证或租户请求头，例如 Authorization 或 X-Scope-OrgID。需要填写后端 URL。
+          {!headersManaged && storedKeys.length > 0 && ' 更换服务器时需要替换或清除已保存的请求头。'}
         </p>
         {headerRows === null ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="min-w-0 break-words text-xs text-theme-text-tertiary">
               {storedKeys.length > 0
-                ? <><span className="text-theme-text-secondary">{storedKeys.join(', ')}</span> (values hidden)</>
-                : 'No headers configured'}
+                ? <><span className="text-theme-text-secondary">{storedKeys.join(', ')}</span>（值已隐藏）</>
+                : '未配置请求头'}
             </span>
             {!headersManaged && <button
               onClick={() => { setHeaderRows([{ key: '', value: '' }]); clearStatus() }}
               disabled={apply.status === 'applying'}
               className="shrink-0 text-xs font-medium text-accent-text hover:underline"
             >
-              {storedKeys.length > 0 ? 'Edit headers' : 'Add auth headers'}
+              {storedKeys.length > 0 ? '修改请求头' : '添加身份验证请求头'}
             </button>}
           </div>
         ) : (
@@ -195,7 +195,7 @@ export function PrometheusConnectionForm({
                     setHeaderRows((rows) => rows!.map((r, j) => j === i ? { ...r, key: e.target.value } : r))
                     clearStatus()
                   }}
-                  placeholder="Header (e.g. Authorization)"
+                  placeholder="请求头（例如 Authorization）"
                   className="flex-1 min-w-0 px-2.5 py-1.5 text-xs bg-theme-base border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
                 />
                 <input
@@ -206,10 +206,10 @@ export function PrometheusConnectionForm({
                     setHeaderRows((rows) => rows!.map((r, j) => j === i ? { ...r, value: e.target.value } : r))
                     clearStatus()
                   }}
-                  placeholder="Value (e.g. Bearer …)"
+                  placeholder="值（例如 Bearer …）"
                   className="flex-1 min-w-0 px-2.5 py-1.5 text-xs bg-theme-base border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"
                 />
-                <Tooltip content="Remove header" wrapperClassName="shrink-0">
+                <Tooltip content="移除请求头" wrapperClassName="shrink-0">
                   <button
                     onClick={() => setHeaderRows((rows) => rows!.filter((_, j) => j !== i))}
                     disabled={apply.status === 'applying'}
@@ -258,11 +258,11 @@ export function PrometheusConnectionForm({
           </button>
         )}
         {headerRows?.length === 0 && (
-          <p className="mt-1 text-xs text-warning-text">Headers will be removed when you click Apply now.</p>
+          <p className="mt-1 text-xs text-warning-text">点击“立即应用”后将移除这些请求头。</p>
         )}
       </section>}
       <div className="mt-4 space-y-1">
-        {onDiscard ? <FormSaveActions dirty={dirty} busy={apply.status === 'applying'} onSave={() => void handleApply()} onDiscard={onDiscard} feedback={feedback} error={apply.status === 'failed' ? apply.error : undefined} /> : <Tooltip content="Save and apply this connection, then check reachability. Applying clears any workload scope override and resumes automatic identity matching.">
+        {onDiscard ? <FormSaveActions dirty={dirty} busy={apply.status === 'applying'} onSave={() => void handleApply()} onDiscard={onDiscard} feedback={feedback} error={apply.status === 'failed' ? apply.error : undefined} /> : <Tooltip content="保存并应用此连接，然后检查是否可访问。应用后会清除工作负载范围覆盖，并恢复自动身份匹配。">
           <button
             type="button"
             onClick={handleApply}
@@ -286,7 +286,7 @@ export function PrometheusConnectionForm({
         ) : apply.status === 'failed' ? (
           <p role="alert" className="text-xs text-semantic-error">Couldn't apply: {apply.error}</p>
         ) : !onApplyOperations ? (
-          <p className="text-xs text-theme-text-tertiary">Saves and applies before checking the connection.</p>
+          <p className="text-xs text-theme-text-tertiary">保存并应用设置后再检查连接。</p>
         ) : null}
         </Collapse>}
       </div>

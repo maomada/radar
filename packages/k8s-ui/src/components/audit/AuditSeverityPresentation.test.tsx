@@ -41,8 +41,8 @@ describe('legacy audit severity presentation', () => {
         onNavigate={() => {}}
       />,
     )
-    expect(html).toMatch(/1(?:<!-- -->)? high/)
-    expect(html).toMatch(/2(?:<!-- -->)? medium/)
+    expect(html).toMatch(/1(?:<!-- -->)? 高风险/)
+    expect(html).toMatch(/2(?:<!-- -->)? 中风险/)
     expect(html).toContain('bg-orange-500/10')
     expect(html).not.toContain('critical')
   })

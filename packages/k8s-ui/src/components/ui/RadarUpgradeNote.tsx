@@ -46,6 +46,17 @@ function target(requirement: RadarUpgradeRequirement): { since?: string; latest?
   return {}
 }
 
+const FEATURE_LABELS: Record<string, string> = {
+  Capacity: '容量',
+  'Drain plans': '驱逐计划',
+  'Policy results': '策略结果',
+  'Drift alerts': '漂移告警',
+}
+
+function featureLabel(feature: string): string {
+  return FEATURE_LABELS[feature] ?? feature
+}
+
 // The Radar that is behind is the cluster's, not the UI the user is looking
 // at, so the copy names the cluster. "It runs dev." says nothing useful, so
 // only a real version is quoted.
@@ -56,7 +67,7 @@ function clusterVersion(requirement: RadarUpgradeRequirement): string | undefine
 
 /** Headline for a full-page state: "Capacity needs a newer Radar on this cluster". */
 export function radarUpgradeHeadline(feature: string): string {
-  return `${feature} needs a newer Radar on this cluster`
+  return `此集群需要更新版本的 Radar 才能使用${featureLabel(feature)}`
 }
 
 /** Detail under that headline: "Available from Radar v1.9. This cluster runs v1.7.2." */
@@ -64,9 +75,9 @@ export function radarUpgradeDetail(requirement: RadarUpgradeRequirement): string
   const { since, latest } = target(requirement)
   const current = clusterVersion(requirement)
   return [
-    since ? `Available from Radar ${since}.` : latest ? `Available in the latest Radar, ${latest}.` : '',
-    current ? `This cluster runs ${current}.` : '',
-  ].filter(Boolean).join(' ')
+    since ? `Radar ${since} 起提供此功能。` : latest ? `最新版本 Radar（${latest}）已提供此功能。` : '',
+    current ? `此集群当前运行 ${current}。` : '',
+  ].filter(Boolean).join('')
 }
 
 /** Follows the feature name in an inline note: "need Radar v1.10 or newer on this cluster. It runs v1.7.2." */
@@ -74,11 +85,11 @@ function radarUpgradeNeed(requirement: RadarUpgradeRequirement): string {
   const { since, latest } = target(requirement)
   const current = clusterVersion(requirement)
   const need = since
-    ? `need Radar ${since} or newer on this cluster.`
+    ? `需要 Radar ${since} 或更高版本。`
     : latest
-      ? `need the latest Radar (${latest}) on this cluster.`
-      : 'need a newer Radar on this cluster.'
-  return current ? `${need} It runs ${current}.` : need
+      ? `需要最新版本的 Radar（${latest}）。`
+      : '需要更新版本的 Radar。'
+  return current ? `${need}此集群当前运行 ${current}。` : need
 }
 
 /** The upgrade call to action, or nothing when the host offers no way to upgrade. */
@@ -88,14 +99,14 @@ export function RadarUpgradeAction({ requirement }: { requirement: RadarUpgradeR
   if (onRequestUpgrade) {
     return (
       <button type="button" className={className} onClick={() => onRequestUpgrade(requirement)}>
-        Upgrade Radar
+        升级 Radar
       </button>
     )
   }
   if (upgradeHref) {
     return (
       <a href={upgradeHref} target="_blank" rel="noopener noreferrer" className={className}>
-        How to upgrade
+        查看升级方法
         <ExternalLink className="h-3 w-3" aria-hidden />
       </a>
     )
@@ -118,8 +129,7 @@ export function RadarUpgradeNote({
     <div className={clsx('flex items-start gap-2 text-xs text-theme-text-secondary', className)}>
       <ArrowUpCircle className="mt-px h-3.5 w-3.5 shrink-0 text-accent-text" aria-hidden />
       <p className="min-w-0">
-        <span className="font-medium text-theme-text-primary">{requirement.feature}</span>
-        {' '}
+        <span className="font-medium text-theme-text-primary">{featureLabel(requirement.feature)}</span>
         {radarUpgradeNeed(requirement)}
         {' '}
         <RadarUpgradeAction requirement={requirement} />

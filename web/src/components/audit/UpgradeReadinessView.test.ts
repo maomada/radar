@@ -8,8 +8,8 @@ describe('UpgradeReadinessError', () => {
   it('maps an unsupported-feature error to the v1.9 upgrade message', () => {
     const html = renderToStaticMarkup(UpgradeReadinessError({ error: new RadarFeatureUnsupportedError('upgradeReadiness', {}) }))
 
-    expect(html).toContain('Upgrade impact needs a newer Radar on this cluster')
-    expect(html).toContain('Available from Radar v1.9.')
+    expect(html).toContain('此集群需要更新版本的 Radar 才能使用Upgrade impact')
+    expect(html).toContain('Radar v1.9 起提供此功能。')
     expect(html).not.toContain('Unable to analyze upgrade impact')
   })
 

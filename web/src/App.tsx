@@ -265,7 +265,7 @@ function radarPageTitle(pathname: string, search = '', apiResources?: APIResourc
   // bare /resources (before it redirects to a default kind) → "Resources".
   if (view === 'resources') {
     const resourceName = decode(pathSegments[1] ?? '')
-    if (!resourceName) return 'Resources'
+    if (!resourceName) return '资源'
     const group = new URLSearchParams(search).get('apiGroup') || ''
     const hostTitle = resourceKindListTitle({ name: resourceName, group })
     if (hostTitle) return hostTitle
@@ -278,21 +278,25 @@ function radarPageTitle(pathname: string, search = '', apiResources?: APIResourc
     return pathSegments[1] === 'detail' ? decode(pathSegments[4] ?? '') || 'GitOps' : 'GitOps'
   if (view === 'applications') {
     const appKey = new URLSearchParams(search).get('app')
-    if (!appKey) return 'Applications'
+    if (!appKey) return '应用'
     const decoded = decode(appKey)
     const slash = decoded.lastIndexOf('/')
     return slash >= 0 && slash < decoded.length - 1 ? decoded.slice(slash + 1) : decoded
   }
 
-  if (view === 'checks' && pathSegments[1] === 'upgrade') return 'Upgrade impact'
+  if (view === 'checks' && pathSegments[1] === 'upgrade') return '升级影响'
+  if (view === 'capacity') return '容量'
 
   // The landing view reads "Overview" rather than "Home" in the tab.
   const workspace = workspaceForView(view)
   if (workspace) return workspace.pageTitle(pathname)
-  if (view === 'home') return 'Overview'
-  // Every other view's label is its id capitalized — getViewFromPath has already
-  // normalized aliases (e.g. /audit → 'checks'), so no lookup table is needed.
-  return capitalize(view)
+  const titles: Partial<Record<ExtendedMainView, string>> = {
+    home: '总览', topology: '拓扑', timeline: '时间线', issues: '问题',
+    traffic: '实时流量', cost: '成本', checks: '检查', compare: '资源对比',
+    capacity: '容量', gitops: 'GitOps',
+    investigations: '诊断', helmCompare: 'Helm 版本对比', helm: 'Helm',
+  }
+  return titles[view] ?? capitalize(view)
 }
 
 function AuthBarrier({ authMode }: { authMode: string }) {
@@ -305,7 +309,7 @@ function AuthBarrier({ authMode }: { authMode: string }) {
   if (authMode === 'oidc') {
     return (
       <PaneLoader
-        label="Redirecting to login…"
+        label="正在跳转到登录页…"
         className="flex-1 min-h-0 bg-theme-base"
       />
     )
@@ -321,7 +325,7 @@ function AuthBarrier({ authMode }: { authMode: string }) {
           </svg>
         </div>
         <div>
-          <p className="text-lg font-medium text-theme-text-primary">Authentication Required</p>
+          <p className="text-lg font-medium text-theme-text-primary">需要身份验证</p>
           <p className="text-sm text-theme-text-secondary mt-2">
             Radar is configured with proxy authentication. Access it through your organization's auth proxy to authenticate.
           </p>
@@ -914,6 +918,20 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     // dedicated mnemonic — listed for exhaustiveness so the type stays total.
     workload: '', compare: '', helmCompare: '', investigations: '', cnpg: '',
   }
+  const VIEW_SHORTCUT_LABELS: Partial<Record<ExtendedMainView, string>> = {
+    home: '首页',
+    resources: '资源',
+    issues: '问题',
+    topology: '拓扑',
+    applications: '应用',
+    timeline: '时间线',
+    traffic: '实时流量',
+    helm: 'Helm',
+    gitops: 'GitOps',
+    checks: '检查',
+    cost: '成本',
+    capacity: '容量',
+  }
   const views = Object.keys(VIEW_SHORTCUT_KEYS).filter(
     (v): v is ExtendedMainView => VIEW_SHORTCUT_KEYS[v as ExtendedMainView] !== '',
   )
@@ -921,7 +939,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     ...views.map((view) => ({
       id: `view-${view}`,
       keys: VIEW_SHORTCUT_KEYS[view],
-      description: `Go to ${view.charAt(0).toUpperCase() + view.slice(1)}`,
+      description: `前往${VIEW_SHORTCUT_LABELS[view] ?? view}`,
       category: 'Navigation' as const,
       scope: 'global' as const,
       handler: () => setMainView(view),
@@ -929,7 +947,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'switch-namespace',
       keys: 'n',
-      description: 'Switch namespace',
+      description: '切换命名空间',
       category: 'Navigation' as const,
       scope: 'global' as const,
       handler: () => namespaceSwitcherRef.current?.open(),
@@ -937,7 +955,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'switch-context',
       keys: 'c',
-      description: 'Switch context',
+      description: '切换上下文',
       category: 'Navigation' as const,
       scope: 'global' as const,
       handler: () => contextSwitcherRef.current?.open(),
@@ -945,7 +963,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'theme-toggle',
       keys: 't',
-      description: 'Toggle dark/light theme',
+      description: '切换深色/浅色主题',
       category: 'General' as const,
       scope: 'global' as const,
       handler: () => toggleTheme(),
@@ -953,7 +971,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'help-toggle',
       keys: '?',
-      description: 'Show keyboard shortcuts',
+      description: '显示键盘快捷键',
       category: 'General' as const,
       scope: 'global' as const,
       // Radar owns the shortcut registry even in a chromeless embed, so its `?`
@@ -965,7 +983,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'command-palette',
       keys: 'Cmd+k',
-      description: 'Search resources & commands',
+      description: '搜索资源和命令',
       category: 'General' as const,
       scope: 'global' as const,
       allowInInputs: true,
@@ -975,7 +993,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'diagnostics',
       keys: 'Ctrl+Shift+d',
-      description: 'Open diagnostics',
+      description: '打开诊断',
       category: 'General' as const,
       scope: 'global' as const,
       allowInInputs: true,
@@ -989,7 +1007,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
       ? [{
           id: 'open-settings',
           keys: 'g s',
-          description: 'Open settings',
+          description: '打开设置',
           category: 'General' as const,
           scope: 'global' as const,
           handler: () => openSettings(),
@@ -1002,7 +1020,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   useRegisterShortcut({
     id: 'help-close',
     keys: 'Escape',
-    description: 'Close overlay',
+    description: '关闭浮层',
     category: 'General',
     scope: 'global',
     handler: () => setShowHelp(false),
@@ -1897,7 +1915,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     type="button"
                     onClick={headerReconnect}
                     disabled={headerReconnectPending}
-                    aria-label={clusterConnectionState === 'disconnected' ? 'Reconnect cluster' : 'Reconnect live updates'}
+                    aria-label={clusterConnectionState === 'disconnected' ? '重新连接集群' : '重新连接实时更新'}
                     className="p-1 text-theme-text-secondary hover:text-theme-text-primary disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <RefreshCw className={`w-3 h-3 ${headerReconnectPending ? 'animate-spin' : ''}`} />
@@ -1956,7 +1974,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             <button
               onClick={() => openLocalTerminal()}
               disabled={!connection.context && connection.state !== 'disconnected'}
-              aria-label="Open local terminal"
+              aria-label="打开本地终端"
               className="p-1.5 rounded-md bg-theme-elevated enabled:hover:bg-theme-hover text-theme-text-secondary enabled:hover:text-theme-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <SquareTerminal className="w-4 h-4" />
@@ -1971,7 +1989,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           <Tooltip content="Keyboard shortcuts (?)">
             <button
               onClick={() => setShowHelp(true)}
-              aria-label="Show keyboard shortcuts"
+              aria-label="显示键盘快捷键"
               className="p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
             >
               <HelpCircle className="w-4 h-4" />
@@ -1980,7 +1998,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           <Tooltip content="Report a bug / Diagnostics">
             <button
               onClick={() => setShowDiagnostics(true)}
-              aria-label="Open diagnostics"
+              aria-label="打开诊断"
               className="p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
             >
               <Bug className="w-4 h-4" />
@@ -2017,7 +2035,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           host hub splash across cross-document transitions. */}
       {!isSwitching && !(authMe?.authEnabled && !authMe?.username) && connection.state === 'connecting' && !shellDuringSync && (
         <PaneLoader
-          label="Connecting to cluster"
+          label="正在连接集群"
           className="flex-1 min-h-0 bg-theme-base"
         >
           {connection.context && (
@@ -2036,7 +2054,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
       {/* Context switching overlay */}
       {isSwitching && (
         <PaneLoader
-          label="Switching context"
+          label="正在切换上下文"
           className="flex-1 min-h-0 bg-theme-base"
         >
           {targetContext && (
@@ -2395,7 +2413,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             issues / gitops with one block since only one view is active. */}
         {viewTakeoverHref && (
           <PaneLoader
-            label="Opening…"
+            label="正在打开…"
             className="flex-1 min-h-0 bg-theme-base"
           />
         )}
@@ -2745,7 +2763,7 @@ function GitHubStarButton() {
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleClick}
-        aria-label={starred ? 'Open Radar on GitHub' : 'Star Radar on GitHub'}
+        aria-label={starred ? '在 GitHub 上打开 Radar' : '在 GitHub 上为 Radar 加星'}
         className="flex items-center gap-1.5 h-7 px-2 rounded-md transition-colors bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary"
       >
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -2801,7 +2819,7 @@ function ThemeToggle() {
     <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
     <button
       onClick={toggleTheme}
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      aria-label={`切换到${theme === 'dark' ? '浅色' : '深色'}主题`}
       className="p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
     >
       {theme === 'dark' ? (

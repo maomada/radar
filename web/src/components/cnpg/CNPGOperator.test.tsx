@@ -11,7 +11,7 @@ it('labels retained operator data after a failed refresh', () => {
   const html = renderToStaticMarkup(<CNPGOperator data={data} fleet={buildCNPGFleet(data)} namespaces={[]} searchParams={new URLSearchParams()} onSetParams={() => {}} onInspect={() => {}} inspected={null} onClearNamespaces={() => {}} />)
   expect(html).toContain('CloudNativePG operator')
   expect(html).toContain('Last refresh failed: Operator timeout')
-  expect(html).toContain('4m ago')
+  expect(html).toContain('4分钟前')
 })
 
 it('renders a known-absent ConfigMap as text and does not claim default settings', () => {

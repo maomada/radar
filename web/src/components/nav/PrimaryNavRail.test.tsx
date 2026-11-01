@@ -16,14 +16,14 @@ function renderRail(whatsNew?: { unread: boolean; onOpen: () => void }) {
 
 describe("PrimaryNavRail", () => {
   it("always surfaces Capacity — the view reads cluster capacity across every node manager, not just Karpenter", () => {
-    expect(renderRail()).toContain("Capacity");
+    expect(renderRail()).toContain("容量");
   });
 
   it("shows What's new only when the host has notes, and marks it while unread", () => {
-    expect(renderRail()).not.toContain("What&#x27;s new");
+    expect(renderRail()).not.toContain("更新内容");
     const read = renderRail({ unread: false, onOpen: () => {} });
-    expect(read).toContain("What&#x27;s new");
-    expect(read).not.toContain("(unread)");
-    expect(renderRail({ unread: true, onOpen: () => {} })).toContain("(unread)");
+    expect(read).toContain("更新内容");
+    expect(read).not.toContain("（未读）");
+    expect(renderRail({ unread: true, onOpen: () => {} })).toContain("（未读）");
   });
 });

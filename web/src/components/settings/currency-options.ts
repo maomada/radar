@@ -19,7 +19,7 @@ const currencyCodes = [
 ]
 
 export const CURRENCY_OPTIONS: SelectMenuOption[] = [
-  { value: '', label: 'Automatic (from the cost source)' },
+  { value: '', label: '自动（使用成本来源的货币）' },
   ...currencyCodes
     .filter((code) => code !== 'XTS' && code !== 'XXX')
     .map((code) => {

@@ -33,13 +33,13 @@ describe('NodeRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Resource Usage')
-    expect(html).toContain('Metrics unavailable')
-    expect(html).toContain('Radar cannot read metrics.k8s.io')
-    expect(html).toContain('Metrics error details')
+    expect(html).toContain('资源使用情况')
+    expect(html).toContain('指标不可用。Radar 无法读取 metrics.k8s.io。')
+    expect(html).toContain('Radar 无法读取 metrics.k8s.io')
+    expect(html).toContain('指标错误详情')
     expect(html).not.toContain('Install or repair metrics-server and its APIService')
-    expect(html).not.toContain('Metrics collection error')
-    expect(html).not.toContain('Collecting metrics data')
+    expect(html).not.toContain('指标采集错误：')
+    expect(html).not.toContain('正在收集指标数据')
   })
 
   it('does not let stale live metrics hide an unavailable state', () => {
@@ -51,7 +51,7 @@ describe('NodeRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics unavailable')
+    expect(html).toContain('指标不可用。Radar 无法读取 metrics.k8s.io。')
     expect(html).not.toContain('100m')
     expect(html).not.toContain('Last updated')
   })
@@ -67,7 +67,7 @@ describe('NodeRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics unavailable')
+    expect(html).toContain('指标不可用。Radar 无法读取 metrics.k8s.io。')
     expect(html).toContain('CPU')
     expect(html).toContain('Memory')
     expect(html).not.toContain('Last updated')
@@ -81,7 +81,7 @@ describe('NodeRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics collection error')
+    expect(html).toContain('指标采集错误：')
     expect(html).toContain('forbidden: no access to nodes')
   })
 
@@ -96,7 +96,7 @@ describe('NodeRenderer metrics', () => {
       />,
     )
 
-    expect(html).toContain('Metrics collection error')
+    expect(html).toContain('指标采集错误：')
     expect(html).toContain('forbidden: no access to nodes')
     expect(html).toContain('CPU')
   })
@@ -111,14 +111,14 @@ describe('NodeRenderer removal advice', () => {
   it('does not give an autoscaler removal an error or uncordon advice', () => {
     const html = renderToStaticMarkup(<NodeRenderer data={removal} />)
     expect(html).toContain('Removing (cluster autoscaler)')
-    expect(html).not.toContain('Issues Detected')
+    expect(html).not.toContain('检测到问题')
     expect(html).not.toContain('Uncordon')
-    expect(html).toContain('Pod and disruption-budget checks are not available')
+    expect(html).toContain('此主机无法获取 Pod 和干扰预算检查结果。')
   })
   it('does not assert who caused a bare cordon', () => {
     const html = renderToStaticMarkup(<NodeRenderer data={{ ...node, spec: { unschedulable: true } }} />)
-    expect(html).toContain('Cordoned')
-    expect(html).toContain('who cordoned it is not recorded')
+    expect(html).toContain('已禁止调度')
+    expect(html).toContain('系统未记录是谁禁止了调度')
     expect(html).not.toContain('Uncordon to resume')
   })
   it('keeps observed readiness False neutral when it follows the removal start', () => {
@@ -126,7 +126,7 @@ describe('NodeRenderer removal advice', () => {
     expect(html).toContain('Removing (cluster autoscaler)')
     expect(html).toContain('Kubelet stopped posting')
     expect(html).not.toContain('1 failing')
-    expect(html).not.toContain('Issues Detected')
+    expect(html).not.toContain('检测到问题')
   })
   it('shows named possible PDB blockers and terminating pods without invented progress', () => {
     const html = renderToStaticMarkup(<NodeRenderer data={removal} removalPlan={{
@@ -141,7 +141,7 @@ describe('NodeRenderer removal advice', () => {
     expect(html).toContain('2 pods in the current snapshot')
     expect(html).toContain('1 terminating')
     expect(html).toContain('shop/web')
-    expect(html).toContain('may block removal')
+    expect(html).toContain('可能阻止节点移除')
     expect(html).not.toContain('evicted')
   })
   it('uses warning tone for independent network failure during removal', () => {
@@ -167,7 +167,7 @@ describe('NodeRenderer removal advice', () => {
   })
   it('reports unavailable drain evidence as unavailable', () => {
     const html = renderToStaticMarkup(<NodeRenderer data={removal} removalPlanError="forbidden: cannot list pods" />)
-    expect(html).toContain('Drain details unavailable')
+    expect(html).toContain('驱逐详情不可用')
     expect(html).toContain('forbidden: cannot list pods')
     expect(html).not.toContain('0 pods')
   })
@@ -177,7 +177,7 @@ describe('NodeRenderer removal advice', () => {
       options: { ignoreDaemonSets: true, deleteEmptyDirData: true, force: true },
       summary: { evict: 0, skip: 0, mayBlock: 0 }, pdbsEvaluated: true, pods: [],
     }} />)
-    expect(html).toContain('Drain details unavailable')
+    expect(html).toContain('驱逐详情不可用')
     expect(html).not.toContain('0 pods in the current snapshot')
   })
 })

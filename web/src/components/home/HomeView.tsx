@@ -104,13 +104,13 @@ export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNav
   const { data: helmData } = useDashboardHelm(namespaces)
 
   if (isLoading) {
-    return <PaneLoader label="Loading dashboard…" className="flex-1 min-h-0" />
+    return <PaneLoader label="加载总览…" className="flex-1 min-h-0" />
   }
 
   if (error || !data) {
     return (
       <div className="flex-1 flex items-center justify-center text-theme-text-secondary">
-        <p>Failed to load dashboard data</p>
+        <p>无法加载总览数据</p>
       </div>
     )
   }
@@ -122,7 +122,7 @@ export function HomeView({ namespaces, topology, fallbackClusterLoadState, onNav
           <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
             <Shield className="w-6 h-6 text-amber-500" />
           </div>
-          <p className="text-lg font-medium text-theme-text-primary">No Namespace Access</p>
+          <p className="text-lg font-medium text-theme-text-primary">无命名空间访问权限</p>
           <p className="text-sm text-theme-text-secondary">
             Your account does not have access to any namespaces in this cluster. Contact your administrator to add a Kubernetes RoleBinding or ClusterRoleBinding for your user.
           </p>
@@ -356,7 +356,7 @@ export function ProblemsPanel({
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50 shrink-0">
         <div className="flex items-center gap-2">
           <AlertTriangle className={clsx('w-4 h-4', titleClass)} />
-          <span className={clsx('text-xs font-semibold uppercase tracking-wider', titleClass)}>Active Issues</span>
+          <span className={clsx('text-xs font-semibold uppercase tracking-wider', titleClass)}>活跃问题</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -364,10 +364,10 @@ export function ProblemsPanel({
             className="rounded-md px-2 py-1 text-xs font-medium text-accent-text transition-colors hover:bg-accent-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-radar-accent,var(--accent))]/40"
             onClick={onNavigateToIssues}
           >
-            View all
+            查看全部
           </button>
           {isRefreshing && !isLoading && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-theme-text-tertiary" aria-label="Refreshing issues" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-theme-text-tertiary" aria-label="正在刷新问题" />
           )}
           <span className={clsx('badge rounded-full', countClass)}>{countLabel}</span>
         </div>
@@ -376,20 +376,20 @@ export function ProblemsPanel({
         {isLoading ? (
           <ProblemsPanelState
             icon={<Loader2 className="h-5 w-5 animate-spin text-theme-text-tertiary" />}
-            title="Loading issues"
+            title="正在加载问题"
             body="Checking live cluster issues for the selected scope."
           />
         ) : hasHardError ? (
           <ProblemsPanelState
             icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
-            title="Issues unavailable"
+            title="问题不可用"
             body={formatIssueError(error)}
           />
         ) : (
           <>
             {!!error && (
               <ProblemsPanelNotice tone="warning">
-                Issue refresh failed. Showing the last successful result.
+                问题刷新失败，显示上次成功的结果。
               </ProblemsPanelNotice>
             )}
             {visibility?.impact && (
@@ -416,13 +416,13 @@ export function ProblemsPanel({
                     ? <AlertTriangle className="h-5 w-5 text-amber-500" />
                     : <CheckCircle className="h-5 w-5 text-green-500" />
                 }
-                title={hasLimitedVisibility ? 'No visible active issues' : unchecked ? 'No issues found' : 'No active issues'}
+                title={hasLimitedVisibility ? '没有可见的活跃问题' : unchecked ? '未找到问题' : '没有活跃问题'}
                 body={
                   hasLimitedVisibility
                     ? 'Radar could not read every workload source in this scope.'
                     : unchecked
                       ? uncheckedLines.join(' ')
-                      : 'No critical or warning issues across the selected scope.'
+                      : '所选范围内没有严重或警告问题。'
                 }
                 action={unchecked && !hasLimitedVisibility ? <UncheckedSourceHelp onRetry={onRetryIssues} isRefreshing={isRefreshing} /> : undefined}
               />
@@ -524,5 +524,5 @@ function ProblemsPanelNotice({ tone, children }: { tone: 'warning' | 'neutral'; 
 function formatIssueError(error: unknown): string {
   return error instanceof Error && error.message
     ? error.message
-    : 'Failed to load active issues.'
+    : '无法加载活跃问题。'
 }
