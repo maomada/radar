@@ -331,7 +331,7 @@ export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false, execTo
               <p className="text-xs text-theme-text-tertiary">
                 <code className="inline-code">exec_pod</code> 已禁用。Radar 运维人员可通过使用 <code className="inline-code">--mcp-exec-tools</code>{' '}
                 且不使用 <code className="inline-code">--disable-exec</code> 重启来启用容器命令。请参阅{' '}
-                <a href="https://github.com/skyhook-io/radar/blob/main/docs/mcp.md#exec_pod"
+                <a href="https://github.com/maomada/radar/blob/main/docs/mcp.md#exec_pod"
                   target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
                   配置选项
                 </a>{' '}以了解 Desktop 和 Helm 配置。Kubernetes 权限仍然适用。
@@ -372,7 +372,7 @@ export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false, execTo
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-theme-border/50 shrink-0">
           <a
-            href="https://github.com/skyhook-io/radar/blob/main/docs/mcp.md"
+            href="https://github.com/maomada/radar/blob/main/docs/mcp.md"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-theme-text-tertiary hover:text-purple-400 transition-colors"

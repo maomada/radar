@@ -29,7 +29,7 @@ describe('Radar version helpers', () => {
   })
 
   it('routes in-cluster upgrades to instructions instead of release notes', () => {
-    const releaseURL = 'https://github.com/skyhook-io/radar/releases/tag/v1.2.4'
+    const releaseURL = 'https://github.com/maomada/radar/releases/tag/v1.2.4'
     expect(versionUpdateURL('in-cluster', releaseURL)).toBe(IN_CLUSTER_UPGRADE_URL)
     expect(versionUpdateURL('local', releaseURL)).toBe(releaseURL)
     expect(versionUpdateURL('cloud', releaseURL)).toBeUndefined()

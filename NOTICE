@@ -1,0 +1,12 @@
+Radar (maomada/radar)
+
+This independently maintained project is derived from Skyhook Radar:
+https://github.com/skyhook-io/radar
+
+Original project attribution: Radar was built and maintained by Skyhook.
+Original authors' copyright and attribution notices remain applicable.
+This distribution includes modifications maintained by maomada and is not an
+official Skyhook distribution. The original Git history is retained.
+
+Distributed under the Apache License, Version 2.0; see LICENSE.
+Third-party code retains its respective license and attribution notices.

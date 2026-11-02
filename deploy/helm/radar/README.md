@@ -1,9 +1,13 @@
 # Radar Helm Chart
 
-Fork images and charts are published only by the manual workflow documented in
-[`docs/ci-cd.md`](../../../docs/ci-cd.md); no published fork version is
-implied by this source checkout. Upstream installers and update feeds do not
-deliver fork releases.
+Images and charts for this repository are published only by the manual
+workflow documented in [`docs/ci-cd.md`](../../../docs/ci-cd.md); this source
+checkout does not imply any version has been published. CLI installers and
+direct update checks use this repository's GitHub releases. An unreadable
+release lookup reports an error; the installer fails if its CLI archive or
+checksum is missing. Package-manager
+identifiers remain compatibility names, not a claim that those feeds provide
+this project's releases.
 
 Deploy Radar to your Kubernetes cluster for web-based cluster visualization and management.
 
@@ -111,7 +115,8 @@ bound to no Gateway.
 
 ### Connecting to Radar Cloud
 
-To connect Radar to Radar Cloud (hosted SaaS), follow the install wizard at
+Radar Cloud is an optional external service, not operated by this repository's
+maintainers. To connect Radar to the hosted service, follow the install wizard at
 [radarhq.io](https://radarhq.io) — it generates the full command with your
 cluster's bearer token. The wizard's command follows this shape:
 
@@ -469,7 +474,7 @@ trend charts remain unavailable for Kubecost.
 | `portalRegistration.existingSecret` | Name of a Secret containing this Radar's registration token | `""` |
 | `portalRegistration.tokenKey` | Key within `portalRegistration.existingSecret` holding the token | `token` |
 | `mcp.execTools` | Opt in to `exec_pod` (`--mcp-exec-tools`); requires exec access. With auth off, every reachable client shares Radar’s ServiceAccount permissions. Ignored with `--disable-exec` or `--mcp-read-only` | `false` |
-| `usageReporting.enabled` | Anonymous daily usage stats: views, actions and MCP tools used, plus this cluster's version, platform, node-count range and known integrations. Off unless `true`; Radar never asks in a cluster ([what is sent](https://radarhq.io/docs/configuration/usage-stats)) | unset |
+| `usageReporting.enabled` | Anonymous daily usage stats: views, actions and MCP tools used, plus this cluster's version, platform, node-count range and known integrations. Off unless `true`; Radar never asks in a cluster ([what is sent](../../../docs/usage-stats.md)) | unset |
 | `resources.requests.cpu` | CPU request | `200m` |
 | `resources.requests.memory` | Memory request | `256Mi` |
 | `resources.limits.cpu` | CPU limit | `2` |

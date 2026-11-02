@@ -46,7 +46,7 @@ interface UpgradeReadinessViewProps {
 }
 
 const FINDING_CAP = 8
-export const UPGRADE_IMPACT_DOCS_URL = 'https://radarhq.io/docs/features/upgrade-impact'
+export const UPGRADE_IMPACT_DOCS_URL = 'https://github.com/maomada/radar#kubernetes-upgrade-impact'
 
 const statusMeta: Record<UpgradeReadinessCheckStatus, {
   label: string

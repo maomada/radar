@@ -104,7 +104,7 @@ describe('rightsizing presentation', () => {
     expect(RIGHTSIZING_METHODOLOGY).toContain('CPU P95 and memory maximum')
     expect(RIGHTSIZING_METHODOLOGY).toContain('Reductions are staged')
     expect(RIGHTSIZING_METHODOLOGY).toContain('Radar does not change requests')
-    expect(RIGHTSIZING_DOCS_URL).toContain('/features/rightsizing')
+    expect(RIGHTSIZING_DOCS_URL).toContain('github.com/maomada/radar/blob/main/docs/mcp.md#cost-and-rightsizing-evidence-limits')
   })
 })
 

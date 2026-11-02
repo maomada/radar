@@ -213,15 +213,15 @@ func createMenu(desktopApp *DesktopApp, version, goos string) *menu.Menu {
 			runtime.MessageDialog(desktopApp.ctx, runtime.MessageDialogOptions{
 				Type:    runtime.InfoDialog,
 				Title:   "About Radar",
-				Message: "Radar — Kubernetes Visibility Tool\nBuilt by Skyhook\n\nVersion: " + version + "\n\nhttps://github.com/skyhook-io/radar",
+				Message: "Radar — Kubernetes Visibility Tool\nIndependently maintained by maomada\nOriginally created by Skyhook; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
 			})
 		})
 	}
 	helpMenu.AddText("Documentation", nil, func(_ *menu.CallbackData) {
-		runtime.BrowserOpenURL(desktopApp.ctx, "https://github.com/skyhook-io/radar#readme")
+		runtime.BrowserOpenURL(desktopApp.ctx, "https://github.com/maomada/radar#readme")
 	})
 	helpMenu.AddText("GitHub Repository", nil, func(_ *menu.CallbackData) {
-		runtime.BrowserOpenURL(desktopApp.ctx, "https://github.com/skyhook-io/radar")
+		runtime.BrowserOpenURL(desktopApp.ctx, "https://github.com/maomada/radar")
 	})
 
 	return appMenu

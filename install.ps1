@@ -1,9 +1,10 @@
 # Radar installer for Windows
-# Usage: irm https://raw.githubusercontent.com/skyhook-io/radar/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/maomada/radar/main/install.ps1 | iex
+# Requires published CLI release assets in maomada/radar; GHCR images are separate.
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "skyhook-io/radar"
+$Repo = "maomada/radar"
 $BinaryName = "kubectl-radar.exe"
 $InstallDir = "$env:LOCALAPPDATA\radar"
 

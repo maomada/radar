@@ -1,20 +1,20 @@
 # Radar
 
-<a href="https://www.producthunt.com/products/radar-7?embed=true&utm_source=badge-top-post-badge&utm_medium=badge&utm_campaign=badge-radar-42edb7b0-e388-4fa8-9ba5-4876c2c0d638" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=1130618&theme=neutral&period=daily" alt="Radar - The missing open-source Kubernetes UI | Product Hunt" width="250" height="54" /></a>
-
 **The missing open-source Kubernetes UI.**
-<br>Single binary. No account required. Free forever.
+<br>Single binary. No account required. Apache-2.0 licensed.
 
-🌐 **[radarhq.io](https://radarhq.io)** · [Docs](https://radarhq.io/docs) · [Releases](https://github.com/skyhook-io/radar/releases)
+This repository is independently maintained by maomada and continues the
+Radar project originally created by Skyhook. See [NOTICE](NOTICE) for
+preserved attribution and [LICENSE](LICENSE) for the Apache-2.0 terms.
+
+[Source](https://github.com/maomada/radar) · [Documentation](docs/) ·
+[Issues](https://github.com/maomada/radar/issues) ·
+[Releases](https://github.com/maomada/radar/releases)
 
 Topology, resources, Helm, GitOps, traffic, audit, upgrade impact, and MCP context for AI agents — from your laptop or in-cluster.
 
-[![CI](https://github.com/skyhook-io/radar/actions/workflows/ci.yml/badge.svg)](https://github.com/skyhook-io/radar/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/skyhook-io/radar/actions/workflows/codeql.yml/badge.svg)](https://github.com/skyhook-io/radar/actions/workflows/codeql.yml)
-[![Release](https://img.shields.io/github/v/release/skyhook-io/radar?logo=github)](https://github.com/skyhook-io/radar/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/skyhook-io/radar/total?logo=github)](https://github.com/skyhook-io/radar/releases)
-[![Helm repo downloads](https://img.shields.io/github/downloads/skyhook-io/helm-charts/total?logo=helm&label=Helm%20repo%20downloads)](https://artifacthub.io/packages/helm/skyhook/radar)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://radarhq.io/community/chat)
+[![CI](https://github.com/maomada/radar/actions/workflows/ci.yml/badge.svg)](https://github.com/maomada/radar/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/maomada/radar/actions/workflows/codeql.yml/badge.svg)](https://github.com/maomada/radar/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 
@@ -36,11 +36,20 @@ Topology, resources, Helm, GitOps, traffic, audit, upgrade impact, and MCP conte
   <img src="docs/screenshot.png" alt="Radar Screenshot" width="800">
 </p>
 
-**Install and run in 30 seconds:**
+**Build from this source:**
 ```bash
-curl -fsSL https://get.radarhq.io | sh && kubectl radar
+git clone https://github.com/maomada/radar.git
+cd radar
+make deps
+make build VERSION=dev
+./radar
+
+# Optional: build the standalone Portal binary
+make portal VERSION=dev
 ```
-[More installation options ↓](#installation)
+[In-cluster deployment](docs/in-cluster.md) is available from an owned Helm
+chart version only after that version has actually been published. See the
+[distribution and release policy](docs/ci-cd.md).
 
 ## Why Radar?
 
@@ -54,94 +63,20 @@ curl -fsSL https://get.radarhq.io | sh && kubectl radar
 - **AI-ready** — built-in [MCP server](docs/mcp.md) lets AI agents inspect, investigate, and operate your cluster through Radar
 - **In-cluster option** — deploy with Helm for shared team access with RBAC-scoped permissions
 
-> "Have Radar deployed at work. As far as Kubernetes dashboards go, this is one of the best." — u/TheRealNetroxen
-
 ---
 
 ## Installation
 
-**Quick Install:**
-```bash
-curl -fsSL https://get.radarhq.io | sh
-```
+There are currently no published CLI release assets or package-manager feeds
+for this independently maintained repository. The included installers use
+only `maomada/radar` releases and fail closed when the required CLI assets are
+absent; GHCR images do not provide those assets. Build from source as shown
+above, or see the [CI/CD guide](docs/ci-cd.md) for the separately gated OCI
+distribution process.
 
-**Homebrew:**
-```bash
-brew install kubectl-radar
-```
-
-Also available from our tap: `brew install skyhook-io/tap/radar`.
-
-Then run: `kubectl radar`. Quick install, PowerShell, Homebrew, and Scoop also set up the `radar` shorthand. Krew and direct downloads use `kubectl radar` unless you add your own `radar` symlink.
-
-<details>
-<summary><b>More install options</b> — Desktop App (macOS/Linux/Windows), Krew, Scoop, In-Cluster Helm</summary>
-
-#### CLI
-
-**Krew (kubectl plugin manager):**
-```bash
-kubectl krew install radar
-```
-
-**Scoop (Windows):**
-```powershell
-scoop bucket add skyhook https://github.com/skyhook-io/scoop-bucket
-scoop install radar
-```
-
-**PowerShell (Windows):**
-```powershell
-irm https://get.radarhq.io/install.ps1 | iex
-```
-
-**Custom install location (macOS/Linux):**
-```bash
-curl -fsSL https://get.radarhq.io | INSTALL_DIR="$HOME/.local/bin" sh
-```
-Quick install writes to `/usr/local/bin` unless `INSTALL_DIR` says otherwise. The directory is created if missing, and needs to be on your `PATH` for `radar` and `kubectl radar` to resolve.
-
-**Direct download** — [GitHub Releases](https://github.com/skyhook-io/radar/releases) for macOS, Linux, or Windows.
-
-#### Desktop App
-
-Native desktop app — no terminal needed.
-
-**Homebrew (macOS):**
-```bash
-brew install --cask skyhook-io/tap/radar-desktop
-```
-
-**Debian/Ubuntu** — download the `.deb` from [GitHub Releases](https://github.com/skyhook-io/radar/releases), then:
-```bash
-sudo apt install ./radar-desktop_*.deb
-```
-
-**Fedora/RHEL** — download the `.rpm` from [GitHub Releases](https://github.com/skyhook-io/radar/releases), then:
-```bash
-sudo rpm -i radar-desktop_*.rpm
-```
-
-**Scoop (Windows):**
-```powershell
-scoop bucket add skyhook https://github.com/skyhook-io/scoop-bucket
-scoop install radar-desktop
-```
-
-**Windows (direct download)** — [GitHub Releases](https://github.com/skyhook-io/radar/releases).
-
-#### In-Cluster Deployment
-
-Deploy to your cluster for shared team access:
-
-```bash
-helm repo add skyhook https://skyhook-io.github.io/helm-charts
-helm install radar skyhook/radar -n radar --create-namespace
-```
-
-See the [In-Cluster Deployment Guide](docs/in-cluster.md) for Gateway API and ingress exposure, authentication, and RBAC configuration.
-
-</details>
+For shared team access, follow the [in-cluster deployment guide](docs/in-cluster.md)
+and use only an owned chart version that the manual release workflow actually
+published.
 
 ---
 
@@ -151,11 +86,12 @@ See the [In-Cluster Deployment Guide](docs/in-cluster.md) for Gateway API and in
 # Opens browser automatically
 kubectl radar
 
-# Quick install, PowerShell, Homebrew, and Scoop also set up the bare command
+# Run the standalone command built from this source tree
 radar
 ```
 
-To inspect an in-cluster Radar Cloud installation without changing it:
+To inspect an installation connected to the external Radar Cloud service
+without changing it:
 
 ```bash
 radar cloud status
@@ -173,7 +109,7 @@ output) for plain text. URLs, tokens, and suggested commands remain unstyled.
 
 **CLI Flags**
 
-The table below covers common startup flags. See the [full CLI reference](https://radarhq.io/docs/configuration/cli); `radar --help` is authoritative for the installed version.
+The table below covers common startup flags. See the [Configuration Guide](docs/configuration.md); `radar --help` is authoritative for the installed version.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -478,7 +414,7 @@ Open **Checks → Upgrade impact** before upgrading the control plane. Radar com
 - Scans every namespace the current identity can read; the header namespace picker remains a browsing filter and does not narrow upgrade analysis
 - Shows the bundled catalog boundary and the evidence scope for sampled or unavailable data
 
-See the [Kubernetes upgrade impact guide](https://radarhq.io/docs/features/upgrade-impact) for the check catalog, coverage semantics, and RBAC notes.
+The view describes its check catalog, evidence coverage, and RBAC limitations alongside each result.
 
 ### Access Control (RBAC visibility)
 
@@ -493,7 +429,7 @@ Inspect what any ServiceAccount can actually do — without three `kubectl descr
 - **"My Permissions" panel**: namespace-scoped live `SelfSubjectRulesReview` for the current user — for fast "why can't I do X" debugging
 - **MCP**: `get_subject_permissions` tool exposes the same data to AI agents for "is this SA over-privileged?" / "blast radius if compromised?" queries
 
-Read-only visibility ships first; the considered follow-ups (RBAC audit checks, verb × resource matrix, subject explorer, graph view, in-UI edits, "can-i" queries) are tracked in [#1090](https://github.com/skyhook-io/radar/issues/1090).
+Read-only visibility ships first; possible follow-ups include RBAC audit checks, a verb × resource matrix, a subject explorer, graph view, in-UI edits, and "can-i" queries.
 
 ### AI Integration (MCP)
 
@@ -602,17 +538,17 @@ Upgrade impact also gets list-only access to CSIStorageCapacities, FlowSchemas, 
 
 ## Security
 
-Radar reads your cluster through your own credentials and keeps cluster data local. It does not upload manifests, logs, events, metrics, or resource data to Skyhook, and it does not require an account, agent, or cloud backend. Found a vulnerability? Please report it privately to **security@skyhook.io** — see [SECURITY.md](SECURITY.md) for the process and response timelines.
+Radar reads your cluster through your own credentials and keeps cluster data local. It does not upload manifests, logs, events, metrics, or resource data. Optional, opt-in usage reports are separate; see [Usage Stats](docs/usage-stats.md) for their contents and destination. Radar does not require an account, agent, or cloud backend. Report vulnerabilities privately through this repository's [Security Advisories](https://github.com/maomada/radar/security/advisories/new); see [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Development
 
-See the **[Development Guide](DEVELOPMENT.md)** for building from source and contributing. For automation and integrations, see the [HTTP API reference](https://radarhq.io/docs/reference/api).
+See the **[Development Guide](DEVELOPMENT.md)** for building from source and contributing. Route definitions in [`internal/server/server.go`](internal/server/server.go) are the HTTP API source of truth.
 
 Quick start:
 ```bash
-git clone https://github.com/skyhook-io/radar.git
+git clone https://github.com/maomada/radar.git
 cd radar
 make deps
 
@@ -627,17 +563,9 @@ make watch-backend
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on the development workflow, pull request process, and coding standards.
+Contributions are welcome. Please read the [Contributing Guide](CONTRIBUTING.md) for development workflow, pull requests, and coding standards.
 
-Questions or ideas? [GitHub Discussions](https://github.com/skyhook-io/radar/discussions) is the place — or come say hi at [radarhq.io/community](https://radarhq.io/community).
-
----
-
-## About
-
-Radar is built and maintained by [Skyhook](https://skyhook.io) (YC W23) and is open source under Apache-2.0. The OSS version is fully featured and the recommended way to run Radar.
-
-For teams that want hosted multi-cluster Radar with SSO and shared dashboards, we also offer [Radar Cloud](https://radarhq.io).
+Questions or ideas? Open an [issue](https://github.com/maomada/radar/issues).
 
 ---
 
@@ -648,7 +576,7 @@ Apache 2.0 — see [LICENSE](LICENSE)
 ---
 
 <p align="center">
-  <strong>Open source. Free forever.</strong>
+  <strong>Open source.</strong>
   <br>
-  <sub>Built by <a href="https://skyhook.io">Skyhook</a></sub>
+  <sub>Independently maintained by maomada</sub>
 </p>

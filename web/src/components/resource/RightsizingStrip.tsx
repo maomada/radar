@@ -12,7 +12,7 @@ import {
 import { Tooltip } from '../ui/Tooltip'
 
 const RIGHTSIZING_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet'])
-export const RIGHTSIZING_DOCS_URL = 'https://radarhq.io/docs/features/rightsizing'
+export const RIGHTSIZING_DOCS_URL = 'https://github.com/maomada/radar/blob/main/docs/mcp.md#cost-and-rightsizing-evidence-limits'
 export const RIGHTSIZING_SUMMARY =
   'Evidence-based guidance for this workload, not a savings estimate or automatic change.'
 export const RIGHTSIZING_METHODOLOGY =

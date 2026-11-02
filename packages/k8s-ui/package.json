@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/skyhook-io/radar",
+    "url": "https://github.com/maomada/radar",
     "directory": "packages/k8s-ui"
   },
   "type": "module",

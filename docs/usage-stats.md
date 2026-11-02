@@ -1,9 +1,9 @@
 # Usage stats
 
-Anonymous and strictly opt-in: usage stats show us which features get used, so
-we know what to build next. They go straight to us, with no third-party
-trackers, and never include names, contents, logs or the resources in your
-clusters.
+Anonymous and strictly opt-in. The current client sends enabled usage reports
+to `usage.radarhq.io`, an external service not operated by this repository's
+maintainers. Reports do not include names, contents, logs or the resources in
+your clusters.
 
 Settings > Privacy shows the exact report before anything is sent.
 
@@ -48,10 +48,11 @@ groups Radar doesn't recognize, since they may be your own.
 
 ## Where it goes
 
-Straight to `usage.radarhq.io`. Radar has no third-party trackers. The
-receiver rejects anything that isn't a report like the one above, and stores
-each report in our product analytics (PostHog) under a new random ID, without
-your IP address or its location. It is not used for sales.
+Reports are sent to `usage.radarhq.io`. The existing receiver rejects anything
+that isn't a report like the one above and stores reports in its product
+analytics service (PostHog) under a new random ID, without your IP address or
+its location. This destination is external to this repository; opt-in
+reporting can be disabled in Settings or Helm as described below.
 
 ## Turning it off
 

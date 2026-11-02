@@ -57,7 +57,7 @@ export function WorkloadMetricsHelpDialog({ onClose, ...props }: Props) {
         <WorkloadMetricsHelpContent {...props} />
       </div>
       <footer className="shrink-0 border-t border-theme-border px-6 py-3">
-        <a className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline" href="https://github.com/skyhook-io/radar/blob/main/docs/workload-metrics.md#what-each-chart-needs" target="_blank" rel="noopener noreferrer">
+        <a className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline" href="https://github.com/maomada/radar/blob/main/docs/workload-metrics.md#what-each-chart-needs" target="_blank" rel="noopener noreferrer">
           What each chart needs <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
         </a>
       </footer>

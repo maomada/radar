@@ -9,14 +9,13 @@
   "frontend:dev:serverUrl": "auto",
   "build:dir": "../../build",
   "author": {
-    "name": "Skyhook",
-    "email": "support@skyhook.io"
+    "name": "maomada"
   },
   "info": {
-    "companyName": "Skyhook",
+    "companyName": "maomada",
     "productName": "Radar",
     "productVersion": "0.0.0",
-    "copyright": "Copyright Skyhook. All rights reserved.",
+    "copyright": "Copyright Skyhook. All rights reserved. Modifications maintained by maomada; see NOTICE.",
     "comments": "Kubernetes Visibility Tool"
   }
 }

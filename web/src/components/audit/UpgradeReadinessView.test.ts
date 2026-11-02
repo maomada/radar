@@ -64,7 +64,7 @@ describe('upgradeEvaluationSummary', () => {
   })
 
   it('links to the documented catalog rather than inventing a second catalog in the UI', () => {
-    expect(UPGRADE_IMPACT_DOCS_URL).toContain('/features/upgrade-impact')
+    expect(UPGRADE_IMPACT_DOCS_URL).toContain('github.com/maomada/radar#kubernetes-upgrade-impact')
   })
 
   it('counts incomplete evidence even when a blocker takes status precedence', () => {

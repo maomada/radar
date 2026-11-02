@@ -147,7 +147,7 @@ export function PrometheusChartsGrid({
           </div>
           {previousNote && <p className="mt-3 text-xs text-theme-text-secondary">{previousNote}</p>}
           {!settingsAvailable && <p className="mt-3 text-xs text-theme-text-tertiary">Ask your operator to configure the metrics connection for this cluster.</p>}
-          {isWorkload && <a className="mt-3 inline-block text-xs text-accent hover:underline" href="https://github.com/skyhook-io/radar/blob/main/docs/workload-metrics.md#what-each-chart-needs" target="_blank" rel="noopener noreferrer">What each chart needs</a>}
+          {isWorkload && <a className="mt-3 inline-block text-xs text-accent hover:underline" href="https://github.com/maomada/radar/blob/main/docs/workload-metrics.md#what-each-chart-needs" target="_blank" rel="noopener noreferrer">What each chart needs</a>}
         </div>
       </div>
     );

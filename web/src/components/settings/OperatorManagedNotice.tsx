@@ -9,7 +9,7 @@ export function OperatorManagedNotice({ helmValue }: { helmValue?: string }) {
         <p className="mt-1 text-xs text-theme-text-secondary">
           如需更改这些设置，请联系运维人员更新
           {helmValue ? <> <code className="font-mono">{helmValue}</code> Helm 值。</> : ' Radar 的 Helm 值或启动配置。'}
-          {' '}<a className="text-accent hover:underline" href="https://github.com/skyhook-io/radar/blob/main/docs/in-cluster.md#installation-settings" target="_blank" rel="noreferrer">配置指南</a>
+          {' '}<a className="text-accent hover:underline" href="https://github.com/maomada/radar/blob/main/docs/in-cluster.md#installation-settings" target="_blank" rel="noreferrer">配置指南</a>
         </p>
       </div>
     </div>

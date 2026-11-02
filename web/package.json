@@ -4,7 +4,7 @@
   "description": "Radar's full web UI as a reusable React component. Used by Radar's own binary and by external consumers like Radar Cloud.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/skyhook-io/radar",
+    "url": "https://github.com/maomada/radar",
     "directory": "web"
   },
   "license": "Apache-2.0",

@@ -65,11 +65,11 @@ export function DiagnosticsOverlay({ onClose, isOpen = true, focus }: Diagnostic
   const openBugReport = useCallback(() => {
     if (!data) return
     const body = formatForBugReport(data, getK8sUIPerfSnapshot())
-    const url = `https://github.com/skyhook-io/radar/issues/new?labels=bug&body=${encodeURIComponent(body)}`
+    const url = `https://github.com/maomada/radar/issues/new?labels=bug&body=${encodeURIComponent(body)}`
     if (url.length > 8000) {
       // URL too long for GitHub — copy diagnostics to clipboard and open blank issue
       navigator.clipboard.writeText(body).catch(() => {})
-      openExternal('https://github.com/skyhook-io/radar/issues/new?labels=bug&template=bug_report.md')
+      openExternal('https://github.com/maomada/radar/issues/new?labels=bug&template=bug_report.md')
       setCopied('formatted')
       setTimeout(() => setCopied(null), 2000)
       return

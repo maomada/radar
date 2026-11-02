@@ -344,7 +344,7 @@ func main() {
 			TitleBar: mac.TitleBarDefault(),
 			About: &mac.AboutInfo{
 				Title:   "Radar",
-				Message: "Kubernetes Visibility Tool\nBuilt by Skyhook\n\nVersion: " + version + "\n\nhttps://github.com/skyhook-io/radar",
+				Message: "Kubernetes Visibility Tool\nIndependently maintained by maomada\nOriginally created by Skyhook; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
 			},
 		},
 

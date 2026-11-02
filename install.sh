@@ -1,6 +1,7 @@
 #!/bin/sh
 # Radar installer
-# Usage: curl -fsSL https://get.radarhq.io | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh
+# Requires published CLI release assets in maomada/radar; GHCR images are separate.
 #
 # Always use the explicit https:// scheme — without it curl defaults to
 # port 80 and accepts a 308 redirect to https, which lets a network
@@ -13,7 +14,7 @@
 
 set -e
 
-REPO="skyhook-io/radar"
+REPO="maomada/radar"
 BINARY_NAME="kubectl-radar"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 

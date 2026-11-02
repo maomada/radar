@@ -21,6 +21,10 @@ env:
   GOFLAGS: ${{ github.event_name == 'push' && '-count=1' || '' }}
 
 jobs:
+  installers:
+    name: Installer regression tests
+    uses: ./.github/workflows/installers.yml
+
   # Decides which jobs a PR needs from every file it changes, not only those in
   # the latest push. Pushes to main, and any PR touching .github/,
   # run every job, so a gap in these filters surfaces on main at the latest.

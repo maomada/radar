@@ -13,7 +13,7 @@ export interface VersionUpdateStatus {
   majorVersionBehind?: boolean
 }
 
-export const IN_CLUSTER_UPGRADE_URL = 'https://radarhq.io/docs/configuration/in-cluster'
+export const IN_CLUSTER_UPGRADE_URL = 'https://github.com/maomada/radar/blob/main/docs/in-cluster.md'
 
 export function versionUpdateURL(deploymentMode: DeploymentMode, releaseURL?: string): string | undefined {
   if (deploymentMode === 'cloud') return undefined

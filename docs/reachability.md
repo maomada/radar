@@ -6,7 +6,12 @@ The **Reachability** tab in the resource detail view answers one question for a 
 
 Available in Radar **v1.9.1+** (the in-cluster probe test also requires the probe image from v1.9.1+).
 
-Naming note: this is NOT the [AI Investigations feature](https://radarhq.io/docs/features/diagnose) - Reachability is deterministic path tracing and live probing, no AI involved. The general-purpose MCP `diagnose` tool returns a bounded, point-in-time evidence bundle for a narrowed workload or reconciler, and returns this reachability trace when pointed at a network entry kind - see [MCP](#mcp).
+Naming note: this is NOT the AI Investigations feature described in the
+[MCP documentation](https://github.com/maomada/radar/blob/main/docs/mcp.md) -
+Reachability is deterministic path tracing and live probing, no AI involved.
+The general-purpose MCP `diagnose` tool returns a bounded, point-in-time
+evidence bundle for a narrowed workload or reconciler, and returns this
+reachability trace when pointed at a network entry kind - see [MCP](#mcp).
 
 The trace has two layers:
 
@@ -185,7 +190,7 @@ The in-cluster test runs a short-lived Job whose container executes `radar probe
 1. **Explicit override** - `--reachability-image` flag / `reachabilityImage` config. Always wins.
 2. **Self-read** - radar's OWN running pod image, read from `MY_POD_NAME` / `MY_POD_NAMESPACE` (downward API) using radar's service account. The honest default: the probe runs the *same* image as radar, so it's automatically correct for private registries, mirrors, and digest-pinned deploys.
 3. **`RADAR_IMAGE` env** - the Helm chart sets this to radar's deployed image; a no-RBAC fallback for when self-read can't run.
-4. **Version-matched published image** - `ghcr.io/skyhook-io/radar:<version>`, where `<version>` is radar's own build version.
+4. **Version-matched owned image** - `ghcr.io/maomada/radar:<version>` when that version has been published, where `<version>` is Radar's own build version.
 
 The image must ship the radar binary at `/radar` (the Job runs `["/radar","probe",...]`) - every official radar image does.
 
