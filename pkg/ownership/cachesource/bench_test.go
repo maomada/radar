@@ -7,8 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/ownership"
 )
 
 // BenchmarkDependentCandidatesWithManyUnwatchedKinds is a search on a cluster

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/capacityapi"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )

@@ -4,8 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // OwnerState is what one owner reference resolves to, judged as Kubernetes'

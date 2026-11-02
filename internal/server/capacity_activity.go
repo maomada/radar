@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	internaltimeline "github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
-	"github.com/skyhook-io/radar/pkg/karpenter"
-	"github.com/skyhook-io/radar/pkg/timeline"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	internaltimeline "github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/karpenter"
+	"github.com/maomada/radar/pkg/timeline"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

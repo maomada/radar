@@ -1,8 +1,8 @@
 package audit
 
 import (
-	"github.com/skyhook-io/radar/pkg/checks"
-	"github.com/skyhook-io/radar/pkg/rolloutdiag"
+	"github.com/maomada/radar/pkg/checks"
+	"github.com/maomada/radar/pkg/rolloutdiag"
 )
 
 // CheckMeta is a check's static definition (human-readable context). Aliased

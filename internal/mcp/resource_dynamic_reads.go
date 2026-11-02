@@ -9,13 +9,13 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readplan"
-	"github.com/skyhook-io/radar/internal/summarycontext"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readplan"
+	"github.com/maomada/radar/internal/summarycontext"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // listDynamicResources lists a kind the dynamic cache serves. namespaces is

@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // SummaryOptions configures the compact per-result enrichment produced by

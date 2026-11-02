@@ -42,40 +42,40 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connectionruntime"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/images"
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/internal/traffic"
-	"github.com/skyhook-io/radar/internal/updater"
-	"github.com/skyhook-io/radar/internal/upgrade"
-	"github.com/skyhook-io/radar/internal/usagedata"
-	"github.com/skyhook-io/radar/internal/version"
-	"github.com/skyhook-io/radar/pkg/argoapi"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/conditions"
-	"github.com/skyhook-io/radar/pkg/hpadiag"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/perfstats"
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/rbac"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	topology "github.com/skyhook-io/radar/pkg/topology"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connectionruntime"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/images"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/internal/traffic"
+	"github.com/maomada/radar/internal/updater"
+	"github.com/maomada/radar/internal/upgrade"
+	"github.com/maomada/radar/internal/usagedata"
+	"github.com/maomada/radar/internal/version"
+	"github.com/maomada/radar/pkg/argoapi"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/hpadiag"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/perfstats"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/rbac"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceid"
+	topology "github.com/maomada/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 // Server is the Explorer HTTP server
@@ -243,12 +243,8 @@ func New(cfg Config) *Server {
 	if err != nil {
 		log.Fatalf("Invalid base path %q: %v", cfg.BasePath, err)
 	}
-	if cfg.CloudConnect.HubAPIURL == "" {
-		cfg.CloudConnect.HubAPIURL = "https://api.radarhq.io"
-	}
-	if cfg.CloudConnect.HubAppURL == "" {
-		cfg.CloudConnect.HubAppURL = "https://app.radarhq.io"
-	}
+	cfg.CloudConnect.HubAPIURL = ""
+	cfg.CloudConnect.HubAppURL = ""
 	s := &Server{
 		router:                  chi.NewRouter(),
 		broadcaster:             NewSSEBroadcaster(),
@@ -373,7 +369,7 @@ func New(cfg Config) *Server {
 				log.Fatalf("[auth] --auth-oidc-client-id is required when auth-mode=oidc")
 			}
 			if s.authConfig.OIDCClientSecret == "" {
-				log.Fatalf("[auth] OIDC client secret is required when auth-mode=oidc (set --auth-oidc-client-secret flag or RADAR_OIDC_CLIENT_SECRET env var)")
+				log.Fatalf("[auth] OIDC client secret is required when auth-mode=oidc (set --auth-oidc-client-secret flag or KUBEATLAS_OIDC_CLIENT_SECRET env var)")
 			}
 			if s.authConfig.OIDCRedirectURL == "" {
 				log.Fatalf("[auth] --auth-oidc-redirect-url is required when auth-mode=oidc")
@@ -478,7 +474,7 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 	// Note: Timeout middleware is applied per-group below to exempt streaming endpoints
 
 	// gzip response compression (content-type aware: JSON yes, SSE/WS no).
-	// nil when RADAR_COMPRESS_LEVEL=0. See compress.go.
+	// nil when KUBEATLAS_COMPRESS_LEVEL=0. See compress.go.
 	if cm := compressMiddleware(); cm != nil {
 		r.Use(cm)
 	}
@@ -570,8 +566,8 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 		// request. Either can legitimately outlast 60s on a slow link, and
 		// being killed mid-flight is worse than waiting. Both carry their own
 		// bound (see cloudInstallHandlerTimeout).
-		r.Post("/cloud/install/prepare", s.handleCloudInstallPrepare)
-		r.Post("/cloud/install/start", s.handleCloudInstallStart)
+		r.Post("/cloud/install/prepare", s.handleCloudUnavailable)
+		r.Post("/cloud/install/start", s.handleCloudUnavailable)
 
 		// All other API routes get a 60-second timeout
 		r.Group(func(r chi.Router) {
@@ -607,10 +603,10 @@ func (s *Server) setupAppRoutes(r chi.Router) {
 			// In-product Cloud Connect driver lane; every handler re-checks
 			// the gate (local + no auth + no tunnel). prepare/start are
 			// registered above, outside the 60s timeout.
-			r.Get("/cloud/install/status", s.handleCloudInstallStatus)
-			r.Get("/cloud/install/discover", s.handleCloudInstallDiscover)
-			r.Post("/cloud/install/cancel", s.handleCloudInstallCancel)
-			r.Post("/cloud/install/dismiss", s.handleCloudInstallDismiss)
+			r.Get("/cloud/install/status", s.handleCloudUnavailable)
+			r.Get("/cloud/install/discover", s.handleCloudUnavailable)
+			r.Post("/cloud/install/cancel", s.handleCloudUnavailable)
+			r.Post("/cloud/install/dismiss", s.handleCloudUnavailable)
 			r.Get("/cloud/connect/self", s.handleCloudConnectSelf)
 			r.Get("/topology", s.handleTopology)
 			r.Get("/gitops/tree/{kind}/{namespace}/{name}", s.handleGitOpsTree)
@@ -1233,7 +1229,7 @@ func rewriteFrontendIndex(body []byte, basePath string) []byte {
 		return body
 	}
 
-	runtimeScript := `<script>window.__RADAR_RUNTIME_CONFIG__=` + string(cfgJSON) + `;</script>`
+	runtimeScript := `<script>window.__KUBEATLAS_RUNTIME_CONFIG__=` + string(cfgJSON) + `;</script>`
 	if strings.Contains(html, `<script type="module"`) {
 		html = strings.Replace(html, `<script type="module"`, runtimeScript+"\n    "+`<script type="module"`, 1)
 	} else {
@@ -5738,7 +5734,7 @@ func memoizedAuthorizer(base func(group, resource, namespace, verb string) (bool
 
 // cloudMode reports whether Radar is running under Radar Cloud. Reads
 // the resolved deployment mode from internal/cloud (which normalizes
-// the RADAR_CLOUD_MODE env var via strconv.ParseBool, so common typos
+// the KUBEATLAS_CLOUD_MODE env var via strconv.ParseBool, so common typos
 // like "True" / "1" don't silently degrade to OSS mode). When true,
 // user-scoped settings fields (theme, pinnedKinds) are owned by
 // Cloud's user_preferences table — not settings.json — because a
@@ -5846,7 +5842,7 @@ type configResponse struct {
 	KubecostEnvManaged bool   `json:"kubecostEnvManaged,omitempty"`
 	KubecostEnvError   string `json:"kubecostEnvError,omitempty"`
 	// ArgoCDEnvManaged marks the integration as provisioned from the environment
-	// (RADAR_ARGOCD_TOKEN / _TOKEN_FILE) — the UI renders it read-only, since the
+	// (KUBEATLAS_ARGOCD_TOKEN / _TOKEN_FILE) — the UI renders it read-only, since the
 	// PUT handler refuses changes to a declaratively-configured integration.
 	ArgoCDEnvManaged bool `json:"argoCdEnvManaged,omitempty"`
 	// ArgoCDEnvError is set when environment provisioning was attempted but failed

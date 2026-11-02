@@ -1,6 +1,6 @@
 // Provides the active timeline data source to the timeline wrappers.
 //
-// Radar's binary never sets a source, so the default is the local event store
+// KubeAtlas's binary never sets a source, so the default is the local event store
 // (GET {apiBase}/changes) — unchanged OSS behavior. A host embedding RadarApp
 // behind a proxy that serves retained history passes `timelineSource` on
 // RadarApp; this provider resolves it once and hands the timeline wrappers a

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	topology "github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/k8s"
+	topology "github.com/maomada/radar/pkg/topology"
 )
 
 // The topology worker exists so that a multi-second topology build never runs

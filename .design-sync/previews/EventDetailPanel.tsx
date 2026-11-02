@@ -1,4 +1,4 @@
-import { EventDetailPanel, type TimelineEvent } from '@skyhook-io/k8s-ui'
+import { EventDetailPanel, type TimelineEvent } from '@maomada/k8s-ui'
 
 const T0 = Date.now() - 18 * 60_000
 const at = (sec: number) => new Date(T0 + sec * 1000).toISOString()

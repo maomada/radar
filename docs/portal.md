@@ -1,49 +1,51 @@
-# Self-hosted Radar Portal
+# Self-hosted KubeAtlas Portal
 
-Fork releases use the owned OCI images and charts described in
-[`ci-cd.md`](ci-cd.md). Upstream installers, update feeds, and library
-identities do not deliver fork releases.
+This repository's OCI images and charts are available only for versions
+actually published by the manual workflow described in [`ci-cd.md`](ci-cd.md).
+CLI installer scripts and direct update checks use this repository's GitHub
+releases, while historical Go module and npm package identities remain
+compatibility names rather than a source of CLI release artifacts.
 
-Radar Portal is an optional, independent registry and viewer for multiple
-Radar instances, including in-cluster installations and explicitly configured
-local CLI or Desktop processes. Each eligible Radar reports its own metadata
+KubeAtlas Portal is an optional, independent registry and viewer for multiple
+KubeAtlas instances, including in-cluster installations and explicitly configured
+local CLI or Desktop processes. Each eligible KubeAtlas reports its own metadata
 outbound; the Portal does not connect to, scrape, proxy, or health-check those
-Radars. Registration does not change a Radar listener or expose a local Radar
+Radars. Registration does not change a KubeAtlas listener or expose a local KubeAtlas
 to the network.
 
-The Portal and its reporter are not present in older Radar binaries. Build and
-deploy a Radar binary/image that includes this feature; configuring Helm alone
+The Portal and its reporter are not present in older KubeAtlas binaries. Build and
+deploy a KubeAtlas binary/image that includes this feature; configuring Helm alone
 cannot add it to an older image. The Portal is a separate executable and can
-be deployed independently from the Radar workloads.
+be deployed independently from the KubeAtlas workloads.
 
 ## How registration works
 
-The reporter is inert by default. Local and in-cluster Radar processes opt in
-through configuration; Radar Cloud is excluded. Cloud is checked before Portal
+The reporter is inert by default. Local and in-cluster KubeAtlas processes opt in
+through configuration; upstream Cloud is excluded. Cloud is checked before Portal
 environment variables are parsed. MCP catalog-only and stdio modes do not
 register. An opted-in process registers immediately and sends an update every
 30 seconds. Requests have bounded timeouts and do not follow redirects. Portal
-downtime is retried in the background and does not prevent Radar startup.
+downtime is retried in the background and does not prevent KubeAtlas startup.
 
 The Portal's `online`/`stale` state is based only on its server-side last-seen
 timestamp, with a 90-second stale threshold. It indicates whether the reporter
 has recently reached the Portal; it is not a health signal for the Kubernetes
-cluster or Radar UI. A Radar can be healthy while stale if the Portal is
-unreachable, and a recent registration does not prove Radar health.
+cluster or KubeAtlas UI. A KubeAtlas can be healthy while stale if the Portal is
+unreachable, and a recent registration does not prove KubeAtlas health.
 
-The stable configured ID and display name identify one Radar process/instance,
+The stable configured ID and display name identify one KubeAtlas process/instance,
 not every Kubernetes context it can select. Each heartbeat also reports its
 runtime mode (`local` or `in-cluster`), current kube context, and current
 Kubernetes cluster name. A context switch updates that instance's existing
 record; it does not change its ID, token, or configured display name. Portal
-links and MCP endpoints address the Radar's currently selected context and are
+links and MCP endpoints address the KubeAtlas's currently selected context and are
 not pinned to the last heartbeat snapshot.
 
-Other metadata includes description, environment, region, public Radar URL,
-Radar version, effective connection state, effective auth mode, and effective
+Other metadata includes description, environment, region, public KubeAtlas URL,
+KubeAtlas version, effective connection state, effective auth mode, and effective
 MCP mode/endpoints. It does not include kubeconfig, Kubernetes credentials,
 errors, progress messages, health-check results, or node counts. Metadata is
-derived from operator configuration and Radar's effective runtime settings,
+derived from operator configuration and KubeAtlas's effective runtime settings,
 not from browser input.
 
 ## Build the Portal image
@@ -51,7 +53,7 @@ not from browser input.
 From the repository root:
 
 ```bash
-docker build -f Dockerfile.portal --target full -t radar-portal:local .
+docker build -f Dockerfile.portal --target full -t kubeatlas-portal:local .
 ```
 
 For an owned fork image, use a version actually published by the manual
@@ -81,10 +83,10 @@ After a version is published by the manual workflow, install the owned OCI
 chart and reference your existing Secret:
 
 ```bash
-helm upgrade --install radar-portal oci://ghcr.io/maomada/charts/radar-portal \
-  --namespace radar-portal --create-namespace \
+helm upgrade --install kubeatlas-portal oci://ghcr.io/maomada/charts/kubeatlas-portal \
+  --namespace kubeatlas-portal --create-namespace \
   --version "$VERSION" \
-  --set existingSecret=radar-portal-auth
+  --set existingSecret=kubeatlas-portal-auth
 ```
 
 The chart requires exactly one replica, uses a `Recreate` strategy, and always
@@ -104,13 +106,13 @@ plaintext connections.
 The Portal UI, API, and embedded assets are served at the host root. Use a
 dedicated hostname with ingress path `/` and `pathType: Prefix`; the Portal
 chart rejects subpath ingress. Do not configure a reverse-proxy prefix for the
-Portal. Public Radar and MCP target URLs may still include path prefixes.
+Portal. Public KubeAtlas and MCP target URLs may still include path prefixes.
 
-## Configure Radar registration
+## Configure KubeAtlas registration
 
-The Radar Helm chart defaults `portalRegistration.enabled` to `false`. For
-each in-cluster Radar instance, set a unique stable ID and the matching
-token-map entry in the Portal Secret. Configure the Radar's token in an
+The KubeAtlas Helm chart defaults `portalRegistration.enabled` to `false`. For
+each in-cluster KubeAtlas instance, set a unique stable ID and the matching
+token-map entry in the Portal Secret. Configure the KubeAtlas's token in an
 existing Secret; never put the token itself in Helm values:
 
 ```yaml
@@ -138,7 +140,7 @@ roots. The Portal URL must not contain credentials, query parameters, or
 fragments. Public `radarUrl` and `mcpBaseUrl` may include a path prefix, but
 must not contain credentials, query parameters, or fragments.
 
-The reporter derives MCP mode from the effective Radar configuration:
+The reporter derives MCP mode from the effective KubeAtlas configuration:
 
 - `full`: reports both the public MCP endpoint ending in `/mcp` and the
   read-only endpoint ending in `/mcp-readonly`.
@@ -147,55 +149,55 @@ The reporter derives MCP mode from the effective Radar configuration:
 
 `mcpBaseUrl` is the public base prefix used for constructing these endpoints;
 when unset, it defaults to `radarUrl`. Ensure the public ingress routes those
-paths to Radar. Portal registration does not relay or store credentials used
-to authenticate to Radar, its MCP endpoint, or the Kubernetes API. Radar's
+paths to KubeAtlas. Portal registration does not relay or store credentials used
+to authenticate to KubeAtlas, its MCP endpoint, or the Kubernetes API. KubeAtlas's
 normal authentication configuration remains independent of the Portal's
 viewer login.
 
 ### Local CLI and Desktop
 
-Set the following environment variables in the local Radar process to opt in.
+Set the following environment variables in the local KubeAtlas process to opt in.
 The token must match the Portal token-map entry for the stable instance ID:
 
 ```text
-RADAR_PORTAL_URL=https://portal.example.com
-RADAR_PORTAL_TOKEN=<instance-token>
-RADAR_PORTAL_CLUSTER_ID=dev-laptop
-RADAR_PORTAL_CLUSTER_NAME=Developer laptop
-RADAR_PORTAL_RADAR_URL=https://radar.example.com:9280
+KUBEATLAS_PORTAL_URL=https://portal.example.com
+KUBEATLAS_PORTAL_TOKEN=<instance-token>
+KUBEATLAS_PORTAL_CLUSTER_ID=dev-laptop
+KUBEATLAS_PORTAL_CLUSTER_NAME=Developer laptop
+KUBEATLAS_PORTAL_RADAR_URL=https://radar.example.com:9280
 ```
 
 These are the required Portal settings:
 
-- `RADAR_PORTAL_URL`: root-hosted Portal URL.
-- `RADAR_PORTAL_TOKEN`: the instance's bearer token.
-- `RADAR_PORTAL_CLUSTER_ID`: stable ID matching the Portal token map.
-- `RADAR_PORTAL_CLUSTER_NAME`: stable operator-chosen display name.
-- `RADAR_PORTAL_RADAR_URL`: URL viewers' browsers can reach for this Radar.
+- `KUBEATLAS_PORTAL_URL`: root-hosted Portal URL.
+- `KUBEATLAS_PORTAL_TOKEN`: the instance's bearer token.
+- `KUBEATLAS_PORTAL_CLUSTER_ID`: stable ID matching the Portal token map.
+- `KUBEATLAS_PORTAL_CLUSTER_NAME`: stable operator-chosen display name.
+- `KUBEATLAS_PORTAL_RADAR_URL`: URL viewers' browsers can reach for this KubeAtlas.
 
-Optional metadata and endpoint settings are `RADAR_PORTAL_DESCRIPTION`,
-`RADAR_PORTAL_ENVIRONMENT`, `RADAR_PORTAL_REGION`,
-`RADAR_PORTAL_MCP_BASE_URL`, and `RADAR_PORTAL_ALLOW_HTTP=true`. Use a Secret
+Optional metadata and endpoint settings are `KUBEATLAS_PORTAL_DESCRIPTION`,
+`KUBEATLAS_PORTAL_ENVIRONMENT`, `KUBEATLAS_PORTAL_REGION`,
+`KUBEATLAS_PORTAL_MCP_BASE_URL`, and `KUBEATLAS_PORTAL_ALLOW_HTTP=true`. Use a Secret
 manager or process environment injection for tokens; do not commit real tokens
 or passwords to configuration files.
 
 The Portal reporter is outbound-only and does not change the local listener.
-The Portal user must be able to reach `RADAR_PORTAL_RADAR_URL` directly from
+The Portal user must be able to reach `KUBEATLAS_PORTAL_RADAR_URL` directly from
 their browser. A `localhost` or `127.0.0.1` target refers to each viewer's own
-machine, not necessarily the machine running Radar. Radar's CLI can use a
+machine, not necessarily the machine running KubeAtlas. KubeAtlas's CLI can use a
 configured port; Desktop may fall back to a different port if its configured
 or remembered port is busy. For Portal links, choose a stable configured
 Desktop port and keep it available, or update the public URL when the port
 changes.
 
-Do not expose an unauthenticated local Radar on an untrusted network. If a
+Do not expose an unauthenticated local KubeAtlas on an untrusted network. If a
 local instance must be reachable by remote Portal viewers, configure an
-appropriate trusted network path, TLS termination, and Radar authentication
+appropriate trusted network path, TLS termination, and KubeAtlas authentication
 (for example, proxy or OIDC) independently of Portal viewer authentication.
-The Portal does not relay Radar credentials or proxy requests to the target.
+The Portal does not relay KubeAtlas credentials or proxy requests to the target.
 
 `portalRegistration.enabled` cannot be combined with `cloud.enabled`. The
-Portal reporter is intentionally disabled for Radar Cloud mode.
+Portal reporter is intentionally disabled for upstream Cloud mode.
 
 ## Access, rotation, and revocation
 
@@ -220,12 +222,12 @@ limited to 20 per minute across the Portal, and active sessions are capped at
 Secure cookies are enabled by default, including behind a TLS-terminating
 proxy; the server does not trust forwarded headers to disable this protection.
 For local HTTP development only, after securely provisioning the existing
-`RADAR_PORTAL_USERNAME`, `RADAR_PORTAL_PASSWORD`, and `RADAR_PORTAL_TOKENS`
+`KUBEATLAS_PORTAL_USERNAME`, `KUBEATLAS_PORTAL_PASSWORD`, and `KUBEATLAS_PORTAL_TOKENS`
 environment variables, run:
 
 ```bash
 make portal
-./radar-portal --listen 127.0.0.1:9290 --insecure-cookie
+./kubeatlas-portal --listen 127.0.0.1:9290 --insecure-cookie
 ```
 
 The `--insecure-cookie` option is rejected for non-loopback listen addresses.
@@ -237,9 +239,9 @@ Bearer token bound to that same ID. The list is restricted to IDs currently
 present in the Portal token map, and is sorted by ID. No delete API is
 provided.
 
-When rotating a registration token, update both the Radar-side Secret and
+When rotating a registration token, update both the KubeAtlas-side Secret and
 Portal token-map Secret through the secret manager, then roll out/restart the
-affected Radar and Portal. The Portal rejects duplicate token values. To
+affected KubeAtlas and Portal. The Portal rejects duplicate token values. To
 revoke visibility, remove the ID from the Portal token map and restart the
 Portal; this hides that record from viewer reads but does not delete the
 persisted record. Re-adding the ID makes it visible again. Viewer credentials
@@ -248,4 +250,4 @@ can be rotated by updating the Secret and restarting the Portal.
 Use HTTPS for viewer access and registration traffic. The Portal itself does
 not terminate TLS. Keep it behind a trusted TLS
 terminator, restrict network access as appropriate, and do not disable
-certificate verification in the Radar reporter.
+certificate verification in the KubeAtlas reporter.

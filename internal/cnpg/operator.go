@@ -11,9 +11,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/imageutil"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/imageutil"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 const (

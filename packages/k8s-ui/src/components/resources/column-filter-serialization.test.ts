@@ -94,6 +94,16 @@ describe('column filter include/exclude operator', () => {
     expect(parseColumnFilterExcludes('__proto__:exclude:Running')).toEqual({})
   })
 
+  it('keeps decoded reserved keys out and retains null prototypes', () => {
+    const param = '%5F%5Fproto%5F%5F:exclude:x|constructor:exclude:x|prototype:exclude:x|label%3Atier:exclude:web'
+    const filters = parseColumnFilters(param)
+    const excludes = parseColumnFilterExcludes(param)
+    expect(filters).toEqual({ 'label:tier': ['web'] })
+    expect(excludes).toEqual({ 'label:tier': true })
+    expect(Object.getPrototypeOf(filters)).toBeNull()
+    expect(Object.getPrototypeOf(excludes)).toBeNull()
+  })
+
   it('lets the last segment win the mode when a column repeats', () => {
     expect(parseColumnFilters('status:exclude:Running|status:Completed')).toEqual({ status: ['Completed'] })
     expect(parseColumnFilterExcludes('status:exclude:Running|status:Completed')).toEqual({})

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 var compactBase = time.Date(2026, 10, 16, 4, 43, 24, 0, time.FixedZone("", 3*3600))

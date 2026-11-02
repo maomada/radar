@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/yaml"
 
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 // WorkloadRevision represents a single revision in a workload's rollout history.

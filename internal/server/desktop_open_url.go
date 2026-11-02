@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/version"
 )
 
 // handleDesktopOpenURL opens a URL in the user's system browser.

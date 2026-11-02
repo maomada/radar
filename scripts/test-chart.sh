@@ -11,8 +11,8 @@
 
 set -euo pipefail
 
-CHART_DIR="$(cd "$(dirname "$0")/.." && pwd)/deploy/helm/radar"
-PORTAL_CHART_DIR="$(cd "$(dirname "$0")/.." && pwd)/deploy/helm/radar-portal"
+CHART_DIR="$(cd "$(dirname "$0")/.." && pwd)/deploy/helm/kubeatlas"
+PORTAL_CHART_DIR="$(cd "$(dirname "$0")/.." && pwd)/deploy/helm/kubeatlas-portal"
 FAIL=0
 CASE=""
 
@@ -39,18 +39,31 @@ assert_not_contains() {
 render() {
   CASE="$1"; shift
   echo "  Case: $CASE"
-  OUT=$(helm template radar "$CHART_DIR" "$@" 2>&1) || {
+OUT=$(helm template radar "$CHART_DIR" "$@" 2>&1) || {
     fail "helm template failed"
     echo "$OUT" | sed 's/^/      /'
     return
   }
 }
 
+reject_cloud() {
+  CASE="$1"; shift
+  echo "  Case: $CASE"
+  if OUT=$(helm template kubeatlas "$CHART_DIR" "$@" 2>&1); then
+    fail "cloud.enabled unexpectedly rendered"
+  elif grep -Fq "cloud.enabled is unavailable in KubeAtlas" <<< "$OUT"; then
+    pass "deployment surface rejects legacy Cloud"
+  else
+    fail "Cloud render failed for an unexpected reason"
+    echo "$OUT" | sed 's/^/      /'
+  fi
+}
+
 render_portal() {
   CASE="$1"; shift
   echo "  Case: $CASE"
-  OUT=$(helm template radar-portal "$PORTAL_CHART_DIR" \
-    --set image.repository=example.test/radar-portal \
+  OUT=$(helm template kubeatlas-portal "$PORTAL_CHART_DIR" \
+    --set image.repository=example.test/kubeatlas-portal \
     --set existingSecret=portal-auth "$@" 2>&1) || {
     fail "helm template failed"
     echo "$OUT" | sed 's/^/      /'
@@ -69,7 +82,7 @@ render "defaults — no self-upgrade RBAC"
 assert_contains '--listen-address=0.0.0.0'          "shared listener explicitly enabled"
 assert_not_contains '^kind: Role$'                  "no namespaced Role"
 assert_not_contains '^kind: RoleBinding$'           "no namespaced RoleBinding"
-assert_not_contains 'radar-self-upgrade'            "no self-upgrade Role/RoleBinding"
+assert_not_contains 'radar-kubeatlas-self-upgrade'            "no self-upgrade Role/RoleBinding"
 assert_contains 'MY_POD_NAMESPACE'                  "identity ships for read-only self-description"
 assert_contains 'MY_DEPLOYMENT_NAME'                "identity ships for read-only self-description"
 assert_not_contains '--opencost-currency='          "default OpenCost currency flag omitted"
@@ -111,29 +124,28 @@ assert_differs() {
 
 rbac_checksum "checksum/rbac — defaults"
 DEFAULT_CHECKSUM=$CHECKSUM
-DEFAULT_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar") | .rules' <<< "$OUT")
+DEFAULT_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar-kubeatlas") | .rules' <<< "$OUT")
 if [[ "$DEFAULT_CHECKSUM" =~ ^[0-9a-f]{64}$ ]]; then pass "pod template carries an RBAC checksum"
 else fail "pod template carries an RBAC checksum — got: $DEFAULT_CHECKSUM"; fi
 rbac_checksum "checksum/rbac — Secrets reads enabled" --set rbac.secrets=true
 SECRETS_CHECKSUM=$CHECKSUM
 assert_differs "$SECRETS_CHECKSUM" "$DEFAULT_CHECKSUM" "enabling Secrets and VictoriaMetrics reads rolls the pod"
-ADDED_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar") | .rules | map(select(.apiGroups[0] == "operator.victoriametrics.com" or (.apiGroups[0] == "" and .resources[0] == "secrets" and .resourceNames == null)))' <<< "$OUT")
+ADDED_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar-kubeatlas") | .rules | map(select(.apiGroups[0] == "operator.victoriametrics.com" or (.apiGroups[0] == "" and .resources[0] == "secrets" and .resourceNames == null)))' <<< "$OUT")
 assert_same "$ADDED_RULES" '[{"apiGroups":[""],"resources":["secrets"],"verbs":["get","list","watch"]},{"apiGroups":["operator.victoriametrics.com"],"resources":["vmagents","vmclusters","vmsingles"],"verbs":["get","list","watch"]}]' "enabling Secrets adds exactly the Secrets and VictoriaMetrics read rules"
-REMAINING_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar") | .rules | map(select(.apiGroups[0] != "operator.victoriametrics.com" and (.apiGroups[0] != "" or .resources[0] != "secrets" or .resourceNames != null)))' <<< "$OUT")
+REMAINING_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar-kubeatlas") | .rules | map(select(.apiGroups[0] != "operator.victoriametrics.com" and (.apiGroups[0] != "" or .resources[0] != "secrets" or .resourceNames != null)))' <<< "$OUT")
 assert_same "$REMAINING_RULES" "$DEFAULT_RULES" "enabling Secrets leaves every other collector rule unchanged"
 rbac_checksum "checksum/rbac — Secrets reads turned back off" --set rbac.secrets=false
 assert_differs "$CHECKSUM" "$SECRETS_CHECKSUM"         "disabling Secrets and VictoriaMetrics reads rolls the pod"
 assert_same "$CHECKSUM" "$DEFAULT_CHECKSUM"           "explicit false matches the default checksum"
-DISABLED_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar") | .rules' <<< "$OUT")
+DISABLED_RULES=$(yq -o=json -I=0 'select(.kind == "ClusterRole" and .metadata.name == "radar-kubeatlas") | .rules' <<< "$OUT")
 assert_same "$DISABLED_RULES" "$DEFAULT_RULES"         "explicit false matches all default collector rules"
 rbac_checksum "checksum/rbac — unrelated values" \
   --set image.tag=v0.0.0-test \
   --set resources.limits.memory=2Gi \
   --set podAnnotations.team=platform
 assert_same "$CHECKSUM" "$DEFAULT_CHECKSUM"           "non-RBAC changes do not roll the pod"
-rbac_checksum "checksum/rbac — cloud mode" \
+reject_cloud "checksum render rejects Cloud" \
   --set cloud.enabled=true --set cloud.url=wss://x --set cloud.token=t --set cloud.clusterName=c
-assert_same "$CHECKSUM" "$DEFAULT_CHECKSUM"           "checksum renders in cloud mode too"
 echo
 
 render "cost.currency — explicit OpenCost currency label" --set cost.currency=GBP
@@ -147,7 +159,7 @@ render "timeline.storage=postgres — DSN from operator-managed Secret, no PVC m
   --set timeline.postgres.secretKey=uri
 assert_contains '--timeline-storage=postgres'       "postgres storage arg"
 assert_contains '--timeline-retention=720h'         "postgres retention arg"
-assert_contains 'name: RADAR_TIMELINE_POSTGRES_DSN' "DSN env injected"
+assert_contains 'name: KUBEATLAS_TIMELINE_POSTGRES_DSN' "DSN env injected"
 assert_contains 'name: app-db-credentials'          "DSN secret name"
 assert_contains 'key: uri'                          "DSN secret key"
 assert_not_contains 'mountPath: /data'              "no SQLite PVC mount"
@@ -192,20 +204,29 @@ echo
 render "rbac.selfUpgrade=true — full feature wiring" --set rbac.selfUpgrade=true
 assert_contains '^kind: Role$'                      "namespaced Role emitted"
 assert_contains '^kind: RoleBinding$'               "namespaced RoleBinding emitted"
-assert_contains 'name: radar-self-upgrade$'         "names match fullname-self-upgrade convention"
-assert_contains 'resourceNames: \["radar"\]'        "Role restricted via resourceNames to the Deployment"
+assert_contains 'name: radar-kubeatlas-self-upgrade$'         "names match fullname-self-upgrade convention"
+assert_contains 'resourceNames: \["radar-kubeatlas"\]'        "Role restricted via resourceNames to the Deployment"
 assert_contains 'verbs: \["get", "patch"\]'         "verbs scoped to get+patch"
 assert_contains 'apiGroups: \["apps"\]'             "apiGroup scoped to apps"
 assert_contains 'resources: \["deployments"\]'      "resource scoped to deployments"
-assert_contains 'name: radar$'                      "RoleBinding subject is radar SA"
+assert_contains 'name: radar-kubeatlas$'                      "RoleBinding subject is radar SA"
 assert_contains 'MY_POD_NAMESPACE'                  "downward-API namespace env var injected"
 assert_contains 'fieldPath: metadata.namespace'     "namespace sourced from downward API"
 assert_contains 'MY_DEPLOYMENT_NAME'                "deployment-name env var injected"
 echo
 
-render "cloud.enabled=true alone — does NOT auto-enable self-upgrade" \
+reject_cloud "cloud.enabled=true is unavailable" \
   --set cloud.enabled=true --set cloud.url=wss://x --set cloud.token=t --set cloud.clusterName=c
-assert_not_contains 'radar-self-upgrade'            "no Role/RoleBinding without explicit opt-in"
+echo
+
+reject_cloud "legacy enrollment configuration is unavailable" \
+  --set cloud.enabled=true --set cloud.hubURL=https://hub.example.test \
+  --set cloud.enrollment.key=test-key --set cloud.clusterName=c
+echo
+
+reject_cloud "user-token Cloud mode is unavailable" \
+  --set cloud.enabled=true --set cloud.url=wss://x --set cloud.token=t \
+  --set auth.mode=proxy --set auth.kubernetesCredentials=user-token
 echo
 
 render "rbac.create=false + rbac.selfUpgrade=true — feature still works" \
@@ -223,71 +244,51 @@ assert_contains 'MY_POD_NAMESPACE'                  "env vars injected — featu
 echo
 
 render "defaults — no helm-write footprint"
-assert_not_contains 'name: radar-helm$'                  "no helm add-on ClusterRole"
-assert_not_contains 'name: radar-helm-admin$'            "no helm-admin ClusterRole"
-assert_not_contains 'name: radar-cloud-owner-helm$'      "no cloud helm bindings"
-assert_not_contains 'name: radar-cloud-member-helm$'     "no cloud helm bindings"
-assert_not_contains 'name: radar-cloud-owner-helm-admin' "no cloud helm-admin bindings"
+assert_not_contains 'name: radar-kubeatlas-helm$'                  "no helm add-on ClusterRole"
+assert_not_contains 'name: radar-kubeatlas-helm-admin$'            "no helm-admin ClusterRole"
+assert_not_contains 'name: radar-kubeatlas-cloud-owner-helm$'      "no cloud helm bindings"
+assert_not_contains 'name: radar-kubeatlas-cloud-member-helm$'     "no cloud helm bindings"
+assert_not_contains 'name: radar-kubeatlas-cloud-owner-helm-admin' "no cloud helm-admin bindings"
 echo
 
 render "rbac.helm=true alone — gated off without auth or cloud" --set rbac.helm=true
-assert_not_contains 'name: radar-helm$'                  "no helm add-on ClusterRole without auth/cloud"
-assert_not_contains 'name: radar-helm-admin$'            "no helm-admin ClusterRole without auth/cloud"
+assert_not_contains 'name: radar-kubeatlas-helm$'                  "no helm add-on ClusterRole without auth/cloud"
+assert_not_contains 'name: radar-kubeatlas-helm-admin$'            "no helm-admin ClusterRole without auth/cloud"
 echo
 
 render "rbac.helm=true + auth.mode=proxy — both CRs emitted, no cloud bindings" \
   --set rbac.helm=true --set auth.mode=proxy
-assert_contains 'name: radar-helm$'                  "helm add-on ClusterRole emitted"
-assert_contains 'name: radar-helm-admin$'            "helm-admin ClusterRole emitted"
-assert_not_contains 'name: radar-cloud-owner-helm$'  "no cloud-owner-helm binding without cloud"
-assert_not_contains 'name: radar-cloud-member-helm$' "no cloud-member-helm binding without cloud"
+assert_contains 'name: radar-kubeatlas-helm$'                  "helm add-on ClusterRole emitted"
+assert_contains 'name: radar-kubeatlas-helm-admin$'            "helm-admin ClusterRole emitted"
+assert_not_contains 'name: radar-kubeatlas-cloud-owner-helm$'  "no cloud-owner-helm binding without cloud"
+assert_not_contains 'name: radar-kubeatlas-cloud-member-helm$' "no cloud-member-helm binding without cloud"
 echo
 
-render "rbac.helm=true + cloud.enabled=true + auth.mode=proxy — split bindings (member excluded from admin)" \
+reject_cloud "Cloud chart render is rejected even with proxy auth and Helm RBAC" \
   --set rbac.helm=true --set auth.mode=proxy --set cloud.enabled=true \
   --set cloud.url=wss://x --set cloud.token=t --set cloud.clusterName=c
-assert_contains 'name: radar-helm$'                       "helm add-on ClusterRole emitted"
-assert_contains 'name: radar-helm-admin$'                 "helm-admin ClusterRole emitted"
-assert_contains 'name: radar-cloud-owner-helm$'           "cloud-owner-helm binding emitted"
-assert_contains 'name: radar-cloud-member-helm$'          "cloud-member-helm binding emitted"
-assert_contains 'name: radar-cloud-owner-helm-admin$'     "cloud-owner-helm-admin binding emitted"
-assert_not_contains 'name: radar-cloud-member-helm-admin' "member is NEVER bound to helm-admin (RBAC self-promotion)"
-assert_not_contains 'name: radar-cloud-viewer-helm'       "no helm binding for viewer tier"
 echo
 
-render "cloud.defaultRbac.owner=false — owner bindings absent, member-helm still emits, no admin binding" \
+reject_cloud "Cloud render with owner disabled is rejected" \
   --set rbac.helm=true --set auth.mode=proxy --set cloud.enabled=true \
   --set cloud.url=wss://x --set cloud.token=t --set cloud.clusterName=c \
   --set cloud.defaultRbac.owner=false
-assert_not_contains 'name: radar-cloud-owner-helm$'       "no owner-helm binding"
-assert_not_contains 'name: radar-cloud-owner-helm-admin$' "no owner-helm-admin binding"
-assert_contains 'name: radar-cloud-member-helm$'          "member-helm binding still emits"
-assert_not_contains 'name: radar-cloud-member-helm-admin' "member is NEVER bound to admin even when owner is disabled"
 echo
 
-render "cloud.defaultRbac.member=false — member binding absent, owner gets both" \
+reject_cloud "Cloud render with member disabled is rejected" \
   --set rbac.helm=true --set auth.mode=proxy --set cloud.enabled=true \
   --set cloud.url=wss://x --set cloud.token=t --set cloud.clusterName=c \
   --set cloud.defaultRbac.member=false
-assert_contains 'name: radar-cloud-owner-helm$'           "owner-helm binding emits"
-assert_contains 'name: radar-cloud-owner-helm-admin$'     "owner-helm-admin binding emits"
-assert_not_contains 'name: radar-cloud-member-helm$'      "no member-helm binding when member disabled"
 echo
 
-render "rbac.helm=true + cloud.enabled=true + auth.mode=none — cloud helm bindings still emit" \
-  --set rbac.helm=true --set cloud.enabled=true \
-  --set cloud.url=wss://x --set cloud.token=t --set cloud.clusterName=c
-assert_contains 'name: radar-helm$'                  "helm add-on ClusterRole still emitted (cloud.enabled satisfies the OR-clause)"
-assert_contains 'name: radar-helm-admin$'            "helm-admin ClusterRole still emitted (same gate)"
-assert_contains 'name: radar-cloud-owner-helm$'      "cloud-owner-helm binding emits in cloud mode"
-assert_contains 'name: radar-cloud-member-helm$'     "cloud-member-helm binding emits in cloud mode"
-echo
+reject_cloud "Cloud Helm RBAC render is unavailable" \
+  --set rbac.helm=true --set cloud.enabled=true --set auth.mode=proxy
 
 render "defaults — no RBAC reads (viewRBAC=false)"
 # The base radar ClusterRole should NOT include rbac.authorization.k8s.io reads
 # at default settings. This is the single test that pins the secure default.
-HELM_BASE=$(echo "$OUT" | awk '/^kind: ClusterRole$/,/^---$/{ if ($0 ~ /^---$/) exit; print }' | awk '/^  name: radar$/,EOF')
-if awk '/  name: radar$/,/^---$/' <<< "$OUT" | grep -E 'apiGroups: \["rbac.authorization.k8s.io"\]' > /dev/null; then
+HELM_BASE=$(echo "$OUT" | awk '/^kind: ClusterRole$/,/^---$/{ if ($0 ~ /^---$/) exit; print }' | awk '/^  name: radar-kubeatlas$/,EOF')
+if awk '/  name: radar-kubeatlas$/,/^---$/' <<< "$OUT" | grep -E 'apiGroups: \["rbac.authorization.k8s.io"\]' > /dev/null; then
   fail "default ClusterRole still grants rbac.authorization.k8s.io reads — viewRBAC should gate this"
 else
   pass "no rbac.authorization.k8s.io reads in default ClusterRole"
@@ -302,10 +303,10 @@ echo
 render "split content — radar-helm has CRDs but NOT clusterroles" \
   --set rbac.helm=true --set auth.mode=proxy
 # Pull the radar-helm ClusterRole specifically and check its contents
-HELM_RULES=$(echo "$OUT" | awk '/^kind: ClusterRole$/,/^---$/' | awk '/^metadata:$/,/^rules:$/{found=1} /  name: radar-helm$/{ok=1} END{print ok}')
+HELM_RULES=$(echo "$OUT" | awk '/^kind: ClusterRole$/,/^---$/' | awk '/^metadata:$/,/^rules:$/{found=1} /  name: radar-kubeatlas-helm$/{ok=1} END{print ok}')
 # Simpler approach: just confirm the cluster-admin verbs are NOT in radar-helm's rules
 # by checking the file was split (radar-helm-admin exists separately)
-assert_contains 'name: radar-helm-admin$'                 "helm-admin role exists as separate resource"
+assert_contains 'name: radar-kubeatlas-helm-admin$'                 "helm-admin role exists as separate resource"
 # Member-safe role grants CRDs (operator charts)
 assert_contains 'customresourcedefinitions'               "CRDs writable in member-safe role"
 # Cluster-admin-equivalent verbs are present somewhere in the manifest (in radar-helm-admin)
@@ -314,146 +315,17 @@ assert_contains 'validatingwebhookconfigurations'         "webhook writes presen
 assert_contains 'apiservices'                             "apiservices writes present (in admin role)"
 echo
 
-# ── Cloud-tier cluster-scoped RBAC add-ons (cloud-rbac-cluster-read / node-ops) ──
-CLOUD="--set cloud.enabled=true --set cloud.token=dummy --set cloud.url=wss://x.example --set cloud.clusterName=c1"
-
-render "cloud defaults: cluster-read on for all three tiers, node-ops off" $CLOUD
-assert_contains 'name: radar-cluster-read$'                     "cluster-read ClusterRole rendered"
-assert_contains 'name: radar-cloud-viewer-cluster-read$'        "viewer binding rendered"
-assert_contains 'name: radar-cloud-member-cluster-read$'        "member binding rendered"
-assert_contains 'name: radar-cloud-owner-cluster-read$'         "owner binding rendered"
-assert_contains 'runtimeclasses'                                "runtimeclasses granted"
-assert_contains 'name: radar:viewer$'                           "canonical radar:* subject present"
-assert_contains 'name: cloud:viewer$'                           "legacy cloud:* subject present (deprecation window)"
-assert_contains 'priorityclasses'                               "priorityclasses granted"
-assert_not_contains 'name: radar-node-ops$'                     "node-ops absent by default"
-echo
-
-for identity in ai system; do
-  group="radar:$identity"
-  if [[ "$identity" == ai ]]; then group="radar:ai:reader"; fi
-  ROLE_OUT=$(yq 'select(.kind == "ClusterRole" and .metadata.name == "radar-cloud-'"$identity"'-read")' <<< "$OUT")
-  BINDING_OUT=$(yq 'select(.kind == "ClusterRoleBinding" and .metadata.name == "radar-cloud-'"$identity"'-read")' <<< "$OUT")
-  if [[ $(yq '.aggregationRule.clusterRoleSelectors | length' <<< "$ROLE_OUT") == 1 ]] &&
-     [[ $(yq '.aggregationRule.clusterRoleSelectors[0].matchLabels["rbac.authorization.k8s.io/aggregate-to-view"]' <<< "$ROLE_OUT") == true ]] &&
-     [[ $(yq 'has("rules")' <<< "$ROLE_OUT") == false ]]; then
-    pass "$group read role aggregates view with no curated rules"
-  else
-    fail "$group read role must aggregate view with no curated rules"
-  fi
-  if yq '.metadata.labels | keys | .[]' <<< "$ROLE_OUT" | grep -q '^rbac.authorization.k8s.io/aggregate-to-'; then
-    fail "$group read role must not feed into built-in roles"
-  else
-    pass "$group read role has no aggregate-to labels"
-  fi
-  if [[ $(yq '.roleRef.apiGroup' <<< "$BINDING_OUT") == rbac.authorization.k8s.io ]] &&
-     [[ $(yq '.roleRef.kind' <<< "$BINDING_OUT") == ClusterRole ]] &&
-     [[ $(yq '.roleRef.name' <<< "$BINDING_OUT") == "radar-cloud-$identity-read" ]] &&
-     [[ $(yq '.subjects | length' <<< "$BINDING_OUT") == 1 ]] &&
-     [[ $(yq '.subjects[0].kind' <<< "$BINDING_OUT") == Group ]] &&
-     [[ $(yq '.subjects[0].apiGroup' <<< "$BINDING_OUT") == rbac.authorization.k8s.io ]] &&
-     [[ $(yq '.subjects[0].name' <<< "$BINDING_OUT") == "$group" ]]; then
-    pass "owned read role bound only to $group"
-  else
-    fail "owned read role must bind only $group"
-  fi
-done
-assert_not_contains 'name: radar-cloud-(ai|system)-view$'        "old view bindings absent"
-echo
-
-render "clusterScopedRead.viewer=false drops only the viewer binding" $CLOUD   --set cloud.defaultRbac.clusterScopedRead.viewer=false
-assert_not_contains 'name: radar-cloud-viewer-cluster-read$'    "viewer binding dropped"
-assert_contains 'name: radar-cloud-member-cluster-read$'        "member binding kept"
-assert_contains 'name: radar-cloud-owner-cluster-read$'         "owner binding kept"
-echo
-
-render "all clusterScopedRead false: no role, no bindings" $CLOUD   --set cloud.systemRbac=false   --set cloud.aiRbac=false   --set cloud.defaultRbac.clusterScopedRead.viewer=false   --set cloud.defaultRbac.clusterScopedRead.member=false   --set cloud.defaultRbac.clusterScopedRead.owner=false
-assert_not_contains 'name: radar-cluster-read$'                 "cluster-read role suppressed"
-echo
-
-render "all tiers disabled: no orphan cluster-read role" $CLOUD   --set cloud.systemRbac=false   --set cloud.aiRbac=false   --set cloud.defaultRbac.viewer=false   --set cloud.defaultRbac.member=false   --set cloud.defaultRbac.owner=false
-assert_not_contains 'name: radar-cluster-read$'                 "no unbound ClusterRole when every tier is off"
-echo
-
-render "role bindings off: cluster-read stays for radar:system and radar:ai:reader only" $CLOUD   --set cloud.defaultRbac.create=false
-assert_contains 'name: radar-cluster-read$'                     "cluster-read role kept for radar:system and radar:ai:reader"
-assert_contains 'name: radar-cloud-system-cluster-read$'        "radar:system bound to cluster-read"
-assert_contains 'name: radar-cloud-ai-cluster-read$'            "radar:ai:reader bound to cluster-read"
-assert_contains 'name: radar-cloud-ai-read$'                    "radar:ai:reader bound to the owned read role"
-assert_contains 'name: radar-cloud-system-read$'                "radar:system bound to the owned read role"
-assert_not_contains 'name: radar-cloud-viewer-cluster-read$'    "no tier cluster-read bindings"
-echo
-
-render "radar:ai:reader alone: aggregated read role and the read add-ons, no Secret role" $CLOUD   --set cloud.defaultRbac.create=false   --set cloud.systemRbac=false
-assert_contains 'name: radar-cloud-ai-read$'                    "radar:ai:reader bound to the owned read role"
-assert_contains 'name: radar-cloud-ai-cluster-read$'            "radar:ai:reader bound to cluster-read"
-assert_contains 'name: radar-cloud-ai-integration-read-namespaced$' "radar:ai:reader bound to integration-read"
-assert_not_contains 'secrets-read'                              "no Secret role rendered"
-echo
-
-render "aiRbac=false: no radar:ai:reader binding" $CLOUD   --set cloud.aiRbac=false
-assert_not_contains 'name: radar:ai:reader$'                    "radar:ai:reader bound nowhere"
-assert_not_contains 'name: radar-cloud-ai-read$'               "AI read role and binding absent"
-echo
-
-render "aiRbac absent (reused values): no radar:ai:reader binding" $CLOUD   --set cloud.aiRbac=null
-assert_not_contains 'name: radar:ai:reader$'                    "absent aiRbac creates no default grant"
-assert_not_contains 'name: radar-cloud-ai-read$'               "AI read role and binding absent"
-echo
-
-render "systemRbac=false: no default radar:system grant" $CLOUD --set cloud.systemRbac=false
-assert_not_contains 'name: radar:system$'                       "radar:system bound nowhere"
-assert_not_contains 'name: radar-cloud-system-read$'           "system read role and binding absent"
-assert_not_contains 'system-secrets-read'                      "system Secret role and binding absent"
-echo
-
-render "systemRbac absent (reused values): no default radar:system grant" $CLOUD --set cloud.systemRbac=null
-assert_not_contains 'name: radar:system$'                       "absent systemRbac creates no default grant"
-assert_not_contains 'name: radar-cloud-system-read$'           "system read role and binding absent"
-assert_not_contains 'system-secrets-read'                      "system Secret role and binding absent"
-echo
-
-render "custom viewerClusterRole does NOT drop viewer cluster-read (independent axes)" $CLOUD   --set cloud.defaultRbac.viewerClusterRole=my-restricted-view
-assert_contains 'name: radar-cloud-viewer-cluster-read$'        "viewer keeps cluster-read with custom namespaced role"
-echo
-
-# helm upgrade --reuse-values renders with the previous release's value tree,
-# where clusterScopedRead doesn't exist. null deletes the key, simulating that.
-# Absence must behave like the declared default (all on), never crash.
-render "legacy values (clusterScopedRead absent) render default-on, no nil crash" $CLOUD   --set cloud.defaultRbac.clusterScopedRead=null
-assert_contains 'name: radar-cloud-viewer-cluster-read$'        "absent map treated as default-on (viewer)"
-assert_contains 'name: radar-cloud-owner-cluster-read$'         "absent map treated as default-on (owner)"
-echo
-
-render "rbac.metrics=false drops the metrics rule" $CLOUD --set rbac.metrics=false
-assert_not_contains 'metrics.k8s.io'                            "no metrics.k8s.io rule"
-echo
-
-render "nodeOps=true renders owner-only node-ops" $CLOUD --set cloud.defaultRbac.nodeOps=true
-assert_contains 'name: radar-node-ops$'                         "node-ops role rendered"
-assert_contains 'name: radar-cloud-owner-node-ops$'             "owner binding rendered"
-assert_contains 'pods/eviction'                                 "eviction verb present"
-assert_not_contains 'name: radar-cloud-member-node-ops$'        "no member node-ops binding"
-echo
-
-render "nodeOps=true with owner tier disabled renders nothing" $CLOUD   --set cloud.defaultRbac.nodeOps=true --set cloud.defaultRbac.owner=false
-assert_not_contains 'name: radar-node-ops$'                     "node-ops suppressed without owner tier"
-echo
-
-# A string "false" is truthy to Go templates; it can only reach the template
-# via --set-string plus --skip-schema-validation, but a cluster-scoped WRITE
-# grant must stay off even then (toString-eq gate in the template).
-render "string 'false' via schema bypass must NOT enable node-ops" $CLOUD   --set-string cloud.defaultRbac.nodeOps=false --skip-schema-validation
-assert_not_contains 'name: radar-node-ops$'                     "string-false stays off"
-echo
+reject_cloud "Cloud chart values are rejected on the deployment surface" \
+  --set cloud.enabled=true --set cloud.token=dummy \
+  --set cloud.url=wss://x.example --set cloud.clusterName=c1
 
 render "OSS mode (cloud disabled): no cloud RBAC at all"
-assert_not_contains 'name: radar-cluster-read$'                 "no cluster-read outside cloud mode"
-assert_not_contains 'name: radar-cloud-viewer-cluster-read$'    "no tier bindings outside cloud mode"
+assert_not_contains 'name: radar-kubeatlas-cluster-read$'                 "no cluster-read outside cloud mode"
+assert_not_contains 'name: radar-kubeatlas-cloud-viewer-cluster-read$'    "no tier bindings outside cloud mode"
 echo
 
 render "Portal registration defaults off"
-assert_not_contains 'name: RADAR_PORTAL_' "no Portal reporter environment variables"
+assert_not_contains 'name: KUBEATLAS_PORTAL_' "no Portal reporter environment variables"
 echo
 
 render "Portal registration uses a Secret-backed token" \
@@ -464,9 +336,9 @@ render "Portal registration uses a Secret-backed token" \
   --set portalRegistration.radarUrl=https://radar.example.test \
   --set portalRegistration.existingSecret=radar-east-portal \
   --set portalRegistration.tokenKey=token
-assert_contains 'name: RADAR_PORTAL_URL' "Portal URL is configured"
-assert_contains 'name: RADAR_PORTAL_CLUSTER_ID' "Portal instance ID is configured"
-assert_contains 'name: RADAR_PORTAL_TOKEN' "Portal token environment variable is configured"
+assert_contains 'name: KUBEATLAS_PORTAL_URL' "Portal URL is configured"
+assert_contains 'name: KUBEATLAS_PORTAL_CLUSTER_ID' "Portal instance ID is configured"
+assert_contains 'name: KUBEATLAS_PORTAL_TOKEN' "Portal token environment variable is configured"
 assert_contains 'secretKeyRef:' "Portal registration token comes from a Secret"
 assert_contains 'name: radar-east-portal$' "Portal registration Secret is referenced"
 assert_contains 'key: token$' "Portal registration token key is referenced"
@@ -479,7 +351,7 @@ else
 fi
 echo
 
-if helm template radar "$CHART_DIR" \
+if CLOUD_OUTPUT=$(helm template radar "$CHART_DIR" \
   --set portalRegistration.enabled=true \
   --set portalRegistration.url=https://portal.example.test \
   --set portalRegistration.clusterId=prod-east \
@@ -487,10 +359,12 @@ if helm template radar "$CHART_DIR" \
   --set portalRegistration.radarUrl=https://radar.example.test \
   --set portalRegistration.existingSecret=radar-east-portal \
   --set portalRegistration.tokenKey=token \
-  --set cloud.enabled=true >/dev/null 2>&1; then
+  --set cloud.enabled=true 2>&1); then
   fail "Portal registration with Cloud enabled should fail"
+elif grep -Fq "cloud.enabled is unavailable in KubeAtlas" <<< "$CLOUD_OUTPUT"; then
+  pass "Portal registration rejects unsupported Cloud with the expected error"
 else
-  pass "Portal registration conflicts with Cloud"
+  fail "Portal registration Cloud rejection had an unexpected error: $CLOUD_OUTPUT"
 fi
 echo
 
@@ -524,8 +398,8 @@ assert_contains 'path: /$' "Portal ingress is rooted at /"
 assert_contains 'pathType: Prefix' "Portal ingress matches root descendants"
 echo
 
-if helm template radar-portal "$PORTAL_CHART_DIR" \
-  --set image.repository=example.test/radar-portal \
+if helm template kubeatlas-portal "$PORTAL_CHART_DIR" \
+  --set image.repository=example.test/kubeatlas-portal \
   --set existingSecret=portal-auth \
   --set ingress.enabled=true \
   --set ingress.tls[0].secretName=portal-tls \
@@ -537,9 +411,9 @@ fi
 echo
 
 render_portal "Portal image tag defaults to chart appVersion"
-assert_contains 'image: "?example.test/radar-portal:0.0.0-unreleased"?$' "empty image.tag uses Chart.AppVersion"
+assert_contains 'image: "?example.test/kubeatlas-portal:0.0.0-unreleased"?$' "empty image.tag uses Chart.AppVersion"
 render_portal "Portal image tag override is honored" --set image.tag=0.2.0
-assert_contains 'image: "?example.test/radar-portal:0.2.0"?$' "explicit image.tag overrides Chart.AppVersion"
+assert_contains 'image: "?example.test/kubeatlas-portal:0.2.0"?$' "explicit image.tag overrides Chart.AppVersion"
 echo
 
 if [[ $FAIL -eq 0 ]]; then

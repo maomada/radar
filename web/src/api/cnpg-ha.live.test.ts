@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CNPGFleetRow } from '@skyhook-io/k8s-ui'
+import type { CNPGFleetRow } from '@maomada/k8s-ui'
 import type { CNPGRuntimeResponse } from './cnpg'
 import { cnpgInstanceLive, cnpgLiveStandbyGaps, cnpgReplicationLive, withLiveReplication } from '../components/cnpg/runtimeAssessment'
 

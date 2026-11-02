@@ -1,9 +1,9 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
-import { TRANSITION_CHEVRON } from "@skyhook-io/k8s-ui/utils/animation";
+import { TRANSITION_CHEVRON } from "@maomada/k8s-ui/utils/animation";
 import { AlertTriangle, ChevronDown, FileSearch } from "lucide-react";
 import { Tooltip } from "../ui/Tooltip";
-import { Collapse } from "@skyhook-io/k8s-ui";
+import { Collapse } from "@maomada/k8s-ui";
 
 import { Markdown } from "../ui/Markdown";
 import type { InvestigationCaseItem } from "./investigationCase";
@@ -22,10 +22,10 @@ import {
  * markers point at it.
  */
 export type StoryPlacementLoss =
-  | "invalid" // no such index, or not a number Radar recognises
+  | "invalid" // no such index, or not a number KubeAtlas recognises
   | "unlinked" // the server could not bind the item's ref
   | "unplaced" // bound, but resolves to no single observation
-  | { kind: "nocard"; sourceId: string }; // bound, but Radar renders no card for that call
+  | { kind: "nocard"; sourceId: string }; // bound, but KubeAtlas renders no card for that call
 
 export interface StoryPlacementTarget {
   item: InvestigationCaseItem;
@@ -213,15 +213,15 @@ function removeInlineMarker(markdown: string, index: number): string {
 }
 
 const LOSS_COPY: Record<Exclude<StoryPlacementLoss, object>, string> = {
-  invalid: "The agent cited a result Radar cannot identify.",
-  unlinked: "Radar could not verify this citation against its record.",
+  invalid: "The agent cited a result KubeAtlas cannot identify.",
+  unlinked: "KubeAtlas could not verify this citation against its record.",
   unplaced:
-    "Radar could not pin this citation to one result; see Captured results.",
+    "KubeAtlas could not pin this citation to one result; see Captured results.",
 };
 
 /**
  * A citation that cannot render at the claim still says so at the claim. A
- * bound result Radar has no card for is the common case — a cluster-wide
+ * bound result KubeAtlas has no card for is the common case — a cluster-wide
  * search, a metrics table — and is one click from its raw result in
  * Activity, so that case carries the link rather than a dead end.
  */
@@ -304,8 +304,8 @@ const STORY_PROSE_CLASS =
   "text-sm leading-relaxed text-theme-text-primary [overflow-wrap:anywhere] [&_code]:font-normal [&_h2]:mb-1 [&_h2]:mt-3 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-theme-text-tertiary [&_h3]:text-sm [&_li]:text-theme-text-primary [&_p]:my-1.5 [&_p]:text-theme-text-primary [&_p:first-child]:mt-0 [&_p:last-child]:mb-0";
 
 /**
- * The agent's story with Radar's results placed where it cites them. The
- * prose is the agent's; every placed card is rendered by the host from Radar's
+ * The agent's story with KubeAtlas's results placed where it cites them. The
+ * prose is the agent's; every placed card is rendered by the host from KubeAtlas's
  * record, so a reader checks each sentence against the fact beneath it.
  *
  * Collapsed by default to a bounded preview: the paragraph before the first
@@ -331,7 +331,7 @@ export function AnalysisStory({
     options: { compact: boolean },
   ) => ReactNode;
   onReveal: (target: StoryPlacementTarget) => void;
-  /** Opens a cited call's raw result in Activity when Radar renders no card for it. */
+  /** Opens a cited call's raw result in Activity when KubeAtlas renders no card for it. */
   onViewSource?: (sourceId: string) => void;
   /** Rendered at the end of the full analysis, behind the fold. */
   trailing?: ReactNode;
@@ -359,7 +359,7 @@ export function AnalysisStory({
     (segment) => segment.kind === "prose",
   );
   // With nothing placed, the preview is the first paragraph — and the
-  // placement right after it when there is one, so a citation Radar could
+  // placement right after it when there is one, so a citation KubeAtlas could
   // not render is visible as such rather than hidden behind the fold.
   const previewEnd =
     firstPlacedAt >= 0

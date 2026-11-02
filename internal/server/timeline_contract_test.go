@@ -5,10 +5,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/timeline"
-	pkgtimeline "github.com/skyhook-io/radar/pkg/timeline"
-	"github.com/skyhook-io/radar/pkg/timelineapi/wiretest"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/timeline"
+	pkgtimeline "github.com/maomada/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/timelineapi/wiretest"
 )
 
 // TestHandleTimelineEvents_WireContract runs the shared timeline wire

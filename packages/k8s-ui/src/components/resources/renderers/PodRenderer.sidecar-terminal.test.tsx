@@ -158,7 +158,7 @@ describe('PodRenderer image to live files', () => {
 
   const openImage = (name: string) => {
     const card = initCard(name)
-    const link = Array.from(card.querySelectorAll('button')).find((el) => el.textContent?.startsWith('Image:'))
+    const link = Array.from(card.querySelectorAll('button')).find((el) => el.textContent?.startsWith('镜像：'))
     if (!link) throw new Error(`no image link on ${name}`)
     act(() => (link as HTMLElement).click())
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TopologyNode } from '@skyhook-io/k8s-ui/types/core'
+import type { TopologyNode } from '@maomada/k8s-ui/types/core'
 import { isInNamespaceScope, scopeNodesToNamespaces } from './topology-namespace'
 
 function node(id: string, kind: string, namespace?: string): TopologyNode {

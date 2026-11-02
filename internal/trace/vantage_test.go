@@ -3,7 +3,7 @@ package trace
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 func httpProbe(v probe.Vantage, p probe.Path, ok bool, detail string) probe.Result {

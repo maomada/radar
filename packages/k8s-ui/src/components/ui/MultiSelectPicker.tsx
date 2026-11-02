@@ -63,7 +63,7 @@ export function MultiSelectPicker({
   summaryEmptyLabel,
   noItemsLabel,
   clearAllDisabled = false,
-  clearAllAriaLabel = 'Clear selection',
+  clearAllAriaLabel = '清除选择',
   renderItemMeta,
   searchThreshold = 6,
 }: MultiSelectPickerProps) {
@@ -120,7 +120,7 @@ export function MultiSelectPicker({
           aria-label={clearAllAriaLabel}
         >
           <X className="w-3 h-3" />
-          Clear all
+          清除全部
         </button>
         <button
           onClick={allVisibleSelected ? clearVisible : selectVisible}
@@ -128,17 +128,17 @@ export function MultiSelectPicker({
           className="px-1.5 py-0.5 rounded hover:bg-theme-hover disabled:opacity-50 disabled:hover:bg-transparent"
         >
           {allVisibleSelected
-            ? `Clear ${filteredItems.length} visible`
+            ? `清除当前可见项（${filteredItems.length}）`
             : search.trim()
-              ? `Select ${filteredItems.length} visible`
-              : 'Select all'}
+              ? `选择当前可见项（${filteredItems.length}）`
+              : '全选'}
         </button>
       </div>
 
       <ul className="max-h-80 overflow-y-auto py-1">
         {filteredItems.length === 0 && (
           <li className="px-3 py-2 text-xs text-theme-text-tertiary">
-            {search ? 'No matches.' : noItemsLabel}
+            {search ? '没有匹配项。' : noItemsLabel}
           </li>
         )}
 
@@ -161,10 +161,10 @@ export function MultiSelectPicker({
               <button
                 type="button"
                 onClick={() => onSelectOnly(item)}
-                aria-label={`Show only ${item}`}
+                aria-label={`仅选择 ${item}`}
                 className="shrink-0 mr-2 px-1.5 py-0.5 rounded border border-theme-border bg-theme-surface text-[11px] text-theme-text-secondary hover:bg-theme-elevated hover:text-theme-text-primary opacity-0 transition-opacity group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 focus-visible:opacity-100 any-pointer-coarse:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                Only
+                仅此项
               </button>
             )}
           </li>
@@ -172,12 +172,12 @@ export function MultiSelectPicker({
       </ul>
 
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-theme-border text-[11px] text-theme-text-tertiary">
-        <span>{selected.size === 0 ? summaryEmptyLabel : `${selected.size} selected`}</span>
+        <span>{selected.size === 0 ? summaryEmptyLabel : `已选择 ${selected.size} 项`}</span>
         <button
           onClick={onDone}
           className="px-2 py-0.5 rounded bg-theme-elevated hover:bg-theme-hover text-theme-text-primary"
         >
-          Done
+          完成
         </button>
       </div>
     </>

@@ -14,10 +14,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // The action contract shared by integrations that write to the cluster on the

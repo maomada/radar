@@ -3,7 +3,7 @@ package issues
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // dedupePodSchedulingOverProblem drops the generic problem-source row for a

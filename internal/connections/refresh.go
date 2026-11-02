@@ -3,7 +3,7 @@ package connections
 import (
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/config"
+	"github.com/maomada/radar/internal/config"
 )
 
 // SettingsError is a failure of the current context's own integration settings

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
-import { PaneLoader, type WorkloadExtraTab } from '@skyhook-io/k8s-ui'
+import { PaneLoader, type WorkloadExtraTab } from '@maomada/k8s-ui'
 import { useRadarFeature } from '../api/client'
 import type { RenderDiagnoseAction } from '../context/DiagnoseCustomization'
 import { apiVersionToGroup } from '../utils/navigation'

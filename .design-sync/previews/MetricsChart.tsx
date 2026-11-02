@@ -1,5 +1,5 @@
-import { MetricsChart } from '@skyhook-io/k8s-ui'
-import type { MetricsDataPoint } from '@skyhook-io/k8s-ui'
+import { MetricsChart } from '@maomada/k8s-ui'
+import type { MetricsDataPoint } from '@maomada/k8s-ui'
 
 const box = { width: 360, padding: 12 }
 const BASE_MS = Date.UTC(2024, 6, 5, 12, 0, 0)

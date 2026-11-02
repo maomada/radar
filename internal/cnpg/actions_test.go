@@ -23,8 +23,8 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
+	"github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 var cnpgActionTestNow = time.Date(2026, 9, 29, 10, 11, 12, 345678000, time.UTC)

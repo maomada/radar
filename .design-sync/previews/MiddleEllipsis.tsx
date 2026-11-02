@@ -1,4 +1,4 @@
-import { MiddleEllipsis } from '@skyhook-io/k8s-ui'
+import { MiddleEllipsis } from '@maomada/k8s-ui'
 
 const label = {
   fontSize: 11,

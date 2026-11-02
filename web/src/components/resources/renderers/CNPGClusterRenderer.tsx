@@ -1,8 +1,8 @@
 import { Database } from 'lucide-react'
-import { CNPGClusterRenderer as BaseCNPGClusterRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/CNPGClusterRenderer'
-import { Section, RelationshipGroup, getCNPGDeclarativeStatus } from '@skyhook-io/k8s-ui'
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { CNPGClusterRenderer as BaseCNPGClusterRenderer } from '@maomada/k8s-ui/components/resources/renderers/CNPGClusterRenderer'
+import { Section, RelationshipGroup, getCNPGDeclarativeStatus } from '@maomada/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useResources } from '../../../api/client'
 
 const CNPG_GROUP = 'postgresql.cnpg.io'

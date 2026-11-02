@@ -3,7 +3,7 @@ package ai
 import (
 	"errors"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 var ErrInvalidExplanation = errors.New("explanation requires a completed assessment from this investigation")

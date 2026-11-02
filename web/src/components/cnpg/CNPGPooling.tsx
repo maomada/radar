@@ -13,7 +13,7 @@ import {
   CNPGPoolerScheduling,
   CNPGPoolerUnmeasured,
   type HealthLevel,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGPoolerRuntime } from '../../api/cnpg'
 import { useCNPGPoolerCapabilities } from '../../api/cnpg-sessions'
 import { CNPGWorkspaceHeader, CoverageNotice, cnpgResource, coverageEmpty, type CNPGScreenProps } from './shared'

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 // The delta contract clients depend on: header names (a typo silently degrades

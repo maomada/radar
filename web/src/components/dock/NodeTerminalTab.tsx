@@ -1,4 +1,4 @@
-import { NodeTerminalTab as SharedNodeTerminalTab, type NodeTerminalTabProps as SharedNodeTerminalTabProps } from '@skyhook-io/k8s-ui'
+import { NodeTerminalTab as SharedNodeTerminalTab, type NodeTerminalTabProps as SharedNodeTerminalTabProps } from '@maomada/k8s-ui'
 import { apiUrl, getWsUrl, getAuthHeaders, getCredentialsMode } from '../../api/config'
 import { readErrorBody } from '../../api/httpErrors'
 

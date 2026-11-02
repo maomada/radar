@@ -3,8 +3,8 @@ package timeline_test
 import (
 	"testing"
 
-	timeline "github.com/skyhook-io/radar/pkg/timeline"
-	"github.com/skyhook-io/radar/pkg/timeline/storetest"
+	timeline "github.com/maomada/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/timeline/storetest"
 )
 
 func TestMemoryStore_Conformance(t *testing.T) {

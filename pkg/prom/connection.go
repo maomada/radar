@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 type Connection struct {

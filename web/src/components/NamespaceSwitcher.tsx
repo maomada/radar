@@ -1,10 +1,10 @@
 import { forwardRef } from 'react'
-import { NamespacePicker, type NamespacePickerHandle } from '@skyhook-io/k8s-ui'
+import { NamespacePicker, type NamespacePickerHandle } from '@maomada/k8s-ui'
 import { useAuthMe, useCapabilities, useNamespaceScope, useSetActiveNamespace } from '../api/client'
 
 export type NamespaceSwitcherHandle = NamespacePickerHandle
 
-const NAMESPACES_HELP_URL = 'https://radarhq.io/docs/configuration/files#namespaces-missing-from-the-picker'
+const NAMESPACES_HELP_URL = 'https://github.com/maomada/radar/blob/main/docs/configuration.md#namespaces-missing-from-the-picker'
 
 interface NamespaceSwitcherProps {
   className?: string
@@ -15,8 +15,8 @@ interface NamespaceSwitcherProps {
 }
 
 /**
- * OSS Radar's namespace scope control — a thin data container over the shared
- * presentational NamespacePicker (@skyhook-io/k8s-ui). Wires Radar's own API
+ * OSS KubeAtlas's namespace scope control — a thin data container over the shared
+ * presentational NamespacePicker (@maomada/k8s-ui). Wires KubeAtlas's own API
  * hooks; Radar Hub supplies its own container over the per-cluster apiBase.
  */
 export const NamespaceSwitcher = forwardRef<NamespaceSwitcherHandle, NamespaceSwitcherProps>(function NamespaceSwitcher(
@@ -28,14 +28,14 @@ export const NamespaceSwitcher = forwardRef<NamespaceSwitcherHandle, NamespaceSw
 
   const { data: capabilities } = useCapabilities()
   const { data: authMe } = useAuthMe()
-  // --namespaces and ~/.radar/config.json only reach a Radar the user launched
+  // --namespaces and ~/.kubeatlas/config.json only reach a KubeAtlas the user launched
   // themselves. With auth enabled, a non-authoritative list is also the
   // per-user RBAC filter on a shared install, where neither applies.
   const canConfigureNamespaces = capabilities?.deployment?.mode === 'local' && authMe?.authEnabled === false
 
   const limitedListHelp = canConfigureNamespaces ? (
     <a href={NAMESPACES_HELP_URL} target="_blank" rel="noreferrer" className="text-accent-text hover:underline">
-      How to add namespaces
+      如何添加命名空间
     </a>
   ) : undefined
 

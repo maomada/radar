@@ -3,7 +3,7 @@ package configrefs
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation"
 )

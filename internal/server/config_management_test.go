@@ -9,17 +9,17 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/settings"
 )
 
 func TestConfigurationOwnershipModes(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	t.Setenv("KUBERNETES_SERVICE_HOST", "")
 	for _, tt := range []struct {
 		name, authMode, pod, cloud, want, listen string
@@ -36,7 +36,7 @@ func TestConfigurationOwnershipModes(t *testing.T) {
 		{name: "cloud tunnel", tunnel: true, authMode: "proxy", want: "cloud"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("RADAR_CLOUD_MODE", tt.cloud)
+			t.Setenv("KUBEATLAS_CLOUD_MODE", tt.cloud)
 			t.Setenv("KUBERNETES_SERVICE_HOST", tt.pod)
 			if tt.file {
 				settings.SetOperatorConfig(&settings.OperatorConfig{Version: 1})
@@ -53,7 +53,7 @@ func TestConfigurationOwnershipModes(t *testing.T) {
 func TestOperatorWritesDeniedBeforeSideEffects(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir())
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	s := &Server{authConfig: auth.Config{Mode: "proxy"}}
 	original := config.Config{PrometheusURL: "http://original:9090", PrometheusHeaders: map[string]string{"Authorization": "secret"}}
 	if err := config.Save(original); err != nil {
@@ -141,10 +141,10 @@ func TestSavedConnectionRoutesRequireLocalInstallation(t *testing.T) {
 	}{
 		{"operator auth", func(t *testing.T, s *Server) { s.authConfig = auth.Config{Mode: "proxy"} }},
 		{"in-cluster pod", func(t *testing.T, s *Server) { t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1") }},
-		{"cloud", func(t *testing.T, s *Server) { t.Setenv("RADAR_CLOUD_MODE", "true") }},
+		{"cloud", func(t *testing.T, s *Server) { t.Setenv("KUBEATLAS_CLOUD_MODE", "true") }},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("RADAR_CLOUD_MODE", "false")
+			t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 			t.Setenv("KUBERNETES_SERVICE_HOST", "")
 			s := setupLocalProfileTest(t)
 			files := seedLocalConfiguration(t, s)
@@ -168,7 +168,7 @@ func TestSavedConnectionRoutesRequireLocalInstallation(t *testing.T) {
 }
 
 func TestLocalLegacyIntegrationWritesDeferToSavedConnections(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	t.Setenv("KUBERNETES_SERVICE_HOST", "")
 	s := setupLocalProfileTest(t)
 	files := seedLocalConfiguration(t, s)
@@ -195,7 +195,7 @@ func TestLocalLegacyIntegrationWritesDeferToSavedConnections(t *testing.T) {
 }
 
 func TestOperatorHelmSourceRoutes(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	s := &Server{authConfig: auth.Config{Mode: "proxy"}}
 	h := helm.NewHandlers(nil)
 	h.ConfigWriteAllowed = s.requireConfigEditable
@@ -213,7 +213,7 @@ func TestOperatorHelmSourceRoutes(t *testing.T) {
 func TestOperatorConfigReadPrivacy(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir())
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	prometheuspkg.Initialize(nil, nil, "test")
 	t.Cleanup(func() { prometheuspkg.Initialize(nil, nil, "") })
 	prometheuspkg.Configure("https://private-machine-user:private-machine-password@metrics.example/prom?token=private-machine-token", nil)

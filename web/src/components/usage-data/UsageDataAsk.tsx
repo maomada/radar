@@ -2,19 +2,30 @@ import { useEffect, useRef, useState } from 'react'
 import { BarChart3, Check } from 'lucide-react'
 import { useMarkUsagePromptShown, useSetUsageData, type UsageDataStatus } from '../../api/usage-data'
 
-// One wording for every place Radar asks, so the question can't drift.
+export const USAGE_DATA_COPY = {
+  title: '帮助改进Radar',
+  description: '匿名统计，不使用第三方跟踪器。',
+  readMore: '查看发送内容',
+  send: '发送使用情况统计',
+  decline: '暂不发送',
+  close: '关闭',
+  thanks: '谢谢。你可以随时在“设置”>“隐私”中更改。',
+  declined: '不会发送任何内容。你可以随时在“设置”>“隐私”中更改。',
+} as const
+
+// One wording for every place KubeAtlas asks, so the question can't drift.
 export function UsageDataBlurb({ onReadMore }: { onReadMore: () => void }) {
   return (
     <>
-      <p className="text-sm font-medium text-theme-text-primary">Help improve Radar</p>
+      <p className="text-sm font-medium text-theme-text-primary">{USAGE_DATA_COPY.title}</p>
       <p className="mt-0.5 text-xs text-theme-text-secondary leading-relaxed">
-        Anonymous, with no third-party trackers.{' '}
+        {USAGE_DATA_COPY.description}{' '}
         <button
           type="button"
           onClick={onReadMore}
           className="whitespace-nowrap text-theme-text-primary underline underline-offset-2 hover:text-accent-text"
         >
-          See what's sent
+          {USAGE_DATA_COPY.readMore}
         </button>
       </p>
     </>
@@ -28,15 +39,15 @@ export function UsageDataAnswered({ answer }: { answer: boolean }) {
     <>
       <Check className="w-3.5 h-3.5 shrink-0 text-accent" aria-hidden />
       {answer
-        ? 'Thanks. Change this any time in Settings > Privacy.'
-        : 'Nothing will be sent. Change this any time in Settings > Privacy.'}
+        ? USAGE_DATA_COPY.thanks
+        : USAGE_DATA_COPY.declined}
     </>
   )
 }
 
 // The usage-data question, asked inside What's New when the server says to:
 // someone who closed it without answering is asked again only months later,
-// and a "no" is never asked again. A shared Radar, or one set by its
+// and a "no" is never asked again. A shared KubeAtlas, or one set by its
 // configuration, never asks.
 export function UsageDataAsk({ usageData, onReadMore }: {
   usageData: UsageDataStatus | undefined
@@ -90,7 +101,7 @@ export function UsageDataAsk({ usageData, onReadMore }: {
           onClick={() => choose(true)}
           className="px-3 py-1.5 text-xs font-medium rounded-lg border border-theme-border bg-theme-surface text-theme-text-primary hover:bg-theme-hover disabled:opacity-50"
         >
-          Send usage stats
+          {USAGE_DATA_COPY.send}
         </button>
         <button
           type="button"
@@ -98,7 +109,7 @@ export function UsageDataAsk({ usageData, onReadMore }: {
           onClick={() => choose(false)}
           className="px-3 py-1.5 text-xs font-medium rounded-lg text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated disabled:opacity-50"
         >
-          No thanks
+          {USAGE_DATA_COPY.decline}
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CompareResourcePicker, refToParam, resourceCoverageNotice, resourceNarrowedNotice, type CompareResourceRef } from '@skyhook-io/k8s-ui'
+import { CompareResourcePicker, refToParam, resourceCoverageNotice, resourceNarrowedNotice, type CompareResourceRef } from '@maomada/k8s-ui'
 import { useCompareCandidates } from './useCompareCandidates'
 import { useNavCustomization } from '../../context/NavCustomization'
 
@@ -19,7 +19,7 @@ interface CompareLauncher {
   /**
    * Wire this to ResourceActionsBar's `onCompareAcrossClusters` prop. Undefined
    * when the host (NavCustomization.crossClusterCompareHref) hasn't opted in
-   * — keeps the standalone Radar experience identical.
+   * — keeps the standalone KubeAtlas experience identical.
    */
   onCompareAcrossClusters?: () => void
   /** Render this anywhere in the same tree to surface the picker dialog. */
@@ -38,7 +38,7 @@ export function useCompareLauncher({ kind, namespace, name, group }: UseCompareL
   const onCompareAcrossClusters = useCallback(() => {
     if (!crossClusterCompareHref) return
     const href = crossClusterCompareHref({ kind: kindLower, namespace, name, group })
-    // Smooth same-document hand-off when the host supports it (Radar Cloud's
+    // Smooth same-document hand-off when the host supports it (upstream Cloud's
     // cross-tree swap), else a hard nav — same contract as App.tsx's goHost.
     if (onHostNavigate) onHostNavigate(href)
     else window.location.assign(href)

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGKindCoverage, type CNPGWorkspaceResponse } from '@skyhook-io/k8s-ui'
+import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGKindCoverage, type CNPGWorkspaceResponse } from '@maomada/k8s-ui'
 
 const sidebar = vi.hoisted(() => ({ data: undefined as CNPGWorkspaceResponse | undefined }))
 vi.mock('../../api/cnpg', () => ({ useCNPGWorkspace: () => ({ data: sidebar.data }) }))
@@ -72,7 +72,7 @@ describe('CNPGOverview is the list of clusters', () => {
   it('says what was not read instead of claiming there are no clusters', () => {
     const html = render(response([], { state: 'uncached', uncachedNamespaces: ['c'] }))
     expect(html).toContain('No visible PostgreSQL clusters')
-    expect(html).toContain('Radar does not cache PostgreSQL clusters in c')
+    expect(html).toContain('KubeAtlas does not cache PostgreSQL clusters in c')
     expect(html).not.toContain('No PostgreSQL clusters in kind-test')
   })
 

@@ -1,6 +1,6 @@
 package audit
 
-import "github.com/skyhook-io/radar/pkg/checks"
+import "github.com/maomada/radar/pkg/checks"
 
 // EffectiveFindings converts raw (already locally-filtered) findings into the
 // effective findings the Checks rollup consumes — detector-default severity

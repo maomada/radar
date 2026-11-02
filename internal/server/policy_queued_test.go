@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 // The queued-work lookup exists as an endpoint rather than a client-side list

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { CompareResourceRef } from '@skyhook-io/k8s-ui'
+import type { CompareResourceRef } from '@maomada/k8s-ui'
 import { useResources } from '../../api/client'
 
 /**

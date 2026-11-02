@@ -73,15 +73,15 @@ another terminal:
 
 ```bash
 make build
-RADAR_KUBECONFIG="$(mktemp)"
-kind export kubeconfig --name radar-kuberay-demo --kubeconfig "${RADAR_KUBECONFIG}"
-KUBECONFIG="${RADAR_KUBECONFIG}" ./radar --port 9333 --no-browser
+KUBEATLAS_KUBECONFIG="$(mktemp)"
+kind export kubeconfig --name radar-kuberay-demo --kubeconfig "${KUBEATLAS_KUBECONFIG}"
+KUBECONFIG="${KUBEATLAS_KUBECONFIG}" ./radar --port 9333 --no-browser
 ```
 
 Then run:
 
 ```bash
-RADAR_URL=http://127.0.0.1:9333 ./scripts/kuberay-demo.sh verify-radar
+KUBEATLAS_URL=http://127.0.0.1:9333 ./scripts/kuberay-demo.sh verify-radar
 ```
 
 The verifier first waits for Radar health and CRD discovery, requires its reported

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	versionpkg "github.com/skyhook-io/radar/internal/version"
+	versionpkg "github.com/maomada/radar/internal/version"
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 )
@@ -56,7 +56,7 @@ func TestCreateMenuMacDelegatesQuitToTheApplicationMenu(t *testing.T) {
 	if containsLabel(findSubmenu(t, appMenu, "File"), "Quit") {
 		t.Fatal("File menu still carries Quit on macOS — Cmd+Q would be bound twice")
 	}
-	if containsLabel(findSubmenu(t, appMenu, "Help"), "About Radar") {
+	if containsLabel(findSubmenu(t, appMenu, "Help"), "About KubeAtlas") {
 		t.Fatal("Help menu still carries About on macOS — the application menu already shows it")
 	}
 }
@@ -74,7 +74,7 @@ func TestCreateMenuOffMacUsesNoRolesAndKeepsFileQuit(t *testing.T) {
 			if !containsLabel(findSubmenu(t, appMenu, "File"), "Quit") {
 				t.Fatalf("File menu on %s has no Quit — the app would have no exit", goos)
 			}
-			if !containsLabel(findSubmenu(t, appMenu, "Help"), "About Radar") {
+			if !containsLabel(findSubmenu(t, appMenu, "Help"), "About KubeAtlas") {
 				t.Fatalf("Help menu on %s has no About — there is no application menu to carry it", goos)
 			}
 		})
@@ -82,7 +82,7 @@ func TestCreateMenuOffMacUsesNoRolesAndKeepsFileQuit(t *testing.T) {
 }
 
 func TestCreateMenuUpdateActionMatchesVersionCheckSetting(t *testing.T) {
-	t.Setenv("RADAR_DISABLE_VERSION_CHECK", "")
+	t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "")
 	previousDisabled := versionpkg.IsDisabled()
 	t.Cleanup(func() { versionpkg.SetDisabled(previousDisabled) })
 
@@ -100,7 +100,7 @@ func TestCreateMenuUpdateActionMatchesVersionCheckSetting(t *testing.T) {
 			{"environment leaves checks enabled", false, "0", true},
 		} {
 			t.Run(goos+"/"+tc.name, func(t *testing.T) {
-				t.Setenv("RADAR_DISABLE_VERSION_CHECK", tc.env)
+				t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", tc.env)
 				versionpkg.SetDisabled(tc.flag)
 				helpMenu := findSubmenu(t, createMenu(&DesktopApp{}, "test", goos), "Help")
 				if got := containsLabel(helpMenu, "Check for Updates..."); got != tc.wantVisible {

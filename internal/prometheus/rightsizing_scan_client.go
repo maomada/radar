@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 const rightsizingScanQueryTimeout = 30 * time.Second

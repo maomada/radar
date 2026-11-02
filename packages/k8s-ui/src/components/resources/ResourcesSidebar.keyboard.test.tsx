@@ -21,7 +21,7 @@ it('navigates Favorites, Views and grouped kinds in their visible order', () => 
   key('ArrowDown'); key('ArrowDown'); key('Enter')
   expect(view).toHaveBeenCalledTimes(1)
   expect(kind).not.toHaveBeenCalled()
-  act(() => [...host.querySelectorAll('button')].find((b) => b.textContent === 'Resource kinds')!.click())
+  act(() => [...host.querySelectorAll('button')].find((b) => b.textContent === '资源类型')!.click())
   key('ArrowDown'); key('ArrowDown'); key('ArrowDown'); key('Enter')
   expect(kind).toHaveBeenCalledWith(expect.objectContaining({ name: 'clusters', group: 'postgresql.cnpg.io' }))
 })
@@ -63,8 +63,8 @@ it('reads and reports display settings through the parent when it holds them', (
   const onChange = vi.fn()
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   act(() => root.render(<ResourcesSidebar selectedKind={null} onSelectedKindChange={() => {}} pinned={[{ name: 'pods', kind: 'Pod', group: '' }]} displayState={{ showEmptyKinds: false, favoritesExpanded: false }} onDisplayStateChange={onChange} />))
-  const favorites = [...host.querySelectorAll('button')].find((b) => b.textContent?.toLowerCase().includes('favorites'))!
-  expect(favorites.getAttribute('aria-expanded')).toBe('false')
-  act(() => favorites.click())
+  const 收藏 = [...host.querySelectorAll('button')].find((b) => b.textContent?.toLowerCase().includes('收藏'))!
+  expect(收藏.getAttribute('aria-expanded')).toBe('false')
+  act(() => 收藏.click())
   expect(onChange).toHaveBeenCalledWith({ showEmptyKinds: false, favoritesExpanded: true })
 })

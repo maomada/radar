@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/autoscalerstatus"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/autoscalerstatus"
+	"github.com/maomada/radar/pkg/capacityapi"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )

@@ -1,4 +1,4 @@
-import { AreaChart } from '@skyhook-io/k8s-ui'
+import { AreaChart } from '@maomada/k8s-ui'
 
 const box = { width: 480, height: 220, padding: 8 }
 const BASE = 1720180800

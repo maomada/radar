@@ -1,9 +1,9 @@
-import type { ResourceCoverage } from '@skyhook-io/k8s-ui'
+import type { ResourceCoverage } from '@maomada/k8s-ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import yaml from 'yaml'
-import { hasHealthSettingsHint } from '@skyhook-io/k8s-ui/components/gitops/GitOpsHealthSourceNotice'
+import { hasHealthSettingsHint } from '@maomada/k8s-ui/components/gitops/GitOpsHealthSourceNotice'
 import { previousSettingsNote, usePreviousIntegrationSettings } from '../../hooks/usePreviousIntegrationSettings'
 import {
   GitOpsActivityInsightView,
@@ -48,7 +48,7 @@ import {
   type GitOpsTreeRef,
   type GitOpsTreePreset,
   type SelectedResource,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useToast } from '../ui/Toast'
 import { useContextSwitchFlow } from '../useContextSwitchFlow'
 import { useDestinationCluster } from './useDestinationCluster'
@@ -84,8 +84,8 @@ import { ArgoResourceDiffLoader } from './ArgoResourceDiffLoader'
 import { RevisionMetaChip } from './RevisionMetaChip'
 import { RemoteDestinationCloudHint } from './RemoteDestinationCloudHint'
 
-const GITOPS_HEALTH_DOCS_URL = 'https://radarhq.io/docs/features/gitops#per-resource-health'
-import type { GitOpsHistoryItem } from '@skyhook-io/k8s-ui'
+const GITOPS_HEALTH_DOCS_URL = 'https://github.com/maomada/radar/blob/main/docs/gitops.md#per-resource-health'
+import type { GitOpsHistoryItem } from '@maomada/k8s-ui'
 
 
 type ArgoSyncDialogTarget =
@@ -240,7 +240,7 @@ function GitOpsTableView({ namespaces, onClearNamespaces }: { namespaces: string
   // that don't match the table's aggregate gitops-rows-main / counts queries,
   // so refetch those explicitly — otherwise a row keeps showing the pre-action
   // state (e.g. "Suspend" after a successful suspend) until the 120s poll,
-  // inviting a duplicate request. Radar serves reads from an informer cache that
+  // inviting a duplicate request. KubeAtlas serves reads from an informer cache that
   // lags the write by the watch-propagation delay, so refetch once now (covers
   // an already-current cache) and once shortly after to catch the propagated
   // update; refetch() forces a fetch regardless of staleTime. The toolbar's
@@ -404,9 +404,9 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
   // Argo "auto-sync ON" is determined by spec.syncPolicy.automated being set,
   // not by health.status === Suspended (which is Argo's CronJob-style suspend).
   // The toggle button reads from this so the label flips correctly when an
-  // app is in Manual mode or suspended via Radar's annotations.
+  // app is in Manual mode or suspended via KubeAtlas's annotations.
   const argoAutoSyncEnabled = isArgoApp && Boolean(resourceQ.data?.spec?.syncPolicy?.automated)
-  // Radar-driven Argo suspension is signaled by annotations that record the
+  // KubeAtlas-driven Argo suspension is signaled by annotations that record the
   // pre-suspend prune/selfHeal state for restoration on resume. When present,
   // the app is in a deliberately-paused state (vs. Manual mode, which is a
   // normal operational choice) and should surface a Suspended chip alongside
@@ -529,7 +529,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
       // open a nested copy of the same detail page (which stacks an identical
       // "GitOps / X / X" breadcrumb, and again, ad infinitum). A self-reference
       // opens the standard resource drawer instead, matching how every other
-      // resource in Radar responds to a click — the header already represents
+      // resource in KubeAtlas responds to a click — the header already represents
       // this resource, so a full navigation would be redundant, but a raw
       // metadata/YAML drawer is not.
       if (detailKind === kind && (ref.namespace || '') === (namespace || '') && ref.name === name) {
@@ -751,7 +751,7 @@ function GitOpsDetailView({ namespaces, onOpenResource, onOpenSettings }: GitOps
                 showError(
                   `Couldn't create namespace ${nsName}`,
                   msg.includes('forbidden')
-                    ? 'Radar lacks RBAC to create namespaces in this cluster. Create it manually or have a cluster-admin do it.'
+                    ? 'KubeAtlas lacks RBAC to create namespaces in this cluster. Create it manually or have a cluster-admin do it.'
                     : msg,
                 )
               },
@@ -1003,7 +1003,7 @@ function tryParseYaml(value: string): unknown {
 }
 
 // AppFact + ViewButton + ActionButton moved into
-// @skyhook-io/k8s-ui's GitOpsDetailLayout (shared with hub-web's fleet
+// @maomada/k8s-ui's GitOpsDetailLayout (shared with hub-web's fleet
 // detail page). The OSS wrapper above mounts the layout instead of
 // rendering its own header chrome.
 

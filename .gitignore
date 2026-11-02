@@ -1,7 +1,8 @@
 # Binaries
 /radar
-/radar-portal
-/radar-desktop
+/kubeatlas
+/kubeatlas-portal
+/kubeatlas-desktop
 /explorer
 /desktop
 *.exe

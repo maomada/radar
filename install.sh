@@ -1,6 +1,7 @@
 #!/bin/sh
-# Radar installer
-# Usage: curl -fsSL https://get.radarhq.io | sh
+# KubeAtlas installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh
+# Requires published CLI release assets in maomada/radar; GHCR images are separate.
 #
 # Always use the explicit https:// scheme — without it curl defaults to
 # port 80 and accepts a 308 redirect to https, which lets a network
@@ -13,8 +14,8 @@
 
 set -e
 
-REPO="skyhook-io/radar"
-BINARY_NAME="kubectl-radar"
+REPO="maomada/radar"
+BINARY_NAME="kubeatlas"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # Relative paths would resolve inside the temp dir this script extracts into
@@ -72,10 +73,10 @@ if ! printf '%s\n' "$TAG" | grep -Eq \
 fi
 VERSION=${TAG#v}
 
-echo "Installing Radar v${VERSION}..."
+echo "Installing KubeAtlas v${VERSION}..."
 
 # Download
-FILENAME="radar_v${VERSION}_${OS}_${ARCH}"
+FILENAME="kubeatlas_v${VERSION}_${OS}_${ARCH}"
 if [ "$OS" = "windows" ]; then
   FILENAME="${FILENAME}.zip"
 else
@@ -144,15 +145,10 @@ fi
 
 $SUDO mv "$BINARY_NAME" "$INSTALL_DIR/"
 
-# Symlink so the binary can also be invoked as `radar`. Best-effort —
-# the primary install already succeeded, and `radar` is a common-enough
-# name that we refuse to clobber an unrelated regular file.
 if [ "$OS" != "windows" ]; then
-  if [ -e "$INSTALL_DIR/radar" ] && [ ! -L "$INSTALL_DIR/radar" ]; then
-    echo "Note: ${INSTALL_DIR}/radar already exists and is not a symlink — skipping shorthand. Use 'kubectl-radar' or 'kubectl radar'." >&2
-  else
-    $SUDO ln -sf "$BINARY_NAME" "$INSTALL_DIR/radar" || \
-      echo "Warning: could not create 'radar' symlink — use 'kubectl-radar' or 'kubectl radar'." >&2
+  PLUGIN_PATH="$INSTALL_DIR/kubectl-kubeatlas"
+  if [ ! -e "$PLUGIN_PATH" ] && [ ! -L "$PLUGIN_PATH" ]; then
+    $SUDO ln -s "$BINARY_NAME" "$PLUGIN_PATH" 2>/dev/null || true
   fi
 fi
 
@@ -160,7 +156,7 @@ fi
 rm -rf "$TMP_DIR"
 
 echo ""
-echo "Radar v${VERSION} installed successfully to ${INSTALL_DIR}!"
+echo "KubeAtlas v${VERSION} installed successfully to ${INSTALL_DIR}!"
 echo ""
 
 case ":${PATH}:" in
@@ -169,7 +165,7 @@ case ":${PATH}:" in
 esac
 
 echo "Usage:"
-echo "  radar                  # standalone"
-echo "  kubectl radar          # as kubectl plugin"
+echo "  kubeatlas              # standalone"
+echo "  kubectl kubeatlas      # as kubectl plugin"
 echo ""
-echo "Run 'radar --help' for more options."
+echo "Run 'kubeatlas --help' for more options."

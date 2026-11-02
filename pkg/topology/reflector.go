@@ -2,7 +2,7 @@ package topology
 
 import (
 	"fmt"
-	"github.com/skyhook-io/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/configrefs"
 	corev1 "k8s.io/api/core/v1"
 	"sort"
 	"strings"

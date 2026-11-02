@@ -4,7 +4,6 @@ import { Collapse, CollapseChevron, useDisclosure } from './Collapse'
 import { ConfirmDialog } from './ConfirmDialog'
 import { AlertBanner } from './drawer-components'
 import { CrossplaneDeleteNotice } from './CrossplaneOperationNotice'
-import { pluralize } from '../../utils/pluralize'
 
 export interface CascadeDependent {
   kind: string
@@ -84,12 +83,12 @@ export function ForceDeleteConfirmDialog({
       open={open}
       onClose={handleClose}
       onConfirm={handleConfirm}
-      title="Delete Resource"
-      message={`Are you sure you want to delete "${resourceName}"?`}
-      details={isNamespace ? `This will permanently delete the namespace "${resourceName}" and all resources in it.` : isCRD ? `This deletes the CRD and ALL its instances across the cluster, including those not shown here.` : namespaceName
-        ? `This will permanently delete the ${resourceKind} "${resourceName}" from the "${namespaceName}" namespace.`
-        : `This will permanently delete the cluster-scoped ${resourceKind} "${resourceName}".`}
-      confirmLabel={forceDelete ? 'Force Delete' : 'Delete'}
+      title="删除资源"
+      message={`确定要删除“${resourceName}”吗？`}
+      details={isNamespace ? `这将永久删除命名空间“${resourceName}”及其中的所有资源。` : isCRD ? '这将删除 CRD 及其在整个集群中的所有实例，包括此处未显示的实例。' : namespaceName
+        ? `这将从命名空间“${namespaceName}”中永久删除 ${resourceKind}“${resourceName}”。`
+        : `这将永久删除集群级 ${resourceKind}“${resourceName}”。`}
+      confirmLabel={forceDelete ? '强制删除' : '删除'}
       variant="danger"
       isLoading={isLoading}
       confirmDisabled={cascadeLoading}
@@ -98,7 +97,7 @@ export function ForceDeleteConfirmDialog({
         {cascadeLoading && (
           <div className="flex items-center gap-2 text-xs text-theme-text-tertiary">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Checking for dependent resources...
+            正在检查从属资源…
           </div>
         )}
 
@@ -106,14 +105,14 @@ export function ForceDeleteConfirmDialog({
           cascadeDetail?.basis === 'ownerReferences' ? (
             <CascadeDependentsList
               dependents={cascadeDependents}
-              title={`Garbage collection is expected to delete ${pluralize(cascadeDependents.length, 'dependent resource')}`}
-              note="Kubernetes deletes these through their owner references. Finalizers may delay deletion. This is an observation of the current cache, not a guarantee of completion."
+              title={`垃圾回收预计将删除 ${cascadeDependents.length} 个从属资源`}
+              note="Kubernetes 会通过所有者引用删除这些资源。Finalizer 可能延迟删除。这只是当前缓存中的观察结果，并不保证删除一定完成。"
             />
           ) : (
             <CascadeDependentsList
               dependents={cascadeDependents}
-              title={`May also delete ${pluralize(cascadeDependents.length, 'related resource')}`}
-              note="This Radar version can't tell owned resources from other links. Kubernetes deletes only those that name this one as their owner."
+              title={`也可能删除 ${cascadeDependents.length} 个相关资源`}
+              note="此版本 Radar 无法区分所有权关系和其他关联。Kubernetes 只会删除将此资源列为所有者的对象。"
             />
           )
         )}
@@ -121,13 +120,13 @@ export function ForceDeleteConfirmDialog({
         {!cascadeLoading && !cascadePreviewFailed && !orphaning && cascadeDetail?.possibleDependents && cascadeDetail.possibleDependents.length > 0 && (
           <CascadeDependentsList
             dependents={cascadeDetail.possibleDependents}
-            title={`May also delete ${pluralize(cascadeDetail.possibleDependents.length, 'resource')}`}
-            note="Another owner or a chain of owners could not be resolved. Kubernetes deletes these only if no live owner remains."
+            title={`也可能删除 ${cascadeDetail.possibleDependents.length} 个资源`}
+            note="无法解析另一个所有者或所有者链。只有不存在有效所有者时，Kubernetes 才会删除这些资源。"
           />
         )}
 
         {!cascadeLoading && !cascadePreviewFailed && cascadeDetail?.coverage && !orphaning && !cascadeDetail.coverage.complete ? (
-          <p className="text-xs text-theme-text-secondary">This preview is partial: Radar may not collect or you may not be allowed to read all dependents. Additional resources may be deleted.</p>
+          <p className="text-xs text-theme-text-secondary">此预览不完整：Radar 可能未收集所有从属资源，或你无权查看它们。还可能有其他资源被删除。</p>
         ) : null}
         {!cascadeLoading && !cascadePreviewFailed && cascadeDetail?.controllerTeardown && (
           <ControllerTeardownNotice teardown={cascadeDetail.controllerTeardown} force={forceDelete} />
@@ -136,17 +135,17 @@ export function ForceDeleteConfirmDialog({
         {!cascadeLoading && !cascadePreviewFailed && cascadeRootResolved === false && (
           <AlertBanner
             variant="warning"
-            title="Dependent resources unverified"
-            message="Radar couldn't verify which dependent resources Kubernetes will also delete. Additional resources may be deleted but aren't shown here."
+            title="尚未验证从属资源"
+            message="Radar 无法验证 Kubernetes 还会删除哪些从属资源。可能还有未显示的资源会被删除。"
             className="mb-0"
           />
         )}
 
-        {!cascadeLoading && !cascadePreviewFailed && orphaning && <p className="text-xs text-theme-text-secondary">Keeping the pending orphan policy: owner-reference dependents are orphaned. Controller cleanup may still delete resources.</p>}
-        {!cascadeLoading && !cascadePreviewFailed && forceDelete && cascadeDetail?.propagation === 'Orphan' && <p className="text-xs text-warning-text">Force delete removes the orphan finalizer and uses Background propagation. Owner-reference dependents may now be garbage collected.</p>}
-        {!cascadeLoading && !cascadePreviewFailed && !orphaning && cascadeDetail?.coverage?.complete && cascadeDetail.coverage.narrowed && <p className="text-xs text-theme-text-secondary">Only resources Radar observes and you can read are listed.</p>}
-        {!cascadeLoading && cascadePreviewFailed && <AlertBanner variant="warning" title="Deletion preview unavailable" message="Additional resources may be deleted." className="mb-0" />}
-        {!cascadeLoading && !cascadePreviewFailed && cascadeDetail?.notEnumerated?.map(item => <p key={item} className="text-xs text-theme-text-secondary">Not enumerated: {item}.</p>)}
+        {!cascadeLoading && !cascadePreviewFailed && orphaning && <p className="text-xs text-theme-text-secondary">保留待处理的 orphan 策略：所有者引用的从属资源将被孤立。控制器清理仍可能删除资源。</p>}
+        {!cascadeLoading && !cascadePreviewFailed && forceDelete && cascadeDetail?.propagation === 'Orphan' && <p className="text-xs text-warning-text">强制删除会移除 orphan finalizer 并使用 Background 传播策略。所有者引用的从属资源可能因此被垃圾回收。</p>}
+        {!cascadeLoading && !cascadePreviewFailed && !orphaning && cascadeDetail?.coverage?.complete && cascadeDetail.coverage.narrowed && <p className="text-xs text-theme-text-secondary">仅列出 Radar 可观察且你有权查看的资源。</p>}
+        {!cascadeLoading && cascadePreviewFailed && <AlertBanner variant="warning" title="删除预览不可用" message="还可能有其他资源被删除。" className="mb-0" />}
+        {!cascadeLoading && !cascadePreviewFailed && cascadeDetail?.notEnumerated?.map(item => <p key={item} className="text-xs text-theme-text-secondary">未枚举：{item}。</p>)}
         <CrossplaneDeleteNotice resources={[resourceData]} force={forceDelete} />
 
         <label className="flex items-center gap-2 text-sm text-theme-text-secondary">
@@ -156,7 +155,7 @@ export function ForceDeleteConfirmDialog({
             onChange={(e) => setForceDelete(e.target.checked)}
             className="w-4 h-4 rounded border-theme-border bg-theme-base text-red-600 focus:ring-red-500 focus:ring-offset-0"
           />
-          <span>Force delete (strips finalizers and bypasses grace period)</span>
+          <span>强制删除（移除 finalizer 并绕过宽限期）</span>
         </label>
       </div>
     </ConfirmDialog>
@@ -177,36 +176,36 @@ function optOut(teardown: NonNullable<CascadeDetail['controllerTeardown']>): str
 function ControllerTeardownNotice({ teardown, force }: { teardown: NonNullable<CascadeDetail['controllerTeardown']>; force: boolean }) {
   const resources = teardown.resources ?? []
   const destinationNotice = teardown.destination === 'remote'
-    ? 'This controller targets a destination Radar cannot confirm is this cluster. Radar cannot list what it will delete there.'
+    ? '此控制器的目标位置无法确认是当前集群。Radar 无法列出它将在该位置删除的资源。'
     : teardown.destination === 'unknown'
-      ? 'The destination cluster is unknown. Radar cannot show where controller cleanup will run.'
+      ? '目标集群未知。Radar 无法显示控制器将在何处执行清理。'
       : ''
-  const what = teardown.action === 'uninstall' ? 'uninstall the Helm release' : 'delete the resources it manages'
+  const what = teardown.action === 'uninstall' ? '卸载 Helm release' : '删除它管理的资源'
   if (force) {
     return (
       <AlertBanner
         variant="warning"
-        title="Controller cleanup may be skipped"
+        title="可能跳过控制器清理"
         message={<>
           {destinationNotice && <>{destinationNotice} </>}
           {teardown.terminating
-            ? `This is already being deleted, so ${teardown.controller} may already be working to ${what}. Force delete removes its finalizer but can't undo that.`
-            : `Force delete removes ${teardown.controller}'s finalizer, so ${teardown.controller}'s remaining cleanup may be skipped. Cleanup may already have started; removing the finalizer cannot undo it.`}
+            ? `该资源已开始删除，因此 ${teardown.controller} 可能已开始${what}。强制删除会移除其 finalizer，但无法撤销已发生的操作。`
+            : `强制删除会移除 ${teardown.controller} 的 finalizer，因此可能跳过其剩余清理。清理可能已经开始；移除 finalizer 无法撤销已发生的操作。`}
         </>}
         className="mb-0"
       />
     )
   }
   const title = teardown.destination === 'unknown'
-    ? `${teardown.controller} has a cleanup finalizer`
+    ? `${teardown.controller} 有清理 finalizer`
     : teardown.action === 'uninstall'
-    ? `${teardown.controller} is configured to uninstall the Helm release`
-    : `${teardown.controller} is configured to prune managed resources`
+    ? `${teardown.controller} 配置为卸载 Helm release`
+    : `${teardown.controller} 配置为清理受管资源`
   return (
     <CascadeDependentsList
       dependents={resources}
-      title={resources.length > 0 ? `${title} (${resources.length} shown)` : title}
-      summary={`${destinationNotice ? destinationNotice + ' ' : ''}${teardown.action === 'uninstall' ? 'Helm uninstalls resources in its stored release manifest' : `${teardown.controller} deletes what its own inventory records`}, which can include resources Radar doesn't show.${optOut(teardown) ? ` Resources marked ${optOut(teardown)} stay.` : ''}`}
+      title={resources.length > 0 ? `${title}（显示 ${resources.length} 个）` : title}
+      summary={`${destinationNotice ? destinationNotice + ' ' : ''}${teardown.action === 'uninstall' ? 'Helm 会卸载其存储的 release 清单中记录的资源' : `${teardown.controller} 会删除其自身清单中记录的资源`}，其中可能包含 Radar 未显示的资源。${optOut(teardown) ? ` 标记为 ${optOut(teardown)} 的资源会保留。` : ''}`}
     />
   )
 }

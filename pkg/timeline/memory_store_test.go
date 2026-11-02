@@ -263,6 +263,37 @@ func TestMemoryStore_Query_Limit(t *testing.T) {
 	}
 }
 
+func TestMemoryStore_QueryExtremeLimitIsBounded(t *testing.T) {
+	store := NewMemoryStore(10001)
+	events := make([]TimelineEvent, 10001)
+	for i := range events {
+		events[i] = TimelineEvent{
+			ID: fmt.Sprintf("extreme-%d", i), Timestamp: time.Now(),
+			Kind: "Pod", Namespace: "default", Name: fmt.Sprintf("pod-%d", i),
+			EventType: EventTypeAdd, Source: SourceInformer,
+		}
+	}
+	if err := store.AppendBatch(context.Background(), events); err != nil {
+		t.Fatalf("AppendBatch: %v", err)
+	}
+	results, err := store.Query(context.Background(), QueryOptions{Limit: 1 << 30, IncludeManaged: true})
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(results) != 10000 {
+		t.Fatalf("extreme limit returned %d results, want capped 10000", len(results))
+	}
+
+	empty := NewMemoryStore(1)
+	initial, err := empty.Query(context.Background(), QueryOptions{Limit: 10000, IncludeManaged: true})
+	if err != nil {
+		t.Fatalf("empty Query: %v", err)
+	}
+	if cap(initial) > 256 {
+		t.Fatalf("empty result initial capacity = %d, want at most 256", cap(initial))
+	}
+}
+
 func TestMemoryStore_ResourceSeen(t *testing.T) {
 	store := NewMemoryStore(100)
 

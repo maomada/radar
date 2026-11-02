@@ -24,8 +24,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	radarremotecommand "github.com/skyhook-io/radar/pkg/remotecommand"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	radarremotecommand "github.com/maomada/radar/pkg/remotecommand"
 )
 
 type recordedRequest struct {

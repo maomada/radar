@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/gitops"
 )
 
 type gitOpsStatus struct {

@@ -1,4 +1,4 @@
-import type { SelectMenuOption } from '@skyhook-io/k8s-ui'
+import type { SelectMenuOption } from '@maomada/k8s-ui'
 
 const currencyNames = new Intl.DisplayNames(['en'], { type: 'currency' })
 const currentISO4217CurrenciesAddedSinceCLDR32: Record<string, string> = {
@@ -19,7 +19,7 @@ const currencyCodes = [
 ]
 
 export const CURRENCY_OPTIONS: SelectMenuOption[] = [
-  { value: '', label: 'Automatic (from the cost source)' },
+  { value: '', label: '自动（使用成本来源的货币）' },
   ...currencyCodes
     .filter((code) => code !== 'XTS' && code !== 'XXX')
     .map((code) => {

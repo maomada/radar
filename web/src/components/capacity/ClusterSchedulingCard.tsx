@@ -3,14 +3,14 @@ import {
   type CapacityCertainty,
   type CapacityQuantityObservation,
   type CapacitySchedulingCapacity,
-} from "@skyhook-io/k8s-ui";
-import { Badge } from "@skyhook-io/k8s-ui/components/ui/Badge";
+} from "@maomada/k8s-ui";
+import { Badge } from "@maomada/k8s-ui/components/ui/Badge";
 import {
   parseCPUToNanocores,
   parseQuantityToNumber,
-} from "@skyhook-io/k8s-ui/utils/format";
+} from "@maomada/k8s-ui/utils/format";
 import { LinkButton, SectionCard, formatQuantity, quantityResourceRank, resourceLabel } from "./shared";
-import { CertaintyGlyph, certaintyGlyph, certaintyValueLabel } from "@skyhook-io/k8s-ui";
+import { CertaintyGlyph, certaintyGlyph, certaintyValueLabel } from "@maomada/k8s-ui";
 
 // Karpenter scheduling capacity — the fleet-level "how full is Karpenter, and
 // how much is knocking at the door" bar. Karpenter-pooled nodes only: on mixed

@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
-import { formatRelativeAgeTime } from '@skyhook-io/k8s-ui/utils/format'
+import { formatRelativeAgeTime } from '@maomada/k8s-ui/utils/format'
 import {
   Badge,
   DialogPortal,
@@ -27,7 +27,7 @@ import {
   type CNPGFleetRow,
   type HealthLevel,
   Tooltip,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { CNPGWorkspaceHeader, CoverageNotice, clusterResource, coverageEmpty, cnpgResource, type CNPGScreenProps } from './shared'
 import { BreakText, FilterChips, Mono, namespaceChip, PathText, ScreenBody, SectionTable, Segments, Sub } from '../workspace/layout'
 import { useCNPGNavigate } from './useCNPGNavigate'

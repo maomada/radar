@@ -18,7 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/skyhook-io/radar/pkg/timeline/storetest"
+	"github.com/maomada/radar/pkg/timeline/storetest"
 )
 
 var postgresTestSchemaCounter atomic.Uint64
@@ -26,9 +26,9 @@ var postgresTestSchemaCounter atomic.Uint64
 func testPostgresDSN(t *testing.T) string {
 	t.Helper()
 
-	baseDSN := os.Getenv("RADAR_TEST_POSTGRES_DSN")
+	baseDSN := os.Getenv("KUBEATLAS_TEST_POSTGRES_DSN")
 	if baseDSN == "" {
-		t.Skip("RADAR_TEST_POSTGRES_DSN is not set")
+		t.Skip("KUBEATLAS_TEST_POSTGRES_DSN is not set")
 	}
 
 	admin, err := sql.Open("pgx", baseDSN)
@@ -74,7 +74,7 @@ func testPostgresDSN(t *testing.T) string {
 
 	parsed, err := url.Parse(baseDSN)
 	if err != nil {
-		t.Fatalf("parse RADAR_TEST_POSTGRES_DSN: %v", err)
+		t.Fatalf("parse KUBEATLAS_TEST_POSTGRES_DSN: %v", err)
 	}
 	query := parsed.Query()
 	query.Set("search_path", schema)
@@ -1074,16 +1074,16 @@ func idsOf(events []TimelineEvent) []string {
 // TestPostgresSuiteEnabled fails when the suite is required but would skip.
 //
 // Every PostgreSQL test calls testPostgresDSN, which skips when
-// RADAR_TEST_POSTGRES_DSN is unset. A skipped test reports success, so a CI job
+// KUBEATLAS_TEST_POSTGRES_DSN is unset. A skipped test reports success, so a CI job
 // that loses the DSN — a renamed service, a dropped env block — would keep
 // reporting green with the whole backend untested. CI sets
-// RADAR_REQUIRE_POSTGRES_TESTS so that silence becomes a failure.
+// KUBEATLAS_REQUIRE_POSTGRES_TESTS so that silence becomes a failure.
 func TestPostgresSuiteEnabled(t *testing.T) {
-	if os.Getenv("RADAR_REQUIRE_POSTGRES_TESTS") == "" {
-		t.Skip("RADAR_REQUIRE_POSTGRES_TESTS is not set")
+	if os.Getenv("KUBEATLAS_REQUIRE_POSTGRES_TESTS") == "" {
+		t.Skip("KUBEATLAS_REQUIRE_POSTGRES_TESTS is not set")
 	}
-	if os.Getenv("RADAR_TEST_POSTGRES_DSN") == "" {
-		t.Fatal("RADAR_REQUIRE_POSTGRES_TESTS is set but RADAR_TEST_POSTGRES_DSN is empty: the PostgreSQL suite would skip silently")
+	if os.Getenv("KUBEATLAS_TEST_POSTGRES_DSN") == "" {
+		t.Fatal("KUBEATLAS_REQUIRE_POSTGRES_TESTS is set but KUBEATLAS_TEST_POSTGRES_DSN is empty: the PostgreSQL suite would skip silently")
 	}
 }
 

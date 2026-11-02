@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 func TestParseCNPGCertExpiry(t *testing.T) {

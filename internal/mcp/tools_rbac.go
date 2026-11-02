@@ -11,9 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/rbac"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/rbac"
 )
 
 // MCP tool input/output for get_subject_permissions.

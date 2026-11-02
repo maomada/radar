@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 func TestCNPGDiskFindingsThresholds(t *testing.T) {

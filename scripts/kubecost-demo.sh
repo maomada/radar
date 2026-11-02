@@ -13,7 +13,7 @@
 #                  exercise the Service-DNS connection lane.
 #   radar-smoke    Assert current summary/workload/node responses and retained
 #                  cluster history against in-cluster Radar, or local Radar
-#                  when RADAR_BASE_URL is set.
+#                  when KUBEATLAS_BASE_URL is set.
 #   help           Show this message.
 #
 # Prerequisites:
@@ -35,14 +35,14 @@ KUBECOST_CHART_REPO="${KUBECOST_CHART_REPO:-https://kubecost.github.io/kubecost/
 KUBECOST_RELEASE="${KUBECOST_RELEASE:-kubecost}"
 KUBECOST_NS="${KUBECOST_NS:-kubecost}"
 DEMO_NS="${DEMO_NS:-cost-demo}"
-RADAR_NS="${RADAR_NS:-radar}"
+KUBEATLAS_NS="${KUBEATLAS_NS:-radar}"
 CLUSTER_ID="${CLUSTER_ID:-${CLUSTER_NAME}}"
 DISPLAY_CURRENCY="$(printf '%s' "${DISPLAY_CURRENCY:-EUR}" | tr '[:lower:]' '[:upper:]')"
 KUBECOST_LOCAL_PORT="${KUBECOST_LOCAL_PORT:-39004}"
-RADAR_LOCAL_PORT="${RADAR_LOCAL_PORT:-39280}"
+KUBEATLAS_LOCAL_PORT="${KUBEATLAS_LOCAL_PORT:-39280}"
 DATA_TIMEOUT_SECONDS="${DATA_TIMEOUT_SECONDS:-600}"
 CURL_OPTS=(-fsS --connect-timeout 2 --max-time 5)
-RADAR_CURL_OPTS=(-fsS --connect-timeout 2 --max-time 30)
+KUBEATLAS_CURL_OPTS=(-fsS --connect-timeout 2 --max-time 30)
 
 FORWARD_PID=""
 FORWARD_LOG=""
@@ -428,7 +428,7 @@ cmd_up() {
   note "Context: ${KUBECTL_CTX}"
   note "Run '$0 query' to inspect the raw allocation and asset APIs."
   note "For local Radar: kubectl config use-context ${KUBECTL_CTX}"
-  note "Then run Radar with RADAR_COST_SOURCE=kubecost and RADAR_KUBECOST_CLUSTER_ID=${CLUSTER_ID}."
+  note "Then run Radar with KUBEATLAS_COST_SOURCE=kubecost and KUBEATLAS_KUBECOST_CLUSTER_ID=${CLUSTER_ID}."
 }
 
 cmd_query() {
@@ -486,9 +486,9 @@ cmd_status() {
   kctl -n "${KUBECOST_NS}" get service "${KUBECOST_RELEASE}-aggregator" -o wide 2>/dev/null || warn "service missing"
   step "Cost fixtures"
   kctl -n "${DEMO_NS}" get deployment,statefulset,daemonset,pod 2>/dev/null || warn "fixtures missing"
-  if kctl -n "${RADAR_NS}" get deployment radar >/dev/null 2>&1; then
+  if kctl -n "${KUBEATLAS_NS}" get deployment radar >/dev/null 2>&1; then
     step "In-cluster Radar"
-    kctl -n "${RADAR_NS}" get deployment,pod
+    kctl -n "${KUBEATLAS_NS}" get deployment,pod
   fi
 }
 
@@ -509,20 +509,20 @@ cmd_install_radar() {
   TEMP_PATHS+=("${build_dir}")
 
   step "Building current Radar backend for linux/${arch}"
-  (cd "${repo_root}" && CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" go build -o "${build_dir}/radar" ./cmd/explorer)
+  (cd "${repo_root}" && CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" go build -o "${build_dir}/kubeatlas" ./cmd/explorer)
   cat >"${build_dir}/Dockerfile" <<'EOF'
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
-COPY radar /radar
-ENTRYPOINT ["/radar"]
+COPY kubeatlas /kubeatlas
+ENTRYPOINT ["/kubeatlas"]
 EOF
   docker build --platform "linux/${arch}" -q -t radar-kubecost-demo:dev "${build_dir}" >/dev/null
   kind load docker-image radar-kubecost-demo:dev --name "${CLUSTER_NAME}" >/dev/null
   rm -rf "${build_dir}"
 
   step "Installing current Radar with Kubecost pinned as the source"
-  helm_ctx upgrade --install radar "${repo_root}/deploy/helm/radar" \
-    --namespace "${RADAR_NS}" --create-namespace \
+  helm_ctx upgrade --install radar "${repo_root}/deploy/helm/kubeatlas" \
+    --namespace "${KUBEATLAS_NS}" --create-namespace \
     --set image.repository=radar-kubecost-demo \
     --set image.tag=dev \
     --set image.pullPolicy=Never \
@@ -530,8 +530,8 @@ EOF
     --set cost.kubecost.clusterId="${CLUSTER_ID}" \
     --set rbac.portForward=false \
     --wait --timeout 180s >/dev/null
-  kctl -n "${RADAR_NS}" rollout restart deployment/radar >/dev/null
-  kctl -n "${RADAR_NS}" rollout status deployment/radar --timeout=180s >/dev/null
+  kctl -n "${KUBEATLAS_NS}" rollout restart deployment/radar >/dev/null
+  kctl -n "${KUBEATLAS_NS}" rollout status deployment/radar --timeout=180s >/dev/null
   ok "Radar is running in-cluster against Kubecost Service DNS"
   note "Run '$0 radar-smoke' to assert Radar's API contract."
 }
@@ -575,15 +575,15 @@ cmd_radar_smoke() {
   stop_forward
 
   local radar_root base
-  radar_root="${RADAR_BASE_URL:-}"
+  radar_root="${KUBEATLAS_BASE_URL:-}"
   if [ -n "${radar_root}" ]; then
     radar_root="${radar_root%/}"
     note "Testing local Radar at ${radar_root}"
   else
-    kctl -n "${RADAR_NS}" get deployment radar >/dev/null 2>&1 || fail "Radar is not installed. Run '$0 install-radar' first, or set RADAR_BASE_URL for local Radar."
-    start_forward "${RADAR_NS}" "deployment/radar" "${RADAR_LOCAL_PORT}:9280" \
-      "http://127.0.0.1:${RADAR_LOCAL_PORT}/api/cluster-info"
-    radar_root="http://127.0.0.1:${RADAR_LOCAL_PORT}"
+    kctl -n "${KUBEATLAS_NS}" get deployment radar >/dev/null 2>&1 || fail "Radar is not installed. Run '$0 install-radar' first, or set KUBEATLAS_BASE_URL for local Radar."
+    start_forward "${KUBEATLAS_NS}" "deployment/radar" "${KUBEATLAS_LOCAL_PORT}:9280" \
+      "http://127.0.0.1:${KUBEATLAS_LOCAL_PORT}/api/cluster-info"
+    radar_root="http://127.0.0.1:${KUBEATLAS_LOCAL_PORT}"
   fi
   base="${radar_root}/api/opencost"
 
@@ -592,10 +592,10 @@ cmd_radar_smoke() {
   deadline=$(($(date +%s) + 120))
   while [ "$(date +%s)" -lt "${deadline}" ]; do
     assert_forward_alive
-    summary="$(curl "${RADAR_CURL_OPTS[@]}" "${base}/summary" 2>/dev/null || true)"
-    workloads="$(curl "${RADAR_CURL_OPTS[@]}" "${base}/workloads?namespace=${DEMO_NS}" 2>/dev/null || true)"
-    nodes="$(curl "${RADAR_CURL_OPTS[@]}" "${base}/nodes" 2>/dev/null || true)"
-    trend="$(curl "${RADAR_CURL_OPTS[@]}" "${base}/trend?range=24h" 2>/dev/null || true)"
+    summary="$(curl "${KUBEATLAS_CURL_OPTS[@]}" "${base}/summary" 2>/dev/null || true)"
+    workloads="$(curl "${KUBEATLAS_CURL_OPTS[@]}" "${base}/workloads?namespace=${DEMO_NS}" 2>/dev/null || true)"
+    nodes="$(curl "${KUBEATLAS_CURL_OPTS[@]}" "${base}/nodes" 2>/dev/null || true)"
+    trend="$(curl "${KUBEATLAS_CURL_OPTS[@]}" "${base}/trend?range=24h" 2>/dev/null || true)"
     if jq -e --arg currency "${DISPLAY_CURRENCY}" '
         .available == true and .source == "kubecost" and .currency == $currency and
         (.dataThrough | type == "string" and length > 0) and (.namespaces | length > 0)

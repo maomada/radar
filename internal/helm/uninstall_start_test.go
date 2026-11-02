@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/helmhistory"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 	helmtime "helm.sh/helm/v3/pkg/time"

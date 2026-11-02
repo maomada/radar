@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/logsafe"
-	"github.com/skyhook-io/radar/pkg/conditions"
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/logsafe"
+	"github.com/maomada/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/issuesapi"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

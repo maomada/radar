@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readplan"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readplan"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // listTarget is what a list is about: the namespaces the request named, or

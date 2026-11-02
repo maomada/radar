@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // UnsearchedKind compares gap membership only. Extents and output order must be

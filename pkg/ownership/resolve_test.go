@@ -14,10 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/restmapper"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 func object(t *testing.T, w ownershiptest.World, group, kind, namespace, name string) ownershiptest.Object {

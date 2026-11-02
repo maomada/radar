@@ -3,8 +3,8 @@ package argocd
 import (
 	"context"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/argoapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/argoapi"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )

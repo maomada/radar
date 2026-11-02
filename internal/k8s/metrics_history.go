@@ -3,8 +3,8 @@ package k8s
 import (
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // Re-export types from pkg/k8score for backward compatibility.

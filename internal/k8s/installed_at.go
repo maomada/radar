@@ -16,7 +16,7 @@ import (
 // creation time of its own Deployment in Unix seconds. The Deployment is
 // created once at install and patched in place by `helm upgrade`, so the value
 // survives pod restarts, rollouts, and replica changes — unlike anything under
-// ~/.radar, which lives on an emptyDir that dies with the pod. It changes on
+// ~/.kubeatlas, which lives on an emptyDir that dies with the pod. It changes on
 // uninstall and reinstall, which is the intended meaning.
 //
 // Returns 0 when the Deployment can't be identified or read: no downward-API

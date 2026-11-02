@@ -67,7 +67,7 @@ DEX_IMAGE="${DEX_IMAGE:-ghcr.io/dexidp/dex:v2.41.1}"
 
 PASS=0
 FAIL=0
-RADAR_PID=""
+KUBEATLAS_PID=""
 PROXY_PID=""
 DEX_CONTAINER=""
 TMP_DIR=""
@@ -106,9 +106,9 @@ PY
 
 cleanup() {
     local status=$?
-    if [[ -n "$RADAR_PID" ]] && kill -0 "$RADAR_PID" 2>/dev/null; then
-        kill "$RADAR_PID" 2>/dev/null || true
-        wait "$RADAR_PID" 2>/dev/null || true
+    if [[ -n "$KUBEATLAS_PID" ]] && kill -0 "$KUBEATLAS_PID" 2>/dev/null; then
+        kill "$KUBEATLAS_PID" 2>/dev/null || true
+        wait "$KUBEATLAS_PID" 2>/dev/null || true
     fi
     if [[ -n "$PROXY_PID" ]] && kill -0 "$PROXY_PID" 2>/dev/null; then
         kill "$PROXY_PID" 2>/dev/null || true
@@ -283,17 +283,17 @@ if [[ ! -x "$RADAR" ]]; then
 fi
 
 TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/radar-oidc-split.XXXXXX")
-RADAR_PORT=$(random_port)
+KUBEATLAS_PORT=$(random_port)
 DEX_PUBLIC_PORT=$(random_port)
 DEX_INTERNAL_PORT=$(random_port)
-RADAR_BASE="http://localhost:${RADAR_PORT}"
+KUBEATLAS_BASE="http://localhost:${KUBEATLAS_PORT}"
 PUBLIC_ISSUER="http://localhost:${DEX_PUBLIC_PORT}/dex"
 INTERNAL_ISSUER="http://127.0.0.1:${DEX_INTERNAL_PORT}/dex"
 DEX_CONTAINER="radar-oidc-split-$RANDOM-$RANDOM"
 
 DEX_CONFIG="$TMP_DIR/dex-config.yaml"
 DEX_LOG="$TMP_DIR/dex.log"
-RADAR_LOG="$TMP_DIR/radar.log"
+KUBEATLAS_LOG="$TMP_DIR/radar.log"
 PROXY_LOG="$TMP_DIR/public-proxy.log"
 COOKIE_JAR="$TMP_DIR/cookies.txt"
 LOGIN_HTML="$TMP_DIR/login.html"
@@ -312,7 +312,7 @@ staticClients:
     secret: radar-secret
     name: Radar
     redirectURIs:
-      - "$RADAR_BASE/auth/callback"
+      - "$KUBEATLAS_BASE/auth/callback"
 enablePasswordDB: true
 staticPasswords:
   - email: admin@example.com
@@ -431,9 +431,9 @@ if ! wait_for_url "$PUBLIC_ISSUER/.well-known/openid-configuration" "Public issu
     fail_now "Public issuer proxy failed to start"
 fi
 
-echo -e "${YELLOW}Starting Radar on port $RADAR_PORT with split OIDC issuer URLs${NC}"
+echo -e "${YELLOW}Starting Radar on port $KUBEATLAS_PORT with split OIDC issuer URLs${NC}"
 "$RADAR" \
-    --port "$RADAR_PORT" \
+    --port "$KUBEATLAS_PORT" \
     --no-browser \
     --auth-mode=oidc \
     --auth-secret=test-oidc-split-secret \
@@ -441,26 +441,26 @@ echo -e "${YELLOW}Starting Radar on port $RADAR_PORT with split OIDC issuer URLs
     --auth-oidc-internal-issuer="$INTERNAL_ISSUER" \
     --auth-oidc-client-id=radar \
     --auth-oidc-client-secret=radar-secret \
-    --auth-oidc-redirect-url="$RADAR_BASE/auth/callback" \
+    --auth-oidc-redirect-url="$KUBEATLAS_BASE/auth/callback" \
     --auth-oidc-scopes=openid,profile,email \
-    >"$RADAR_LOG" 2>&1 &
-RADAR_PID=$!
+    >"$KUBEATLAS_LOG" 2>&1 &
+KUBEATLAS_PID=$!
 
-if ! wait_for_url "$RADAR_BASE/api/health" "Radar"; then
-    cat "$RADAR_LOG" >&2 || true
+if ! wait_for_url "$KUBEATLAS_BASE/api/health" "Radar"; then
+    cat "$KUBEATLAS_LOG" >&2 || true
     fail_now "Radar failed to start"
 fi
 
 echo ""
 echo -e "${YELLOW}Test 1: unauthenticated auth/me is soft-auth${NC}"
-auth_enabled=$(curl -sS "$RADAR_BASE/api/auth/me" | jq -r '.authEnabled')
+auth_enabled=$(curl -sS "$KUBEATLAS_BASE/api/auth/me" | jq -r '.authEnabled')
 check "authEnabled is true" "true" "$auth_enabled"
 
 echo ""
 echo -e "${YELLOW}Test 2: complete Dex login through public issuer${NC}"
 login_url=$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -L \
     -o "$LOGIN_HTML" -w '%{url_effective}' \
-    "$RADAR_BASE/auth/login")
+    "$KUBEATLAS_BASE/auth/login")
 
 login_action=$(absolute_form_action "$LOGIN_HTML" "$login_url")
 payload=$(form_payload "$LOGIN_HTML")
@@ -472,7 +472,7 @@ post_url=$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -L \
     "$login_action")
 
 check_success "browser auth path used public issuer" grep -Eq 'PUBLIC (GET|POST) /dex/auth' "$PROXY_LOG"
-check "post-login redirects to Radar" "$RADAR_BASE/" "$post_url"
+check "post-login redirects to Radar" "$KUBEATLAS_BASE/" "$post_url"
 
 session_cookie=$(session_cookie_from_jar "$COOKIE_JAR")
 if [[ -z "$session_cookie" ]]; then
@@ -480,7 +480,7 @@ if [[ -z "$session_cookie" ]]; then
     fail_now "Radar session cookie was not set"
 fi
 
-me=$(curl -sS -H "Cookie: radar_session=${session_cookie}" "$RADAR_BASE/api/auth/me")
+me=$(curl -sS -H "Cookie: radar_session=${session_cookie}" "$KUBEATLAS_BASE/api/auth/me")
 username=$(echo "$me" | jq -r '.username // empty')
 auth_mode=$(echo "$me" | jq -r '.authMode // empty')
 check "logged-in username" "admin@example.com" "$username"
@@ -497,7 +497,7 @@ else
     PASS=$((PASS + 1))
 fi
 
-check_success "Radar authenticated the OIDC user" grep -q 'User admin@example.com authenticated' "$RADAR_LOG"
+check_success "Radar authenticated the OIDC user" grep -q 'User admin@example.com authenticated' "$KUBEATLAS_LOG"
 
 echo ""
 if [[ -n "${KEEP_LOGS:-}" ]]; then

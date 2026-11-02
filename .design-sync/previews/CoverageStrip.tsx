@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CoverageStrip } from '@skyhook-io/k8s-ui'
+import { CoverageStrip } from '@maomada/k8s-ui'
 
 const wrap = { width: 620, padding: 8 }
 const noop = () => {}
@@ -16,7 +16,7 @@ const group = (label: string, summary: string, limitations: any[], extra = {}) =
 
 const denied = limit('Events', 'Events in Pod resources in payments-ci are not readable with your permissions.', 'error', eventsCall)
 const sampled = [
-  group('Events', denied.message, [denied, limit('Events', 'Radar received 2 of 5 event groups.', 'truncated', diagnoseCall)]),
+  group('Events', denied.message, [denied, limit('Events', 'KubeAtlas received 2 of 5 event groups.', 'truncated', diagnoseCall)]),
   group('Log pod coverage', 'Log collection selected 1 of 4 pods.', [limit('Log pod coverage', 'Log collection selected 1 of 4 pods.', 'truncated', diagnoseCall)], { bookkeepingOnly: true }),
   group('Log excerpt coverage', "The response includes 1 of 200 selected log lines after the size limit; these are excerpts, not the container's full log history.", [limit('Log excerpt coverage', "The response includes 1 of 200 selected log lines after the size limit; these are excerpts, not the container's full log history.", 'truncated', diagnoseCall)], { bookkeepingOnly: true }),
   group('Recent changes', 'Some changes may be missing; change history is incomplete.', [limit('Recent changes', 'The recent-change result limit was reached; additional changes may exist in the requested window.', 'truncated', diagnoseCall)], { bookkeepingOnly: true }),
@@ -45,6 +45,6 @@ export function SamplingOnly() {
 }
 
 export function HistoryLimited() {
-  const history = limit('Recent changes', 'Radar keeps change history for this session only; changes before 08:14 are not recorded.', 'unknown', diagnoseCall, { presentation: 'history' })
+  const history = limit('Recent changes', 'KubeAtlas keeps change history for this session only; changes before 08:14 are not recorded.', 'unknown', diagnoseCall, { presentation: 'history' })
   return <Strip groups={[group('Recent changes', 'Change history is incomplete.', [history], { historyOnly: true, bookkeepingOnly: true })]} />
 }

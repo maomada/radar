@@ -10,8 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/envresolve"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/envresolve"
 )
 
 // StaleEnvFact is an env var that running containers read from a Secret or

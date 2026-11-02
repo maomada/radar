@@ -1,6 +1,6 @@
 import yaml from 'yaml'
-import { isApiGroup, parseQuantityToNumber } from '@skyhook-io/k8s-ui'
-import { validateRFC1123Label } from '@skyhook-io/k8s-ui/utils/validators'
+import { isApiGroup, parseQuantityToNumber } from '@maomada/k8s-ui'
+import { validateRFC1123Label } from '@maomada/k8s-ui/utils/validators'
 
 export interface CNPGTarget {
   name: string

@@ -1,4 +1,4 @@
-import { RolloutRenderer as BaseRolloutRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/RolloutRenderer'
+import { RolloutRenderer as BaseRolloutRenderer } from '@maomada/k8s-ui/components/resources/renderers/RolloutRenderer'
 import {
   useRolloutAction,
   useRolloutAnalysisRuns,

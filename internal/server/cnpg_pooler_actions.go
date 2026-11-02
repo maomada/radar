@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
 )
 
 // Pooler detail and pause/resume. spec.pgbouncer.paused is desired state: the

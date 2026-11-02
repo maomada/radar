@@ -19,7 +19,7 @@ import {
   type TimelineSort,
   type PinnedLaneRef,
   useDebouncedValue,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { TimelineList } from './TimelineList'
 import { TimelineLoadError, TimelineStaleNote } from './TimelineLoadError'
 import { ViewModeToggle } from './ViewModeToggle'

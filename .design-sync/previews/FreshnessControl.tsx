@@ -1,4 +1,4 @@
-import { FreshnessControl } from '@skyhook-io/k8s-ui'
+import { FreshnessControl } from '@maomada/k8s-ui'
 
 const cell = { display: 'flex', justifyContent: 'flex-end', width: 320, padding: 10 } as const
 const min = (n: number) => Date.now() - n * 60_000

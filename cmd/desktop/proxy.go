@@ -66,7 +66,7 @@ func (h *RedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 <body>
 <div class="loader">
   <div class="spinner"></div>
-  <div>Starting Radar...</div>
+  <div>Starting KubeAtlas...</div>
 </div>
 </body>
 </html>`, target)

@@ -17,8 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@skyhook-io/k8s-ui": ["../packages/k8s-ui/src/index.ts"],
-      "@skyhook-io/k8s-ui/*": ["../packages/k8s-ui/src/*"]
+      "@maomada/k8s-ui": ["../packages/k8s-ui/src/index.ts"],
+      "@maomada/k8s-ui/*": ["../packages/k8s-ui/src/*"]
     }
   },
   "include": ["src", "../packages/k8s-ui/src"],

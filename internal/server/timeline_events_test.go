@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 // The wire contract the web client's single timeline path depends on (the

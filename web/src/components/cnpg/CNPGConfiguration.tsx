@@ -5,7 +5,7 @@ import {
   FactGrid, FactRow, FoldSection, KeyValueBadgeList, PaneLoader, RefLink, SectionHeading,
   cnpgConnectInfo, getCNPGClusterBackupConfig, getCNPGClusterPostgresParams,
   getCNPGClusterReplicaSource, refToSelectedResource, type NavigateToRef,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useResource } from '../../api/client'
 import type { SelectedResource } from '../../types'
 import { buildWorkloadPath } from '../../utils/navigation'

@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 const maxYAMLSchemaRequestBytes = 256 << 10

@@ -10,9 +10,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
-	bp "github.com/skyhook-io/radar/pkg/audit"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
+	bp "github.com/maomada/radar/pkg/audit"
 )
 
 // TestQueryTrue pins the truthy forms queryTrue accepts. The load-bearing case
@@ -71,7 +71,7 @@ func nsFindingCount(sr bp.ScanResults, ns string) int {
 	return n
 }
 
-// /api/audit?raw=true must skip local ~/.radar settings (the Hub owns effective
+// /api/audit?raw=true must skip local ~/.kubeatlas settings (the Hub owns effective
 // policy); the default request must still apply them.
 func TestHandleAudit_RawSkipsLocalSettings(t *testing.T) {
 	withIgnoredDefaultNS(t)

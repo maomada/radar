@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PaneLoader, TimelineList, formatAge, type NavigateToResource } from '@skyhook-io/k8s-ui'
+import { PaneLoader, TimelineList, formatAge, type NavigateToResource } from '@maomada/k8s-ui'
 import { useCNPGClusterActivity } from '../../api/cnpg'
 import { useCNPGClusterActivityWindow } from '../../api/cnpg-history'
 import { CNPGIntervalBanner, useCNPGIntervalParams } from './CNPGTrends'
@@ -14,7 +14,7 @@ const RANGES = [
 /**
  * Kubernetes events and changes for the Cluster, its instance Pods and the
  * CNPG objects attributed to it — including Backups and declarations deleted
- * since. Attribution of child objects relies on a label Radar records at
+ * since. Attribution of child objects relies on a label KubeAtlas records at
  * ingestion, so history older than that is marked incomplete.
  */
 export function CNPGClusterActivity({ namespace, name, onNavigate }: { namespace: string; name: string; onNavigate?: NavigateToResource }) {
@@ -38,8 +38,8 @@ export function CNPGClusterActivity({ namespace, name, onNavigate }: { namespace
       )}
       <div className="text-xs text-theme-text-tertiary">
         {q.data?.attributionSince
-          ? `The earliest recorded event linking a Backup, Pooler or declaration to this cluster is ${formatAge(q.data.attributionSince)} old. Deleted child objects from before Radar recorded that link are not shown.`
-          : 'Radar has not recorded any Backup, Pooler or declaration events linked to this cluster yet, so deleted child objects may be missing.'}
+          ? `The earliest recorded event linking a Backup, Pooler or declaration to this cluster is ${formatAge(q.data.attributionSince)} old. Deleted child objects from before KubeAtlas recorded that link are not shown.`
+          : 'KubeAtlas has not recorded any Backup, Pooler or declaration events linked to this cluster yet, so deleted child objects may be missing.'}
         {' '}Events for kinds you cannot list are omitted.
       </div>
       <RefreshFailedNotice queries={[q]} />

@@ -1,4 +1,4 @@
-import { ServicePortCards, CollapseChevron } from '@skyhook-io/k8s-ui'
+import { ServicePortCards, CollapseChevron } from '@maomada/k8s-ui'
 import { Plug } from 'lucide-react'
 
 const wrap = { width: 460 }

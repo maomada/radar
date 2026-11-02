@@ -8,7 +8,7 @@ import {test} from 'node:test';
 
 test('capture omits backend credentials while preserving raw metric labels', async () => {
   const server = createServer((req, res) => {
-    assert.equal(req.headers.authorization, 'Bearer RADAR_SECRET');
+    assert.equal(req.headers.authorization, 'Bearer KUBEATLAS_SECRET');
     const body = req.url === '/api/cluster-info' ? {context: 'test'}
       : req.url === '/api/prometheus/status' ? {connected: true, available: true, address: 'https://user:BACKEND_SECRET@metrics.example/?token=QUERY_SECRET', error: 'ERROR_SECRET'}
       : req.url.startsWith('/api/prometheus/query?') ? {resultType: 'matrix', series: [{labels: {pod: 'web-1'}, dataPoints: [{timestamp: 1, value: 2}]}]}
@@ -19,7 +19,7 @@ test('capture omits backend credentials while preserving raw metric labels', asy
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   try {
-    const {stdout} = await promisify(execFile)(process.execPath, [new URL('./capture.mjs', import.meta.url).pathname, `http://127.0.0.1:${server.address().port}`, 'Deployment/demo/web'], {env: {...process.env, RADAR_CAPTURE_AUTHORIZATION: 'Bearer RADAR_SECRET'}});
+    const {stdout} = await promisify(execFile)(process.execPath, [new URL('./capture.mjs', import.meta.url).pathname, `http://127.0.0.1:${server.address().port}`, 'Deployment/demo/web'], {env: {...process.env, KUBEATLAS_CAPTURE_AUTHORIZATION: 'Bearer KUBEATLAS_SECRET'}});
     const dir = stdout.trim().replace(/^Evidence: /, '');
     const saved = await readFile(`${dir}/results.json`, 'utf8');
     assert.ok(!saved.includes('SECRET'));

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/argoapi"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/argoapi"
 )
 
 // fakeArgoCDServer accepts "good-token" (and no token) and rejects the rest.
@@ -355,7 +355,7 @@ func TestGetConfigSurfacesEnvError(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	argocd.SeedFromEnvFailed("invalid RADAR_ARGOCD_URL: must include a host")
+	argocd.SeedFromEnvFailed("invalid KUBEATLAS_ARGOCD_URL: must include a host")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
 	w := httptest.NewRecorder()

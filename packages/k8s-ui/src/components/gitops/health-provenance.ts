@@ -6,7 +6,7 @@
 
 // One sentence in plain words; the engine's own message follows it when
 // there is one.
-export const RADAR_HEALTH_NOTE = "Found by Radar. Argo CD's own health for this resource isn't available."
+export const KUBEATLAS_HEALTH_NOTE = "Found by Radar. Argo CD's own health for this resource isn't available."
 
 export interface RadarHealthSubject {
   health?: string
@@ -20,5 +20,5 @@ export interface RadarHealthSubject {
 export function radarHealthNote(subject: RadarHealthSubject): string {
   if (subject.healthSource !== 'radar') return ''
   if (subject.health !== 'Degraded' && subject.health !== 'Missing') return ''
-  return subject.healthMessage ? `${RADAR_HEALTH_NOTE} ${subject.healthMessage}` : RADAR_HEALTH_NOTE
+  return subject.healthMessage ? `${KUBEATLAS_HEALTH_NOTE} ${subject.healthMessage}` : KUBEATLAS_HEALTH_NOTE
 }

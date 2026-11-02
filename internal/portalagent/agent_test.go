@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/portal"
+	"github.com/maomada/radar/internal/portal"
 )
 
 const agentToken = "another-token-with-more-than-thirty-two-characters"
@@ -201,13 +201,13 @@ func TestReporterDoesNotFollowRedirects(t *testing.T) {
 }
 
 func TestConfigFromEnvDefaultsMCPBaseURL(t *testing.T) {
-	t.Setenv("RADAR_PORTAL_URL", "https://portal.example.com")
-	t.Setenv("RADAR_PORTAL_TOKEN", agentToken)
-	t.Setenv("RADAR_PORTAL_CLUSTER_ID", "prod-east")
-	t.Setenv("RADAR_PORTAL_CLUSTER_NAME", "Production East")
-	t.Setenv("RADAR_PORTAL_RADAR_URL", "https://radar.example.com/prefix")
-	t.Setenv("RADAR_PORTAL_MCP_BASE_URL", "")
-	t.Setenv("RADAR_PORTAL_ALLOW_HTTP", "")
+	t.Setenv("KUBEATLAS_PORTAL_URL", "https://portal.example.com")
+	t.Setenv("KUBEATLAS_PORTAL_TOKEN", agentToken)
+	t.Setenv("KUBEATLAS_PORTAL_CLUSTER_ID", "prod-east")
+	t.Setenv("KUBEATLAS_PORTAL_CLUSTER_NAME", "Production East")
+	t.Setenv("KUBEATLAS_PORTAL_RADAR_URL", "https://radar.example.com/prefix")
+	t.Setenv("KUBEATLAS_PORTAL_MCP_BASE_URL", "")
+	t.Setenv("KUBEATLAS_PORTAL_ALLOW_HTTP", "")
 	config, enabled, err := ConfigFromEnv()
 	if err != nil || !enabled {
 		t.Fatalf("ConfigFromEnv enabled=%v err=%v", enabled, err)

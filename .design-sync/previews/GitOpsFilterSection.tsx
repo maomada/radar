@@ -1,4 +1,4 @@
-import { GitOpsFacetButton, GitOpsFilterSection } from '@skyhook-io/k8s-ui'
+import { GitOpsFacetButton, GitOpsFilterSection } from '@maomada/k8s-ui'
 import { CircleCheck, CircleDot, HeartPulse } from 'lucide-react'
 import type { CSSProperties } from 'react'
 

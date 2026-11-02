@@ -11,9 +11,9 @@ import {
   type CapacityEvaluationEvidence,
   type CapacityPoolEvaluation,
   type CapacitySchedulingSignature,
-} from "@skyhook-io/k8s-ui";
-import { Badge } from "@skyhook-io/k8s-ui/components/ui/Badge";
-import { FilterPill } from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
+import { Badge } from "@maomada/k8s-ui/components/ui/Badge";
+import { FilterPill } from "@maomada/k8s-ui";
 import {
   isCapacityCursorInvalidError,
   isNotFoundError,

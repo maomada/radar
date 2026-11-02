@@ -1,6 +1,6 @@
-# Contributing to Radar
+# Contributing to KubeAtlas
 
-Thank you for your interest in contributing to Radar! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to KubeAtlas! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -8,9 +8,9 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 ## Get Help & Join the Community
 
-The fastest way to get help, ask questions, or share feedback is our [Discord community](https://radarhq.io/community/chat). Maintainers and other Radar users hang out there.
-
-For longer-form discussion, use [GitHub Discussions](https://github.com/skyhook-io/radar/discussions).
+Use [this repository's issues](https://github.com/maomada/radar/issues) for
+questions, bug reports and feature requests. This is an independently maintained
+derivative; its custom features and releases are not supported by the upstream team.
 
 ## How to Contribute
 
@@ -127,7 +127,7 @@ cd web && npm run build
 │   ├── topology/      # Graph construction and relationships
 │   ├── ai/context/    # AI context minification
 │   └── timeline/      # Timeline event storage
-├── packages/k8s-ui/   # Shared UI package (@skyhook-io/k8s-ui)
+├── packages/k8s-ui/   # Shared UI package (@maomada/k8s-ui)
 ├── web/               # React frontend
 │   ├── src/
 │   │   ├── api/       # API client and hooks

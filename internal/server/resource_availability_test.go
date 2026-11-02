@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func TestResourceAvailabilityHead(t *testing.T) {

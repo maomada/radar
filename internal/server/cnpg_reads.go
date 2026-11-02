@@ -8,10 +8,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
 )
 
 func (s *Server) authorizeCNPGCachedRead(r *http.Request, namespace, resource string, extra ...Grant) error {

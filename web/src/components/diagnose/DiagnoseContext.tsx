@@ -62,8 +62,8 @@ export type DiagnoseView = "home" | "investigation";
 //  - "needs-install": the feature is supported here but no agent CLI is installed
 //  - "needs-restart": a supported agent is installed but investigations are
 //                     still off. The server picks up new installs whenever the
-//                     agent list is fetched, so locally this means RADAR_AI_CLI_BIN
-//                     pins the engine to a file Radar can't run (cliOverride); an
+//                     agent list is fetched, so locally this means KUBEATLAS_AI_CLI_BIN
+//                     pins the engine to a file KubeAtlas can't run (cliOverride); an
 //                     embedding host may report it when its own runner is down
 //  - "off":           not available in this deployment (proxy/OIDC auth, --no-mcp,
 //                     or an embed host) — no install nudge would help
@@ -83,7 +83,7 @@ interface DiagnoseCtx {
   // The latest agent check failed to reach the server, so nothing about the
   // machine is known from it.
   agentsCheckFailed: boolean;
-  // RADAR_AI_CLI_BIN is set; with "needs-restart" it is what's broken.
+  // KUBEATLAS_AI_CLI_BIN is set; with "needs-restart" it is what's broken.
   cliOverride: boolean;
   agentLabel: string; // label of the selected agent, e.g. "Claude Code"
   hosted: boolean; // selected agent runs on the host's backend, not this machine
@@ -168,7 +168,7 @@ const MIN_W = 400;
 const MAX_W = 1100;
 const PANEL_BOUNDS = { min: MIN_W, max: MAX_W }; // stable ref for the layout context
 const WIDTH_KEY = "radar-ai-panel-width";
-// Consent is machine-scoped and lives server-side (~/.radar): it gates a
+// Consent is machine-scoped and lives server-side (~/.kubeatlas): it gates a
 // machine-scoped action (spawn this machine's agent CLI, persist transcripts to
 // this machine's disk), so one acknowledgment covers this panel AND the
 // `radar diagnose` CLI. The execution profile selects the disclosure because
@@ -185,7 +185,7 @@ const EFFORT_KEY = "radar-ai-effort";
 const MIN_APP_LEFT_OF_PANEL = 900;
 // An overlay that leaves less than this much of the app visible beside it
 // hides what it overlays without showing more of itself; fill the content
-// area instead. Radar's own minimum width is about 856px, so this is the
+// area instead. KubeAtlas's own minimum width is about 856px, so this is the
 // drawer's floor: below it the investigation is the screen.
 const MIN_APP_PEEK_BESIDE_OVERLAY = 320;
 // resolveSetupState is the ONE mapping from the agents probe to what every
@@ -195,7 +195,7 @@ const MIN_APP_PEEK_BESIDE_OVERLAY = 320;
 // "unknown" is not the same as "off". `eligible` starts false and the probe's
 // catch leaves it that way, so without a separate state a pending or failed
 // request reads as a confirmed deployment restriction. A non-empty agent list
-// while the engine is off means a drivable CLI appeared after Radar booted.
+// while the engine is off means a drivable CLI appeared after KubeAtlas booted.
 export function resolveSetupState({
   available,
   eligibilityResolved,
@@ -366,7 +366,7 @@ function workspaceReturnHistorySteps(state: unknown): number | null {
 
 // Fleet pages host the panel against a cluster-scoped API while remaining on a
 // hub route such as /issues. Writing ?ai-run there would create a non-reloadable
-// pseudo-link. The embedded /c/:id Radar tree and local Radar own their route and
+// pseudo-link. The embedded /c/:id KubeAtlas tree and local KubeAtlas own their route and
 // therefore keep the query as navigation state; Fleet copies run.radarUrl instead.
 function diagnoseURLStateEnabled(browserURLState: boolean): boolean {
   if (!browserURLState) return false;
@@ -604,7 +604,7 @@ function RoutedDiagnoseProvider({
     : (selectedAgentInfo?.profiles?.[0] ?? profile);
   const agentLabel = agentLabelFor(selectedAgent, selectedAgentInfo?.label);
   const hosted = !!selectedAgentInfo?.hosted;
-  // Hosted Radar uses its existing per-user disclosure surface and supplies its
+  // Hosted KubeAtlas uses its existing per-user disclosure surface and supplies its
   // own copy. Local agents use the execution profile as the consent contract.
   const consentSurface = hosted
     ? "standard"
@@ -799,7 +799,7 @@ function RoutedDiagnoseProvider({
         setPendingTarget(null);
         setStartFailure({
           message:
-            "Radar can’t run this agent with a verified execution profile.",
+            "KubeAtlas can’t run this agent with a verified execution profile.",
           refusal: null,
         });
         setView("investigation");
@@ -1052,7 +1052,7 @@ function RoutedDiagnoseProvider({
   const approveConsent = useCallback(() => {
     if (consentBusyRef.current) return;
     if (!consentSurface) {
-      setConsentError("Radar can’t record consent for this agent.");
+      setConsentError("KubeAtlas can’t record consent for this agent.");
       return;
     }
     consentBusyRef.current = true;

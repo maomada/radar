@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/desktopenv"
+	"github.com/maomada/radar/internal/desktopenv"
 )
 
 // logBootEnv prints Linux desktop environment context at startup so bug

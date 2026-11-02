@@ -3,7 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/skyhook-io/radar/pkg/upgradereadiness"
+	"github.com/maomada/radar/pkg/upgradereadiness"
 	"io"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
 )
 
 func TestUpgradeReadinessNamespacesIgnoresBrowsingFilter(t *testing.T) {

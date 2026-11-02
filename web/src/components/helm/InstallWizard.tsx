@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { X, Package, ChevronRight, ChevronLeft, Play, Loader2, AlertTriangle, CheckCircle, User, BookOpen, Link as LinkIcon, Star, BadgeCheck, Shield, Globe, Building2, Plus, Minus, Terminal } from 'lucide-react'
-import { PaneLoader, Input, useDebouncedValue } from '@skyhook-io/k8s-ui'
+import { PaneLoader, Input, useDebouncedValue } from '@maomada/k8s-ui'
 import { clsx } from 'clsx'
 import yaml from 'yaml'
 import { createPatch } from 'diff'
@@ -9,11 +9,11 @@ import { useChartDetail, useNamespaces, useArtifactHubChart, installChartWithPro
 import { useCanHelmAct } from '../../api/client'
 import type { ChartSource, ChartDetail, ArtifactHubChartDetail } from '../../types'
 import { YamlEditor } from '../ui/YamlEditor'
-import { Collapse, CollapseChevron, useDisclosure } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { Collapse, CollapseChevron, useDisclosure } from '@maomada/k8s-ui/components/ui/Collapse'
 import { Tooltip } from '../ui/Tooltip'
 import { Markdown } from '../ui/Markdown'
 import { SEVERITY_BADGE, SEVERITY_TEXT } from '../../utils/badge-colors'
-import { validateHelmReleaseName, validateRFC1123Label } from '@skyhook-io/k8s-ui/utils/validators'
+import { validateHelmReleaseName, validateRFC1123Label } from '@maomada/k8s-ui/utils/validators'
 
 // Deep merge two objects — values from `overrides` take priority
 function deepMerge(base: Record<string, unknown>, overrides: Record<string, unknown>): Record<string, unknown> {

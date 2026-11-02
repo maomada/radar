@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"k8s.io/client-go/metadata"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
 )
 
 // GET /api/cnpg/clusters/{namespace}/{name}/ha: the facts that decide whether

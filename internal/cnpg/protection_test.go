@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/integration"
+	"github.com/maomada/radar/internal/integration"
 )
 
 func protectionStore(name string) *unstructured.Unstructured {

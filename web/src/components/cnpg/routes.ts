@@ -1,4 +1,4 @@
-import { CNPG_KIND_BY_KEY, type CNPGWorkspaceKey } from '@skyhook-io/k8s-ui'
+import { CNPG_KIND_BY_KEY, type CNPGWorkspaceKey } from '@maomada/k8s-ui'
 import type { RadarFeatureSupport } from '../../api/radarFeatures'
 
 export type CNPGScreen = 'overview' | 'protection' | 'declarations' | 'pooling' | 'operator'
@@ -68,9 +68,9 @@ export function isCNPGClusterKind(kind: { name: string; group: string } | null |
 
 /**
  * What the CloudNativePG Cluster kind's Resources route shows: the Clusters
- * view when this Radar serves it; a loader while capabilities load for the
+ * view when this KubeAtlas serves it; a loader while capabilities load for the
  * first time, so the table never flashes before it; otherwise the table (a
- * Radar older than the views, or capabilities that could not be read).
+ * KubeAtlas older than the views, or capabilities that could not be read).
  */
 export function cnpgClusterKindListMode(
   kind: { name: string; group: string } | null | undefined,

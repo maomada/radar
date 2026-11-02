@@ -66,7 +66,7 @@ export function ActionConfirmDialog({
   onClose,
   onConfirm,
   onBack,
-  backLabel = 'Back',
+  backLabel = '返回',
   title,
   subject,
   context,
@@ -112,7 +112,7 @@ export function ActionConfirmDialog({
             {subject.kind} <span className="font-mono">{where}</span>
             {context && (
               <>
-                {' · context '}
+                {' · 上下文 '}
                 <span className="font-mono">{context}</span>
               </>
             )}
@@ -122,7 +122,7 @@ export function ActionConfirmDialog({
           type="button"
           onClick={onClose}
           disabled={isLoading}
-          aria-label="Close"
+          aria-label="关闭"
           className="rounded p-1 text-theme-text-secondary hover:bg-theme-elevated hover:text-theme-text-primary disabled:opacity-50"
         >
           <X className="h-5 w-5" />
@@ -132,7 +132,7 @@ export function ActionConfirmDialog({
       <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4 text-sm text-theme-text-primary">
         <div className="text-theme-text-primary">{effect}</div>
 
-        {disabledReason && <AlertBanner variant="info" title="This action is not available" message={disabledReason} />}
+        {disabledReason && <AlertBanner variant="info" title="此操作不可用" message={disabledReason} />}
 
         {children}
 
@@ -169,7 +169,7 @@ export function ActionConfirmDialog({
               className="flex items-center gap-1.5 text-xs font-medium text-theme-text-secondary hover:text-theme-text-primary"
             >
               <CollapseChevron open={showWrites} className="h-3.5 w-3.5" />
-              {writes.length === 1 ? 'The API write' : `The API writes, in order (${writes.length})`}
+              {writes.length === 1 ? 'API 写入内容' : `API 写入内容（按顺序，共 ${writes.length} 项）`}
             </button>
             <Collapse open={showWrites} id={writesDisclosure.panelId}>
               <ol className="mt-2 space-y-2 pl-5 text-xs">
@@ -191,7 +191,7 @@ export function ActionConfirmDialog({
         {typedConfirmation && (
           <label className="block">
             <span className="text-xs text-theme-text-secondary">
-              Type <span className="font-mono font-semibold text-theme-text-primary">{typedConfirmation}</span> to confirm
+              输入 <span className="font-mono font-semibold text-theme-text-primary">{typedConfirmation}</span> 以确认
             </span>
             <input
               value={typed}
@@ -206,8 +206,8 @@ export function ActionConfirmDialog({
         {result && (
           <AlertBanner
             variant={outcomeLocked ? 'warning' : 'error'}
-            title={result.title ?? (result.state === 'partial' ? 'Some changes completed' : result.state === 'unknown' ? 'Radar could not tell whether this took effect' : 'The action could not be completed')}
-            message={result.message || (outcomeLocked ? 'Check the object’s current state before another attempt.' : undefined)}
+            title={result.title ?? (result.state === 'partial' ? '部分更改已完成' : result.state === 'unknown' ? 'Radar 无法确定此操作是否已生效' : '无法完成此操作')}
+            message={result.message || (outcomeLocked ? '请先检查对象的当前状态，再尝试其他操作。' : undefined)}
           />
         )}
       </div>
@@ -221,7 +221,7 @@ export function ActionConfirmDialog({
           disabled={isLoading}
           className="rounded-lg px-4 py-2 text-sm font-medium text-theme-text-secondary transition-colors hover:bg-theme-elevated hover:text-theme-text-primary disabled:opacity-50"
         >
-          Cancel
+          取消
         </button>
         <button
           type="button"

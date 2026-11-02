@@ -118,7 +118,7 @@ func TestDiscoverRadarTargetsMarksSourcedCloudModeUnresolved(t *testing.T) {
 	deployment.Spec.Template.Spec.Containers = []corev1.Container{{
 		Name: "radar",
 		Env: []corev1.EnvVar{{
-			Name: "RADAR_CLOUD_MODE",
+			Name: "KUBEATLAS_CLOUD_MODE",
 			ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: "radar-config"}, Key: "cloud-mode",
 			}},
@@ -140,8 +140,8 @@ func TestDiscoverRadarTargetsMarksSourcedCloudIdentityUnresolved(t *testing.T) {
 	deployment.Spec.Template.Spec.Containers = []corev1.Container{{
 		Name: "radar",
 		Env: []corev1.EnvVar{
-			{Name: "RADAR_CLOUD_URL", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "radar-cloud"}, Key: "url"}}},
-			{Name: "RADAR_CLOUD_CLUSTER_NAME", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "radar-config"}, Key: "cluster"}}},
+			{Name: "KUBEATLAS_CLOUD_URL", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "radar-cloud"}, Key: "url"}}},
+			{Name: "KUBEATLAS_CLOUD_CLUSTER_NAME", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "radar-config"}, Key: "cluster"}}},
 		},
 	}}
 
@@ -505,15 +505,15 @@ func TestDiscoverRadarTargetsSummarizesLiveRuntime(t *testing.T) {
 		{Name: "sidecar", Image: "example.com/sidecar:v1"},
 		{
 			Name:  "radar",
-			Image: "ghcr.io/skyhook-io/radar:1.5.8",
+			Image: "ghcr.io/maomada/kubeatlas:1.5.8",
 			Args: []string{
 				"--auth-mode=oidc",
-				"--cloud-url", "wss://api.radarhq.io/agent",
+				"--cloud-url", "wss://api.example.test/agent",
 				"--cluster-name=cluster-id",
 			},
 			Env: []corev1.EnvVar{
-				{Name: "RADAR_CLOUD_MODE", Value: "true"},
-				{Name: "RADAR_CLOUD_TOKEN", ValueFrom: &corev1.EnvVarSource{
+				{Name: "KUBEATLAS_CLOUD_MODE", Value: "true"},
+				{Name: "KUBEATLAS_CLOUD_TOKEN", ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "radar-cloud-config"}, Key: "token"},
 				}},
 			},
@@ -525,10 +525,10 @@ func TestDiscoverRadarTargetsSummarizesLiveRuntime(t *testing.T) {
 		t.Fatalf("DiscoverRadarTargets: %v", err)
 	}
 	runtime := result.Selected[0].Runtime
-	if runtime.Image != "ghcr.io/skyhook-io/radar:1.5.8" || runtime.AuthMode != "oidc" {
+	if runtime.Image != "ghcr.io/maomada/kubeatlas:1.5.8" || runtime.AuthMode != "oidc" {
 		t.Fatalf("runtime identity = %#v", runtime)
 	}
-	if !runtime.CloudModeConfigured || !runtime.CloudMode || runtime.CloudURL != "wss://api.radarhq.io/agent" || !runtime.CloudURLConfigured || runtime.ClusterName != "cluster-id" || !runtime.ClusterNameConfigured || !runtime.CloudTokenConfigured || !runtime.AlreadyCloud {
+	if !runtime.CloudModeConfigured || !runtime.CloudMode || runtime.CloudURL != "wss://api.example.test/agent" || !runtime.CloudURLConfigured || runtime.ClusterName != "cluster-id" || !runtime.ClusterNameConfigured || !runtime.CloudTokenConfigured || !runtime.AlreadyCloud {
 		t.Fatalf("cloud runtime = %#v", runtime)
 	}
 	if runtime.CloudTokenSecretName != "radar-cloud-config" || runtime.CloudTokenSecretKey != "token" {
@@ -574,14 +574,14 @@ func TestOfficialRadarChartLabel(t *testing.T) {
 
 func TestDiscoverRadarTargetsRuntimeDefaultsToOSS(t *testing.T) {
 	deployment := radarDeployment("radar", "radar", "radar", nil, nil)
-	deployment.Spec.Template.Spec.Containers = []corev1.Container{{Name: "radar", Image: "ghcr.io/skyhook-io/radar:1.6.0"}}
+	deployment.Spec.Template.Spec.Containers = []corev1.Container{{Name: "radar", Image: "ghcr.io/maomada/kubeatlas:1.6.0"}}
 
 	result, err := DiscoverRadarTargets(context.Background(), kubernetesfake.NewSimpleClientset(deployment), nil, DiscoveryOptions{})
 	if err != nil {
 		t.Fatalf("DiscoverRadarTargets: %v", err)
 	}
 	runtime := result.Selected[0].Runtime
-	if runtime.AuthMode != "none" || runtime.AlreadyCloud || runtime.Image != "ghcr.io/skyhook-io/radar:1.6.0" {
+	if runtime.AuthMode != "none" || runtime.AlreadyCloud || runtime.Image != "ghcr.io/maomada/kubeatlas:1.6.0" {
 		t.Fatalf("runtime = %#v", runtime)
 	}
 }

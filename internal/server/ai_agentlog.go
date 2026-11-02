@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/logsafe"
+	"github.com/maomada/radar/internal/logsafe"
 )
 
 // aiAgentLogResponseWriter wraps http.ResponseWriter to count bytes written

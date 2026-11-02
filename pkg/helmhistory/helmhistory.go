@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 const (

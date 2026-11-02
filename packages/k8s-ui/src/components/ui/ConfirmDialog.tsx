@@ -30,8 +30,8 @@ export function ConfirmDialog({
   title,
   message,
   details,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = '确认',
+  cancelLabel = '取消',
   variant = 'danger',
   isLoading = false,
   isClosable = false,
@@ -64,7 +64,7 @@ export function ConfirmDialog({
         <button
           onClick={onClose}
           disabled={!canClose}
-          aria-label="Close"
+          aria-label="关闭"
           className="p-1 text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-elevated rounded disabled:opacity-50"
         >
           <X className="w-5 h-5" />
@@ -99,8 +99,8 @@ export function ConfirmDialog({
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>
               {isDanger
-                ? 'This action cannot be undone. Please make sure you want to proceed.'
-                : 'Please confirm you want to proceed with this action.'}
+                ? '此操作无法撤销，请确认是否继续。'
+                : '请确认是否继续此操作。'}
             </span>
           </div>
         </div>

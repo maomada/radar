@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 func TestFanOutKeepsIndexOrderAndBoundsConcurrency(t *testing.T) {

@@ -14,8 +14,8 @@ from release_policy import REPOSITORY, validate_inputs
 
 
 CHARTS = {
-    "radar": "ghcr.io/maomada/radar",
-    "radar-portal": "ghcr.io/maomada/radar-portal",
+    "kubeatlas": "ghcr.io/maomada/kubeatlas",
+    "kubeatlas-portal": "ghcr.io/maomada/kubeatlas-portal",
 }
 
 

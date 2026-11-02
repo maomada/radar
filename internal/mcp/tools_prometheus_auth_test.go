@@ -10,8 +10,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/prometheus"
 )
 
 // The three unbounded Prometheus tools share one gate: an any-namespace

@@ -1,4 +1,4 @@
-import { GitOpsIconToggle } from '@skyhook-io/k8s-ui'
+import { GitOpsIconToggle } from '@maomada/k8s-ui'
 import { LayoutGrid, List } from 'lucide-react'
 import type { CSSProperties } from 'react'
 

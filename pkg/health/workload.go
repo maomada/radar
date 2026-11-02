@@ -7,7 +7,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/pkg/cronsched"
+	"github.com/maomada/radar/pkg/cronsched"
 )
 
 // Workload classifies a controller / batch / storage object into a canonical

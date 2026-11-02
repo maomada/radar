@@ -45,7 +45,7 @@ it('retains pause context when the prediction removes the annotation without cla
   const predictedYaml = baselineYaml.replace('    crossplane.io/paused: "true"', '    crossplane.io/paused: "false"')
   const result = renderToString(<YamlReview submittedYaml={predictedYaml} documents={[{ index: 0, status: 'accepted', action: 'update', baselineYaml, predictedYaml }]} onBack={() => {}} onApply={() => {}} />)
   expect(result).toContain('Pause affects reconciliation')
-  expect(result).toContain('requests resumption')
+  expect(result).toContain('请求恢复协调')
   expect(result).not.toContain('will resume')
   expect(result.replaceAll('<!-- -->', '')).toContain('Server preview clears the pause request on Bucket archive')
 })

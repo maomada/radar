@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { evaluateGitOpsWriteGuard } from "@skyhook-io/k8s-ui/utils/gitops-write-guard";
+import { evaluateGitOpsWriteGuard } from "@maomada/k8s-ui/utils/gitops-write-guard";
 import { ApplyDialog } from "./parts";
 
-vi.mock("@skyhook-io/k8s-ui/components/ui/DialogPortal", () => ({
+vi.mock("@maomada/k8s-ui/components/ui/DialogPortal", () => ({
   DialogPortal: ({ open, children }: { open: boolean; children: ReactNode }) => (open ? children : null),
 }));
 
@@ -17,7 +17,7 @@ const writes = [{ scope: "spec" as const }];
 const guardWith = (resolved: boolean) =>
   resolved
     ? evaluateGitOpsWriteGuard({ target, owner, writes, evidence: { uid: "u", resourceVersion: "1", owner: null, policy: { tool: "argocd", auto: true, selfHeal: true, prune: false, suspended: null }, paths: [] } })
-    : evaluateGitOpsWriteGuard({ target, owner: null, writes, ownershipError: "Radar hasn't mapped this resource's owners yet, so it can't tell whether a GitOps tool or Helm manages it." });
+    : evaluateGitOpsWriteGuard({ target, owner: null, writes, ownershipError: "KubeAtlas hasn't mapped this resource's owners yet, so it can't tell whether a GitOps tool or Helm manages it." });
 
 let container: HTMLDivElement;
 afterEach(() => container?.remove());

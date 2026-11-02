@@ -15,13 +15,13 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"k8s.io/klog/v2"
 
-	"github.com/skyhook-io/radar/internal/app"
-	"github.com/skyhook-io/radar/internal/cliui"
-	"github.com/skyhook-io/radar/internal/config"
+	"github.com/maomada/radar/internal/app"
+	"github.com/maomada/radar/internal/cliui"
+	"github.com/maomada/radar/internal/config"
 )
 
 // bootEphemeral starts a temporary in-process Radar for one investigation:
-// headless, random port, no ~/.radar/mcp-port claim (a real instance may own
+// headless, random port, no ~/.kubeatlas/mcp-port claim (a real instance may own
 // it), timeline in memory — but the SHARED ai-runs history, so a cold run's
 // transcript still shows up in the UI later. Radar's boot logging is captured
 // to a tail buffer and surfaced only on failure; the terminal shows a single

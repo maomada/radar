@@ -34,11 +34,11 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	k8sexec "k8s.io/client-go/util/exec"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 // exec_pod reaches whatever a container can reach, so it stays off unless

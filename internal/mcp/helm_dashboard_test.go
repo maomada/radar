@@ -3,8 +3,8 @@ package mcp
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/pkg/helmhistory"
 )
 
 func TestMCPHelmDashboardPrioritySurfacesOperationSignals(t *testing.T) {

@@ -15,8 +15,8 @@ DEMO_DIR="${SCRIPT_DIR}/gpu-ecosystem-demo"
 REGISTRY="${DEMO_DIR}/resources.tsv"
 FIXTURES_DIR="${DEMO_DIR}/fixtures"
 DEMO_NS="gpu-demo"
-RADAR_NS="radar"
-RADAR_PORT="${RADAR_PORT:-19280}"
+KUBEATLAS_NS="radar"
+KUBEATLAS_PORT="${KUBEATLAS_PORT:-19280}"
 CLEANUP_DIRS=('')
 CLEANUP_FILES=('')
 CLEANUP_PIDS=('')
@@ -288,18 +288,18 @@ cmd_install_radar() {
 
   step "Building the current frontend, embedded assets, and linux/${arch} Radar binary"
   (cd "${REPO_ROOT}" && make frontend embed >/dev/null)
-  (cd "${REPO_ROOT}" && GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 go build -o "${tmp}/radar" ./cmd/explorer)
-  printf '%s\n' 'FROM alpine:3.20' 'RUN apk add --no-cache ca-certificates' 'COPY radar /radar' 'ENTRYPOINT ["/radar"]' > "${tmp}/Dockerfile"
+  (cd "${REPO_ROOT}" && GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 go build -o "${tmp}/kubeatlas" ./cmd/explorer)
+  printf '%s\n' 'FROM alpine:3.20' 'RUN apk add --no-cache ca-certificates' 'COPY kubeatlas /kubeatlas' 'ENTRYPOINT ["/kubeatlas"]' > "${tmp}/Dockerfile"
   docker build -q -t "${image}" "${tmp}" >/dev/null
   kind load docker-image "${image}" --name "${CLUSTER_NAME}" >/dev/null
 
   step "Installing Radar with the chart's default RBAC"
-  helm --kube-context "${KUBECTL_CTX}" upgrade --install radar "${REPO_ROOT}/deploy/helm/radar" \
-    --namespace "${RADAR_NS}" --create-namespace \
+  helm --kube-context "${KUBECTL_CTX}" upgrade --install radar "${REPO_ROOT}/deploy/helm/kubeatlas" \
+    --namespace "${KUBEATLAS_NS}" --create-namespace \
     --set image.repository=radar-gpu-ecosystem-demo --set image.tag=dev --set image.pullPolicy=Never \
     --wait --timeout 180s >/dev/null
-  kctl -n "${RADAR_NS}" rollout restart deploy/radar >/dev/null
-  kctl -n "${RADAR_NS}" rollout status deploy/radar --timeout=180s >/dev/null
+  kctl -n "${KUBEATLAS_NS}" rollout restart deploy/radar >/dev/null
+  kctl -n "${KUBEATLAS_NS}" rollout status deploy/radar --timeout=180s >/dev/null
   ok "Current Radar build is running in-cluster"
   cmd_verify_radar
 }
@@ -310,23 +310,23 @@ cmd_verify_radar() {
   require_cmd curl "https://curl.se/download.html"
   require_cmd jq "https://jqlang.github.io/jq/download/"
   assert_matching_scenario
-  kctl -n "${RADAR_NS}" get deploy radar >/dev/null 2>&1 || fail "Radar is not installed. Run '$0 install-radar' first."
+  kctl -n "${KUBEATLAS_NS}" get deploy radar >/dev/null 2>&1 || fail "Radar is not installed. Run '$0 install-radar' first."
 
   step "Checking the default Radar service account against all 37 resources"
   local logical group plural kind scope version scenario url answer pid log response ready
   while IFS=$'\t' read -r logical group plural kind scope version scenario url; do
-    answer="$(kctl auth can-i list "${plural}.${group}" --as "system:serviceaccount:${RADAR_NS}:radar" 2>/dev/null || true)"
+    answer="$(kctl auth can-i list "${plural}.${group}" --as "system:serviceaccount:${KUBEATLAS_NS}:radar" 2>/dev/null || true)"
     [ "${answer}" = "yes" ] || fail "Default Radar SA cannot list ${plural}.${group}"
   done < <(registry_rows)
 
   log="$(mktemp)"
   CLEANUP_FILES+=("${log}")
-  kctl -n "${RADAR_NS}" port-forward svc/radar "${RADAR_PORT}:9280" >"${log}" 2>&1 &
+  kctl -n "${KUBEATLAS_NS}" port-forward svc/radar "${KUBEATLAS_PORT}:9280" >"${log}" 2>&1 &
   pid=$!
   CLEANUP_PIDS+=("${pid}")
   ready=false
   for _ in $(seq 1 40); do
-    if response="$(curl -fsS "http://127.0.0.1:${RADAR_PORT}/api/health" 2>/dev/null)" && \
+    if response="$(curl -fsS "http://127.0.0.1:${KUBEATLAS_PORT}/api/health" 2>/dev/null)" && \
       jq -e '.status == "healthy"' <<<"${response}" >/dev/null; then
       ready=true
       break
@@ -340,7 +340,7 @@ cmd_verify_radar() {
   while IFS=$'\t' read -r logical group plural kind scope version scenario url; do
     ready=false
     for _ in $(seq 1 30); do
-      if response="$(curl -fsS "http://127.0.0.1:${RADAR_PORT}/api/resources/${plural}?group=${group}" 2>/dev/null | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" && \
+      if response="$(curl -fsS "http://127.0.0.1:${KUBEATLAS_PORT}/api/resources/${plural}?group=${group}" 2>/dev/null | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" && \
         jq -e --arg g "${group}" 'type == "array" and length > 0 and all(.[]; (.apiVersion | split("/")[0]) == $g)' <<<"${response}" >/dev/null; then
         ready=true
         break
@@ -351,7 +351,7 @@ cmd_verify_radar() {
     [ "${ready}" = "true" ] || fail "Radar did not return group-pure ${plural}.${group} objects within 30s"
   done < <(registry_rows)
 
-  response="$(curl -fsS "http://127.0.0.1:${RADAR_PORT}/api/resources/jobs?group=batch" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')"
+  response="$(curl -fsS "http://127.0.0.1:${KUBEATLAS_PORT}/api/resources/jobs?group=batch" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')"
   jq -e 'length > 0 and all(.[]; (.apiVersion // "batch/v1") == "batch/v1") and any(.[]; .metadata.name == "collision-demo")' \
     <<<"${response}" >/dev/null || fail "Radar did not keep the core batch/v1 Job collision fixture separate"
   kill "${pid}" >/dev/null 2>&1 || true
@@ -370,8 +370,8 @@ cmd_status() {
   step "Cluster totals"
   note "curated identities: $(logical_count)"
   note "installed matching CRDs: $(registry_rows | while IFS=$'\t' read -r _ group plural _; do kctl get "crd/${plural}.${group}" -o name 2>/dev/null || true; done | sort -u | wc -l | tr -d ' ')"
-  if kctl -n "${RADAR_NS}" get deploy radar >/dev/null 2>&1; then
-    kctl -n "${RADAR_NS}" get pods
+  if kctl -n "${KUBEATLAS_NS}" get deploy radar >/dev/null 2>&1; then
+    kctl -n "${KUBEATLAS_NS}" get pods
   fi
 }
 
@@ -392,7 +392,7 @@ Commands:
 Environment:
   CLUSTER_NAME   kind cluster name (default: radar-gpu-ecosystem-demo)
   SCENARIO       current (default) or experimental inference API family
-  RADAR_PORT     local port used by verify-radar (default: 19280)
+  KUBEATLAS_PORT     local port used by verify-radar (default: 19280)
 
 This validates discovery, group collisions, schemas, rendering inputs, and chart RBAC.
 It does not validate GPU hardware, drivers, CUDA, DRA allocation, utilization, or accounting.

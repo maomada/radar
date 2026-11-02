@@ -38,7 +38,7 @@ describe('TimelineList history-limit row', () => {
     expect(html).toContain('<a href="/plans">Host note</a>')
   })
 
-  it('renders no row without a host note (standalone Radar)', () => {
+  it('renders no row without a host note (standalone KubeAtlas)', () => {
     expect(renderToStaticMarkup(<TimelineList {...props} />)).not.toContain('timeline-retention-note')
   })
 

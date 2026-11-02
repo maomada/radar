@@ -1,9 +1,9 @@
-import type { FeatureCapabilities, RadarUpgradeRequirement } from '@skyhook-io/k8s-ui'
+import type { FeatureCapabilities, RadarUpgradeRequirement } from '@maomada/k8s-ui'
 import { compareVersions } from '../utils/version'
 
-// Radar Hub embeds the newest @skyhook-io/radar-app against whatever Radar is
+// Radar Hub embeds the newest @maomada/kubeatlas-app against whatever KubeAtlas is
 // installed in each cluster, so these endpoints can be missing on a connected
-// Radar. A Radar that advertises the feature's `features` flag is always
+// KubeAtlas. A KubeAtlas that advertises the feature's `features` flag is always
 // trusted; otherwise the release that first served the endpoint decides.
 //
 // Adding an optional endpoint: advertise a flag for it in
@@ -11,15 +11,15 @@ import { compareVersions } from '../utils/version'
 // an entry here with that flag and `flagShippedWithEndpoint: true`, and guard
 // its hook with useRadarFeature. TestFeatureFlagsHaveFrontendGates keeps the
 // two lists in step. `minimumVersion` can wait for the release to be cut:
-// until then the note asks for the latest Radar.
+// until then the note asks for the latest KubeAtlas.
 export interface RadarFeatureSpec {
-  /** Plural noun phrase; the upgrade note reads "<label> need Radar vX or newer." */
+  /** Plural noun phrase; the upgrade note reads "<label> need KubeAtlas vX or newer." */
   label: string
   /** First release that served the endpoint, once known. */
   minimumVersion?: string
   flag?: keyof FeatureCapabilities
   /**
-   * The flag shipped in the same release as the endpoint, so a Radar whose
+   * The flag shipped in the same release as the endpoint, so a KubeAtlas whose
    * capabilities omit it is too old regardless of its version. False for the
    * entries below, whose flags were added after their endpoints.
    */
@@ -70,7 +70,7 @@ export function radarSpecSupport(
 ): RadarFeatureSupport {
   if (spec.flag && capabilities?.features?.[spec.flag] === true) return 'supported'
   // Unflagged entries all predate the first flag added for this table, so a
-  // Radar that advertises it serves them, whatever version the host reported.
+  // KubeAtlas that advertises it serves them, whatever version the host reported.
   if (!spec.flag && capabilities?.features?.resourceIssues === true) return 'supported'
   if (spec.flag && spec.flagShippedWithEndpoint && capabilities) return 'unsupported'
   const version = currentVersion?.trim()
@@ -99,7 +99,7 @@ export function radarUpgradeRequirement(feature: RadarFeature, versions: RadarVe
 }
 
 /**
- * The connected Radar predates `feature`. Carries `radarUpgrade` so k8s-ui
+ * The connected KubeAtlas predates `feature`. Carries `radarUpgrade` so k8s-ui
  * components can render the upgrade note without importing this class.
  */
 export class RadarFeatureUnsupportedError extends Error {
@@ -108,7 +108,7 @@ export class RadarFeatureUnsupportedError extends Error {
 
   constructor(feature: RadarFeature, versions: RadarVersions) {
     const requirement = radarUpgradeRequirement(feature, versions)
-    super(`${requirement.feature} need a newer Radar`)
+    super(`${requirement.feature} need a newer KubeAtlas`)
     this.name = 'RadarFeatureUnsupportedError'
     this.feature = feature
     this.radarUpgrade = requirement
@@ -120,9 +120,9 @@ export function isRadarFeatureUnsupported(error: unknown, feature?: RadarFeature
 }
 
 /**
- * Runs `request` unless the connected Radar is known to predate `feature`.
+ * Runs `request` unless the connected KubeAtlas is known to predate `feature`.
  * When its version is unknown, chi's unknown-route 404 (ApiError.unknownRoute)
- * is read as the same answer; on a Radar known to serve the feature that 404
+ * is read as the same answer; on a KubeAtlas known to serve the feature that 404
  * is a routing failure and stays an error.
  */
 export async function guardRadarFeature<T>(

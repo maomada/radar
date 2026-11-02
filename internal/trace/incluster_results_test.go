@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 // cleanInClusterPass is a live in-cluster HTTP 200 - the unambiguous real-traffic

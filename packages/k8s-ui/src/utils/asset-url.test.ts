@@ -2,11 +2,11 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { assetUrl } from './asset-url'
 
 type RuntimeGlobal = typeof globalThis & {
-  __RADAR_RUNTIME_CONFIG__?: { assetBase?: string }
+  __KUBEATLAS_RUNTIME_CONFIG__?: { assetBase?: string }
 }
 
 function setAssetBase(assetBase: string) {
-  ;(globalThis as RuntimeGlobal).__RADAR_RUNTIME_CONFIG__ = { assetBase }
+  ;(globalThis as RuntimeGlobal).__KUBEATLAS_RUNTIME_CONFIG__ = { assetBase }
 }
 
 /**
@@ -36,12 +36,12 @@ function asWorkerAt(pathname: string, run: () => void) {
 }
 
 afterEach(() => {
-  delete (globalThis as RuntimeGlobal).__RADAR_RUNTIME_CONFIG__
+  delete (globalThis as RuntimeGlobal).__KUBEATLAS_RUNTIME_CONFIG__
 })
 
 describe('assetUrl at the root (no base path)', () => {
   it('leaves absolute paths untouched', () => {
-    expect(assetUrl('/images/radar/radar-icon.svg')).toBe('/images/radar/radar-icon.svg')
+    expect(assetUrl('/images/kubeatlas/kubeatlas-icon.svg')).toBe('/images/kubeatlas/kubeatlas-icon.svg')
   })
 
   it('makes Vite-relative asset paths absolute', () => {
@@ -56,14 +56,14 @@ describe('assetUrl at the root (no base path)', () => {
   // An app route may contain an "/assets/" segment (e.g. a namespace named
   // "assets"). That must not be mistaken for a base path.
   it('ignores an /assets/ segment in the current app route', () => {
-    expect(assetUrl('/images/radar/radar-icon.svg')).toBe('/images/radar/radar-icon.svg')
+    expect(assetUrl('/images/kubeatlas/kubeatlas-icon.svg')).toBe('/images/kubeatlas/kubeatlas-icon.svg')
   })
 })
 
 describe('assetUrl under a base path', () => {
   it('prefixes absolute and relative asset paths', () => {
     setAssetBase('/radar')
-    expect(assetUrl('/images/radar/radar-icon.svg')).toBe('/radar/images/radar/radar-icon.svg')
+    expect(assetUrl('/images/kubeatlas/kubeatlas-icon.svg')).toBe('/radar/images/kubeatlas/kubeatlas-icon.svg')
     expect(assetUrl('./assets/index-abc.js')).toBe('/radar/assets/index-abc.js')
     expect(assetUrl('assets/index-abc.js')).toBe('/radar/assets/index-abc.js')
   })

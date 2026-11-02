@@ -1,7 +1,7 @@
-import { InvestigationEvidencePane } from '@skyhook-io/k8s-ui'
+import { InvestigationEvidencePane } from '@maomada/k8s-ui'
 
 // Investigation of Deployment payments/checkout-api crash-looping after the
-// v2.15.0 rollout. Shapes match what Radar's evidence projection produces
+// v2.15.0 rollout. Shapes match what KubeAtlas's evidence projection produces
 // from the agent's diagnose / get_pod_logs / get_resource calls.
 const POD = 'checkout-api-7d9f8c6b5-x2kqp'
 const TARGET = 'deployment payments/checkout-api'

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/issuesapi"
 	"k8s.io/apimachinery/pkg/types"
 )
 

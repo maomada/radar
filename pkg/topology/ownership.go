@@ -5,9 +5,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // maxOwnershipRefs caps Children, and a GitOps manager's Manages, on the

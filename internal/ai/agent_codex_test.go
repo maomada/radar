@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // TestCodexParseStream_FormatPin locks the Codex `exec --json` JSONL schema we

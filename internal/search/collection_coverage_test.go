@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/internal/filter"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/internal/filter"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 func TestCELUsesCachedFieldsWithoutDetailPruning(t *testing.T) {

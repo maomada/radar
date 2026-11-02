@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAudit, useAuditSettings, useUpdateAuditSettings, useCloudRole } from '../../api/client'
 import type { SelectedResource } from '../../types'
-import { ChecksView, PaneLoader, PageHeader, FreshnessControl, type CheckResourceRef } from '@skyhook-io/k8s-ui'
+import { ChecksView, PaneLoader, PageHeader, FreshnessControl, type CheckResourceRef } from '@maomada/k8s-ui'
 import { ShieldCheck, Settings } from 'lucide-react'
 import { AuditSettingsDialog } from './AuditSettingsDialog'
 import { Tooltip } from '../ui/Tooltip'
@@ -19,7 +19,7 @@ interface AuditViewProps {
 // (ChecksView) the Hub fleet view uses — single cluster here, so no cluster
 // label and in-app (client-side) resource navigation. The rollup + priority
 // come pre-computed from radar's /api/audit (pkg/audit.BuildChecks); local
-// ~/.radar settings are this cluster's "policy" and the row hide-menu writes to
+// ~/.kubeatlas settings are this cluster's "policy" and the row hide-menu writes to
 // them.
 export function AuditView({ namespaces, onNavigateToResource }: AuditViewProps) {
   const { pathname } = useLocation()

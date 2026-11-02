@@ -9,8 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // Hop findings follow the caller's issue access: a missing TLS Secret names only

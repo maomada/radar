@@ -563,14 +563,14 @@ describe("Timeline startup signals", () => {
           startup={connected}
         />,
       ),
-    ).toContain("Connected to Radar&#x27;s tools");
+    ).toContain("Connected to KubeAtlas&#x27;s tools");
 
     const ready = mergeStartupSignal(connected, readyEvent);
     const html = renderToStaticMarkup(
       <Timeline items={[]} running agentLabel="Claude Code" startup={ready} />,
     );
     expect(html).toContain(
-      "Claude Code ready · claude-opus-5 · 24 Radar tools",
+      "Claude Code ready · claude-opus-5 · 24 KubeAtlas tools",
     );
     expect(html).not.toContain("Starting investigation…");
     expect(html).not.toContain("MCP server");
@@ -621,7 +621,7 @@ describe("Timeline startup signals", () => {
     );
     expect(html).not.toContain("Claude Code ready");
     expect(html).not.toContain("Starting investigation…");
-    expect(html).not.toContain("Connected to Radar");
+    expect(html).not.toContain("Connected to KubeAtlas");
   });
 
   it("renders a bare ready label when the init facts are absent", () => {
@@ -637,7 +637,7 @@ describe("Timeline startup signals", () => {
       />,
     );
     expect(html).toContain("Claude Code ready</span>");
-    expect(html).not.toContain("Radar tools");
+    expect(html).not.toContain("KubeAtlas tools");
     expect(html).not.toContain("MCP server");
   });
 
@@ -696,9 +696,9 @@ describe("Timeline startup signals", () => {
         startup={startup}
       />,
     );
-    expect(live).toContain("Claude Code ready · claude-opus-5 · 0 Radar tools");
+    expect(live).toContain("Claude Code ready · claude-opus-5 · 0 KubeAtlas tools");
     expect(live).toContain("failed to connect");
-    expect(live).toContain("had no Radar tools this turn");
+    expect(live).toContain("had no KubeAtlas tools this turn");
 
     // The warning is a fact of the run and survives replay; the label does not.
     const replayed = renderToStaticMarkup(
@@ -730,7 +730,7 @@ describe("running status elapsed counter", () => {
       />,
     );
     const label = html.match(/<span class="ai-shimmer[^"]*">([^<]*)</);
-    expect(label?.[1]).toBe("Connected to Radar&#x27;s tools");
+    expect(label?.[1]).toBe("Connected to KubeAtlas&#x27;s tools");
     expect(label?.[1]).not.toMatch(/\d+s/);
   });
 });
@@ -807,7 +807,7 @@ describe("tool row duration and failure reason", () => {
     expect(toolErrorReason("")).toBeUndefined();
     expect(toolErrorReason("  \n ")).toBeUndefined();
     expect(toolErrorReason('{"error":""}')).toBeUndefined();
-    // Radar's not-found hints are for the agent; the row keeps what failed.
+    // KubeAtlas's not-found hints are for the agent; the row keeps what failed.
     expect(
       toolErrorReason(
         'resource not found: secret "project-infra" not found — found Deployment autopush/project-infra — retry with kind=deployment; or use search',
@@ -949,7 +949,7 @@ describe("AgentControls execution profile explanation", () => {
     expect(html).not.toContain("always runs this agent with safeguards");
   });
 
-  it("discloses the Claude configuration that Radar cannot exclude", () => {
+  it("discloses the Claude configuration that KubeAtlas cannot exclude", () => {
     const html = renderAgent(
       "claude",
       ["safeguarded", "full-local"],
@@ -970,8 +970,8 @@ describe("AgentControls execution profile explanation", () => {
       "full-local",
     );
     expect(html).toContain("permissions from your setup");
-    expect(html).toContain("Radar does not override them");
-    expect(html).not.toContain("Radar still enables the agent CLI");
+    expect(html).toContain("KubeAtlas does not override them");
+    expect(html).not.toContain("KubeAtlas still enables the agent CLI");
   });
 
   it("does not describe an unknown safeguarded agent as Codex", () => {
@@ -1007,7 +1007,7 @@ describe("ConsentCard execution profile treatment", () => {
     expect(html).toContain("Continue with my agent setup");
     expect(html).toContain("border-amber-500/40");
     expect(html).toContain("text-amber-500");
-    expect(html).toContain("Radar cannot constrain");
+    expect(html).toContain("KubeAtlas cannot constrain");
     expect(html).toContain("--force");
     expect(html).toContain("auto-approves its built-in tools");
     expect(html).toContain("including your global servers");
@@ -1017,7 +1017,7 @@ describe("ConsentCard execution profile treatment", () => {
     expect(html).not.toContain("text-accent");
   });
 
-  it("does not claim Radar enables a sandbox for Claude's normal setup", () => {
+  it("does not claim KubeAtlas enables a sandbox for Claude's normal setup", () => {
     const html = renderToStaticMarkup(
       <ConsentCard
         agentName="Claude Code"
@@ -1028,11 +1028,11 @@ describe("ConsentCard execution profile treatment", () => {
       />,
     );
     expect(html).toContain("permissions from your setup");
-    expect(html).toContain("Radar does not override them");
-    expect(html).not.toContain("Radar still enables the agent CLI");
+    expect(html).toContain("KubeAtlas does not override them");
+    expect(html).not.toContain("KubeAtlas still enables the agent CLI");
   });
 
-  it("does not claim Radar enables a sandbox for OpenCode's normal setup", () => {
+  it("does not claim KubeAtlas enables a sandbox for OpenCode's normal setup", () => {
     const html = renderToStaticMarkup(
       <ConsentCard
         agentName="OpenCode"
@@ -1042,12 +1042,12 @@ describe("ConsentCard execution profile treatment", () => {
         onCancel={noop}
       />,
     );
-    expect(html).toContain("Radar runs OpenCode with --auto");
+    expect(html).toContain("KubeAtlas runs OpenCode with --auto");
     expect(html).toContain("automatically approves actions");
     expect(html).toContain("built-in tools and configured MCP servers");
     expect(html).toContain("Explicit denials still apply");
-    expect(html).toContain("Radar does not enforce a CLI sandbox");
-    expect(html).not.toContain("Radar still enables the agent CLI");
+    expect(html).toContain("KubeAtlas does not enforce a CLI sandbox");
+    expect(html).not.toContain("KubeAtlas still enables the agent CLI");
   });
 });
 
@@ -1165,7 +1165,7 @@ describe("ResultCard conclusion states", () => {
     );
 
     expect(html).toContain("Assessment conflicts with captured evidence");
-    expect(html).toContain("Radar also captured evidence of an active problem");
+    expect(html).toContain("KubeAtlas also captured evidence of an active problem");
     expect(html).not.toContain("Key evidence");
     expect(html).toContain("border-amber-500/40");
     expect(html).not.toContain("border-emerald-500/30");
@@ -1192,13 +1192,13 @@ describe("ResultCard conclusion states", () => {
       />,
     );
 
-    // An explanation reframes Radar's finding; it never replaces it with
+    // An explanation reframes KubeAtlas's finding; it never replaces it with
     // reassurance. The banner stays a warning, still says the evidence is
     // there, and points at the notes.
     expect(html).toContain(
       "Agent reports no active problem; adverse evidence remains",
     );
-    expect(html).toContain("Radar captured evidence of an active problem");
+    expect(html).toContain("KubeAtlas captured evidence of an active problem");
     expect(html).toContain("the note on CrashLoopBackOff and Error logs");
     expect(html).not.toContain("Assessment conflicts with captured evidence");
     expect(html).toContain("border-amber-500/40");
@@ -1533,7 +1533,7 @@ describe("TurnView tool outcome truth", () => {
     apply.status = "error";
     apply.applyOutcome = "unknown";
     apply.error =
-      "The apply stopped before Radar could confirm whether the change completed.";
+      "The apply stopped before KubeAtlas could confirm whether the change completed.";
 
     const html = renderToStaticMarkup(
       <TurnView turn={apply} onCheckStatus={noop} />,
@@ -1562,7 +1562,7 @@ describe("TurnView tool outcome truth", () => {
     const html = renderToStaticMarkup(<TurnView turn={apply} />);
     expect(html).toContain("Applied");
     expect(html).toContain("border-emerald-500/30");
-    expect(html).toContain("Radar confirmed the change was applied");
+    expect(html).toContain("KubeAtlas confirmed the change was applied");
     expect(html).not.toContain("Outcome unknown");
     expect(html).not.toContain("Not applied");
   });
@@ -1590,7 +1590,7 @@ describe("TurnView tool outcome truth", () => {
     apply.status = "error";
     apply.applyOutcome = "confirmed";
     apply.error =
-      "A Radar write tool confirmed the mutation, but the agent ended before completing its report.";
+      "A KubeAtlas write tool confirmed the mutation, but the agent ended before completing its report.";
 
     const html = renderToStaticMarkup(<TurnView turn={apply} />);
     expect(html).toContain("Applied");

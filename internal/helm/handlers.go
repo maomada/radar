@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 	"io"
 	"log"
 	"net/http"
@@ -15,9 +15,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/k8s"
 	"helm.sh/helm/v3/pkg/storage/driver"
 )
 

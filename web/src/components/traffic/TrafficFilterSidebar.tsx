@@ -14,11 +14,11 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { SEVERITY_BADGE } from '@skyhook-io/k8s-ui/utils/badge-colors'
+import { SEVERITY_BADGE } from '@maomada/k8s-ui/utils/badge-colors'
 import type { AddonMode } from './TrafficView'
 import { getNamespaceColor } from '../../utils/traffic-colors'
 import { Tooltip } from '../ui/Tooltip'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 import { volumeThresholds } from './trafficFilters'
 
 // Time range options

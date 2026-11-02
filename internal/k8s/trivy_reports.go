@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 )
 
 // TrivyReportGVR resolves a read of kind (with an optional API group) the way

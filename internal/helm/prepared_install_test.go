@@ -68,8 +68,8 @@ func TestSelectStableChartVersion_RejectsPrereleaseOldAndMissing(t *testing.T) {
 	}
 }
 
-func TestServerDryRunFindsActualCloudDeployment(t *testing.T) {
-	loaded, err := loader.Load("../../deploy/helm/radar")
+func TestServerDryRunRejectsUnavailableCloudDeployment(t *testing.T) {
+	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,27 +85,13 @@ func TestServerDryRunFindsActualCloudDeployment(t *testing.T) {
 		},
 	}
 	req := &InstallRequest{
-		ReleaseName: "custom", Namespace: "observability", ChartName: "radar",
+		ReleaseName: "custom", Namespace: "observability", ChartName: "kubeatlas",
 		Version: loaded.Metadata.Version, Repository: "unused",
 		Values: values, CreateNamespace: true,
 	}
-	rel, err := runServerDryRun(context.Background(), memoryActionConfig(t), req, loaded)
-	if err != nil {
-		t.Fatalf("server dry-run: %v", err)
-	}
-	ref, err := cloudDeploymentRef(rel.Manifest, req.Namespace)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ref.Name != "custom-radar" || ref.Namespace != "observability" {
-		t.Fatalf("deployment = %+v, want observability/custom-radar", ref)
-	}
-	if !strings.Contains(ref.Selector, "app.kubernetes.io/instance=custom") || !strings.Contains(ref.Selector, "app.kubernetes.io/name=radar") {
-		t.Fatalf("selector = %q", ref.Selector)
-	}
-	prepared := &PreparedInstall{manifest: rel.Manifest}
-	if prepared.TargetManifest() != rel.Manifest {
-		t.Fatal("prepared install did not expose the pinned rendered manifest")
+	_, err = runServerDryRun(context.Background(), memoryActionConfig(t), req, loaded)
+	if err == nil || !strings.Contains(err.Error(), "cloud.enabled is unavailable in KubeAtlas") {
+		t.Fatalf("Cloud dry-run error = %v", err)
 	}
 }
 
@@ -122,7 +108,7 @@ spec:
       containers:
       - name: radar
         env:
-        - {name: RADAR_CLOUD_MODE, value: "true"}
+        - {name: KUBEATLAS_CLOUD_MODE, value: "true"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -136,7 +122,7 @@ spec:
       containers:
       - name: radar
         env:
-        - {name: RADAR_CLOUD_MODE, value: "true"}
+        - {name: KUBEATLAS_CLOUD_MODE, value: "true"}
 `
 	if _, err := cloudDeploymentRef(manifest, "radar"); err == nil {
 		t.Fatal("expected ambiguous cloud Deployments to fail")
@@ -144,6 +130,7 @@ spec:
 }
 
 func TestResolvePreparedChartPinsExactArchiveAndDigest(t *testing.T) {
+	withTestHelmHTTPClient(t)
 	chartObject := &chart.Chart{
 		Metadata: &chart.Metadata{APIVersion: "v2", Name: "radar", Version: "1.6.0", Type: "application"},
 		Templates: []*chart.File{{Name: "templates/deployment.yaml", Data: []byte(`apiVersion: apps/v1
@@ -156,7 +143,7 @@ spec:
       containers:
       - name: radar
         env:
-        - {name: RADAR_CLOUD_MODE, value: "true"}
+        - {name: KUBEATLAS_CLOUD_MODE, value: "true"}
 `)}},
 	}
 	archivePath, err := chartutil.Save(chartObject, t.TempDir())
@@ -190,7 +177,8 @@ entries:
 	}))
 	defer server.Close()
 
-	loaded, exact, err := (&Client{}).resolvePreparedChart(context.Background(), &InstallRequest{
+	client := &Client{repositoryNetwork: testHelmRepositoryNetwork()}
+	loaded, exact, err := client.resolvePreparedChart(context.Background(), &InstallRequest{
 		ChartName: "radar", Repository: server.URL,
 	}, "1.5.4")
 	if err != nil {
@@ -201,7 +189,7 @@ entries:
 	}
 
 	index = strings.Replace(validIndex, fmt.Sprintf("    digest: %s\n", hex.EncodeToString(digest[:])), "", 1)
-	_, _, err = (&Client{}).resolvePreparedChart(context.Background(), &InstallRequest{
+	_, _, err = client.resolvePreparedChart(context.Background(), &InstallRequest{
 		ChartName: "radar", Repository: server.URL,
 	}, "1.5.4")
 	if err == nil || !strings.Contains(err.Error(), "has no SHA-256 digest") {

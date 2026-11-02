@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/k8s"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/k8s"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 // aiEngine returns the AI investigation engine, both nil while it is off.

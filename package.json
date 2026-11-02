@@ -1,5 +1,5 @@
 {
-  "name": "radar",
+  "name": "kubeatlas",
   "private": true,
   "workspaces": [
     "web",

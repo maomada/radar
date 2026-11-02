@@ -18,11 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/argoapi"
-	gitopsinsights "github.com/skyhook-io/radar/pkg/gitops/insights"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/argoapi"
+	gitopsinsights "github.com/maomada/radar/pkg/gitops/insights"
 )
 
 // seedInClusterArgoApp registers an in-cluster Argo Application in the dynamic

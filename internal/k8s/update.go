@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // Re-export types from pkg/k8score for backward compatibility.

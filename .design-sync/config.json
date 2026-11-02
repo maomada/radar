@@ -1,7 +1,7 @@
 {
   "projectId": "cd66db23-f991-4d87-8ac2-721650c81721",
   "shape": "package",
-  "pkg": "@skyhook-io/k8s-ui",
+  "pkg": "@maomada/k8s-ui",
   "globalName": "K8sUI",
   "buildCmd": "node .design-sync/build-pkg.mjs",
   "srcDir": "../src",

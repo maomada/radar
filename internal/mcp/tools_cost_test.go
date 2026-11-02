@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/opencost"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
+	"github.com/maomada/radar/internal/opencost"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

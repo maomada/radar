@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // WorkloadPods returns the pods a workload controls right now, by controller

@@ -20,7 +20,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // The shape below is copied from a file Velero actually wrote on a kind cluster,

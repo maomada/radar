@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	auth "github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
+	auth "github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
 
 	batchv1 "k8s.io/api/batch/v1"
 

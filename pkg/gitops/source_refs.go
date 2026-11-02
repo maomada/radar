@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

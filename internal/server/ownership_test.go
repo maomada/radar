@@ -11,13 +11,13 @@ import (
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // withOwnershipDiscovery serves the fixture's kinds as Kubernetes does, with

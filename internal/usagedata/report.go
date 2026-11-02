@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/version"
 )
 
 // Report is the exact payload sent once a day. It carries no install ID:

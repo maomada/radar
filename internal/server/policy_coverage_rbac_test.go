@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/policyreports"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/policyreports"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

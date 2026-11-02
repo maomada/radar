@@ -1,4 +1,4 @@
-import { SummaryTile } from '@skyhook-io/k8s-ui'
+import { SummaryTile } from '@maomada/k8s-ui'
 
 const row = { display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap', padding: 10 } as const
 const noop = () => {}

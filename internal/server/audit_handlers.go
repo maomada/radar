@@ -11,14 +11,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/audit"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/settings"
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	chk "github.com/skyhook-io/radar/pkg/checks"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/audit"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/settings"
+	bp "github.com/maomada/radar/pkg/audit"
+	chk "github.com/maomada/radar/pkg/checks"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // apiResourceKindMap maps lowercase plural API resource names to Go Kind names
@@ -125,7 +125,7 @@ func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {
 	}
 	results := getCachedResults(cache, namespaces, s.auditOptions(r))
 	// `?raw=true` returns the unfiltered scan, skipping the local
-	// ~/.radar/settings.json audit filters. Radar Cloud's Hub requests raw so
+	// ~/.kubeatlas/settings.json audit filters. Radar Cloud's Hub requests raw so
 	// it can own the effective Checks config (org policy) centrally rather than
 	// inheriting each cluster's local settings as if they were team policy.
 	// Standalone Radar and the embedded per-cluster audit view omit the param

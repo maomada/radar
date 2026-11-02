@@ -1,4 +1,4 @@
-import { CenteredEmpty } from '@skyhook-io/k8s-ui'
+import { CenteredEmpty } from '@maomada/k8s-ui'
 import { CircleCheck, Search } from 'lucide-react'
 import type { CSSProperties } from 'react'
 

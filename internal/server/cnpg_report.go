@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	"github.com/maomada/radar/internal/version"
 )
 
 // The Cluster report bundle mirrors `kubectl cnpg report cluster`: the

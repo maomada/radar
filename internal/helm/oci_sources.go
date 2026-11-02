@@ -11,7 +11,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/registry"
 
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/settings"
 )
 
 // ociProbeTimeout bounds a single registry tag lookup via the registry client's

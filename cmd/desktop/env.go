@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // shellEnvVars lists exact environment variables to capture from the user's
@@ -31,8 +31,8 @@ var shellEnvVars = []string{
 	"AZURE_CONFIG_DIR",
 	// Self-hosted Hub overrides — a Finder/Dock launch strips the shell env,
 	// and without these Cloud Connect would silently target the hosted Hub.
-	"RADAR_HUB_URL",
-	"RADAR_HUB_APP_URL",
+	"KUBEATLAS_HUB_URL",
+	"KUBEATLAS_HUB_APP_URL",
 }
 
 var shellEnvPrefixes = []string{
@@ -148,14 +148,14 @@ func getShellEnv(keys []string, prefixes []string) map[string]string {
 // chatter around it is discarded.
 func runLoginShell(shell, script string) string {
 	// Whole NUL-delimited markers cannot appear inside an environment value.
-	const startMarker = "\x00__RADAR_ENV_START__\x00"
-	const endMarker = "\x00__RADAR_ENV_END__\x00"
+	const startMarker = "\x00__KUBEATLAS_ENV_START__\x00"
+	const endMarker = "\x00__KUBEATLAS_ENV_END__\x00"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, shell, "-l", "-i", "-c",
-		"printf '\\000__RADAR_ENV_START__\\000'\n"+script+"\nprintf '\\000__RADAR_ENV_END__\\000'")
+		"printf '\\000__KUBEATLAS_ENV_START__\\000'\n"+script+"\nprintf '\\000__KUBEATLAS_ENV_END__\\000'")
 	cmd.Env = []string{
 		"HOME=" + os.Getenv("HOME"),
 		"USER=" + os.Getenv("USER"),

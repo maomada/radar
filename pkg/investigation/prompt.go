@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // ReadOnlyTools is the explicit allowlist of Radar MCP read tools an

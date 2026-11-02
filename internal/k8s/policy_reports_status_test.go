@@ -7,7 +7,7 @@ import (
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // discoveryWith installs a singleton discovery exposing exactly the given

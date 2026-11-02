@@ -3,7 +3,7 @@ package podlogs
 import (
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 )
 

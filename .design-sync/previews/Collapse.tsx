@@ -1,4 +1,4 @@
-import { Collapse, CollapseChevron, useDisclosure, Property, PropertyList } from '@skyhook-io/k8s-ui'
+import { Collapse, CollapseChevron, useDisclosure, Property, PropertyList } from '@maomada/k8s-ui'
 import { useState, type ReactNode } from 'react'
 
 function DrawerSection({ title, defaultOpen, children }: { title: string; defaultOpen: boolean; children: ReactNode }) {

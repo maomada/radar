@@ -8,11 +8,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/meaningfulchanges"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/meaningfulchanges"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // Per-issue change correlation answers the first triage question — "did

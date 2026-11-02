@@ -19,7 +19,7 @@ import {
   toneTextClass,
   type CNPGFleetRow,
   type CNPGLogicalPath,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGPublisherSlots } from './logicalSlots'
 import type { SelectedResource } from '../../types'
 import { CNPGWorkspaceHeader, CoverageNotice, clusterResource, cnpgResource, coverageEmpty, worstCoverage, type CNPGScreenProps } from './shared'

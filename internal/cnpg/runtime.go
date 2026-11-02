@@ -16,9 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/cnpg"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/cnpg"
 )
 
 func runtimePermission(namespace string, allowed bool) CNPGRuntimePermission {

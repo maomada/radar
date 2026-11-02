@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // ResourceDiscovery wraps the shared k8score implementation.

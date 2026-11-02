@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 const (

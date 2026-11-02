@@ -64,7 +64,7 @@ beforeEach(() => {
   pendingRead = null
   holdNextRead = false
   vi.stubGlobal('localStorage', memoryStorage())
-  // Radar's own defaults: focus refetch is off unless a query opts in.
+  // KubeAtlas's own defaults: focus refetch is off unless a query opts in.
   client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } })
   const element = document.createElement('div')
   document.body.appendChild(element)
@@ -131,7 +131,7 @@ describe('WhatsNew', () => {
     setCatalog(...SHIPPED)
     serverState = { currentVersion: version, storage: 'server', seenVersion: 'v1.17.0', priorInstall: true }
     await render('/')
-    expect(dialog()?.textContent).toContain("What's new in Radar v1.18")
+    expect(dialog()?.textContent).toContain("What's new in KubeAtlas v1.18")
     await clickGotIt()
     expect(seenPosts).toEqual([version])
     expect(status.current.unread).toBe(false)
@@ -183,7 +183,7 @@ describe('WhatsNew', () => {
     setCatalog(HEADLINE, { ...HEADLINE, version: 'v1.14.0' })
     serverState.seenVersion = 'v1.14.1'
     await render('/resources/pods?whats-new=v1.14.0')
-    expect(dialog()?.textContent).toContain("What's new in Radar v1.14")
+    expect(dialog()?.textContent).toContain("What's new in KubeAtlas v1.14")
     await clickGotIt()
     expect(seenPosts).toEqual([])
     expect(status.current.unread).toBe(true)
@@ -259,7 +259,7 @@ describe('WhatsNew', () => {
     expect(status.current.unread).toBe(true)
     expect(seenPosts).toEqual([])
     await act(async () => { openWhatsNew() })
-    expect(dialog()?.textContent).toContain("What's new in Radar v1.16")
+    expect(dialog()?.textContent).toContain("What's new in KubeAtlas v1.16")
     expect(dialog()?.textContent).not.toContain('Capacity views')
     await clickGotIt()
     expect(seenPosts).toEqual(['v1.16.0'])
@@ -280,7 +280,7 @@ describe('WhatsNew', () => {
     serverState = { currentVersion: 'v1.16.0', storage: 'server', seenVersion: 'v1.14.1', priorInstall: true }
     await render('/')
     const text = dialog()?.textContent ?? ''
-    expect(text).toContain("What's new since Radar v1.14")
+    expect(text).toContain("What's new since KubeAtlas v1.14")
     expect(text).toContain('Also new')
     expect(dialog()?.querySelector('li')?.textContent).toContain('Capacity views')
     expect(dialog()?.querySelector('li')?.textContent).toContain('v1.15')
@@ -295,7 +295,7 @@ describe('WhatsNew', () => {
     setCatalog(HEADLINE, QUIET)
     serverState = { currentVersion: 'v1.16.0', storage: 'server', seenVersion: 'v1.16.0', priorInstall: true }
     await render('/?whats-new=v1.16.0&whats-new-from=v1.14.0')
-    expect(dialog()?.textContent).toContain("What's new since Radar v1.14")
+    expect(dialog()?.textContent).toContain("What's new since KubeAtlas v1.14")
     await clickGotIt()
     expect(seenPosts).toEqual([])
   })
@@ -304,7 +304,7 @@ describe('WhatsNew', () => {
     setCatalog(...SHIPPED)
     serverState = { currentVersion: 'v1.17.0-113-gb49561b78', storage: 'server', seenVersion: 'v1.17.0', priorInstall: true }
     await render(`/resources/pods?whats-new${suffix}`)
-    expect(dialog()?.textContent).toContain("What's new in Radar v1.18")
+    expect(dialog()?.textContent).toContain("What's new in KubeAtlas v1.18")
     expect(dialog()?.textContent).toContain(SHIPPED[0].highlights[0].title)
     await clickGotIt()
     expect(seenPosts).toEqual([])
@@ -323,7 +323,7 @@ describe('WhatsNew', () => {
     serverState = { currentVersion: 'v1.15.2', storage: 'browser' }
     localStorage.setItem('radar-whats-new-seen', 'vdev')
     await render('/')
-    expect(dialog()?.textContent).toContain("What's new in Radar v1.15")
+    expect(dialog()?.textContent).toContain("What's new in KubeAtlas v1.15")
     expect(dialog()?.textContent).not.toContain('vdev')
   })
 
@@ -331,7 +331,7 @@ describe('WhatsNew', () => {
     serverState = { currentVersion: 'v1.15.2', storage: 'server', seenVersion: 'v1.14.1', priorInstall: true }
     await render('/')
     const link = Array.from(dialog()!.querySelectorAll('a')).find(a => a.textContent?.includes('Full changelog'))
-    expect(link?.getAttribute('href')).toBe('https://radarhq.io/changelog')
+    expect(link?.getAttribute('href')).toBe('https://github.com/maomada/radar/blob/main/CHANGELOG.md')
   })
   it('records the version it was opened for, even if the server is upgraded while it is open', async () => {
     setCatalog(HEADLINE, QUIET)

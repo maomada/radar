@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AgentControls } from '@skyhook-io/k8s-ui'
+import { AgentControls } from '@maomada/k8s-ui'
 
 const wrap = { width: 380, padding: 12 }
 

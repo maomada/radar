@@ -2,13 +2,13 @@ package k8s
 
 import (
 	"context"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/readreason"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"net/http"
 	"testing"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 	"k8s.io/client-go/rest"
 )
 

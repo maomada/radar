@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/subject"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 type capacityIssueProjection struct {

@@ -1,4 +1,4 @@
-import { displayKind } from "@skyhook-io/k8s-ui";
+import { displayKind } from "@maomada/k8s-ui";
 import { apiVersionToGroup } from "../../../../utils/navigation";
 import {
   ProjectionBuilder,

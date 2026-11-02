@@ -4,7 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // readableIn lists resource in namespace from the informer store that holds

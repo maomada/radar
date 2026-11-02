@@ -1,4 +1,4 @@
-import { ValuesDiffPreview } from '@skyhook-io/k8s-ui'
+import { ValuesDiffPreview } from '@maomada/k8s-ui'
 
 const noop = () => {}
 

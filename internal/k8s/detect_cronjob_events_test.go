@@ -11,8 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func cronJobEventSubject(now time.Time) *batchv1.CronJob {

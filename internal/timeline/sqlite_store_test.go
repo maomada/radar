@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 func createTestSQLiteStore(t *testing.T) (*SQLiteStore, func()) {

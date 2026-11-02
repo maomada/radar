@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/filter"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/filter"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 func TestMergeExternalIssuesFiltersSortsAndCaps(t *testing.T) {

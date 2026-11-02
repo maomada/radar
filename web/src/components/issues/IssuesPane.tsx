@@ -21,8 +21,8 @@ import {
   type IssueResourceRef,
   type IssueSeverity,
   type SummaryTone,
-} from "@skyhook-io/k8s-ui";
-import { builtinGroupForKind } from "@skyhook-io/k8s-ui/utils/api-resources";
+} from "@maomada/k8s-ui";
+import { builtinGroupForKind } from "@maomada/k8s-ui/utils/api-resources";
 import { AlertTriangle } from "lucide-react";
 import { IssueDiagnoseButton } from "../diagnose/LocalDiagnoseAction";
 import { uncheckedSourceLines } from "./uncheckedSources";
@@ -120,7 +120,7 @@ export type IssueSubjectState =
 /**
  * What can be said about the subject's issues. They come from the per-resource
  * lookup, which matches every grouped member (the list's inline members are
- * capped) by exact API group; an empty answer is "none" only when Radar reads
+ * capped) by exact API group; an empty answer is "none" only when KubeAtlas reads
  * the subject's kind, nothing kept it from the evidence, and RBAC withheld no
  * issue about it.
  */
@@ -139,8 +139,8 @@ export function issueSubjectState(
   if (related.isLoading || !data) return { state: "checking" };
   if (data.issues.length > 0) return { state: "found", issues: data.issues, withheld: data.withheld?.issues ?? 0 };
   if (data.coverage === "unknownKind") return { state: "unconfirmed", why: "this cluster has no such kind" };
-  if (data.coverage === "notWatched") return { state: "unconfirmed", why: `Radar isn't watching ${subject.kind}` };
-  if (data.coverage === "syncing") return { state: "unconfirmed", why: `Radar is still loading ${subject.kind}` };
+  if (data.coverage === "notWatched") return { state: "unconfirmed", why: `KubeAtlas isn't watching ${subject.kind}` };
+  if (data.coverage === "syncing") return { state: "unconfirmed", why: `KubeAtlas is still loading ${subject.kind}` };
   const withheld = data.withheld?.issues ?? 0;
   if (withheld > 0) {
     return { state: "unconfirmed", why: `your permissions withhold ${withheld} ${withheld === 1 ? "issue" : "issues"} about it` };
@@ -163,7 +163,7 @@ const SEVERITY_TONE: Record<IssueSeverity, SummaryTone> = {
 interface IssuesPaneProps {
   namespaces: string[];
   onNavigateToResource: (resource: SelectedResource) => void;
-  /** Brings a namespace into the view filter: added to it, or (where Radar's scope allows only one) switched to it. */
+  /** Brings a namespace into the view filter: added to it, or (where KubeAtlas's scope allows only one) switched to it. */
   showNamespace?: { mode: "add" | "switch"; show: (namespace: string) => void };
 }
 
@@ -317,7 +317,7 @@ export function IssuesPane({
       )}
 
       {/* Unchecked-source honesty: the rows can't include issues from a
-          source Radar couldn't check. With no rows the empty state below says
+          source KubeAtlas couldn't check. With no rows the empty state below says
           it instead. */}
       {scopeIssues.length > 0 && uncheckedLines.length > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-theme-border bg-theme-elevated px-3 py-2 text-xs text-theme-text-secondary">

@@ -1,4 +1,4 @@
-import { LabelSelectorDisplay } from '@skyhook-io/k8s-ui'
+import { LabelSelectorDisplay } from '@maomada/k8s-ui'
 
 const stack = { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 480 } as const
 const field = { display: 'flex', flexDirection: 'column', gap: 4 } as const

@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/desktopenv"
-	"github.com/skyhook-io/radar/internal/k8s"
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/desktopenv"
+	"github.com/maomada/radar/internal/k8s"
+	internalopencost "github.com/maomada/radar/internal/opencost"
+	"github.com/maomada/radar/internal/version"
 )
 
 func TestDiagnosticsReportsRunningOpenCostCurrency(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // ServedResource is one version of one resource the API serves, as discovery

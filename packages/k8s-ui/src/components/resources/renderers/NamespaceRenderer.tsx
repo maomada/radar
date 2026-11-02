@@ -61,9 +61,9 @@ export function NamespaceRenderer({ data, rbacData, rbacLoading, rbacError, quot
 
   return (
     <>
-      <Section title="Status" icon={Box}>
+      <Section title="状态" icon={Box}>
         <PropertyList>
-          <Property label="Phase" value={
+          <Property label="阶段" value={
             phase ? (
               <span className={clsx(
                 phase === 'Active' && 'text-emerald-700 dark:text-emerald-400',
@@ -71,11 +71,11 @@ export function NamespaceRenderer({ data, rbacData, rbacLoading, rbacError, quot
               )}>{phase}</span>
             ) : undefined
           } />
-          {metadata.deletionTimestamp && <Property label="Terminating for" value={formatAge(metadata.deletionTimestamp)} />}
-          {metadata.deletionTimestamp && data.spec?.finalizers?.length > 0 && <Property label="Namespace finalizers" value={data.spec.finalizers.join(', ')} />}
+          {metadata.deletionTimestamp && <Property label="终止时长" value={formatAge(metadata.deletionTimestamp)} />}
+          {metadata.deletionTimestamp && data.spec?.finalizers?.length > 0 && <Property label="命名空间 Finalizer" value={data.spec.finalizers.join(', ')} />}
           {istioInjection && <Property label="Istio injection" value={istioInjection} />}
           {linkerdInjection && <Property label="Linkerd injection" value={linkerdInjection} />}
-          {managedBy && <Property label="Managed by" value={managedBy} />}
+          {managedBy && <Property label="管理者" value={managedBy} />}
         </PropertyList>
       </Section>
 
@@ -139,7 +139,7 @@ export function quotaUsageRatio(resourceName: string, used: string, hard: string
 
 function NamespaceQuotaSection({ quotas, error }: { quotas: any[]; error?: Error | null }) {
   return (
-    <Section title="Resource Quotas" icon={Gauge} defaultExpanded>
+    <Section title="资源配额" icon={Gauge} defaultExpanded>
       {error && (
         <div className="text-xs text-theme-text-secondary">
           Couldn’t load resource quotas — retry shortly. A quota at its limit blocks new pods in this namespace.
@@ -155,7 +155,7 @@ function NamespaceQuotaSection({ quotas, error }: { quotas: any[]; error?: Error
             <div key={name} className="card-inner">
               <div className="text-xs font-medium text-theme-text-primary mb-1.5">{name}</div>
               {resourceNames.length === 0 ? (
-                <div className="text-xs text-theme-text-secondary">No hard limits set.</div>
+                <div className="text-xs text-theme-text-secondary">未设置硬性限制。</div>
               ) : (
                 <div className="space-y-1">
                   {resourceNames.map((res) => {
@@ -225,12 +225,12 @@ function NamespaceRBACSection({
   if (loading) {
     return (
       <Section title="RBAC" icon={Shield}>
-        <div className="text-sm text-theme-text-secondary">Loading RBAC summary…</div>
+        <div className="text-sm text-theme-text-secondary">正在加载 RBAC 摘要…</div>
       </Section>
     )
   }
   if (error) {
-    return <RBACErrorSection title="RBAC" error={error} errorPrefix="Could not load RBAC summary" />
+    return <RBACErrorSection title="RBAC" error={error} errorPrefix="无法加载 RBAC 摘要" />
   }
   if (!rbacData) return null
 
@@ -242,8 +242,8 @@ function NamespaceRBACSection({
     <>
       <Section title="RBAC" icon={Shield} defaultExpanded>
         <PropertyList>
-          <Property label="ServiceAccounts" value={rbacData.serviceAccountCount} />
-          <Property label="Bindings touching this namespace" value={totalBindings} />
+          <Property label="ServiceAccount 数量" value={rbacData.serviceAccountCount} />
+          <Property label="涉及此命名空间的绑定" value={totalBindings} />
         </PropertyList>
       </Section>
 

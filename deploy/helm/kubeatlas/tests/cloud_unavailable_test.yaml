@@ -1,0 +1,39 @@
+suite: unavailable legacy Cloud options
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: rejects token-based legacy Cloud configuration
+    set:
+      cloud.enabled: true
+      cloud.url: wss://hub.example.test/agent
+      cloud.token: test-token
+      cloud.clusterName: test
+    asserts:
+      - failedTemplate:
+          errorMessage: cloud.enabled is unavailable in KubeAtlas
+  - it: rejects enrollment-based legacy Cloud configuration
+    set:
+      cloud.enabled: true
+      cloud.hubURL: https://hub.example.test
+      cloud.enrollment.existingSecret: hub-enrollment
+    asserts:
+      - failedTemplate:
+          errorMessage: cloud.enabled is unavailable in KubeAtlas
+  - it: rejects legacy user-token configuration
+    set:
+      cloud.enabled: true
+      cloud.url: wss://hub.example.test/agent
+      cloud.token: test-token
+      cloud.clusterName: test
+      auth.mode: proxy
+      auth.kubernetesCredentials: user-token
+    asserts:
+      - failedTemplate:
+          errorMessage: cloud.enabled is unavailable in KubeAtlas
+  - it: rejects user-token mode without Cloud
+    set:
+      auth.mode: proxy
+      auth.kubernetesCredentials: user-token
+    asserts:
+      - failedTemplate:
+          errorMessage: auth.kubernetesCredentials=user-token is unavailable in KubeAtlas

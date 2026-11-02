@@ -1,6 +1,6 @@
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import { VeleroRestoreRenderer as BaseVeleroRestoreRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/VeleroRestoreRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import { VeleroRestoreRenderer as BaseVeleroRestoreRenderer } from '@maomada/k8s-ui/components/resources/renderers/VeleroRestoreRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useVeleroRunMessages } from '../../../api/policy'
 
 /**

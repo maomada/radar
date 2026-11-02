@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
-import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse } from '@skyhook-io/k8s-ui'
+import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse } from '@maomada/k8s-ui'
 import { describe, expect, it, vi } from 'vitest'
 import { CNPGDeclarations, cnpgDeclarationBlocks, type DeclItem } from './CNPGDeclarations'
 

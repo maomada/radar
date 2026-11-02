@@ -16,20 +16,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/app"
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/diagnosecli"
-	"github.com/skyhook-io/radar/internal/k8s"
-	mcppkg "github.com/skyhook-io/radar/internal/mcp"
-	"github.com/skyhook-io/radar/internal/memlimit"
-	"github.com/skyhook-io/radar/internal/reachability"
-	"github.com/skyhook-io/radar/internal/server"
-	versionpkg "github.com/skyhook-io/radar/internal/version"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/app"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/diagnosecli"
+	"github.com/maomada/radar/internal/k8s"
+	mcppkg "github.com/maomada/radar/internal/mcp"
+	"github.com/maomada/radar/internal/memlimit"
+	"github.com/maomada/radar/internal/reachability"
+	"github.com/maomada/radar/internal/server"
+	versionpkg "github.com/maomada/radar/internal/version"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/prom"
 	"golang.org/x/net/http/httpguts"
 	authv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +43,10 @@ var (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "cloud" {
+		log.Fatal("upstream Cloud commands are not available in KubeAtlas; use the independent Portal registration")
+	}
+
 	// Subcommand dispatch (before flag parsing — subcommands own their flags).
 	// `radar diagnose <kind>/<name>` is a thin client for a RUNNING instance.
 	if len(os.Args) > 1 && os.Args[1] == "diagnose" {
@@ -70,14 +74,7 @@ func main() {
 	versionpkg.SetCurrent(version)
 	configureReachabilityImages()
 
-	// `radar cloud <sub>` — the one subcommand family, dispatched before flag
-	// parsing. Supported subcommands handle themselves and exit; the reserved
-	// local-preview command exits with in-cluster installation guidance.
-	if len(os.Args) >= 2 && os.Args[1] == "cloud" {
-		runCloudSubcommand()
-	}
-
-	// Load persistent config (~/.radar/config.json) for flag defaults.
+	// Load persistent config (~/.kubeatlas/config.json) for flag defaults.
 	// CLI flags override config file values.
 	fileCfg, err := config.LoadForStartup()
 	if err != nil {
@@ -91,12 +88,12 @@ func main() {
 	namespaces := flag.String("namespaces", fileCfg.NamespacesFlag(), "Initial namespace filters as a comma-separated list (e.g. ns1,ns2,ns3). Use this when you can list resources in specific namespaces but cannot list namespaces cluster-wide.")
 	port := flag.Int("port", fileCfg.PortOr(9280), "Server port")
 	listenAddress := flag.String("listen-address", server.DefaultListenAddress, "HTTP listen IP address (IPv4 or IPv6), or localhost; loopback is local-only, other addresses (including 0.0.0.0) expose shared access")
-	basePath := flag.String("base-path", "", "URL path prefix to serve Radar under, e.g. /radar (empty = root). Use when an ingress forwards a subpath without stripping it.")
-	allowedHosts := flag.String("allowed-hosts", os.Getenv("RADAR_ALLOWED_HOSTS"), "Comma-separated hostnames, besides localhost, IP addresses and Kubernetes Service names, that an unauthenticated non-loopback listener answers (e.g. radar.internal). Requests for other hostnames are refused so DNS rebinding cannot reach Radar. Exact names or *.example.com for names under a domain; \"*\" turns the check off. Hosts from --trusted-origins are included. Env: RADAR_ALLOWED_HOSTS")
-	trustedOrigins := flag.String("trusted-origins", os.Getenv("RADAR_TRUSTED_ORIGINS"), "Comma-separated origins, besides the address Radar is opened at, that may use Radar's API, including changes and terminals (e.g. http://radar.internal). Set this when a proxy in front of Radar rewrites the Host header and changes fail with \"Radar refused this request\". Exact origins only, no wildcards. Does not apply to /mcp (see RADAR_MCP_TRUSTED_ORIGINS). Env: RADAR_TRUSTED_ORIGINS")
+	basePath := flag.String("base-path", "", "URL path prefix to serve KubeAtlas under, e.g. /radar (empty = root). Use when an ingress forwards a subpath without stripping it.")
+	allowedHosts := flag.String("allowed-hosts", os.Getenv("KUBEATLAS_ALLOWED_HOSTS"), "Comma-separated hostnames, besides localhost, IP addresses and Kubernetes Service names, that an unauthenticated non-loopback listener answers (e.g. radar.internal). Requests for other hostnames are refused so DNS rebinding cannot reach KubeAtlas. Exact names or *.example.com for names under a domain; \"*\" turns the check off. Hosts from --trusted-origins are included. Env: KUBEATLAS_ALLOWED_HOSTS")
+	trustedOrigins := flag.String("trusted-origins", os.Getenv("KUBEATLAS_TRUSTED_ORIGINS"), "Comma-separated origins, besides the address KubeAtlas is opened at, that may use KubeAtlas's API, including changes and terminals (e.g. http://radar.internal). Set this when a proxy in front of KubeAtlas rewrites the Host header and changes fail with \"KubeAtlas refused this request\". Exact origins only, no wildcards. Does not apply to /mcp (see KUBEATLAS_MCP_TRUSTED_ORIGINS). Env: KUBEATLAS_TRUSTED_ORIGINS")
 	noBrowser := flag.Bool("no-browser", fileCfg.NoBrowser, "Don't auto-open browser")
 	browser := flag.String("browser", fileCfg.Browser, "Browser to use when opening the UI (default: OS default browser; macOS app names supported)")
-	noVersionCheck := flag.Bool("no-version-check", fileCfg.NoVersionCheck, "Disable automatic checks for newer Radar versions and releases (also enabled via RADAR_DISABLE_VERSION_CHECK=1)")
+	noVersionCheck := flag.Bool("no-version-check", fileCfg.NoVersionCheck, "Disable automatic checks for newer KubeAtlas versions and releases (also enabled via KUBEATLAS_DISABLE_VERSION_CHECK=1)")
 	devMode := flag.Bool("dev", false, "Development mode (serve frontend from filesystem)")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	historyLimit := flag.Int("history-limit", fileCfg.HistoryLimitOr(10000), "Maximum number of events to retain in timeline")
@@ -107,16 +104,16 @@ func main() {
 	disableLocalTerminal := flag.Bool("disable-local-terminal", false, "Disable the host local terminal")
 	podShellDefault := flag.String("pod-shell-default", "", "Override the default pod exec shell command (runs as 'sh -c <value>'; empty = built-in bash -il → ash → sh cascade)")
 	debugImage := flag.String("debug-image", fileCfg.DebugImage, "Image for ephemeral debug containers and node debug pods (empty = busybox:latest; point at a mirror for air-gapped/private-registry clusters)")
-	reachabilityImage := flag.String("reachability-image", fileCfg.ReachabilityImage, "Image for the in-cluster reachability probe Job (empty = RADAR_IMAGE env, then the version-matched published Radar image; point at a mirror for air-gapped clusters)")
+	reachabilityImage := flag.String("reachability-image", fileCfg.ReachabilityImage, "Image for the in-cluster reachability probe Job (empty = KUBEATLAS_IMAGE env, then the version-matched published KubeAtlas image; point at a mirror for air-gapped clusters)")
 	listPageSize := flag.Int64("list-page-size", 0, "Paginate the initial LIST of high-cardinality kinds (Pods, ReplicaSets) at this page size on clusters without WatchList streaming. 0 = off (single LIST). Try 2000 if a very large cluster fails to sync.")
 	namespaceScope := flag.Bool("namespace-scope", false, "Scope namespaced informer caches to a single namespace (multiple namespaces are not supported yet). Requires --namespace or a kubeconfig context namespace. Local mode can rescope by switching namespaces; auth/cloud mode locks to the startup namespace.")
 	// Timeline storage options
 	timelineStorage := flag.String("timeline-storage", fileCfg.TimelineStorageOr("memory"), "Timeline storage backend: memory, sqlite, or postgres")
-	timelineDBPath := flag.String("timeline-db", fileCfg.TimelineDBPath, "Path to timeline database file (default: ~/.radar/timeline.db)")
+	timelineDBPath := flag.String("timeline-db", fileCfg.TimelineDBPath, "Path to timeline database file (default: ~/.kubeatlas/timeline.db)")
 	timelineRetention := flag.Duration("timeline-retention", fileCfg.TimelineRetentionOr(7*24*time.Hour), "How long to retain timeline events when --timeline-storage=sqlite or postgres (e.g. 168h, 720h). 0 disables age-based cleanup.")
 	timelineMaxSize := flag.String("timeline-max-size", fileCfg.TimelineMaxSizeOr("1Gi"), "Maximum SQLite timeline storage size before pruning oldest events (e.g. 800Mi, 8Gi). 0 disables size-based pruning.")
 	// AI investigation history
-	aiHistory := flag.Bool("ai-history", fileCfg.AIHistoryOr(true), "Persist AI investigations (transcripts + conclusions) to ~/.radar/ai-runs.db so they survive restarts")
+	aiHistory := flag.Bool("ai-history", fileCfg.AIHistoryOr(true), "Persist AI investigations (transcripts + conclusions) to ~/.kubeatlas/ai-runs.db so they survive restarts")
 	// Traffic/metrics options
 	prometheusURL := flag.String("prometheus-url", fileCfg.PrometheusURL, "Manual Prometheus/VictoriaMetrics URL (skips auto-discovery)")
 	workloadSingleCluster := flag.Bool("prometheus-single-cluster", false, "Optional workload/PVC metrics scope override: assert that the backend contains only this Kubernetes cluster. Replaces automatic matching; not saved, and cleared when the cluster, backend or credentials change. Does not scope rightsizing, node/HPA or legacy network/storage metrics.")
@@ -155,9 +152,9 @@ func main() {
 	authCookieTTL := flag.Duration("auth-cookie-ttl", 4*time.Hour, "Session cookie TTL (sliding — extends on activity)")
 	authUserHeader := flag.String("auth-user-header", "X-Forwarded-User", "Header for username (proxy mode)")
 	authGroupsHeader := flag.String("auth-groups-header", "X-Forwarded-Groups", "Header for groups (proxy mode)")
-	authProxyLogoutURL := flag.String("auth-proxy-logout-url", "", "URL the logout button redirects to in proxy mode, to tear down the upstream proxy session (e.g. oauth2-proxy's /oauth2/sign_out). The proxy must actually invalidate the session at this URL — Radar only clears its own cookie (Basic Auth has no logout). Empty = clear Radar's cookie only.")
+	authProxyLogoutURL := flag.String("auth-proxy-logout-url", "", "URL the logout button redirects to in proxy mode, to tear down the upstream proxy session (e.g. oauth2-proxy's /oauth2/sign_out). The proxy must actually invalidate the session at this URL — KubeAtlas only clears its own cookie (Basic Auth has no logout). Empty = clear KubeAtlas's cookie only.")
 	authOIDCIssuer := flag.String("auth-oidc-issuer", "", "OIDC issuer URL")
-	authOIDCInternalIssuer := flag.String("auth-oidc-internal-issuer", "", "Internal OIDC issuer base URL used by Radar for discovery and derived server-side endpoints; tokens are still validated against --auth-oidc-issuer")
+	authOIDCInternalIssuer := flag.String("auth-oidc-internal-issuer", "", "Internal OIDC issuer base URL used by KubeAtlas for discovery and derived server-side endpoints; tokens are still validated against --auth-oidc-issuer")
 	authOIDCAuthorizationURL := flag.String("auth-oidc-authorization-url", "", "Browser-facing OIDC authorization endpoint URL (overrides discovery)")
 	authOIDCTokenURL := flag.String("auth-oidc-token-url", "", "Server-side OIDC token endpoint URL (overrides discovery)")
 	authOIDCUserInfoURL := flag.String("auth-oidc-userinfo-url", "", "Server-side OIDC userinfo endpoint URL (overrides discovery)")
@@ -175,29 +172,26 @@ func main() {
 	authOIDCCACert := flag.String("auth-oidc-ca-cert", "", "Path to CA certificate file for OIDC provider TLS verification")
 	authOIDCBackchannelLogout := flag.Bool("auth-oidc-backchannel-logout", false, "Enable OIDC Back-Channel Logout endpoint (single-replica only)")
 	authOIDCEnablePKCE := flag.Bool("auth-oidc-enable-pkce", false, "Enable PKCE (S256) for the OIDC authorization-code flow (opt-in)")
-	// Radar Hub flags — enable connected mode when --cloud-url is set.
-	// Local-binary behavior is unchanged when these flags are empty. Each
-	// flag falls back to an env var so Kubernetes deployments can source
-	// the token from a Secret without exposing it in `ps` output.
-	cloudURL := flag.String("cloud-url", os.Getenv("RADAR_CLOUD_URL"), "Radar Hub WebSocket URL (e.g. wss://api.radarhq.io/agent) — empty = local-only. Env: RADAR_CLOUD_URL")
-	cloudToken := flag.String("cloud-token", os.Getenv("RADAR_CLOUD_TOKEN"), "Connection token from the Radar install flow (rhc_<random>). Env: RADAR_CLOUD_TOKEN")
-	cloudClusterName := flag.String("cluster-name", os.Getenv("RADAR_CLOUD_CLUSTER_NAME"), "Human-readable cluster name shown in Radar (required with --cloud-url). With an enrollment key it is the exact name, and Radar picks one when it is empty. Env: RADAR_CLOUD_CLUSTER_NAME")
-	cloudHubURL := flag.String("cloud-hub-url", os.Getenv("RADAR_CLOUD_HUB_URL"), "Radar Hub https:// address to join with an enrollment key. Replaces --cloud-url when --cloud-enrollment-key-file is set. Env: RADAR_CLOUD_HUB_URL")
-	cloudEnrollmentKeyFile := flag.String("cloud-enrollment-key-file", os.Getenv("RADAR_CLOUD_ENROLLMENT_KEY_FILE"), "File holding a Radar Hub enrollment key (rhe_...). Radar joins the Hub with it on every start. Ignored when --cloud-token is set. Env: RADAR_CLOUD_ENROLLMENT_KEY_FILE")
-	cloudCAFile := flag.String("cloud-ca-file", os.Getenv("RADAR_CLOUD_CA_FILE"), "With an enrollment key: PEM file of extra CA certificates to trust for the Radar Hub, read once at startup. Env: RADAR_CLOUD_CA_FILE")
-	clusterNamePrefix := flag.String("cluster-name-prefix", os.Getenv("RADAR_CLUSTER_NAME_PREFIX"), "With an enrollment key: text put before the cluster name Radar picks. Ignored when --cluster-name is set. Env: RADAR_CLUSTER_NAME_PREFIX")
-	clusterNameSuffix := flag.String("cluster-name-suffix", os.Getenv("RADAR_CLUSTER_NAME_SUFFIX"), "With an enrollment key: text put after the cluster name Radar picks. Ignored when --cluster-name is set. Env: RADAR_CLUSTER_NAME_SUFFIX")
-	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("RADAR_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Skip TLS verification on the Radar Hub tunnel — for trials against a Radar Cloud Self-Managed control plane with a self-signed cert (insecure: encrypted but not authenticated). Env: RADAR_CLOUD_INSECURE_SKIP_VERIFY")
-	k8sCredentials := flag.String("auth-k8s-credentials", os.Getenv("RADAR_AUTH_K8S_CREDENTIALS"), "How Radar authenticates the Kubernetes calls it makes for a user: impersonate (default; Radar's ServiceAccount impersonates the user) or user-token (the user's own token, received with each request through the Radar Cloud tunnel; no impersonation). user-token requires RADAR_CLOUD_MODE and a verified tunnel. Env: RADAR_AUTH_K8S_CREDENTIALS")
+	// Legacy Cloud flags remain parseable for clear rejection of old configs.
+	cloudURL := flag.String("cloud-url", os.Getenv("KUBEATLAS_CLOUD_URL"), "Legacy upstream Cloud option; KubeAtlas rejects Cloud configuration. Env: KUBEATLAS_CLOUD_URL")
+	cloudToken := flag.String("cloud-token", os.Getenv("KUBEATLAS_CLOUD_TOKEN"), "Legacy Cloud connection token (unsupported). Env: KUBEATLAS_CLOUD_TOKEN")
+	cloudClusterName := flag.String("cluster-name", os.Getenv("KUBEATLAS_CLOUD_CLUSTER_NAME"), "Legacy Cloud cluster name (unsupported). Env: KUBEATLAS_CLOUD_CLUSTER_NAME")
+	cloudHubURL := flag.String("cloud-hub-url", os.Getenv("KUBEATLAS_CLOUD_HUB_URL"), "Legacy Hub URL (unsupported). Env: KUBEATLAS_CLOUD_HUB_URL")
+	cloudEnrollmentKeyFile := flag.String("cloud-enrollment-key-file", os.Getenv("KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE"), "Legacy enrollment-key file (unsupported). Env: KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE")
+	cloudCAFile := flag.String("cloud-ca-file", os.Getenv("KUBEATLAS_CLOUD_CA_FILE"), "Legacy Cloud CA file (unsupported). Env: KUBEATLAS_CLOUD_CA_FILE")
+	clusterNamePrefix := flag.String("cluster-name-prefix", os.Getenv("KUBEATLAS_CLUSTER_NAME_PREFIX"), "Legacy Cloud cluster-name prefix (unsupported). Env: KUBEATLAS_CLUSTER_NAME_PREFIX")
+	clusterNameSuffix := flag.String("cluster-name-suffix", os.Getenv("KUBEATLAS_CLUSTER_NAME_SUFFIX"), "Legacy Cloud cluster-name suffix (unsupported). Env: KUBEATLAS_CLUSTER_NAME_SUFFIX")
+	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("KUBEATLAS_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Legacy Cloud TLS option (unsupported). Env: KUBEATLAS_CLOUD_INSECURE_SKIP_VERIFY")
+	k8sCredentials := flag.String("auth-k8s-credentials", os.Getenv("KUBEATLAS_AUTH_K8S_CREDENTIALS"), "Kubernetes request credentials: impersonate (default) or user-token (legacy Cloud-only; unsupported by KubeAtlas). Env: KUBEATLAS_AUTH_K8S_CREDENTIALS")
 	// Tunable deadlines for slow / high-latency / SSH-tunneled clusters.
 	// Defaults preserve the original behavior. Each flag falls back to an
 	// environment variable so Kubernetes deployments can source values from
 	// a ConfigMap without exposing them in `ps`. Precedence: CLI flag wins
 	// when explicitly set; otherwise env var; otherwise the default.
-	contextSwitchTimeout := flag.Duration("context-switch-timeout", k8s.EnvDurationOr("RADAR_CONTEXT_SWITCH_TIMEOUT", 30*time.Second), "Maximum time a kubeconfig context switch may take (default: 30s). Widen to 120s or more for clusters reached over high-latency tunnels. Env: RADAR_CONTEXT_SWITCH_TIMEOUT")
-	firstPaintBackstop := flag.Duration("first-paint-backstop", k8s.EnvDurationOr("RADAR_FIRST_PAINT_BACKSTOP", 5*time.Minute), "Hard upper bound on the initial critical-cache sync wait before Radar falls through to partial-data render (default: 5m). Env: RADAR_FIRST_PAINT_BACKSTOP")
-	namespaceListTimeout := flag.Duration("namespace-list-timeout", k8s.EnvDurationOr("RADAR_NAMESPACE_LIST_TIMEOUT", 5*time.Second), "Timeout for the cluster-wide namespace LIST used to decide if the user is RBAC-namespace-restricted (default: 5s). Widen to 30s or more on slow control planes — a timeout here is misreported in the UI as 'Limited list — RBAC'. Env: RADAR_NAMESPACE_LIST_TIMEOUT")
-	maxScopeCandidates := flag.Int("max-scope-candidates", k8s.EnvIntOr("RADAR_MAX_SCOPE_CANDIDATES", 20), "Cap on the namespace-fallback probe fanout for users who can list namespaces cluster-wide but not list a specific kind cluster-wide (default: 20). Raise for clusters with more than 20 namespaces to avoid silently marking kinds as denied in dropped namespaces. Env: RADAR_MAX_SCOPE_CANDIDATES")
+	contextSwitchTimeout := flag.Duration("context-switch-timeout", k8s.EnvDurationOr("KUBEATLAS_CONTEXT_SWITCH_TIMEOUT", 30*time.Second), "Maximum time a kubeconfig context switch may take (default: 30s). Widen to 120s or more for clusters reached over high-latency tunnels. Env: KUBEATLAS_CONTEXT_SWITCH_TIMEOUT")
+	firstPaintBackstop := flag.Duration("first-paint-backstop", k8s.EnvDurationOr("KUBEATLAS_FIRST_PAINT_BACKSTOP", 5*time.Minute), "Hard upper bound on the initial critical-cache sync wait before KubeAtlas falls through to partial-data render (default: 5m). Env: KUBEATLAS_FIRST_PAINT_BACKSTOP")
+	namespaceListTimeout := flag.Duration("namespace-list-timeout", k8s.EnvDurationOr("KUBEATLAS_NAMESPACE_LIST_TIMEOUT", 5*time.Second), "Timeout for the cluster-wide namespace LIST used to decide if the user is RBAC-namespace-restricted (default: 5s). Widen to 30s or more on slow control planes — a timeout here is misreported in the UI as 'Limited list — RBAC'. Env: KUBEATLAS_NAMESPACE_LIST_TIMEOUT")
+	maxScopeCandidates := flag.Int("max-scope-candidates", k8s.EnvIntOr("KUBEATLAS_MAX_SCOPE_CANDIDATES", 20), "Cap on the namespace-fallback probe fanout for users who can list namespaces cluster-wide but not list a specific kind cluster-wide (default: 20). Raise for clusters with more than 20 namespaces to avoid silently marking kinds as denied in dropped namespaces. Env: KUBEATLAS_MAX_SCOPE_CANDIDATES")
 	flag.Parse()
 	if *noVersionCheck {
 		versionpkg.SetDisabled(true)
@@ -218,18 +212,21 @@ func main() {
 		reachability.SetConfiguredImage(*reachabilityImage)
 	}
 
-	// Cloud-mode: Radar runs inside a customer cluster and connects to Radar Hub.
+	// Cloud-mode: KubeAtlas runs inside a customer cluster and connects to Radar Hub.
 	// The ordinary TCP listener is health-only; the full handler is served over
 	// the authenticated tunnel, which marks requests in-process before proxy
 	// identity headers are accepted.
-	// Force --auth-mode=proxy so Radar impersonates the Cloud user against
+	// Force --auth-mode=proxy so KubeAtlas impersonates the Cloud user against
 	// the K8s API instead of falling back to the ServiceAccount (which would
 	// give every Cloud user full SA permissions).
 	// Read once via the cloud package so we use the same normalized
 	// parser (strconv.ParseBool — accepts true/1/T/TRUE etc.) as every
-	// other site that reads RADAR_CLOUD_MODE. The resolved mode is included
+	// other site that reads KUBEATLAS_CLOUD_MODE. The resolved mode is included
 	// in both the preflight line (so early failures retain it) and the startup
 	// summary after the HTTP listener binds.
+	if *cloudURL != "" || *cloudToken != "" || *cloudHubURL != "" || *cloudEnrollmentKeyFile != "" || cloud.Mode() {
+		log.Fatal("upstream Cloud connections are not supported by KubeAtlas; remove the Cloud configuration")
+	}
 	cloudStart, err := resolveCloudStartup(cloudStartupFlags{
 		CloudURL:           *cloudURL,
 		Token:              *cloudToken,
@@ -241,7 +238,7 @@ func main() {
 		NamePrefix:         *clusterNamePrefix,
 		NameSuffix:         *clusterNameSuffix,
 		PodNamespace:       os.Getenv("MY_POD_NAMESPACE"),
-		HelmRelease:        os.Getenv("RADAR_HELM_RELEASE"),
+		HelmRelease:        os.Getenv("KUBEATLAS_HELM_RELEASE"),
 	})
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -254,14 +251,14 @@ func main() {
 	cloudMode := cloud.Mode()
 	if cloudMode {
 		if *authMode != "none" && *authMode != "proxy" {
-			log.Fatalf("RADAR_CLOUD_MODE=true incompatible with --auth-mode=%q: Cloud owns authn, only 'proxy' is supported", *authMode)
+			log.Fatalf("KUBEATLAS_CLOUD_MODE=true incompatible with --auth-mode=%q: Cloud owns authn, only 'proxy' is supported", *authMode)
 		}
 		*authMode = "proxy"
 		// Pin the header names to the Cloud's wire contract. Operators don't
 		// get to retarget these; Cloud always sends X-Forwarded-User/Groups.
 		*authUserHeader = "X-Forwarded-User"
 		*authGroupsHeader = "X-Forwarded-Groups"
-		log.Printf("[cloud] RADAR_CLOUD_MODE=true: auth-mode forced to proxy, trusting tunnel-supplied identity headers")
+		log.Printf("[cloud] KUBEATLAS_CLOUD_MODE=true: auth-mode forced to proxy, trusting tunnel-supplied identity headers")
 	}
 	credentialMode, err := pkgauth.ParseCredentialMode(*k8sCredentials)
 	if err != nil {
@@ -269,7 +266,7 @@ func main() {
 	}
 	if credentialMode == pkgauth.CredentialsUserToken {
 		if !cloudMode {
-			log.Fatalf("--auth-k8s-credentials=user-token requires RADAR_CLOUD_MODE=true: the token arrives only through the Radar Cloud tunnel")
+			log.Fatalf("--auth-k8s-credentials=user-token requires KUBEATLAS_CLOUD_MODE=true: the token arrives only through the upstream Cloud tunnel")
 		}
 		// Enrollment mode already refused an insecure or plaintext Hub URL,
 		// and the agent address the Hub returns is checked the same way.
@@ -280,7 +277,7 @@ func main() {
 	}
 	pkgauth.SetCredentialMode(credentialMode)
 	if *showVersion {
-		fmt.Printf("radar %s\n", version)
+		fmt.Printf("kubeatlas %s\n", version)
 		os.Exit(0)
 	}
 
@@ -293,9 +290,9 @@ func main() {
 
 	startupMode := "local"
 	if cloudMode {
-		startupMode = "Radar Cloud"
+		startupMode = "upstream Cloud"
 	}
-	log.Printf("Radar %s starting (mode=%s, auth=%s)...", version, startupMode, *authMode)
+	log.Printf("KubeAtlas %s starting (mode=%s, auth=%s)...", version, startupMode, *authMode)
 	memlimit.Apply()
 
 	// Validate flags
@@ -315,11 +312,11 @@ func main() {
 	}
 	parsedAllowedHosts, err := server.ParseAllowedHosts(*allowedHosts)
 	if err != nil {
-		log.Printf("WARNING: ignoring --allowed-hosts (RADAR_ALLOWED_HOSTS) entries Radar cannot use; requests for those hostnames will still be refused:\n%v", err)
+		log.Printf("WARNING: ignoring --allowed-hosts (KUBEATLAS_ALLOWED_HOSTS) entries KubeAtlas cannot use; requests for those hostnames will still be refused:\n%v", err)
 	}
 	parsedTrustedOrigins, err := server.ParseTrustedOrigins(*trustedOrigins)
 	if err != nil {
-		log.Printf("WARNING: ignoring --trusted-origins (RADAR_TRUSTED_ORIGINS) entries Radar cannot use; changes from those addresses will still be refused:\n%v", err)
+		log.Printf("WARNING: ignoring --trusted-origins (KUBEATLAS_TRUSTED_ORIGINS) entries KubeAtlas cannot use; changes from those addresses will still be refused:\n%v", err)
 	}
 	// Radar Hub forwards root-relative paths over the tunnel and the ordinary
 	// listener is health-only at the literal /api/health, so a prefixed router
@@ -327,7 +324,7 @@ func main() {
 	// signals are checked because the chart sets them together but they are
 	// independent inputs, and either one alone is enough to break the prefix.
 	if normalizedBasePath != "" && (*cloudURL != "" || cloudTunnelConfigured || cloud.Mode()) {
-		log.Fatalf("--base-path is not supported in Radar Cloud mode (--cloud-url / --cloud-enrollment-key-file / RADAR_CLOUD_MODE): Radar Cloud owns the URL path")
+		log.Fatalf("--base-path is not supported in upstream Cloud mode (--cloud-url / --cloud-enrollment-key-file / KUBEATLAS_CLOUD_MODE): upstream Cloud owns the URL path")
 	}
 	timelineMaxSizeBytes, err := config.ParseByteSize(*timelineMaxSize)
 	if err != nil {
@@ -392,7 +389,7 @@ func main() {
 		resolvedNamespaces = nil
 	}
 	if len(resolvedNamespaces) > *maxScopeCandidates {
-		log.Fatalf("--namespaces lists %d namespaces but the RBAC probe fanout cap is %d; raise --max-scope-candidates (or RADAR_MAX_SCOPE_CANDIDATES) to cover all of them", len(resolvedNamespaces), *maxScopeCandidates)
+		log.Fatalf("--namespaces lists %d namespaces but the RBAC probe fanout cap is %d; raise --max-scope-candidates (or KUBEATLAS_MAX_SCOPE_CANDIDATES) to cover all of them", len(resolvedNamespaces), *maxScopeCandidates)
 	}
 	resolvedKubeconfig, resolvedKubeconfigDirs := app.ResolveKubeconfigSelection(
 		*kubeconfig, *kubeconfigDir, kubeconfigFlagSet, kubeconfigDirsFlagSet,
@@ -405,7 +402,7 @@ func main() {
 	// Hub origin overrides for self-hosted control planes. When only the API
 	// origin is set, the frontend origin defaults to the same host — the
 	// self-hosted stack serves web + API from one origin; the hosted pair
-	// (api./app.radarhq.io) stays the default otherwise.
+	// remains empty unless an explicit legacy value is supplied.
 	hubAPIURL, hubAppURL, err := cloud.ResolveHubOriginsFromEnv()
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -439,7 +436,7 @@ func main() {
 		NamespaceScope:              *namespaceScope,
 		TimelineStorage:             *timelineStorage,
 		TimelineDBPath:              *timelineDBPath,
-		TimelinePostgresDSN:         os.Getenv("RADAR_TIMELINE_POSTGRES_DSN"),
+		TimelinePostgresDSN:         os.Getenv("KUBEATLAS_TIMELINE_POSTGRES_DSN"),
 		TimelineRetention:           *timelineRetention,
 		TimelineMaxSizeBytes:        timelineMaxSizeBytes,
 		PrometheusURL:               *prometheusURL,
@@ -544,13 +541,13 @@ func main() {
 	}
 	k8s.LogTiming(" K8s client init: %v", time.Since(t))
 
-	// Provision the Argo CD integration from the environment (RADAR_ARGOCD_TOKEN
-	// or RADAR_ARGOCD_TOKEN_FILE) when set — for headless / in-cluster / Cloud
+	// Provision the Argo CD integration from the environment (KUBEATLAS_ARGOCD_TOKEN
+	// or KUBEATLAS_ARGOCD_TOKEN_FILE) when set — for headless / in-cluster / Cloud
 	// deployments with no interactive Settings session. Runs before the server
 	// serves; inert when no token env is present (the local/UI path is unchanged).
 	// A misconfigured env credential is logged and skipped (fail-closed: no token
 	// is seeded, so the deep diff just falls back to annotation drift) rather than
-	// crashing Radar's core cluster-visibility over an optional integration.
+	// crashing KubeAtlas's core cluster-visibility over an optional integration.
 	if seeded, err := argocd.SeedFromEnvVars(); err != nil {
 		log.Printf("[argocd] ERROR: ignoring the environment Argo CD config: %v", err)
 	} else if seeded {
@@ -599,7 +596,7 @@ func main() {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("[cloud] panic in cloud tunnel: %v — local Radar continues to serve", r)
+					log.Printf("[cloud] panic in cloud tunnel: %v — local KubeAtlas continues to serve", r)
 				}
 			}()
 			// Try to discover the external API server URL from
@@ -613,7 +610,7 @@ func main() {
 			cancel()
 			namespace := os.Getenv("MY_POD_NAMESPACE")
 			deploymentName := os.Getenv("MY_DEPLOYMENT_NAME")
-			helmRelease := os.Getenv("RADAR_HELM_RELEASE")
+			helmRelease := os.Getenv("KUBEATLAS_HELM_RELEASE")
 			tunnel := cloud.Config{
 				Namespace:          namespace,
 				Release:            helmRelease,
@@ -866,7 +863,7 @@ func (h *headerFromEnvFlag) Set(raw string) error {
 	return nil
 }
 
-// canSelfUpgrade reports whether Radar's ServiceAccount may patch its own
+// canSelfUpgrade reports whether KubeAtlas's ServiceAccount may patch its own
 // Deployment, which is what rbac.selfUpgrade's Role grants. Advertising this
 // to Hub from anything other than the apiserver's own answer produces an
 // upgrade button that 403s: a chart-set env marker is invisible to an

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/timelineapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/timelineapi"
 )
 
 // timelineEventsPageLimit caps both response shapes at the store's own page

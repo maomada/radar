@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/filter"
+	"github.com/maomada/radar/internal/filter"
 )
 
 // Filter integration tests — exercise the full Search() walker with

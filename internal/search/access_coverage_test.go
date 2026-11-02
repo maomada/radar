@@ -14,10 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 func TestTrivyAccessCoverageIndependentOfDeniedObjects(t *testing.T) {

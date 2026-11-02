@@ -10,10 +10,10 @@ import type { DiagnoseConsentCopy } from "../../context/DiagnoseCustomization";
 import type { AgentInfo, ExecutionProfile } from "../../api/diagnose";
 
 const OPENCODE_FULL_LOCAL_WARNING =
-  "Radar runs OpenCode with --auto, which automatically approves actions that your configuration would normally ask about, including built-in tools and configured MCP servers. Explicit denials still apply. Radar does not enforce a CLI sandbox.";
+  "KubeAtlas runs OpenCode with --auto, which automatically approves actions that your configuration would normally ask about, including built-in tools and configured MCP servers. Explicit denials still apply. KubeAtlas does not enforce a CLI sandbox.";
 
 const CURSOR_FULL_LOCAL_WARNING =
-  "Radar passes Cursor --force, which auto-approves its built-in tools and every MCP server it loads, including your global servers. Cursor’s sandbox does not reliably confine those tools to Radar’s temporary working directory.";
+  "KubeAtlas passes Cursor --force, which auto-approves its built-in tools and every MCP server it loads, including your global servers. Cursor’s sandbox does not reliably confine those tools to KubeAtlas’s temporary working directory.";
 
 // Segmented two-or-more-way selector — shared shape for the agent and execution
 // profile pickers.
@@ -85,7 +85,7 @@ const EFFORT_OPTIONS: Option[] = [
   {
     value: "",
     label: "Default",
-    description: "Recommended — Radar's default (medium)",
+    description: "Recommended — KubeAtlas's default (medium)",
   },
   { value: "low", label: "Low", description: "Fastest, least reasoning" },
   { value: "medium", label: "Medium", description: "Balanced depth" },
@@ -257,7 +257,7 @@ export function AgentControls({
     ? profile
     : (profiles[0] ?? profile);
   const profileLabels: Record<ExecutionProfile, string> = {
-    safeguarded: "Radar safeguards",
+    safeguarded: "KubeAtlas safeguards",
     "full-local": `Your ${selectedAgentLabel} setup`,
   };
   return (
@@ -278,7 +278,7 @@ export function AgentControls({
           {profiles.length > 1 ? (
             <>
               <Segmented<ExecutionProfile>
-                label="How Radar runs it"
+                label="How KubeAtlas runs it"
                 value={shownProfile}
                 onChange={onSetProfile}
                 options={profiles.map((value) => ({
@@ -289,26 +289,26 @@ export function AgentControls({
               {shownProfile === "safeguarded" ? (
                 <p className="mt-1.5 text-[11px] leading-snug text-theme-text-tertiary">
                   {isClaude
-                    ? "Claude’s built-in tools are disabled, and MCP access is limited to Radar’s read-only investigation tools. Your Claude settings, hooks, and CLAUDE.md instructions still apply and are outside Radar’s control."
+                    ? "Claude’s built-in tools are disabled, and MCP access is limited to KubeAtlas’s read-only investigation tools. Your Claude settings, hooks, and CLAUDE.md instructions still apply and are outside KubeAtlas’s control."
                     : isCodex
-                      ? "Radar excludes your Codex configuration and other MCP servers. Codex’s sandboxed shell can still read files on this machine; it cannot write or reach the network."
-                      : "Radar uses this agent’s safeguarded execution profile. Review the agent’s documented restrictions before continuing."}
+                      ? "KubeAtlas excludes your Codex configuration and other MCP servers. Codex’s sandboxed shell can still read files on this machine; it cannot write or reach the network."
+                      : "KubeAtlas uses this agent’s safeguarded execution profile. Review the agent’s documented restrictions before continuing."}
                 </p>
               ) : (
                 <div className="mt-1.5 flex items-start gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-snug text-theme-text-secondary">
                   <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" />
                   <span>
                     Uses your agent&apos;s normal configuration and other
-                    configured tools and MCP servers. Radar cannot constrain
+                    configured tools and MCP servers. KubeAtlas cannot constrain
                     that external tooling; it may access local files or the
                     network and may be able to change your cluster.{" "}
                     {isCursor
                       ? CURSOR_FULL_LOCAL_WARNING
                       : isClaude
-                        ? "Claude uses the permissions from your setup; Radar does not override them."
+                        ? "Claude uses the permissions from your setup; KubeAtlas does not override them."
                         : isOpenCode
                           ? OPENCODE_FULL_LOCAL_WARNING
-                          : "Radar still enables the agent CLI’s own sandbox, but that sandbox does not constrain external MCP servers."}{" "}
+                          : "KubeAtlas still enables the agent CLI’s own sandbox, but that sandbox does not constrain external MCP servers."}{" "}
                     Choose this only when you need that setup.
                   </span>
                 </div>
@@ -318,9 +318,9 @@ export function AgentControls({
             <div className="flex items-start gap-1.5 rounded border border-theme-border bg-theme-base p-2 text-[11px] leading-snug text-theme-text-secondary">
               <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-accent" />
               <span>
-                Radar always runs this agent with safeguards.
+                KubeAtlas always runs this agent with safeguards.
                 {isClaude
-                  ? " Claude’s built-in tools are disabled, and MCP access is limited to Radar’s read-only investigation tools. Your Claude settings, hooks, and CLAUDE.md instructions still apply and are outside Radar’s control."
+                  ? " Claude’s built-in tools are disabled, and MCP access is limited to KubeAtlas’s read-only investigation tools. Your Claude settings, hooks, and CLAUDE.md instructions still apply and are outside KubeAtlas’s control."
                   : isCodex
                     ? " Your Codex configuration and other MCP servers are excluded. Codex’s sandboxed shell can still read files on this machine; it cannot write or reach the network."
                     : " Review the agent’s documented restrictions before continuing."}
@@ -330,7 +330,7 @@ export function AgentControls({
             <div className="flex items-start gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-snug text-theme-text-secondary">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" />
               <span>
-                Radar must use this agent&apos;s normal setup. Radar cannot
+                KubeAtlas must use this agent&apos;s normal setup. KubeAtlas cannot
                 constrain its external tools or MCP servers; they may access
                 local files or the network and may be able to change your
                 cluster.{" "}
@@ -338,14 +338,14 @@ export function AgentControls({
                   CURSOR_FULL_LOCAL_WARNING
                 ) : isClaude ? (
                   <>
-                    Claude uses the permissions from your setup; Radar does not
+                    Claude uses the permissions from your setup; KubeAtlas does not
                     override them.
                   </>
                 ) : isOpenCode ? (
                   OPENCODE_FULL_LOCAL_WARNING
                 ) : (
                   <>
-                    Radar still enables the agent CLI&apos;s own sandbox, but
+                    KubeAtlas still enables the agent CLI&apos;s own sandbox, but
                     that sandbox does not constrain external MCP servers.
                   </>
                 )}
@@ -514,9 +514,9 @@ function ConsentCardShell({
 //   1. `copy` — the embedding host tells its own trust story. Only the host
 //      knows where its agent runs, whose key pays, and where transcripts live,
 //      so any host that runs the agent somewhere other than the OSS local CLI
-//      MUST override rather than let Radar assert the local story over its flow.
+//      MUST override rather than let KubeAtlas assert the local story over its flow.
 //   2. No `copy` — the OSS bring-your-own-local-CLI default, the only tier where
-//      "on your machine / no Radar cloud / your account" actually holds.
+//      "on your machine / no KubeAtlas cloud / your account" actually holds.
 export function ConsentCard({
   agentName,
   agent,
@@ -552,7 +552,7 @@ export function ConsentCard({
       }
       title={
         profile === "safeguarded"
-          ? "Run an AI investigation with Radar safeguards?"
+          ? "Run an AI investigation with KubeAtlas safeguards?"
           : `Run using your ${agentName} setup?`
       }
       body={
@@ -561,14 +561,14 @@ export function ConsentCard({
           <span className="font-medium text-theme-text-primary">
             your own {agentName}
           </span>{" "}
-          on your machine — no Radar cloud, no API key, no account. Radar sends
+          on your machine — no KubeAtlas cloud, no API key, no account. KubeAtlas sends
           this resource&apos;s spec, recent events, and pod logs to it (and on
-          to its model provider under your account, not to Radar). Transcripts
-          are kept in your local Radar history on this machine until cleared.
+          to its model provider under your account, not to KubeAtlas). Transcripts
+          are kept in your local KubeAtlas history on this machine until cleared.
           {profile === "safeguarded" && (
             <>
               {" "}
-              Radar&apos;s investigation tools can only{" "}
+              KubeAtlas&apos;s investigation tools can only{" "}
               <span className="font-medium">read</span> your cluster.
             </>
           )}
@@ -579,20 +579,20 @@ export function ConsentCard({
           ? [
               agent === "claude" ? (
                 <>
-                  Radar safeguards disable Claude&apos;s built-in tools and
-                  limit MCP access to Radar&apos;s read-only investigation
+                  KubeAtlas safeguards disable Claude&apos;s built-in tools and
+                  limit MCP access to KubeAtlas&apos;s read-only investigation
                   tools. Your Claude settings, hooks, and CLAUDE.md instructions
-                  still apply and are outside Radar&apos;s control.
+                  still apply and are outside KubeAtlas&apos;s control.
                 </>
               ) : agent === "codex" ? (
                 <>
-                  Radar safeguards exclude your Codex configuration and other
+                  KubeAtlas safeguards exclude your Codex configuration and other
                   MCP servers. Codex&apos;s sandboxed shell can still read files
                   on this machine; it cannot write or reach the network.
                 </>
               ) : (
                 <>
-                  Radar uses this agent&apos;s safeguarded execution profile.
+                  KubeAtlas uses this agent&apos;s safeguarded execution profile.
                   Review the agent&apos;s documented restrictions before
                   continuing.
                 </>
@@ -600,7 +600,7 @@ export function ConsentCard({
             ]
           : [
               <>
-                Radar cannot constrain the agent&apos;s other configured tools
+                KubeAtlas cannot constrain the agent&apos;s other configured tools
                 or MCP servers. They may access local files or the network and
                 may be able to change your cluster.
               </>,
@@ -608,14 +608,14 @@ export function ConsentCard({
                 CURSOR_FULL_LOCAL_WARNING
               ) : agent === "claude" ? (
                 <>
-                  Claude uses the permissions from your setup; Radar does not
+                  Claude uses the permissions from your setup; KubeAtlas does not
                   override them.
                 </>
               ) : agent === "opencode" ? (
                 OPENCODE_FULL_LOCAL_WARNING
               ) : (
                 <>
-                  Radar still enables the agent CLI&apos;s own sandbox, but that
+                  KubeAtlas still enables the agent CLI&apos;s own sandbox, but that
                   sandbox does not constrain external MCP servers.
                 </>
               ),

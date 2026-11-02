@@ -1,4 +1,4 @@
-import { KeyValueBadge } from '@skyhook-io/k8s-ui'
+import { KeyValueBadge } from '@maomada/k8s-ui'
 
 const row = { display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', width: 420 } as const
 

@@ -10,7 +10,7 @@ import type {
   CapacityQuantityObservation,
   CapacityResponseMeta,
   CapacitySourceCoverage,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { CapacityView } from "./CapacityView";
 
 vi.mock("../../context/ConnectionContext", () => ({

@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/internal/settings"
 )
 
 func TestLoadOperatorSettings(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	for _, tt := range []struct {
 		name, body string
 		valid      bool
@@ -51,7 +51,7 @@ func TestOperatorDefaultsWithoutFile(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir())
 	t.Setenv(settings.OperatorFileEnv, "")
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	t.Cleanup(func() { settings.SetOperatorConfig(nil) })
 	legacy := settings.Settings{Audit: &settings.AuditConfig{IgnoredNamespaces: []string{"legacy"}}, HelmOCISources: []string{"oci://legacy/charts"}}
 	if err := settings.Save(legacy); err != nil {
@@ -95,11 +95,11 @@ func TestOperatorDefaultsWithoutFile(t *testing.T) {
 
 func TestCloudDoesNotLoadOperatorSettings(t *testing.T) {
 	t.Setenv(settings.OperatorFileEnv, "/does-not-exist/operator.json")
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	if err := loadOperatorSettings(AppConfig{CloudTunnelConfigured: true}); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	if err := loadOperatorSettings(AppConfig{}); err != nil {
 		t.Fatal(err)
 	}

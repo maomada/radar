@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 func (s *Server) relationshipTopologyForUser(r *http.Request, shared *topology.Topology) *topology.Topology {

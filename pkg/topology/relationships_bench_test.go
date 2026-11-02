@@ -2,7 +2,7 @@ package topology
 
 import (
 	"fmt"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 	"strings"
 	"testing"
 )

@@ -230,7 +230,7 @@ describe("InvestigationEvidencePane under a story", () => {
         projection={bundle}
         investigationCase={bundleCase}
         story={{
-          report: "Radar's bundle says so.\n\n[[radar:evidence=0]]",
+          report: "KubeAtlas's bundle says so.\n\n[[radar:evidence=0]]",
           evidence: items,
         }}
         collecting={false}

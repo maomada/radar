@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // TestMCPUpgradeAuthorizerDecisionMatrix is one half of the cross-surface

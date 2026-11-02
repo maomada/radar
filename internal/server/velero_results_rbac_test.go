@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 // Per-user authorization on POST /api/velero/{kind}/{ns}/{name}/messages.

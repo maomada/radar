@@ -16,10 +16,10 @@ class RegistryPreflightError(RuntimeError):
 def release_targets(version):
     validate_inputs(REPOSITORY, "refs/heads/main", "0" * 40, version)
     return (
-        f"ghcr.io/maomada/radar:{version}",
-        f"ghcr.io/maomada/radar-portal:{version}",
-        f"ghcr.io/maomada/charts/radar:{version}",
-        f"ghcr.io/maomada/charts/radar-portal:{version}",
+        f"ghcr.io/maomada/kubeatlas:{version}",
+        f"ghcr.io/maomada/kubeatlas-portal:{version}",
+        f"ghcr.io/maomada/charts/kubeatlas:{version}",
+        f"ghcr.io/maomada/charts/kubeatlas-portal:{version}",
     )
 
 

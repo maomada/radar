@@ -1,6 +1,6 @@
 import { coverageLabel } from './shared'
 import type { CNPGOperatorComponent, CNPGOperatorResponse, CNPGOperatorVerdict } from '../../api/cnpg'
-import { cnpgClusterPlugins, cnpgPluginPhase, formatAge, type CNPGFleetRow } from '@skyhook-io/k8s-ui'
+import { cnpgClusterPlugins, cnpgPluginPhase, formatAge, type CNPGFleetRow } from '@maomada/k8s-ui'
 
 export interface CNPGOperatorBannerModel {
   /** The operator watching these namespaces is not leading, so their CNPG status may be stale. */
@@ -50,7 +50,7 @@ export function cnpgOperatorActionNote(v: CNPGOperatorVerdict | undefined): { to
     }
   }
   if (v.state === 'unknown' && v.unknown) {
-    return { tone: 'info', text: `Radar couldn't confirm the operator is running (${v.unknown}).` }
+    return { tone: 'info', text: `KubeAtlas couldn't confirm the operator is running (${v.unknown}).` }
   }
   return null
 }

@@ -1,15 +1,15 @@
-// Runtime configuration for Radar's frontend.
+// Runtime configuration for KubeAtlas's frontend.
 //
-// When Radar runs as its own binary (standalone or in-cluster), the
+// When KubeAtlas runs as its own binary (standalone or in-cluster), the
 // frontend is same-origin with the Go API server and `apiBase` is `/api`.
-// When Radar's web is embedded as `@skyhook-io/radar-app` in another
+// When KubeAtlas's web is embedded as `@maomada/kubeatlas-app` in another
 // frontend (e.g. Radar Hub), the host app calls `setApiBase()` to point
 // at a cluster-scoped proxy URL like `/c/{cluster_id}/api` before mounting.
 //
 // This module is deliberately a small mutable singleton rather than a
 // React context so it works in non-React code paths (EventSource,
 // WebSocket URL construction) without threading props through every
-// call site. Multi-instance hosting (mounting two Radar apps for two
+// call site. Multi-instance hosting (mounting two KubeAtlas apps for two
 // clusters on the same page) is a V2 concern — it would require
 // replacing this with a context.
 
@@ -18,20 +18,26 @@ let basename = '';
 let authHeadersProvider: () => Record<string, string> = () => ({});
 let credentialsMode: RequestCredentials = 'same-origin';
 
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') end--;
+  return value.slice(0, end);
+}
+
 export function getApiBase(): string {
   return apiBase;
 }
 
 /**
  * Sets the base URL used for REST API, SSE, and WebSocket requests.
- * Call before mounting the Radar app. Trailing slashes are stripped.
+ * Call before mounting the KubeAtlas app. Trailing slashes are stripped.
  *
  * Accepts either:
  *   - A relative path: `/api`, `/c/abc/api` (URLs derive scheme + host from window.location)
- *   - An absolute URL: `https://api.radarhq.io/c/abc/api` (URLs use that origin)
+ *   - An absolute URL: `https://api.example.test/c/abc/api` (URLs use that origin)
  */
 export function setApiBase(url: string): void {
-  apiBase = url.replace(/\/+$/, '');
+  apiBase = stripTrailingSlashes(url);
 }
 
 /**
@@ -49,7 +55,7 @@ export function getBasename(): string {
  * to construct a URL relative to the host app's origin.
  */
 export function setBasename(value: string): void {
-  basename = value.replace(/\/+$/, '');
+  basename = stripTrailingSlashes(value);
 }
 
 /**
@@ -104,12 +110,12 @@ export function apiUrl(path: string, base = getApiBase()): string {
 }
 
 /**
- * Register a function that returns HTTP headers to attach to every Radar
+ * Register a function that returns HTTP headers to attach to every KubeAtlas
  * API request. Used by library consumers (e.g. Radar Hub) to inject
  * Authorization bearer tokens or session tokens. The provider is called
  * on each request so it can read fresh state.
  *
- * Standalone Radar leaves this empty — auth is cookie-based in OIDC or
+ * Standalone KubeAtlas leaves this empty — auth is cookie-based in OIDC or
  * proxy mode, no explicit headers needed.
  */
 export function setAuthHeadersProvider(fn: () => Record<string, string>): void {
@@ -122,8 +128,8 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 /**
- * Sets the `credentials` mode for all Radar fetches. Default 'same-origin'
- * (standalone Radar binary). Library consumers at a different origin should
+ * Sets the `credentials` mode for all KubeAtlas fetches. Default 'same-origin'
+ * (standalone KubeAtlas binary). Library consumers at a different origin should
  * set 'include' so browser cookies + CORS preflight cooperate.
  */
 export function setCredentialsMode(mode: RequestCredentials): void {

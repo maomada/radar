@@ -29,7 +29,7 @@ import {
   type CNPGLogicalPath,
   type CNPGWorkspaceResponse,
   type NavigateToResource,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGFleet } from './useCNPGSidebarWorkspace'
 import { useCNPGRuntime, useCNPGScheduleCapabilities, useCNPGWorkspace, type CNPGRuntimeResponse } from '../../api/cnpg'
 import { cnpgPublisherSlotsFrom, useCNPGPublisherSlots } from './logicalSlots'

@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/portforward"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/portforward"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/k8score"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -32,10 +32,10 @@ import (
 
 func TestResolveEnvironmentConfig(t *testing.T) {
 	values := map[string]string{
-		"RADAR_COST_SOURCE":         "kubecost",
-		"RADAR_KUBECOST_URL":        "https://cost.example.com/model/",
-		"RADAR_KUBECOST_API_KEY":    "secret",
-		"RADAR_KUBECOST_CLUSTER_ID": "prod-a",
+		"KUBEATLAS_COST_SOURCE":         "kubecost",
+		"KUBEATLAS_KUBECOST_URL":        "https://cost.example.com/model/",
+		"KUBEATLAS_KUBECOST_API_KEY":    "secret",
+		"KUBEATLAS_KUBECOST_CLUSTER_ID": "prod-a",
 	}
 	config, managed, err := resolveEnvironmentConfig(ManagerConfig{Source: SourceAuto}, func(key string) string { return values[key] })
 	if err != nil {
@@ -53,7 +53,7 @@ func TestResolveEnvironmentConfigBindsLocalAPIKeyToContext(t *testing.T) {
 	previousContext := k8s.SetTestContextName("cluster-a")
 	t.Cleanup(func() { k8s.SetTestContextName(previousContext) })
 	config, managed, err := resolveEnvironmentConfig(ManagerConfig{Source: SourceAuto}, func(key string) string {
-		if key == "RADAR_KUBECOST_API_KEY" {
+		if key == "KUBEATLAS_KUBECOST_API_KEY" {
 			return "secret"
 		}
 		return ""
@@ -72,7 +72,7 @@ func TestResolveEnvironmentConfigDoesNotSendStoredKeyToEnvironmentURL(t *testing
 		APIKey:        "stored-secret",
 		APIKeyContext: "cluster-a",
 	}, func(key string) string {
-		if key == "RADAR_KUBECOST_URL" {
+		if key == "KUBEATLAS_KUBECOST_URL" {
 			return "https://cost.example.com/model"
 		}
 		return ""
@@ -88,7 +88,7 @@ func TestResolveEnvironmentConfigDoesNotSendStoredKeyToEnvironmentURL(t *testing
 func TestConfigureStartupFailsClosedOnInvalidEnvironment(t *testing.T) {
 	m := &Manager{}
 	err := m.configureStartup(ManagerConfig{Source: SourceAuto}, func(key string) string {
-		if key == "RADAR_KUBECOST_URL" {
+		if key == "KUBEATLAS_KUBECOST_URL" {
 			return "not-a-url"
 		}
 		return ""

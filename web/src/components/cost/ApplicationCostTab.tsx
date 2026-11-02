@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Coins, HelpCircle, Loader2, TrendingUp } from 'lucide-react'
-import type { AppRow, AppWorkload } from '@skyhook-io/k8s-ui'
+import type { AppRow, AppWorkload } from '@maomada/k8s-ui'
 import {
   COST_DISCOVERY_GRACE_MS,
   crossOriginRefusalMessage,
@@ -518,7 +518,7 @@ function reasonLabel(reason?: CostUnavailableReason) {
   if (reason === 'access_denied') return 'No access to this workload'
   if (reason === 'not_found') return 'Workload not found'
   if (reason === 'configuration_mismatch') return 'Kubecost settings are not valid for this cluster'
-  if (reason === 'deployment_configuration_error') return 'Radar configuration is invalid'
+  if (reason === 'deployment_configuration_error') return 'KubeAtlas configuration is invalid'
   if (reason === 'metrics_settings_error') return 'Saved metrics settings need review'
   if (reason === 'cost_settings_error') return 'Saved cost settings need review'
   return 'No workload cost metrics'
@@ -540,7 +540,7 @@ function ApplicationCostDiscovering({
             Looking for cost data…
           </p>
           <p className="mt-1 text-xs text-theme-text-tertiary">
-            Radar is checking OpenCost metrics in a PromQL-compatible backend and a local Kubecost
+            KubeAtlas is checking OpenCost metrics in a PromQL-compatible backend and a local Kubecost
             3 Aggregator. First discovery can take a few seconds.
           </p>
         </div>

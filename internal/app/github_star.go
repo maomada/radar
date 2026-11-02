@@ -14,7 +14,7 @@ import (
 	"golang.org/x/term"
 )
 
-const githubRepo = "skyhook-io/radar"
+const githubRepo = "maomada/radar"
 
 // starState tracks GitHub star prompt history across launches.
 type starState struct {
@@ -154,7 +154,7 @@ func trackAndMaybePrompt() error {
 
 	if ghReady {
 		// Interactive prompt — can star for them
-		fmt.Printf("\n  ⭐ Enjoying Radar? Star us on GitHub! [Y/n]: ")
+		fmt.Printf("\n  ⭐ Enjoying KubeAtlas? Star us on GitHub! [Y/n]: ")
 		reader := bufio.NewReader(os.Stdin)
 		response, err := reader.ReadString('\n')
 		if err != nil {
@@ -181,7 +181,7 @@ func trackAndMaybePrompt() error {
 		}
 	} else {
 		// No gh CLI — just nudge with a link
-		fmt.Printf("\n  ⭐ Enjoying Radar? Star us on GitHub → https://github.com/%s\n\n", githubRepo)
+		fmt.Printf("\n  ⭐ Enjoying KubeAtlas? Star us on GitHub → https://github.com/%s\n\n", githubRepo)
 		state.DismissedAt = time.Now().Format(time.RFC3339)
 		state.Dismissals++
 	}
@@ -195,7 +195,7 @@ func starStatePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, ".radar", "star.json"), nil
+	return filepath.Join(homeDir, ".kubeatlas", "star.json"), nil
 }
 
 func loadStarState(path string) *starState {

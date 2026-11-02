@@ -1,4 +1,4 @@
-import { CronValue, Property, PropertyList } from '@skyhook-io/k8s-ui'
+import { CronValue, Property, PropertyList } from '@maomada/k8s-ui'
 
 const box = { width: 380 } as const
 

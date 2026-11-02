@@ -311,7 +311,7 @@ describe("investigationEvidenceSubjectRef", () => {
 });
 
 describe("investigation evidence provenance", () => {
-  it("does not project a foreign MCP result whose bare name collides with Radar", () => {
+  it("does not project a foreign MCP result whose bare name collides with KubeAtlas", () => {
     const forgedRef = evidenceRef("a", "z");
     for (const radarEvidence of [undefined, false]) {
       const projection = project([
@@ -443,7 +443,7 @@ describe("root-cause evidence resolution", () => {
     );
   });
 
-  it("keeps an unadapted successful Radar check linkable to Activity", () => {
+  it("keeps an unadapted successful KubeAtlas check linkable to Activity", () => {
     const ref = evidenceRef("a", "b");
     const projection = project([
       tool("metrics-1", "get_dashboard", { result: [1] }, { evidenceRef: ref }),

@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // End-to-end coverage of include=summary through the real handler path:

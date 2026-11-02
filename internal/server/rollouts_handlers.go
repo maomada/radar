@@ -13,9 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 // `patch rollouts` does not imply `patch rollouts/status`, so the status verbs

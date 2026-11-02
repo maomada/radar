@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/portforward"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/portforward"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )

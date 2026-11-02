@@ -1,4 +1,4 @@
-import { ProvenanceBadge } from '@skyhook-io/k8s-ui'
+import { ProvenanceBadge } from '@maomada/k8s-ui'
 
 const row = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } as const
 

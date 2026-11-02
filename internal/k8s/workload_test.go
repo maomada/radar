@@ -14,8 +14,8 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 func TestGetWorkloadSelectorResolvesRolloutWorkloadRef(t *testing.T) {

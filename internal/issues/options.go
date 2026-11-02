@@ -3,7 +3,7 @@ package issues
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/filter"
+	"github.com/maomada/radar/internal/filter"
 )
 
 // CELFilter aliased so callers don't need a separate import to set

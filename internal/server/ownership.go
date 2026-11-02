@@ -6,12 +6,12 @@ import (
 
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // requestAccess is what one request's user may read through Related

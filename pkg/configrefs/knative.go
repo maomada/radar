@@ -1,7 +1,7 @@
 package configrefs
 
 import (
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

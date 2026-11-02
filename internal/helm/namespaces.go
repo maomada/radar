@@ -3,8 +3,8 @@ package helm
 import (
 	"context"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // ResolveNoAuthListNamespaces returns a namespace fanout set for Helm list-style

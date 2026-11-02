@@ -27,9 +27,9 @@ describe('uncheckedSourceLines', () => {
       .toEqual(["Helm releases in 2 namespaces (a and b) couldn't be checked, so failed or stuck releases there may be missing."])
   })
 
-  it("says when Radar's own service account is the problem", () => {
+  it("says when KubeAtlas's own service account is the problem", () => {
     expect(uncheckedSourceLines([{ source: 'helm', reason: 'collector_access_denied' }]))
-      .toEqual(["Helm releases couldn't be checked because Radar's service account isn't allowed to impersonate users, so failed or stuck releases may be missing."])
+      .toEqual(["Helm releases couldn't be checked because KubeAtlas's service account isn't allowed to impersonate users, so failed or stuck releases may be missing."])
   })
 
   it('falls back to the source line for a reason this version does not know', () => {

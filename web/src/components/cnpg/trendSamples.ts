@@ -1,4 +1,4 @@
-import type { TimeSeries } from '@skyhook-io/k8s-ui/components/charts'
+import type { TimeSeries } from '@maomada/k8s-ui/components/charts'
 import type { CNPGRuntimeResponse } from '../../api/cnpg'
 import type { CNPGClusterHistoryResponse } from '../../api/cnpg-history'
 
@@ -22,10 +22,10 @@ export interface Sample {
   source?: string
   /**
    * When the exporter generated these values (ms): cnpg_last_update_timestamp
-   * when the operator publishes it, else Radar's fetch time.
+   * when the operator publishes it, else KubeAtlas's fetch time.
    */
   metricsAt?: number
-  /** metricsAt is Radar's fetch time: the exporter published no generation time. */
+  /** metricsAt is KubeAtlas's fetch time: the exporter published no generation time. */
   approximate?: boolean
   replayLag: Record<string, number | undefined>
   commits?: number
@@ -92,7 +92,7 @@ export function sampleFrom(data: CNPGRuntimeResponse): Sample {
 
 /**
  * Walks consecutive exporter generations of the same source. Samples that
- * share a generation are one reading (the exporter and Radar both cache), so
+ * share a generation are one reading (the exporter and KubeAtlas both cache), so
  * only the first counts; a change of source is a gap, never a delta.
  */
 function generationPairs(

@@ -1,4 +1,4 @@
-import { InvestigationHome } from '@skyhook-io/k8s-ui'
+import { InvestigationHome } from '@maomada/k8s-ui'
 
 const frame = { width: 720, height: 360, display: 'flex' } as const
 

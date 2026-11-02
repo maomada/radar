@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 type genericIdentityDynamic struct {

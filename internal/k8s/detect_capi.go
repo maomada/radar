@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/conditions"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/timeutil"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

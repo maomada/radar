@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { AlertTriangle, Download, FileText, RotateCw } from 'lucide-react'
-import { PaneLoader, ensureMonacoRuntime } from '@skyhook-io/k8s-ui'
+import { PaneLoader, ensureMonacoRuntime } from '@maomada/k8s-ui'
 import { formatBytes } from '../../utils/format'
-import { Disclosure } from '@skyhook-io/k8s-ui/components/ui/Disclosure'
+import { Disclosure } from '@maomada/k8s-ui/components/ui/Disclosure'
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../../api/config'
 import { nonJsonErrorMessage } from '../../api/httpErrors'
 
@@ -343,7 +343,7 @@ export function curateError(result: PreviewError): CuratedShape {
     case 'not_a_regular_file':
       return {
         title: 'Not a regular file',
-        description: 'This entry is a directory, device, or pipe — Radar cannot preview its contents.',
+        description: 'This entry is a directory, device, or pipe — KubeAtlas cannot preview its contents.',
         severity: 'warning',
         actions: { download: false, retry: false },
       }
@@ -357,7 +357,7 @@ export function curateError(result: PreviewError): CuratedShape {
     case 'permission_denied':
       return {
         title: 'Permission denied',
-        description: 'The container user cannot read this file. Try switching to a different container, or run Radar with an identity that has broader access.',
+        description: 'The container user cannot read this file. Try switching to a different container, or run KubeAtlas with an identity that has broader access.',
         severity: 'warning',
         actions: { download: false, retry: false },
       }
@@ -371,14 +371,14 @@ export function curateError(result: PreviewError): CuratedShape {
     case 'container_missing_tools':
       return {
         title: 'Container tools missing',
-        description: 'This container lacks the tools Radar needs to read files (tar and cat). Download may still work in a fallback mode.',
+        description: 'This container lacks the tools KubeAtlas needs to read files (tar and cat). Download may still work in a fallback mode.',
         severity: 'warning',
         actions: { download: true, retry: false },
       }
     case 'network_error':
       return {
         title: 'Network error',
-        description: 'Radar could not reach the cluster. Check your connection and try again.',
+        description: 'KubeAtlas could not reach the cluster. Check your connection and try again.',
         severity: 'error',
         actions: { download: false, retry: true },
         details: result.message,
@@ -387,7 +387,7 @@ export function curateError(result: PreviewError): CuratedShape {
     default:
       return {
         title: 'Could not read the file',
-        description: 'Radar reached the container but could not read the file. This may be transient — try again, or download instead.',
+        description: 'KubeAtlas reached the container but could not read the file. This may be transient — try again, or download instead.',
         severity: 'error',
         actions: { download: true, retry: true },
         details: result.message,

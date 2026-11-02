@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { Badge } from "@skyhook-io/k8s-ui";
+import { Badge } from "@maomada/k8s-ui";
 
 import type { DiagnosisEvidenceRole } from "../../api/diagnose";
 import { Tooltip } from "../ui/Tooltip";
@@ -16,13 +16,13 @@ export const AGENT_ROLE_LABELS: Readonly<
 };
 
 /**
- * The agent's framing of a Radar fact. Always the agent tone, never a
- * severity tone: a chip must not read as a Radar finding.
+ * The agent's framing of a KubeAtlas fact. Always the agent tone, never a
+ * severity tone: a chip must not read as a KubeAtlas finding.
  */
 export function AgentRoleChip({ role }: { role: DiagnosisEvidenceRole }) {
   return (
     <Tooltip
-      content={`The agent labelled this evidence "${AGENT_ROLE_LABELS[role]}". Radar recorded the fact; the label is the agent's reading of it.`}
+      content={`The agent labelled this evidence "${AGENT_ROLE_LABELS[role]}". KubeAtlas recorded the fact; the label is the agent's reading of it.`}
       // The label has to share the sentence's baseline. Centring the badge box
       // drops it ~1px (padding and border make the box taller than the line),
       // and the badge's own baseline comes from the sparkle, landing 1px high.
@@ -40,12 +40,12 @@ export function AgentRoleChip({ role }: { role: DiagnosisEvidenceRole }) {
 }
 
 /**
- * One sentence from the agent about a Radar fact. Everything the agent
+ * One sentence from the agent about a KubeAtlas fact. Everything the agent
  * contributed to a card lives in this one row — the sparkle, the role, and the
- * sentence — so the register is unmistakable: the fact above is Radar's, this
+ * sentence — so the register is unmistakable: the fact above is KubeAtlas's, this
  * line is the agent's reading of it. The role travelled with the card title
- * once, where it sat in the same slot as Radar's own badges and could be read
- * as Radar having established it.
+ * once, where it sat in the same slot as KubeAtlas's own badges and could be read
+ * as KubeAtlas having established it.
  *
  * A `rules_out` note carries the hypothesis it excludes, as text beside the
  * chip rather than inside it: "Rules out" alone forces the reader to find the

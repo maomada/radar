@@ -10,10 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func cnpgJob(ns, name, uid string, owner metav1.OwnerReference) *batchv1.Job {

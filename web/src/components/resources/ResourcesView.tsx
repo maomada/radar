@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchJSON, isForbiddenError, isKindSyncFailed, isStillLoadingError, useCapabilities, useNamespaceCapabilities, useResources, useSecretCertExpiry, useTopPodMetrics, useTopNodeMetrics, useBulkDeleteResources, useBulkRestartWorkloads, useBulkScaleWorkloads, useAudit, useIssues, fetchResourceList, isListTooLargeError, isUnretryableReadError } from '../../api/client'
 import { isBadgeWorthy } from '../../utils/auditBadges'
-import { ISSUE_SEVERITY_RANK } from '@skyhook-io/k8s-ui'
-import type { Issue, AuditBadgeMessage } from '@skyhook-io/k8s-ui'
+import { ISSUE_SEVERITY_RANK } from '@maomada/k8s-ui'
+import type { Issue, AuditBadgeMessage } from '@maomada/k8s-ui'
 import { stripBasename } from '../../api/config'
 import { createListRefetchInterval, type ResourceListResult } from '../../api/resourceLists'
 import { useAPIResources } from '../../api/apiResources'
 import { useConnection } from '../../context/ConnectionContext'
-import { getSecretStoreProviderType } from '@skyhook-io/k8s-ui'
+import { getSecretStoreProviderType } from '@maomada/k8s-ui'
 import { usePinnedKinds } from '../../hooks/useFavorites'
 import { useResourceCounts } from '../../hooks/useResourceCounts'
 import { useCNPGSidebarWorkspace } from '../cnpg/useCNPGSidebarWorkspace'
@@ -22,8 +22,8 @@ import {
   CORE_RESOURCES,
   intersectWorkloadWrites,
   hasCuratedColumns,
-} from '@skyhook-io/k8s-ui'
-import type { Capabilities, ResourceQueryResult, WorkloadWritePermissions } from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
+import type { Capabilities, ResourceQueryResult, WorkloadWritePermissions } from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { apiVersionToGroup, kindToPluralWithGroup, type NavigateToResource } from '../../utils/navigation'
 import { CreateResourceDialog } from '../shared/CreateResourceDialog'
@@ -332,7 +332,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
   // (e.g. /c/abc/c/abc/resources/pods). Under that URL, getViewFromPath()
   // sees 'c' as the first segment and falls through to 'home' — which
   // manifests as "click a resource → bounced to the home dashboard" in
-  // any host that mounts RadarApp under a non-empty basename (Radar Cloud).
+  // any host that mounts RadarApp under a non-empty basename (upstream Cloud).
   // Strip the basename here so react-router can re-apply it cleanly.
   const handleNavigate = useMemo(() => {
     return (path: string, options?: { replace?: boolean }) => {
@@ -413,7 +413,7 @@ export function ResourcesView({ namespaces, selectedResource, onResourceClick, o
       // kind compares basename-relative paths on both sides. URL writes go
       // through `handleNavigate`, which strips any leading basename before
       // handing off to react-router (which re-applies it). Embedding hosts
-      // (e.g. Radar Cloud at /c/{cluster}/resources) work without ResourcesView
+      // (e.g. upstream Cloud at /c/{cluster}/resources) work without ResourcesView
       // needing to know the basename.
       basePath="/resources"
       locationSearch={location.search}

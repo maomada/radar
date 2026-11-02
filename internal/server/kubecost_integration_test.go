@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	internalopencost "github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func setupKubecostIntegrationTest(t *testing.T) *Server {
@@ -90,10 +90,10 @@ func TestApplyAutomaticSourceRejectsNoSourceAndRestoresPreviousConfig(t *testing
 
 func TestKubecostEnvironmentConfigIsReadOnlyAndRedacted(t *testing.T) {
 	s := setupKubecostIntegrationTest(t)
-	t.Setenv("RADAR_COST_SOURCE", "kubecost")
-	t.Setenv("RADAR_KUBECOST_URL", "https://cost.example.com/model")
-	t.Setenv("RADAR_KUBECOST_CLUSTER_ID", "prod-a")
-	t.Setenv("RADAR_KUBECOST_API_KEY", "env-secret")
+	t.Setenv("KUBEATLAS_COST_SOURCE", "kubecost")
+	t.Setenv("KUBEATLAS_KUBECOST_URL", "https://cost.example.com/model")
+	t.Setenv("KUBEATLAS_KUBECOST_CLUSTER_ID", "prod-a")
+	t.Setenv("KUBEATLAS_KUBECOST_API_KEY", "env-secret")
 	if err := internalopencost.ConfigureStartup(internalopencost.ManagerConfig{Source: internalopencost.SourceAuto}); err != nil {
 		t.Fatal(err)
 	}

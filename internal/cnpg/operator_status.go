@@ -12,9 +12,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
-	auth "github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
+	auth "github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 const (

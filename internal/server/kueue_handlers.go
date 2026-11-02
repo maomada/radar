@@ -11,12 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/schedulinginsight"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/schedulinginsight"
 )
 
 const kueueGroup = "kueue.x-k8s.io"

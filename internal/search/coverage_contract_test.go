@@ -11,11 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
-	"github.com/skyhook-io/radar/internal/readplan"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/readplan"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // A broad query searches only what the caller and Radar can read without

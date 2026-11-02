@@ -10,10 +10,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/reachability"
-	"github.com/skyhook-io/radar/internal/trace"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/reachability"
+	"github.com/maomada/radar/internal/trace"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 // TestStampInClusterProbes_DemotesDegraded pins that a throwaway-pod result that

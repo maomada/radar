@@ -12,10 +12,10 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/cachesource"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	k8score "github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/cachesource"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // charSource serves the fixture to the ownership source through Radar's own

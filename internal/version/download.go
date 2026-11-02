@@ -36,7 +36,7 @@ type githubReleaseWithAssets struct {
 func FetchRelease(ctx context.Context) (*githubReleaseWithAssets, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET",
-		"https://api.github.com/repos/skyhook-io/radar/releases/latest", nil)
+		githubURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -60,7 +60,7 @@ func FetchRelease(ctx context.Context) (*githubReleaseWithAssets, error) {
 }
 
 // FindDesktopAsset finds the desktop asset for the current OS and architecture.
-// Asset naming convention: radar-desktop_vX.Y.Z_{os}_{arch}.{ext}
+// Asset naming convention: kubeatlas-desktop_vX.Y.Z_{os}_{arch}.{ext}
 func FindDesktopAsset(release *githubReleaseWithAssets, goos, goarch string) *githubAsset {
 	// Normalize arch for asset matching
 	arch := goarch
@@ -68,12 +68,12 @@ func FindDesktopAsset(release *githubReleaseWithAssets, goos, goarch string) *gi
 		arch = "universal"
 	}
 
-	// Build expected prefix: radar-desktop_ (version will vary)
+	// Build expected prefix: kubeatlas-desktop_ (version will vary)
 	suffix := fmt.Sprintf("_%s_%s.", goos, arch)
 
 	for i := range release.Assets {
 		a := &release.Assets[i]
-		if strings.HasPrefix(a.Name, "radar-desktop_") && strings.Contains(a.Name, suffix) {
+		if strings.HasPrefix(a.Name, "kubeatlas-desktop_") && strings.Contains(a.Name, suffix) {
 			return a
 		}
 	}
@@ -224,13 +224,13 @@ func VerifyChecksum(ctx context.Context, release *githubReleaseWithAssets, asset
 	return nil
 }
 
-// UpdatesDir returns the path to the updates directory (~/.radar/updates/).
+// UpdatesDir returns the path to the updates directory (~/.kubeatlas/updates/).
 func UpdatesDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("get home dir: %w", err)
 	}
-	dir := filepath.Join(home, ".radar", "updates")
+	dir := filepath.Join(home, ".kubeatlas", "updates")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create updates dir: %w", err)
 	}
@@ -250,5 +250,5 @@ func DesktopAssetName(version string) string {
 		ext = "zip"
 	}
 
-	return fmt.Sprintf("radar-desktop_%s_%s_%s.%s", version, goos, arch, ext)
+	return fmt.Sprintf("kubeatlas-desktop_%s_%s_%s.%s", version, goos, arch, ext)
 }

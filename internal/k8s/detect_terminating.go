@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/investigationrefs"
 )
 
 // The MCP mounts sit outside /api, so the server's same-origin middleware does
 // not cover them. Each one must refuse a POST a browser sends from another
 // site on its own.
 func TestMCPHandlersRefuseCrossSitePosts(t *testing.T) {
-	t.Setenv("RADAR_MCP_DISABLE_ORIGIN_PROTECTION", "")
+	t.Setenv("KUBEATLAS_MCP_DISABLE_ORIGIN_PROTECTION", "")
 	// The investigation mount checks its scope first, so give it a live one to
 	// reach the origin check behind it.
 	scope := strings.Repeat("a", 26)

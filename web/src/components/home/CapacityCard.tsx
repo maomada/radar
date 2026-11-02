@@ -39,7 +39,7 @@ export function CapacityCard({ onNavigate }: { onNavigate: () => void }) {
     ? 'Karpenter view unavailable'
     : worst
       ? humanizeCode(worst.code)
-      : 'No active signals'
+      : '暂无活跃信号'
 
   // Namespace-scoped pod coverage hides pending pods this identity cannot see,
   // so the count is a floor — it must not read as the cluster total.
@@ -50,16 +50,16 @@ export function CapacityCard({ onNavigate }: { onNavigate: () => void }) {
   }
   const stats: { label: string; value: string }[] = karpenterless
     ? [
-        { label: 'Node groups', value: `${data.groups.length}` },
+        { label: '节点组', value: `${data.groups.length}` },
         pendingStat,
-        { label: 'Managers', value: `${data.summary.managers?.length ?? 0}` },
-        { label: 'Nodes', value: absentAsDash(data.summary.nodeCount) },
+        { label: '管理器', value: `${data.summary.managers?.length ?? 0}` },
+        { label: '节点', value: absentAsDash(data.summary.nodeCount) },
       ]
     : [
         { label: 'NodePools', value: absentAsDash(data.summary.poolCount) },
         pendingStat,
         { label: 'NodeClaims', value: absentAsDash(data.summary.claimCount) },
-        { label: 'Nodes', value: absentAsDash(data.summary.nodeCount) },
+        { label: '节点', value: absentAsDash(data.summary.nodeCount) },
       ]
 
   return (
@@ -73,7 +73,7 @@ export function CapacityCard({ onNavigate }: { onNavigate: () => void }) {
           <div className="flex items-center gap-2">
             <Layers3 className={clsx('h-4 w-4', headerTone)} />
             <span className={clsx('text-xs font-semibold uppercase tracking-wider', headerTone)}>
-              Capacity
+              容量
             </span>
           </div>
           <span className={clsx('max-w-[55%] truncate text-[11px] font-medium', headerTone)}>{headerLabel}</span>
@@ -113,7 +113,7 @@ export function CapacityCard({ onNavigate }: { onNavigate: () => void }) {
         </div>
 
         <div className="px-5 py-2.5 border-t border-theme-border/50 text-[11px] text-theme-text-tertiary group-hover:text-theme-text-secondary transition-colors">
-          Open Capacity →
+          打开容量 →
         </div>
       </div>
     </button>

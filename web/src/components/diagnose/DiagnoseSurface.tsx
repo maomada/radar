@@ -75,7 +75,7 @@ function buildConfigLine(cfg: {
   const parts = [agentLabelFor(cfg.agent ?? "")];
   if (cfg.profile) {
     parts.push(
-      cfg.profile === "full-local" ? "Your agent setup" : "Radar safeguards",
+      cfg.profile === "full-local" ? "Your agent setup" : "KubeAtlas safeguards",
     );
   }
   if (cfg.agent === "codex") {
@@ -87,7 +87,7 @@ function buildConfigLine(cfg: {
 
 // InvestigationMenu hands an investigation off to the user's own full agent. The
 // PRIMARY action copies a resume command they can paste wherever they actually
-// work (terminal, tmux, IDE) — destination-agnostic. Running it in Radar's built-in
+// work (terminal, tmux, IDE) — destination-agnostic. Running it in KubeAtlas's built-in
 // terminal is the secondary "run it here" convenience.
 function InvestigationMenu({ run }: { run: RunSummary }) {
   const [open, setOpen] = useState(false);
@@ -171,13 +171,13 @@ function InvestigationMenu({ run }: { run: RunSummary }) {
           {localTerminal && (
             <button
               onClick={() => {
-                openInTerminal(command, "Radar Investigation");
+                openInTerminal(command, "KubeAtlas Investigation");
                 setOpen(false);
               }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-theme-text-primary hover:bg-theme-hover"
             >
               <TerminalSquare className="h-4 w-4 shrink-0 text-theme-text-tertiary" />
-              Run in a Radar terminal
+              Run in a KubeAtlas terminal
             </button>
           )}
         </div>
@@ -227,7 +227,7 @@ export const MAXIMIZED_RUN_META_VISIBILITY_CLASS =
 // The panel is a bounded absolute frame whose descendants own scrolling. If
 // overflow remains visible here, a tall Activity/Findings tree contributes its
 // full scroll height to the document even though the frame itself is viewport-
-// sized, producing a large blank page tail below Radar. This applies equally to
+// sized, producing a large blank page tail below KubeAtlas. This applies equally to
 // docked and maximized modes; their intended scroll roots are inside the frame.
 export const DIAGNOSE_SURFACE_FRAME_CLASS =
   "@container/diagnose-surface absolute z-40 flex min-h-0 flex-col overflow-hidden border-l border-theme-border bg-theme-surface shadow-drawer";
@@ -346,7 +346,7 @@ export function openInvestigationEvidenceResource(
 }
 
 // A destination must be visible after the handoff. On a wide canvas, restoring
-// the docked panel leaves Radar and the investigation side by side. At tighter
+// the docked panel leaves KubeAtlas and the investigation side by side. At tighter
 // widths that same panel overlays the host content, so close it before
 // navigating instead of making the click appear to do nothing.
 function revealInvestigationDestination(
@@ -371,11 +371,11 @@ export function DiagnoseSurface({
   onBrowseIssues,
 }: {
   topInset?: number;
-  /** Resolves an evidence subject into the embedding Radar surface. */
+  /** Resolves an evidence subject into the embedding KubeAtlas surface. */
   onOpenResource?: (ref: DiagnosisResourceRef, runID?: string | null) => void;
-  /** Opens the embedding Radar Timeline for one resource's change history. */
+  /** Opens the embedding KubeAtlas Timeline for one resource's change history. */
   onOpenTimeline?: (scope: InvestigationTimelineScope) => void;
-  /** Lets a host whose drawer lives outside Radar's route tree cross into it. */
+  /** Lets a host whose drawer lives outside KubeAtlas's route tree cross into it. */
   onOpenWorkspace?: () => void;
   /** Opens the canonical Issues surface for a first focused investigation. */
   onBrowseIssues?: () => void;
@@ -399,7 +399,7 @@ export function DiagnoseSurface({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  // Injected settings action: undefined = Radar's own Settings dialog;
+  // Injected settings action: undefined = KubeAtlas's own Settings dialog;
   // null = hide the gear + links.
   const {
     consentCopy,

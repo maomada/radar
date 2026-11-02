@@ -1,4 +1,4 @@
-import type { HealthLevel } from '@skyhook-io/k8s-ui'
+import type { HealthLevel } from '@maomada/k8s-ui'
 import type { CNPGInstanceSettings, CNPGParametersResponse, CNPGTimelineSwitch } from '../../api/cnpg-inspect'
 
 /**

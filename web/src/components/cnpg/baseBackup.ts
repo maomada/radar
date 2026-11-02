@@ -1,4 +1,4 @@
-import type { Fact } from '@skyhook-io/k8s-ui'
+import type { Fact } from '@maomada/k8s-ui'
 import type { CNPGRuntimeBaseBackup, CNPGRuntimeResponse } from '../../api/cnpg'
 import { formatBytes } from './lsn'
 

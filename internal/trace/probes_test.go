@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 // TestRunProbes_BudgetExhausted pins the budget cap: when the deadline is

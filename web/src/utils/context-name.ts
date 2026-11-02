@@ -1,8 +1,8 @@
-import { parseContextName } from '@skyhook-io/k8s-ui/utils/context-name'
+import { parseContextName } from '@maomada/k8s-ui/utils/context-name'
 import type { ContextInfo } from '../types'
 
-// Re-export from the shared @skyhook-io/k8s-ui package.
-export * from '@skyhook-io/k8s-ui/utils/context-name'
+// Re-export from the shared @maomada/k8s-ui package.
+export * from '@maomada/k8s-ui/utils/context-name'
 
 export function parseContextForSwitcher(context: ContextInfo) {
   const raw = context.originalName || context.name

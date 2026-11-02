@@ -1,6 +1,6 @@
 package ownership
 
-import "github.com/skyhook-io/radar/pkg/resourceid"
+import "github.com/maomada/radar/pkg/resourceid"
 
 // The GitOps managers whose status records the objects they cover. A
 // HelmRelease from a helm-controller that predates status.inventory lists

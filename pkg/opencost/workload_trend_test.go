@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestComputeWorkloadCostTrendFromProm_DeploymentUsesOwnerMetrics(t *testing.T) {

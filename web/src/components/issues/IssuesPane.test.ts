@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Issue } from "@skyhook-io/k8s-ui";
+import type { Issue } from "@maomada/k8s-ui";
 import type { SubjectIssuesResponse } from "../../api/client";
 import { writeViewParams } from "../../utils/navigation";
 import { capacityHrefForIssue, issueSubjectFromParams, issueSubjectKindLabel, issueSubjectState } from "./IssuesPane";
@@ -181,9 +181,9 @@ describe('issueSubjectState', () => {
     expect(issueSubjectState(subject, [], loaded({}))).toEqual({ state: 'none' })
     expect(issueSubjectState({ ...subject, kind: 'ClusterImageCatalog', namespace: '' }, ['app'], loaded({}))).toEqual({ state: 'none' })
   })
-  it('reads an empty answer as unconfirmed when Radar does not read the kind', () => {
-    expect(issueSubjectState(subject, [], loaded({ coverage: 'notWatched' }))).toEqual({ state: 'unconfirmed', why: "Radar isn't watching Cluster" })
-    expect(issueSubjectState(subject, [], loaded({ coverage: 'syncing' }))).toEqual({ state: 'unconfirmed', why: 'Radar is still loading Cluster' })
+  it('reads an empty answer as unconfirmed when KubeAtlas does not read the kind', () => {
+    expect(issueSubjectState(subject, [], loaded({ coverage: 'notWatched' }))).toEqual({ state: 'unconfirmed', why: "KubeAtlas isn't watching Cluster" })
+    expect(issueSubjectState(subject, [], loaded({ coverage: 'syncing' }))).toEqual({ state: 'unconfirmed', why: 'KubeAtlas is still loading Cluster' })
   })
   it('says when the cluster has no such kind, as for a link made on another cluster', () => {
     expect(issueSubjectState(subject, [], loaded({ coverage: 'unknownKind' }))).toEqual({ state: 'unconfirmed', why: 'this cluster has no such kind' })

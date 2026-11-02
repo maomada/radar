@@ -30,7 +30,7 @@ describe('partialSearchNotices', () => {
   it('shows both causes when both happened', () => {
     expect(partialSearchNotices({ access_incomplete: true, incomplete_findings: 'time_limit' })).toHaveLength(2)
   })
-  it('is empty for a whole result or an older Radar', () => {
+  it('is empty for a whole result or an older KubeAtlas', () => {
     expect(partialSearchNotices({})).toEqual([])
     expect(partialSearchNotices(undefined)).toEqual([])
   })

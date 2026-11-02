@@ -58,7 +58,7 @@ func TestWhatsNewRecordsSeenVersionUnderRadarDir(t *testing.T) {
 	if w := markWhatsNewSeen(`{"version":"v1.15.0"}`); w.Code != http.StatusNoContent {
 		t.Fatalf("POST status = %d, body %s", w.Code, w.Body.String())
 	}
-	if _, err := os.Stat(filepath.Join(home, ".radar", whatsNewFile)); err != nil {
+	if _, err := os.Stat(filepath.Join(home, ".kubeatlas", whatsNewFile)); err != nil {
 		t.Fatalf("state file not written: %v", err)
 	}
 	if got := getWhatsNew(t).SeenVersion; got == nil || *got != "v1.15.0" {
@@ -106,7 +106,7 @@ func TestWhatsNewReplacesAnUnreadableRecord(t *testing.T) {
 	useWhatsNewStorage(t, true)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	dir := filepath.Join(home, ".radar")
+	dir := filepath.Join(home, ".kubeatlas")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestWhatsNewLeavesInClusterStateToTheBrowser(t *testing.T) {
 	if w := markWhatsNewSeen(`{"version":"v1.15.0"}`); w.Code != http.StatusConflict {
 		t.Fatalf("POST status = %d, want 409", w.Code)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".radar", whatsNewFile)); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(home, ".kubeatlas", whatsNewFile)); !os.IsNotExist(err) {
 		t.Fatalf("in-cluster POST wrote a state file (err=%v)", err)
 	}
 }
@@ -164,9 +164,9 @@ func TestRadarDirHadStateIgnoresItsOwnFile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	if radarDirHadState() {
-		t.Fatal("missing ~/.radar reported as prior state")
+		t.Fatal("missing ~/.kubeatlas reported as prior state")
 	}
-	dir := filepath.Join(home, ".radar")
+	dir := filepath.Join(home, ".kubeatlas")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

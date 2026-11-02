@@ -4,8 +4,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 func TestRelationshipTopologyHidesUnreadableEndpointsWithoutMutatingCache(t *testing.T) {

@@ -1,7 +1,7 @@
 import { Boxes } from 'lucide-react'
-import { KueueWorkloadRenderer as BaseRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/KueueWorkloadRenderer'
-import { getProvisioningRequestStatus, getProvisioningRequestMessage } from '@skyhook-io/k8s-ui/components/resources/resource-utils-kueue'
-import { Badge, ResourceLink, Section, type ResourceRef } from '@skyhook-io/k8s-ui'
+import { KueueWorkloadRenderer as BaseRenderer } from '@maomada/k8s-ui/components/resources/renderers/KueueWorkloadRenderer'
+import { getProvisioningRequestStatus, getProvisioningRequestMessage } from '@maomada/k8s-ui/components/resources/resource-utils-kueue'
+import { Badge, ResourceLink, Section, type ResourceRef } from '@maomada/k8s-ui'
 import { useKueueProvisioning } from '../../../api/client'
 
 export function KueueWorkloadRenderer({ data, onNavigate }: { data: any; onNavigate?: (ref: ResourceRef) => void }) {

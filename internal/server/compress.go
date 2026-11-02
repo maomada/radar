@@ -12,7 +12,7 @@ import (
 	kgzip "github.com/klauspost/compress/gzip"
 )
 
-// defaultCompressLevel is the gzip level used when RADAR_COMPRESS_LEVEL is unset.
+// defaultCompressLevel is the gzip level used when KUBEATLAS_COMPRESS_LEVEL is unset.
 //
 // Level 1 (BestSpeed) is deliberate: on large clusters Radar's informer +
 // topology processing already runs CPU-hot, and that's exactly where response
@@ -20,10 +20,10 @@ import (
 // load. gzip-1 on k8s JSON still yields ~90%+ size reduction at the highest
 // throughput — the marginal bytes from higher levels aren't worth contending
 // with the watch loop. Operators on bandwidth-bound / CPU-rich deployments can
-// raise it (or disable with 0) via RADAR_COMPRESS_LEVEL.
+// raise it (or disable with 0) via KUBEATLAS_COMPRESS_LEVEL.
 const defaultCompressLevel = 1
 
-// resolveCompressLevel parses RADAR_COMPRESS_LEVEL: empty → default, 0 →
+// resolveCompressLevel parses KUBEATLAS_COMPRESS_LEVEL: empty → default, 0 →
 // disabled, 1-9 → gzip level, anything else → default (logged).
 func resolveCompressLevel(raw string) int {
 	if raw == "" {
@@ -31,14 +31,14 @@ func resolveCompressLevel(raw string) int {
 	}
 	n, err := strconv.Atoi(raw)
 	if err != nil || n < 0 || n > 9 {
-		log.Printf("[compress] invalid RADAR_COMPRESS_LEVEL %q; using default %d", raw, defaultCompressLevel)
+		log.Printf("[compress] invalid KUBEATLAS_COMPRESS_LEVEL %q; using default %d", raw, defaultCompressLevel)
 		return defaultCompressLevel
 	}
 	return n
 }
 
 // compressMiddleware returns a gzip response-compression middleware, or nil when
-// compression is disabled (RADAR_COMPRESS_LEVEL=0).
+// compression is disabled (KUBEATLAS_COMPRESS_LEVEL=0).
 //
 // k8s JSON (topology, resource lists, RBAC, audit) compresses 5-10x and today
 // travels raw over the network — costly over the Radar Cloud tunnel's high-RTT
@@ -53,7 +53,7 @@ func resolveCompressLevel(raw string) int {
 // intact), and chi forwards Hijack/Flush so pod-exec WebSocket upgrades are
 // unaffected. Applied uniformly in local and cloud mode.
 func compressMiddleware() func(http.Handler) http.Handler {
-	level := resolveCompressLevel(os.Getenv("RADAR_COMPRESS_LEVEL"))
+	level := resolveCompressLevel(os.Getenv("KUBEATLAS_COMPRESS_LEVEL"))
 	if level == 0 {
 		return nil
 	}

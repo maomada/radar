@@ -21,7 +21,7 @@ import {
   toneTextClass,
   formatGrant,
   type Grant,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useResource } from '../../api/client'
 import { useCNPGClusterCapabilities, type CNPGRuntimeInstance, type CNPGRuntimeResponse } from '../../api/cnpg'
 import type { UseQueryResult } from '@tanstack/react-query'
@@ -366,7 +366,7 @@ function InstanceCard({
 function coverageLine(label: string, c: { state: string; grant?: Grant; reason?: string }, plural = false): string | null {
   const needs = plural ? 'need' : 'needs'
   if (c.state === 'ok') return null
-  if (c.state === 'noPrometheus') return `${label} ${needs} Prometheus: ${c.reason?.split(/\s+Candidate /)[0] ?? 'Radar is not connected to one'}`
+  if (c.state === 'noPrometheus') return `${label} ${needs} Prometheus: ${c.reason?.split(/\s+Candidate /)[0] ?? 'KubeAtlas is not connected to one'}`
   if (c.state === 'denied') return `${label} ${needs} ${formatGrant(c.grant) ?? 'a grant you do not have'}.`
   return `${label}: ${c.reason ?? c.state}`
 }

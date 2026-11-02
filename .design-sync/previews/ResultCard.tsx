@@ -1,4 +1,4 @@
-import { ResultCard } from '@skyhook-io/k8s-ui'
+import { ResultCard } from '@maomada/k8s-ui'
 
 const wrap = { width: 560, padding: 8 }
 const noop = () => {}

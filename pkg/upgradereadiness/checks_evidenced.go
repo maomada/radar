@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -19,8 +19,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 
-	"github.com/skyhook-io/radar/pkg/conditions"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func scanNodeCgroupCompatibility(input *Input) Check {

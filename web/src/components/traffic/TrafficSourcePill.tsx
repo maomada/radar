@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { ChevronDown, Loader2 } from 'lucide-react'
-import { StatusDot, toneTextClass } from '@skyhook-io/k8s-ui'
+import { StatusDot, toneTextClass } from '@maomada/k8s-ui'
 import { useAnimatedUnmount } from '../../hooks/useAnimatedUnmount'
 import { TRANSITION_MENU, overlayExitMs, overlayTransitionStyle } from '../../utils/animation'
 

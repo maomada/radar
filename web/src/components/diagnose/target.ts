@@ -1,4 +1,4 @@
-import { resourceKey } from "@skyhook-io/k8s-ui";
+import { resourceKey } from "@maomada/k8s-ui";
 
 import {
   kindToPluralWithGroup,

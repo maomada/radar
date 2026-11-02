@@ -3,7 +3,7 @@ import {
   displayKind,
   englishPlural,
   kindToPlural,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { apiVersionToGroup } from "../../../../utils/navigation";
 import {
   ProjectionBuilder,
@@ -112,7 +112,7 @@ export function adaptGetResource(
         builder.limit(
           source,
           "Events",
-          `Radar received ${events.length} of ${value.eventsTotalGroups} event groups.`,
+          `KubeAtlas received ${events.length} of ${value.eventsTotalGroups} event groups.`,
           "truncated",
         );
       }
@@ -228,13 +228,13 @@ export function adaptListNamespaces(
 
 // list_resources arrives as `{summary, coverage, items}`. summary says in
 // words what the rows cover and what was not read; coverage.read names the
-// namespaces Radar read when that is a namespace set. A bare array is an older
-// Radar's list (or a run recorded from one): it carries no coverage, so
+// namespaces KubeAtlas read when that is a namespace set. A bare array is an older
+// KubeAtlas's list (or a run recorded from one): it carries no coverage, so
 // nothing about it may read as complete.
 type ListCoverage = {
   partial: boolean;
   narrowed: boolean;
-  /** Set when Radar read a finite namespace set: rows prove nothing outside it. */
+  /** Set when KubeAtlas read a finite namespace set: rows prove nothing outside it. */
   namespacesRead?: string[];
   namespacesReadOmitted: number;
   summary: string;
@@ -331,7 +331,7 @@ export function adaptListResources(
     : undefined;
   const title = options.title ?? (namespace ? `${noun} in ${namespace}` : noun);
   if (resources.length === 0) {
-    // An older Radar returns [] for some RBAC-filtered reads, so a bare array
+    // An older KubeAtlas returns [] for some RBAC-filtered reads, so a bare array
     // cannot prove absence. Otherwise the copy is the server's summary: the
     // requested kind may be an alias ("svc"), and the summary names the
     // resource it resolved.
@@ -339,7 +339,7 @@ export function adaptListResources(
       source,
       "Resource inventory",
       !coverage
-        ? `Radar found no matching resources for ${scope}. Anything you do not have permission to read was not searched.`
+        ? `KubeAtlas found no matching resources for ${scope}. Anything you do not have permission to read was not searched.`
         : coverage.summary,
       "unknown",
     );

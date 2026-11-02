@@ -15,7 +15,7 @@ import {
   getRadarUpgradeRequirement,
   RadarUpgradeNote,
   type CNPGFleetRow,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGClusterCapabilities, useCNPGOperator } from '../../../api/cnpg'
 import { useRadarFeature } from '../../../api/client'
 import { radarUpgradeRequirement } from '../../../api/radarFeatures'
@@ -68,7 +68,7 @@ export function CNPGProtectionSetup({
         <DialogPortal
           open={open}
           onClose={close}
-          ariaLabel="Backup setup needs a newer Radar"
+          ariaLabel="Backup setup needs a newer KubeAtlas"
           className="w-full max-w-lg p-5"
         >
           <RadarUpgradeNote requirement={radarUpgradeRequirement('cnpgProtectionSetup', {})} />

@@ -7,8 +7,8 @@ import {
   Info,
   SquareArrowOutUpRight,
 } from "lucide-react";
-import { getCrossplaneConditionTone } from "@skyhook-io/k8s-ui/components/resources/resource-utils-crossplane";
-import { defaultConditionTone, displayKind } from "@skyhook-io/k8s-ui";
+import { getCrossplaneConditionTone } from "@maomada/k8s-ui/components/resources/resource-utils-crossplane";
+import { defaultConditionTone, displayKind } from "@maomada/k8s-ui";
 import type {
   InvestigationEvidenceData,
   InvestigationKubernetesResource,
@@ -31,7 +31,7 @@ export function OpenResourceButton({
 }) {
   if (!resourceRef || !onOpenResource) return null;
   const identity = `${resourceRef.namespace ? `${resourceRef.namespace}/` : ""}${resourceRef.name}`;
-  const label = `Open current ${displayKind(resourceRef.kind)} ${identity} in Radar`;
+  const label = `Open current ${displayKind(resourceRef.kind)} ${identity} in KubeAtlas`;
   return (
     <Tooltip
       content={label}

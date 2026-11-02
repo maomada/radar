@@ -1,2 +1,2 @@
-// Re-export all animation utilities from the shared @skyhook-io/k8s-ui package.
-export * from '@skyhook-io/k8s-ui/utils/animation'
+// Re-export all animation utilities from the shared @maomada/k8s-ui package.
+export * from '@maomada/k8s-ui/utils/animation'

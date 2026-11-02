@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { Sparkles, Copy, Check, ExternalLink, RotateCw } from "lucide-react";
-import { copyText } from "@skyhook-io/k8s-ui/utils/clipboard";
+import { copyText } from "@maomada/k8s-ui/utils/clipboard";
 import { SUPPORTED_AGENTS, type AgentInstall } from "./agentCatalog";
 import { type DiagnoseSetup } from "./DiagnoseContext";
 import { openExternal } from "../../utils/navigation";
 
 const REPORT_URL =
-  "https://github.com/skyhook-io/radar/issues/new?labels=bug&template=bug_report.md";
+  "https://github.com/maomada/radar/issues/new?labels=bug&template=bug_report.md";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -15,7 +15,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     <button
       type="button"
       onClick={() => {
-        // The shared helper, not navigator.clipboard directly: a Radar served
+        // The shared helper, not navigator.clipboard directly: a KubeAtlas served
         // over plain HTTP is an insecure origin where the async API rejects,
         // and the tick must not claim a copy that didn't happen.
         void copyText(text).then((ok) => {
@@ -85,9 +85,9 @@ function CheckAgainButton({
 
 // Shown in the AI surface's Home when investigations are eligible here but not
 // runnable yet:
-//  - cliOverride: RADAR_AI_CLI_BIN pins the engine to one CLI, so detection is
+//  - cliOverride: KUBEATLAS_AI_CLI_BIN pins the engine to one CLI, so detection is
 //    off and installing another changes nothing. Investigations being off means
-//    the variable names a file Radar can't run. A working file put at that path
+//    the variable names a file KubeAtlas can't run. A working file put at that path
 //    is picked up on the next check; changing the variable needs a restart.
 //  - "needs-install": no agent CLI found. The server picks one up as soon as
 //    it's installed, so the notice offers a re-check rather than a restart.
@@ -123,9 +123,9 @@ export function AgentSetupNotice({
 
   if (cliOverride) {
     return (
-      <SetupFrame title="Radar can't run your RADAR_AI_CLI_BIN">
+      <SetupFrame title="KubeAtlas can't run your KUBEATLAS_AI_CLI_BIN">
         <p className="mt-1 text-sm text-theme-text-secondary">
-          Fix the path, or remove it and restart Radar.
+          Fix the path, or remove it and restart KubeAtlas.
         </p>
         <CheckAgainButton checking={checkingAgents} onCheck={check} />
         {unreachable ||
@@ -156,8 +156,8 @@ export function AgentSetupNotice({
   return (
     <SetupFrame title="Set up AI investigations">
       <p className="mt-1 text-sm text-theme-text-secondary">
-        Radar runs investigations through a coding agent CLI on your own
-        machine, with no Radar cloud and no API key. Install one of these:
+        KubeAtlas runs investigations through a coding agent CLI on your own
+        machine, with no KubeAtlas cloud and no API key. Install one of these:
       </p>
       <div className="mt-4 flex flex-col gap-2.5">
         {SUPPORTED_AGENTS.map((a) => (
@@ -201,7 +201,7 @@ function SetupFrame({
       {children}
       <p className="mt-4 text-xs text-theme-text-tertiary">
         Your agent runs locally. Resource details and logs are sent to its model
-        provider under your account, not to Radar.
+        provider under your account, not to KubeAtlas.
       </p>
     </div>
   );

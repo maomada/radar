@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/karpenter"
+	k8score "github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/karpenter"
 )
 
 type karpenterDynamicProvider struct {

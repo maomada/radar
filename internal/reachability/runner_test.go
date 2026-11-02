@@ -2,11 +2,14 @@ package reachability
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/pkg/probe"
 	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +22,7 @@ import (
 // fields and the command. A regression here is a security regression.
 func TestBuildProbeJob_SecurityInvariants(t *testing.T) {
 	job := buildProbeJob(RunOptions{
-		Namespace: "prod", Image: "ghcr.io/skyhook-io/radar:1.2.3",
+		Namespace: "prod", Image: "ghcr.io/maomada/kubeatlas:1.2.3",
 		Target: "10.96.0.10:8080", Scheme: "https", Host: "api.prod", Layers: "tcp,tls,http",
 	})
 
@@ -61,17 +64,55 @@ func TestBuildProbeJob_SecurityInvariants(t *testing.T) {
 	if sc.Capabilities == nil || len(sc.Capabilities.Drop) != 1 || sc.Capabilities.Drop[0] != "ALL" {
 		t.Errorf("container must drop ALL capabilities, got %v", sc.Capabilities)
 	}
-	if c.Image != "ghcr.io/skyhook-io/radar:1.2.3" {
+	if c.Image != "ghcr.io/maomada/kubeatlas:1.2.3" {
 		t.Errorf("image = %q", c.Image)
 	}
+	if len(c.Command) == 0 || c.Command[0] != "/kubeatlas" {
+		t.Errorf("command executable = %v, want /kubeatlas", c.Command)
+	}
 	cmd := strings.Join(c.Command, " ")
-	for _, want := range []string{"/radar", "probe", "--target 10.96.0.10:8080", "--json", "--scheme https", "--host api.prod", "--layers tcp,tls,http"} {
+	for _, want := range []string{"probe", "--target 10.96.0.10:8080", "--json", "--scheme https", "--host api.prod", "--layers tcp,tls,http"} {
 		if !strings.Contains(cmd, want) {
 			t.Errorf("command missing %q; got: %s", want, cmd)
 		}
 	}
 	if c.Resources.Limits.Cpu().String() != "50m" {
 		t.Errorf("cpu limit = %s, want 50m", c.Resources.Limits.Cpu())
+	}
+}
+
+func TestProbeBinaryPathMatchesImageCopies(t *testing.T) {
+	jobCommand := buildProbeJob(RunOptions{Namespace: "ns", Image: "img", Target: "example:80"}).
+		Spec.Template.Spec.Containers[0].Command
+	if len(jobCommand) == 0 {
+		t.Fatal("probe Job has no command")
+	}
+
+	copies := []struct {
+		file    string
+		pattern string
+	}{
+		{"Dockerfile", `(?m)^COPY --from=backend-builder \S+ (\S+)$`},
+		{"Dockerfile", `(?m)^COPY kubeatlas-\$\{TARGETARCH\} (\S+)$`},
+		{"Makefile", `(?m)^\s*@echo 'COPY kubeatlas-probe-bin (\S+)' >> /tmp/Dockerfile\.probe$`},
+	}
+	for _, copy := range copies {
+		data, err := os.ReadFile(filepath.Join("..", "..", copy.file))
+		if err != nil {
+			t.Fatalf("read %s: %v", copy.file, err)
+		}
+		match := regexp.MustCompile(copy.pattern).FindSubmatch(data)
+		if len(match) != 2 {
+			t.Fatalf("%s does not contain the expected probe binary COPY instruction", copy.file)
+		}
+		if got := string(match[1]); got != jobCommand[0] {
+			t.Errorf("%s copies probe binary to %q, Job executes %q", copy.file, got, jobCommand[0])
+		}
+	}
+
+	fallback := FallbackCommand(RunOptions{Namespace: "ns", Image: "img", Target: "example:80"})
+	if !strings.Contains(fallback, "--command -- "+jobCommand[0]+" probe --target ") {
+		t.Errorf("fallback does not execute the Job binary path %q: %s", jobCommand[0], fallback)
 	}
 }
 
@@ -112,6 +153,9 @@ func TestFallbackCommand_ParityAndQuoting(t *testing.T) {
 		if !strings.Contains(cmd, want) {
 			t.Errorf("fallback missing %q; got: %s", want, cmd)
 		}
+	}
+	if !strings.Contains(cmd, "--command -- "+probeBinaryPath+" probe --target ") {
+		t.Errorf("fallback executable does not match probe Job path %q: %s", probeBinaryPath, cmd)
 	}
 	evil := FallbackCommand(RunOptions{Namespace: "ns", Image: "img", Target: "x:80", Path: "/a;rm -rf /"})
 	if !strings.Contains(evil, "'/a;rm -rf /'") {
@@ -407,10 +451,10 @@ func radarPod(ns string, containers ...corev1.Container) *corev1.Pod {
 }
 
 // TestResolveImage_Precedence pins the four-source order: explicit override >
-// self-read (radar's live pod image) > RADAR_IMAGE env > version default.
+// self-read (radar's live pod image) > KUBEATLAS_IMAGE env > version default.
 func TestResolveImage_Precedence(t *testing.T) {
 	old := DefaultImageRef
-	DefaultImageRef = "ghcr.io/skyhook-io/radar:vdefault"
+	DefaultImageRef = "ghcr.io/maomada/kubeatlas:vdefault"
 	defer func() { DefaultImageRef = old }()
 
 	client := fake.NewSimpleClientset(radarPod("radar-ns",
@@ -420,7 +464,7 @@ func TestResolveImage_Precedence(t *testing.T) {
 	ctx := context.Background()
 	t.Setenv("MY_POD_NAME", "radar-abc")
 	t.Setenv("MY_POD_NAMESPACE", "radar-ns")
-	t.Setenv("RADAR_IMAGE", "env/radar:x")
+	t.Setenv("KUBEATLAS_IMAGE", "env/radar:x")
 
 	if got := ResolveImage(ctx, client, "override/radar:pin"); got != "override/radar:pin" {
 		t.Errorf("override should win, got %q", got)
@@ -430,20 +474,20 @@ func TestResolveImage_Precedence(t *testing.T) {
 	}
 	t.Setenv("MY_POD_NAME", "") // self-read can't run
 	if got := ResolveImage(ctx, client, ""); got != "env/radar:x" {
-		t.Errorf("RADAR_IMAGE should apply when self-read unavailable, got %q", got)
+		t.Errorf("KUBEATLAS_IMAGE should apply when self-read unavailable, got %q", got)
 	}
-	t.Setenv("RADAR_IMAGE", "")
-	if got := ResolveImage(ctx, client, ""); got != "ghcr.io/skyhook-io/radar:vdefault" {
+	t.Setenv("KUBEATLAS_IMAGE", "")
+	if got := ResolveImage(ctx, client, ""); got != "ghcr.io/maomada/kubeatlas:vdefault" {
 		t.Errorf("version default should apply last, got %q", got)
 	}
 
 	// The configured --reachability-image override (recorded at startup) wins over
-	// self-read / RADAR_IMAGE / default even with an EMPTY per-call override arg -
+	// self-read / KUBEATLAS_IMAGE / default even with an EMPTY per-call override arg -
 	// this is the MCP path, which must honor the operator's override too.
 	SetConfiguredImage("configured/radar:flag")
 	defer SetConfiguredImage("")
 	t.Setenv("MY_POD_NAME", "radar-abc") // self-read would otherwise win
-	t.Setenv("RADAR_IMAGE", "env/radar:x")
+	t.Setenv("KUBEATLAS_IMAGE", "env/radar:x")
 	if got := ResolveImage(ctx, client, ""); got != "configured/radar:flag" {
 		t.Errorf("configured override should beat self-read/env/default, got %q", got)
 	}
@@ -459,15 +503,24 @@ func TestSelfPodImage(t *testing.T) {
 	t.Setenv("MY_POD_NAME", "radar-abc")
 	t.Setenv("MY_POD_NAMESPACE", "radar-ns")
 
-	// the "radar" container is picked even when not first
+	// Prefer the "kubeatlas" container behind a sidecar when both names exist.
 	c := fake.NewSimpleClientset(radarPod("radar-ns",
 		corev1.Container{Name: "linkerd-proxy", Image: "proxy:1"},
-		corev1.Container{Name: "radar", Image: "radar:real"},
+		corev1.Container{Name: "radar", Image: "radar:legacy"},
+		corev1.Container{Name: "kubeatlas", Image: "kubeatlas:real"},
 	))
-	if got := selfPodImage(ctx, c); got != "radar:real" {
-		t.Errorf("want the radar container image, got %q", got)
+	if got := selfPodImage(ctx, c); got != "kubeatlas:real" {
+		t.Errorf("want the kubeatlas container image, got %q", got)
 	}
-	// first-container fallback when there's no "radar" container
+	// Retain the legacy container name only when no "kubeatlas" container exists.
+	legacy := fake.NewSimpleClientset(radarPod("radar-ns",
+		corev1.Container{Name: "linkerd-proxy", Image: "proxy:1"},
+		corev1.Container{Name: "radar", Image: "radar:legacy"},
+	))
+	if got := selfPodImage(ctx, legacy); got != "radar:legacy" {
+		t.Errorf("want the legacy radar container image, got %q", got)
+	}
+	// First-container fallback when there is no named KubeAtlas container.
 	c2 := fake.NewSimpleClientset(radarPod("radar-ns", corev1.Container{Name: "app", Image: "app:1"}))
 	if got := selfPodImage(ctx, c2); got != "app:1" {
 		t.Errorf("want first-container fallback, got %q", got)
@@ -478,14 +531,14 @@ func TestSelfPodImage(t *testing.T) {
 	if got := selfPodImage(ctx, fake.NewSimpleClientset()); got != "" {
 		t.Errorf("pod-not-found (Get error) should yield empty, got %q", got)
 	}
-	// multi-container pod with NO "radar" container → empty (don't guess a sidecar
-	// image, which lacks /radar); only a SOLE container is trusted as the fallback.
+	// A multi-container pod with no named container yields empty (don't guess a
+	// sidecar image); only a SOLE container is trusted as the fallback.
 	multi := fake.NewSimpleClientset(radarPod("radar-ns",
 		corev1.Container{Name: "istio-proxy", Image: "proxy:1"},
 		corev1.Container{Name: "app", Image: "app:2"},
 	))
 	if got := selfPodImage(ctx, multi); got != "" {
-		t.Errorf("multi-container no-radar pod should yield empty (not a sidecar guess), got %q", got)
+		t.Errorf("multi-container pod without a named container should yield empty (not a sidecar guess), got %q", got)
 	}
 	t.Setenv("MY_POD_NAME", "")
 	if got := selfPodImage(ctx, c); got != "" {
@@ -495,26 +548,26 @@ func TestSelfPodImage(t *testing.T) {
 
 // A dev build's git-describe tag never exists on the registry, so main()
 // installs LatestReleaseImage to fall back to the newest published release.
-// It must rank BELOW every explicit source (override, self-read, RADAR_IMAGE)
+// It must rank BELOW every explicit source (override, self-read, KUBEATLAS_IMAGE)
 // and above only the version default; a failed lookup ("") keeps the default.
 func TestResolveImage_DevFallsBackToLatestRelease(t *testing.T) {
 	old := DefaultImageRef
-	DefaultImageRef = "ghcr.io/skyhook-io/radar:1.10.3-78-gabc123"
+	DefaultImageRef = "ghcr.io/maomada/kubeatlas:1.10.3-78-gabc123"
 	defer func() { DefaultImageRef = old }()
 	t.Setenv("MY_POD_NAME", "")
-	t.Setenv("RADAR_IMAGE", "")
+	t.Setenv("KUBEATLAS_IMAGE", "")
 
-	LatestReleaseImage = func() string { return "ghcr.io/skyhook-io/radar:1.10.3" }
+	LatestReleaseImage = func() string { return "ghcr.io/maomada/kubeatlas:1.10.3" }
 	defer func() { LatestReleaseImage = nil }()
-	if got := ResolveImage(context.Background(), nil, ""); got != "ghcr.io/skyhook-io/radar:1.10.3" {
+	if got := ResolveImage(context.Background(), nil, ""); got != "ghcr.io/maomada/kubeatlas:1.10.3" {
 		t.Errorf("dev build should fall back to the latest published release, got %q", got)
 	}
 
-	t.Setenv("RADAR_IMAGE", "env/radar:x")
+	t.Setenv("KUBEATLAS_IMAGE", "env/radar:x")
 	if got := ResolveImage(context.Background(), nil, ""); got != "env/radar:x" {
-		t.Errorf("RADAR_IMAGE must still outrank the latest-release fallback, got %q", got)
+		t.Errorf("KUBEATLAS_IMAGE must still outrank the latest-release fallback, got %q", got)
 	}
-	t.Setenv("RADAR_IMAGE", "")
+	t.Setenv("KUBEATLAS_IMAGE", "")
 
 	LatestReleaseImage = func() string { return "" }
 	if got := ResolveImage(context.Background(), nil, ""); got != DefaultImageRef {

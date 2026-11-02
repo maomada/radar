@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // DefaultMaxResponseBytes caps the raw series payload a PromQL surface returns
@@ -16,9 +16,9 @@ import (
 const DefaultMaxResponseBytes = 64 << 10
 
 // MaxResponseBytes returns the raw series payload cap. Tests shrink it through
-// RADAR_MCP_PROM_MAX_RESPONSE_BYTES to exercise the summary path.
+// KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES to exercise the summary path.
 func MaxResponseBytes() int {
-	if v := os.Getenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES"); v != "" {
+	if v := os.Getenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}

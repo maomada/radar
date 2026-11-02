@@ -19,9 +19,9 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // ResourcePermissions indicates which resource types the user can list/watch
@@ -240,7 +240,7 @@ const (
 	// Frontend should fall back to the platform label for headlines.
 	DeploymentModeInCluster DeploymentMode = "in-cluster"
 	// DeploymentModeCloud: Radar pod running in-cluster AND tunneled
-	// to Radar Cloud's hub (RADAR_CLOUD_MODE=true; technically a
+	// to Radar Cloud's hub (KUBEATLAS_CLOUD_MODE=true; technically a
 	// superset of in-cluster mode plus the outbound tunnel). The hub
 	// shell renders cluster identity + MCP discovery surfaces, so the
 	// embedded UI suppresses both.

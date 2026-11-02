@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/prom"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

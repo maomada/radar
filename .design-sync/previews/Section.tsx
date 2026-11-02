@@ -1,4 +1,4 @@
-import { KeyValueBadgeList, Property, PropertyList, Section } from '@skyhook-io/k8s-ui'
+import { KeyValueBadgeList, Property, PropertyList, Section } from '@maomada/k8s-ui'
 import { Activity, Info, Tag } from 'lucide-react'
 
 const card = {

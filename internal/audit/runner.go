@@ -10,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	bp "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // RunOptions provides optional data sources for checks that need them.

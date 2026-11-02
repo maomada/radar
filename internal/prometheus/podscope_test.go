@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func scopeTestCache(t *testing.T, types map[string]bool, objects ...runtime.Object) *k8s.ResourceCache {

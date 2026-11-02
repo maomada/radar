@@ -14,9 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/portforward"
-	promclient "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/portforward"
+	promclient "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 const (

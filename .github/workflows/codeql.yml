@@ -26,9 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Go analysis takes ~12 minutes, so it runs on main and weekly, not on
-        # PRs. JavaScript/TypeScript (~3 minutes) still runs on PRs.
-        language: ${{ fromJSON(github.event_name == 'pull_request' && '["javascript-typescript"]' || '["go", "javascript-typescript"]') }}
+        language: [go, javascript-typescript]
 
     steps:
       - uses: actions/checkout@v7

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CapacitySourceCoverage } from "@skyhook-io/k8s-ui";
+import type { CapacitySourceCoverage } from "@maomada/k8s-ui";
 import {
   autoscalerDetectionFailure,
   autoscalerNotPublishedDetail,

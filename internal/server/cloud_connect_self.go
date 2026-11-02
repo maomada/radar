@@ -19,9 +19,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 // cloudConnectSelf describes the in-cluster Radar to the funnel modal so it can

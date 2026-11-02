@@ -10,10 +10,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 func (s *Server) handleGetWorkloadImages(w http.ResponseWriter, r *http.Request) {

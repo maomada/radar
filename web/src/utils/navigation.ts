@@ -1,7 +1,7 @@
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../api/config'
-import { apiVersionToGroup, kindToPluralWithGroup } from '@skyhook-io/k8s-ui/utils/navigation'
-import { topologyNodeResourceKind } from '@skyhook-io/k8s-ui/utils/topology-neighborhood'
-import type { GroupingMode, SelectedResource, Topology, TopologyMode } from '@skyhook-io/k8s-ui/types/core'
+import { apiVersionToGroup, kindToPluralWithGroup } from '@maomada/k8s-ui/utils/navigation'
+import { topologyNodeResourceKind } from '@maomada/k8s-ui/utils/topology-neighborhood'
+import type { GroupingMode, SelectedResource, Topology, TopologyMode } from '@maomada/k8s-ui/types/core'
 import type { SearchHit } from '../api/client'
 
 /**
@@ -14,9 +14,9 @@ export function searchHitToSelectedResource(hit: SearchHit): SelectedResource {
   return { kind: hit.kind, namespace: hit.namespace ?? '', name: hit.name, group: hit.group || undefined }
 }
 
-// Re-export shared navigation utilities from @skyhook-io/k8s-ui.
-export { kindToPlural, kindToPluralWithGroup, pluralToKind, knownKindForPluralWithGroup, refToSelectedResource, apiVersionToGroup } from '@skyhook-io/k8s-ui/utils/navigation'
-export type { NavigateToResource } from '@skyhook-io/k8s-ui/utils/navigation'
+// Re-export shared navigation utilities from @maomada/k8s-ui.
+export { kindToPlural, kindToPluralWithGroup, pluralToKind, knownKindForPluralWithGroup, refToSelectedResource, apiVersionToGroup } from '@maomada/k8s-ui/utils/navigation'
+export type { NavigateToResource } from '@maomada/k8s-ui/utils/navigation'
 
 const NETWORK_POLICY_TOPOLOGY_KINDS = new Set([
   'NetworkPolicy',

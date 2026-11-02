@@ -2,11 +2,11 @@ import { useCapabilities, useContexts, useGitOpsDestination } from '../../api/cl
 import type { ContextInfo } from '../../types'
 
 export interface DestinationCluster {
-  // The destination's API server host, when Radar can tell.
+  // The destination's API server host, when KubeAtlas can tell.
   server?: string
   // A kubeconfig context for that cluster other than the current one.
   context?: ContextInfo
-  // Whether this Radar may switch contexts at all.
+  // Whether this KubeAtlas may switch contexts at all.
   canSwitch: boolean
 }
 

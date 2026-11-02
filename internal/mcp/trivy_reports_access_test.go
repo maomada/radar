@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/readreason"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // listReports lists Trivy vulnerability reports and returns the namespaces

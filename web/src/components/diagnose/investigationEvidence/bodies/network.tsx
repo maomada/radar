@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { AlertTriangle } from "lucide-react";
-import { Badge, StatusDot, ResourceLink } from "@skyhook-io/k8s-ui";
+import { Badge, StatusDot, ResourceLink } from "@maomada/k8s-ui";
 import { EvidenceNavigationContext } from "../navigation";
 import { type EvidenceDataOf, severityBadge } from "../cardParts";
 

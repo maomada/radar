@@ -8,9 +8,9 @@ import {
   kindToPluralWithGroup,
   knownKindForPluralWithGroup,
   resetNavigationMap,
-} from "@skyhook-io/k8s-ui/utils/navigation";
+} from "@maomada/k8s-ui/utils/navigation";
 import { useAPIResources } from "./apiResources";
-import { MetadataSection } from "@skyhook-io/k8s-ui/components/ui/drawer-components";
+import { MetadataSection } from "@maomada/k8s-ui/components/ui/drawer-components";
 
 beforeEach(() => vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true));
 afterEach(() => {

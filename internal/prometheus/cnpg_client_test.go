@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestCNPGReadsKeepCapturedMetricsClient(t *testing.T) {

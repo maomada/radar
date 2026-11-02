@@ -5,7 +5,7 @@ import (
 	"encoding/base32"
 	"errors"
 	"fmt"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 	"log"
 	"net"
 	"net/url"

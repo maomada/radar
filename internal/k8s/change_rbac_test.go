@@ -3,7 +3,7 @@ package k8s
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 func TestGroupFromAPIVersion(t *testing.T) {

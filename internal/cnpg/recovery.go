@@ -22,8 +22,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	auth "github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
+	auth "github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 const (

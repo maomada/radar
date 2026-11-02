@@ -14,9 +14,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/portforward"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/portforward"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // Manager handles traffic source detection and management

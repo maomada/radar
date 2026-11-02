@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/k8s"
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
+	"github.com/maomada/radar/internal/k8s"
+	internalopencost "github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
 )
 
 func TestOpenCostDetailResponsesIncludeCurrencyWhenUnavailable(t *testing.T) {

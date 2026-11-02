@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 func TestWebSocketOriginPolicy(t *testing.T) {

@@ -24,7 +24,7 @@ import (
 // Config is the runtime configuration for connecting to Radar Cloud.
 type Config struct {
 	// URL is the WebSocket URL of the Cloud service's /agent endpoint,
-	// e.g. wss://api.radarhq.io/agent
+	// e.g. wss://api.example.test/agent
 	URL string
 
 	// InsecureSkipVerify disables TLS certificate verification on the wss
@@ -66,7 +66,7 @@ type Config struct {
 	Namespace string
 
 	// Release is the Helm release name Radar was installed under, from
-	// RADAR_HELM_RELEASE (set by the chart from .Release.Name). Sent to the
+	// KUBEATLAS_HELM_RELEASE (set by the chart from .Release.Name). Sent to the
 	// hub so the dashboard's token-rotation command targets this release
 	// instead of assuming `radar`. Empty for non-Helm installs; the hub keeps
 	// its last stored value then.

@@ -3,7 +3,7 @@ package k8s
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func TestBuildVisibilitySummaryOK(t *testing.T) {

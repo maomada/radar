@@ -41,9 +41,9 @@ export function MetricsSummary({ series, unit, currentColorClass }: {
 
   return (
     <div className="flex items-center gap-6">
-      <StatPill label="Current" value={formatMetricValue(stats.current, unit)} className={currentColorClass} />
-      <StatPill label="Average" value={formatMetricValue(stats.avg, unit)} className="text-theme-text-secondary" />
-      <StatPill label="Peak" value={formatMetricValue(stats.max, unit)} className="text-theme-text-secondary" />
+      <StatPill label="当前" value={formatMetricValue(stats.current, unit)} className={currentColorClass} />
+      <StatPill label="平均" value={formatMetricValue(stats.avg, unit)} className="text-theme-text-secondary" />
+      <StatPill label="峰值" value={formatMetricValue(stats.max, unit)} className="text-theme-text-secondary" />
     </div>
   )
 }

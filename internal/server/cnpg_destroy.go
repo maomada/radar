@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
 )
 
 // Destroying an instance mirrors `kubectl cnpg destroy CLUSTER INSTANCE

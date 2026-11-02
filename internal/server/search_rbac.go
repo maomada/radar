@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/search"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/search"
 )
 
 // computeSearchKindRBAC narrows sensitive typed namespaced scans using exact

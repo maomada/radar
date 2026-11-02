@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/upgradereadiness"
+	"github.com/maomada/radar/pkg/upgradereadiness"
 )
 
 func newTestUpgradeScanMemo(start time.Time) (*upgradeScanMemo, *time.Time) {

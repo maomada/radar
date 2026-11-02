@@ -10,8 +10,8 @@ import {
   SelectMenu,
   pluralize,
   useDisclosure,
-} from '@skyhook-io/k8s-ui'
-import { Badge } from '@skyhook-io/k8s-ui/components/ui/Badge'
+} from '@maomada/k8s-ui'
+import { Badge } from '@maomada/k8s-ui/components/ui/Badge'
 import {
   useAutoPromConnect,
   useClusterInfo,
@@ -39,14 +39,14 @@ import { useNavCustomization } from '../../context/NavCustomization'
 import { previousSettingsNote, usePreviousIntegrationSettings } from '../../hooks/usePreviousIntegrationSettings'
 
 export const RIGHTSIZING_SCAN_DESCRIPTION =
-  'Find CPU and memory requests to increase, reduce, or review. Radar never changes them.'
+  'Find CPU and memory requests to increase, reduce, or review. KubeAtlas never changes them.'
 export const RIGHTSIZING_SCAN_METHODOLOGY =
   'Based on 7 days of history: CPU P95 and memory maximum, plus 15% headroom. Memory reductions require verifiable restart history.'
 export const RIGHTSIZING_METRICS_REQUIRED_TITLE = 'Metrics history is required'
 export const RIGHTSIZING_METRICS_REQUIRED_BODY =
   'Rightsizing needs 7 days of Kubernetes workload history from a PromQL-compatible metrics backend (Prometheus, VictoriaMetrics, Thanos, or Mimir).\nCost Overview remains available without it.'
 export const RIGHTSIZING_EMBEDDED_METRICS_REQUIRED_BODY =
-  `${RIGHTSIZING_METRICS_REQUIRED_BODY}\nConfigure metrics for this cluster in the host application or Radar deployment.`
+  `${RIGHTSIZING_METRICS_REQUIRED_BODY}\nConfigure metrics for this cluster in the host application or KubeAtlas deployment.`
 
 export type RightsizingScanSurfaceState =
   | 'loading_scan'
@@ -254,7 +254,7 @@ export function RightsizingScanView({ namespaces }: RightsizingScanViewProps) {
           <CenteredState
             loading
             title="Looking for Prometheus…"
-            body="Radar is checking the current cluster for workload metrics."
+            body="KubeAtlas is checking the current cluster for workload metrics."
           />
         ) : surfaceState === 'prometheus_required' ? (
           <CenteredState
@@ -627,7 +627,7 @@ export function ScanNotices({ result }: { result: ScanResult }) {
     notices.push('Some workload kinds could not be evaluated with the available ownership data.')
   if ((result.coverage.partiallyCachedKinds?.length ?? 0) > 0)
     notices.push(
-      'Radar is caching only some namespaces, so this scan covered a narrower scope than the whole cluster.',
+      'KubeAtlas is caching only some namespaces, so this scan covered a narrower scope than the whole cluster.',
     )
   const daemonSetsWithoutNodes = result.coverage.daemonSetsWithoutNodes ?? 0
   // The DaemonSet-only empty state already says this.
@@ -948,7 +948,7 @@ function EvidenceNote({ row }: { row: RightsizingRow }) {
   const inventory =
     row.liveInventoryUnavailable && row.resource === 'memory' ? (
       <p className="mt-1 text-xs text-theme-text-tertiary">
-        Radar could not read this workload&apos;s pods, so it could not check them for
+        KubeAtlas could not read this workload&apos;s pods, so it could not check them for
         out-of-memory restarts.
       </p>
     ) : null
@@ -965,7 +965,7 @@ function primaryEvidenceNote(row: RightsizingRow) {
   if (row.hpaManaged)
     return (
       <p className="mt-1 text-xs text-theme-text-tertiary">
-        The HPA uses this request when calculating scale, so Radar does not suggest changing it
+        The HPA uses this request when calculating scale, so KubeAtlas does not suggest changing it
         directly.
       </p>
     )
@@ -978,13 +978,13 @@ function primaryEvidenceNote(row: RightsizingRow) {
   if (row.recommendationReason === 'hpa_evidence_unavailable')
     return (
       <p className="mt-1 text-xs text-theme-text-tertiary">
-        Radar could not verify whether autoscaling depends on this request.
+        KubeAtlas could not verify whether autoscaling depends on this request.
       </p>
     )
   if (row.recommendationReason === 'oom_evidence_unavailable')
     return (
       <p className="mt-1 text-xs text-theme-text-tertiary">
-        Radar could not verify restart history before suggesting a lower memory request.
+        KubeAtlas could not verify restart history before suggesting a lower memory request.
       </p>
     )
   if (row.limitConflict)
@@ -1020,7 +1020,7 @@ function primaryEvidenceNote(row: RightsizingRow) {
   if (row.reductionLimited && row.calculatedRequest && row.recommendedRequest) {
     return (
       <p className="mt-1 text-xs text-theme-text-tertiary">
-        Demand-based target: {row.calculatedRequest}. Radar suggests {row.recommendedRequest} as a
+        Demand-based target: {row.calculatedRequest}. KubeAtlas suggests {row.recommendedRequest} as a
         conservative next step; observe another full window before reducing further.
         {row.bursty && row.peak ? ` CPU P99 reached ${row.peak.formatted}.` : ''}
       </p>
@@ -1100,7 +1100,7 @@ function unavailableMessage(reason?: string): string {
   if (reason === 'deployment_owner_metrics_missing')
     return 'Deployment history cannot be mapped because kube_replicaset_owner is unavailable from kube-state-metrics.'
   if (reason === 'owner_metrics_query_failed')
-    return 'Radar found Prometheus, but could not query kube-state-metrics ownership data.'
+    return 'KubeAtlas found Prometheus, but could not query kube-state-metrics ownership data.'
   if (reason === 'scan_capacity_exceeded') return 'This scope is too large for one scan. Select fewer namespaces in the top bar and run again.'
   if (reason === 'scan_cancelled') return 'The scan was stopped before any workloads were evaluated. Run again to start a new scan.'
   if (reason === 'scan_deadline_exceeded') return 'The scan reached its three-minute time limit. Select fewer namespaces in the top bar and run again.'
@@ -1112,7 +1112,7 @@ function unavailableMessage(reason?: string): string {
 function warningMessage(code: string): string {
   if (code === 'owner_metrics_query_failed') return 'Workload ownership data could not be queried.'
   if (code === 'oom_evidence_unavailable')
-    return 'Radar could not verify restart history for some containers, so it withheld their memory reductions.'
+    return 'KubeAtlas could not verify restart history for some containers, so it withheld their memory reductions.'
   if (code.endsWith('_query_failed'))
     return `Some ${code
       .replace('_query_failed', '')

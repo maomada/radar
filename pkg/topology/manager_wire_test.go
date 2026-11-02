@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
 )
 
 // Which manager lists Radar couldn't search stays internal: the state counts

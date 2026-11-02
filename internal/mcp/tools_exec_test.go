@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,7 +26,7 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 	k8sexec "k8s.io/client-go/util/exec"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func enableExecToolsForTest(t *testing.T) {

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 import { scheduleExpression, simpleSchedule, type SimpleSchedule } from './scheduleModel'
 import { CNPG_FORM_FIELD as FIELD } from '../formFields'
 

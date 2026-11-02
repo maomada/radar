@@ -3,7 +3,7 @@ package audit
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 // GitOps coverage check IDs. Two IDs (not one) so an operator can toggle the

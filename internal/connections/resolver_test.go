@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestInlineSettingsRestartAndRedactedCatalog(t *testing.T) {
@@ -80,7 +80,7 @@ func TestResolverEnvironmentAndPrivateRevisions(t *testing.T) {
 		t.Fatal("public revision is not process-private")
 	}
 	_, err := r.Store.Update(context.Background(), first.fileRevision, func(file *config.ClusterProfiles) error {
-		file.Profiles[a.Binding] = config.ClusterProfile{Context: a.Context, Integrations: map[config.Integration]config.IntegrationSettings{config.IntegrationMetrics: {Prometheus: &prom.Connection{URL: "https://metrics", HeadersFromEnv: map[string]string{"Authorization": "RADAR_TEST_UNSET_PROFILE_SECRET"}}, Target: a.Fingerprint}}}
+		file.Profiles[a.Binding] = config.ClusterProfile{Context: a.Context, Integrations: map[config.Integration]config.IntegrationSettings{config.IntegrationMetrics: {Prometheus: &prom.Connection{URL: "https://metrics", HeadersFromEnv: map[string]string{"Authorization": "KUBEATLAS_TEST_UNSET_PROFILE_SECRET"}}, Target: a.Fingerprint}}}
 		return nil
 	})
 	if err != nil {
@@ -90,7 +90,7 @@ func TestResolverEnvironmentAndPrivateRevisions(t *testing.T) {
 	if got.Err == nil || !got.View.HeadersManaged {
 		t.Fatal("missing environment activated credentials")
 	}
-	t.Setenv("RADAR_TEST_UNSET_PROFILE_SECRET", "environment-secret")
+	t.Setenv("KUBEATLAS_TEST_UNSET_PROFILE_SECRET", "environment-secret")
 	got = r.Resolve(a, config.IntegrationMetrics, false)
 	got.Settings.Prometheus.Headers["Authorization"] = "changed"
 	if got := r.Resolve(a, config.IntegrationMetrics, false); got.Err != nil || got.Settings.Prometheus.Headers["Authorization"] != "environment-secret" {

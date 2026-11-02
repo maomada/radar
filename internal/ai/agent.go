@@ -54,7 +54,7 @@ type turnSpec struct {
 	workdir string
 }
 
-// resolveAgent picks a backend from the CLI binary name (e.g. RADAR_AI_CLI_BIN or
+// resolveAgent picks a backend from the CLI binary name (e.g. KUBEATLAS_AI_CLI_BIN or
 // the detected CLI): Cursor, Codex, OpenCode, or Claude by default.
 func resolveAgent(bin string) Agent {
 	base := strings.ToLower(filepath.Base(bin))

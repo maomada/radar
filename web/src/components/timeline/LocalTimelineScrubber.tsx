@@ -8,7 +8,7 @@ import {
   type ScrubberPreset,
   type ScrubberRange,
   type TimelineLiveState,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { TimelineEvent } from '../../types'
 import { localOverviewFromEvents } from '../../api/timelineSource'
 import { groupBuckets, buildPresets, type ScrubberDomainInfo } from './RetainedTimelineScrubber'
@@ -73,7 +73,7 @@ export function LocalTimelineScrubber({
   // When recording began: the oldest LIVE-fed event (informer / k8s event).
   // Historical events are synthesized from resource metadata and can be years
   // old, so they don't mark where the ring's real coverage starts. The strip
-  // dims the query region before this — "Radar wasn't watching yet" is the
+  // dims the query region before this — "KubeAtlas wasn't watching yet" is the
   // honest answer to "why can't I scroll further back".
   const recordingStartMs = useMemo(() => {
     let min: number | null = null

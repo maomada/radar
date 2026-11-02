@@ -1,5 +1,5 @@
-import { ServiceAccountRenderer as BaseServiceAccountRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/ServiceAccountRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { ServiceAccountRenderer as BaseServiceAccountRenderer } from '@maomada/k8s-ui/components/resources/renderers/ServiceAccountRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useRBACSubject } from '../../../api/rbac'
 
 interface ServiceAccountRendererProps {

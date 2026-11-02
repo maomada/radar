@@ -1,7 +1,7 @@
-import { NodeRenderer as BaseNodeRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/NodeRenderer'
+import { NodeRenderer as BaseNodeRenderer } from '@maomada/k8s-ui/components/resources/renderers/NodeRenderer'
 import { useNavigate } from 'react-router-dom'
 import { getVisibleLiveMetrics, isLiveMetricsUnavailable, shouldFetchLiveMetrics, useNodeRemovalPlan, useNodeMetrics, useNodeMetricsHistory, usePrometheusResourceMetrics, usePrometheusStatus } from '../../../api/client'
-import { getNodeLifecycle } from '@skyhook-io/k8s-ui/utils/node-lifecycle'
+import { getNodeLifecycle } from '@maomada/k8s-ui/utils/node-lifecycle'
 import { serializeColumnFilters } from '../resource-utils'
 
 interface NodeRendererProps {

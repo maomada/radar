@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Badge, FoldSection, getCNPGImageCatalogEntries, isApiGroup, PaneLoader, StatusDot, Tooltip, toneTextClass, type CNPGFleetRow } from '@skyhook-io/k8s-ui'
+import { Badge, FoldSection, getCNPGImageCatalogEntries, isApiGroup, PaneLoader, StatusDot, Tooltip, toneTextClass, type CNPGFleetRow } from '@maomada/k8s-ui'
 import { parse } from 'yaml'
 import { useCNPGOperator, type CNPGOperatorComponent, type CNPGOperatorConfig } from '../../api/cnpg'
 import { CNPGOperatorDiagnosisSection } from './CNPGOperatorDiagnosis'
@@ -54,7 +54,7 @@ function CurrentState({ op, clusters }: { op: NonNullable<ReturnType<typeof useC
       )}
       {confirmed.length > 0 && (
         <p className="mt-1.5 text-sm text-theme-text-secondary">
-          {concerns.length === 0 ? 'No concerns in what Radar read: ' : 'Otherwise: '}
+          {concerns.length === 0 ? 'No concerns in what KubeAtlas read: ' : 'Otherwise: '}
           {confirmed.join(', ')}.
         </p>
       )}

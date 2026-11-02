@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 func scrapeMetrics(t *testing.T) string {

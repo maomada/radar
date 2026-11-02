@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	toolscache "k8s.io/client-go/tools/cache"
 
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 func testDeployment(uid, image string, created time.Time) *appsv1.Deployment {

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/cloud"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/cloud"
 )
 
 func TestNormalizeListenAddress(t *testing.T) {

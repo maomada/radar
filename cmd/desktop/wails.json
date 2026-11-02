@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "radar-desktop",
-  "outputfilename": "Radar",
+  "name": "kubeatlas-desktop",
+  "outputfilename": "KubeAtlas",
   "frontend:dir": "../../web",
   "frontend:install": "npm --prefix .. install",
   "frontend:build": "npm run build",
@@ -9,14 +9,13 @@
   "frontend:dev:serverUrl": "auto",
   "build:dir": "../../build",
   "author": {
-    "name": "Skyhook",
-    "email": "support@skyhook.io"
+    "name": "maomada"
   },
   "info": {
-    "companyName": "Skyhook",
-    "productName": "Radar",
+    "companyName": "maomada",
+    "productName": "KubeAtlas",
     "productVersion": "0.0.0",
-    "copyright": "Copyright Skyhook. All rights reserved.",
+    "copyright": "Copyright Skyhook. All rights reserved. Modifications maintained by maomada; see NOTICE.",
     "comments": "Kubernetes Visibility Tool"
   }
 }

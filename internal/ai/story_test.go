@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // The flag alone can never retire the assessment a reader is looking at: a

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // TestRunWorkDirUnderPrivateRoot pins that per-run scratch dirs live UNDER the

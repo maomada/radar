@@ -281,7 +281,7 @@ describe("investigation evidence projection stability", () => {
     ).toBe(true);
   });
 
-  it("qualifies a healthy conclusion when active adverse Radar evidence disagrees", () => {
+  it("qualifies a healthy conclusion when active adverse KubeAtlas evidence disagrees", () => {
     const group = (
       kind: string,
       tier: "key" | "supporting" | "context",
@@ -933,7 +933,7 @@ describe("adverse evidence and the healthy-conflict banner", () => {
     latest: { tier: "supporting" as const, relevance: "target" as const, tone },
   });
 
-  it("counts every kind Radar can capture a live problem in", () => {
+  it("counts every kind KubeAtlas can capture a live problem in", () => {
     // The round that added alerts and Helm cards forgot this rule, so a
     // firing alert naming the workload sat under a green banner.
     for (const kind of [

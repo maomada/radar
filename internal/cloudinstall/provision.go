@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/helm"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/helm"
 )
 
 // Provision installs the Radar chart into a cluster with Cloud mode enabled, so
@@ -38,10 +38,7 @@ const (
 	// cloud.existingSecret; cloudTokenSecretKey is its data key.
 	CloudTokenSecretName = "radar-cloud-config"
 	cloudTokenSecretKey  = "token"
-	// chartRepo/chartName resolve the PUBLISHED chart (what `helm repo add
-	// skyhook` serves) so the driver installs exactly what users get today.
-	chartRepo = "https://skyhook-io.github.io/helm-charts"
-	chartName = "radar"
+	chartName            = "radar"
 	// MinimumCloudChartVersion is the first chart that turns Cloud's forwarded
 	// identity into enforced Kubernetes impersonation RBAC.
 	MinimumCloudChartVersion = "1.5.4"
@@ -52,12 +49,23 @@ const (
 	secretCleanupLimit = 10 * time.Second
 )
 
+var chartRepo = ""
+
+const cloudProvisioningUnavailable = "legacy Cloud provisioning is unavailable in KubeAtlas; no chart source is configured"
+
+func cloudChartSource() (string, error) {
+	if chartRepo == "" {
+		return "", errors.New(cloudProvisioningUnavailable)
+	}
+	return chartRepo, nil
+}
+
 // ProvisionConfig is the install driver's input. Namespace/ReleaseName default
 // to the wizard's when empty.
 type ProvisionConfig struct {
 	Namespace    string
 	ReleaseName  string
-	CloudURL     string // wss://api.radarhq.io/agent — the hub agent endpoint
+	CloudURL     string // wss://api.example.test/agent — the hub agent endpoint
 	ClusterID    string // hub-assigned cluster id (→ cloud.clusterName)
 	Token        string // rhc_ cluster token minted by the device-flow approve
 	ChartVersion string // "" / "latest" → newest published
@@ -95,12 +103,16 @@ func ResolveCloudChartSummary(ctx context.Context, hc *helm.Client, chartVersion
 	if hc == nil {
 		return helm.PreparedChartSummary{}, errors.New("resolve cloud chart: nil helm client")
 	}
+	repository, err := cloudChartSource()
+	if err != nil {
+		return helm.PreparedChartSummary{}, err
+	}
 	return hc.ResolvePreparedChartSummary(ctx, &helm.InstallRequest{
 		ReleaseName: DefaultReleaseName,
 		Namespace:   DefaultInstallNamespace,
 		ChartName:   chartName,
 		Version:     chartVersion,
-		Repository:  chartRepo,
+		Repository:  repository,
 	}, MinimumCloudChartVersion)
 }
 
@@ -310,6 +322,10 @@ func Prepare(ctx context.Context, hc *helm.Client, kc kubernetes.Interface, cfg 
 	if hc == nil || kc == nil {
 		return nil, fmt.Errorf("prepare cloud install: nil helm or kubernetes client")
 	}
+	repository, err := cloudChartSource()
+	if err != nil {
+		return nil, err
+	}
 	namespace := cfg.namespace()
 	if err := CheckTokenSecretAvailable(ctx, kc, namespace); err != nil {
 		return nil, err
@@ -319,7 +335,7 @@ func Prepare(ctx context.Context, hc *helm.Client, kc kubernetes.Interface, cfg 
 		values = cloudAdoptionValues(preflightCloudURL, preflightClusterID, cfg.EnableCloudFeatures, cfg.DisableSelfUpgrade)
 		prepared, err := hc.PrepareCloudUpgrade(ctx, &helm.InstallRequest{
 			ReleaseName: cfg.releaseName(), Namespace: namespace,
-			ChartName: chartName, Version: cfg.ChartVersion, Repository: chartRepo,
+			ChartName: chartName, Version: cfg.ChartVersion, Repository: repository,
 			Values: values,
 		}, MinimumCloudChartVersion)
 		if err != nil {
@@ -349,7 +365,7 @@ func Prepare(ctx context.Context, hc *helm.Client, kc kubernetes.Interface, cfg 
 		Namespace:   namespace,
 		ChartName:   chartName,
 		Version:     cfg.ChartVersion,
-		Repository:  chartRepo,
+		Repository:  repository,
 		// ProvisionPrepared creates the namespace first because the token
 		// Secret must exist before Helm creates the Radar Deployment. Leaving
 		// Helm's duplicate CreateNamespace mutation disabled keeps the prepared

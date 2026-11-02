@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/net/idna"
 
-	"github.com/skyhook-io/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloud"
 )
 
 const (

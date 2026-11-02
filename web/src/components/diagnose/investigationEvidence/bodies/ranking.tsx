@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { Badge } from "@skyhook-io/k8s-ui";
+import { Badge } from "@maomada/k8s-ui";
 import type { EvidenceDataOf } from "../cardParts";
 import type { InvestigationRankingRow } from "../types";
 

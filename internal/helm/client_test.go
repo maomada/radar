@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/helmhistory"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -1469,6 +1469,7 @@ func TestListReleasesAcrossNamespacesEmptySerializesAsArray(t *testing.T) {
 }
 
 func TestLoadTargetChart_IgnoresMissingUnrelatedRepositoryIndex(t *testing.T) {
+	withTestHelmHTTPClient(t)
 	targetChart := &chart.Chart{Metadata: &chart.Metadata{
 		APIVersion: "v2",
 		Name:       "kube-prometheus-stack",
@@ -1531,7 +1532,7 @@ generated: "2026-10-16T00:00:00Z"
 		t.Fatal(err)
 	}
 
-	client := &Client{settings: &cli.EnvSettings{
+	client := &Client{repositoryNetwork: testHelmRepositoryNetwork(), settings: &cli.EnvSettings{
 		RepositoryConfig: repoFile,
 		RepositoryCache:  cacheDir,
 	}}

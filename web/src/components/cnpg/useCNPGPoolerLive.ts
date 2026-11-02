@@ -1,8 +1,8 @@
 import type { UseQueryResult } from '@tanstack/react-query'
-import type { CNPGPoolerLive } from '@skyhook-io/k8s-ui'
+import type { CNPGPoolerLive } from '@maomada/k8s-ui'
 import { useCNPGPoolerRuntime } from '../../api/cnpg'
 import { useCNPGPgBouncerState, useCNPGPoolerCapabilities } from '../../api/cnpg-sessions'
-import { formatGrant } from '@skyhook-io/k8s-ui'
+import { formatGrant } from '@maomada/k8s-ui'
 
 /**
  * The live reads the Pooler summary shows beside the spec, and the queries

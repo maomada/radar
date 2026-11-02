@@ -17,8 +17,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/argoapi"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/argoapi"
 )
 
 type fakeArgo struct {
@@ -656,7 +656,7 @@ func TestResolveEnvArgo(t *testing.T) {
 	})
 
 	t.Run("non-boolean TLS errors without echoing the value", func(t *testing.T) {
-		// A miswired Secret key could point RADAR_ARGOCD_INSECURE_TLS at the token;
+		// A miswired Secret key could point KUBEATLAS_ARGOCD_INSECURE_TLS at the token;
 		// the error must not echo the value into the logs.
 		secret := "s3cr3t-token"
 		_, _, _, _, err := resolveEnvArgo(env(map[string]string{envArgoToken: "t", envArgoInsecure: secret}), readOK(""))
@@ -719,7 +719,7 @@ func TestSeedFromEnvFailed_SuppressesDiskFallback(t *testing.T) {
 	m := newTestManager(config.Config{ArgoCDURL: "https://stale.example.com", ArgoCDToken: "stale-disk-token"})
 	m.contextName = func() string { return "in-cluster" }
 
-	m.SeedFromEnvFailed("invalid RADAR_ARGOCD_URL: must include a host")
+	m.SeedFromEnvFailed("invalid KUBEATLAS_ARGOCD_URL: must include a host")
 
 	if !m.IsEnvManaged() {
 		t.Fatal("a failed env provisioning must stay env-managed (UI read-only)")

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // PVCUsage is one claim's filesystem use as kubelet reports it.

@@ -5,7 +5,7 @@ import (
 	"log"
 	"sort"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // ComputeNodeCosts returns per-node hourly cost breakdown sourced from the

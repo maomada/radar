@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func TestRequireCloudRole_NoTier(t *testing.T) {
@@ -23,7 +23,7 @@ func TestRequireCloudRole_NoTier(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("RADAR_CLOUD_MODE", tc.cloud)
+			t.Setenv("KUBEATLAS_CLOUD_MODE", tc.cloud)
 			req := httptest.NewRequest(http.MethodPut, "/api/settings", nil)
 			req = req.WithContext(auth.ContextWithUser(req.Context(), &auth.User{Username: "u", Groups: tc.groups}))
 			rec := httptest.NewRecorder()
@@ -40,7 +40,7 @@ func TestRequireCloudRole_NoTier(t *testing.T) {
 // OCI chart sources feed upgrade discovery for every user, so a Cloud user
 // with no cluster RBAC must not be able to add one.
 func TestHelmSourceConfigWrite_RequiresCloudOwner(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	for groups, want := range map[string]bool{
 		"radar:viewer,radar:org:o1": false,
 		"radar:member,radar:org:o1": false,

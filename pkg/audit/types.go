@@ -1,7 +1,7 @@
 package audit
 
 import (
-	"github.com/skyhook-io/radar/pkg/checks"
+	"github.com/maomada/radar/pkg/checks"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"

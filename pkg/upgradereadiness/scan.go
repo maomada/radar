@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -20,8 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/topology"
+	bp "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 var (

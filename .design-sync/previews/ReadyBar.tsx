@@ -1,4 +1,4 @@
-import { ReadyBar } from '@skyhook-io/k8s-ui'
+import { ReadyBar } from '@maomada/k8s-ui'
 
 const col = { display: 'flex', flexDirection: 'column', gap: 10, padding: 8 } as const
 const row = { display: 'flex', gap: 20, alignItems: 'center', padding: 8 }

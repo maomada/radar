@@ -16,11 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/cronsched"
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/hpadiag"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/cronsched"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/hpadiag"
+	"github.com/maomada/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 // ResourceSummary is the typed output for Summary-level minification.

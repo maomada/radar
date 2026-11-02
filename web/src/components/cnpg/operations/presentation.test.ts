@@ -39,7 +39,7 @@ describe('local operation presentation', () => {
     ).toBe('newer')
   })
 
-  it('keeps Radar Hub clusters apart although every in-cluster Radar reports the same context', () => {
+  it('keeps Radar Hub clusters apart although every in-cluster KubeAtlas reports the same context', () => {
     const hub = { ...operation, context: 'in-cluster', apiBase: '/c/east/api' }
     const west = { apiBase: '/c/west/api', context: 'in-cluster', namespace: 'db', name: 'pg', uid: 'uid' }
     expect(cnpgOperationsForCluster([hub], west)).toEqual([])

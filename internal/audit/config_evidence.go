@@ -6,10 +6,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	bp "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/k8score"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

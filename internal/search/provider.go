@@ -12,10 +12,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readplan"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readplan"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 // CacheProvider adapts radar's in-process cache to the search Provider interface.

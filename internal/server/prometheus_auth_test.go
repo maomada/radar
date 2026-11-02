@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
 	authv1 "k8s.io/api/authorization/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

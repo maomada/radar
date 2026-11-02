@@ -11,9 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestCNPGActionErrorMapping(t *testing.T) {

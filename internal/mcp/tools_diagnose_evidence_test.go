@@ -18,9 +18,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/timeline"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/timeline"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 )
 
 func TestHandleDiagnoseReturnsSemanticCompleteness(t *testing.T) {

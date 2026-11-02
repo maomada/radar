@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	pfpkg "github.com/skyhook-io/radar/pkg/portforward"
+	pfpkg "github.com/maomada/radar/pkg/portforward"
 )
 
 // Owner identifies the subsystem that owns a metrics forward.

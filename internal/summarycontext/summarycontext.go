@@ -21,11 +21,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
+	"github.com/maomada/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // Builder is the per-request closure that produces a ResourceSummaryContext for

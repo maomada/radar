@@ -11,9 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // conform checks the cache source over w against Scan of w on every question

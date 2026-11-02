@@ -102,7 +102,7 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 
 	// Verify file exists
-	path := filepath.Join(dir, ".radar", "config.json")
+	path := filepath.Join(dir, ".kubeatlas", "config.json")
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("config file not created: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestLoadIgnoresInvalidOpenCostCurrencyAndUpdateRepairsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".radar", "config.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".kubeatlas", "config.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestSaveFileMode(t *testing.T) {
 	t.Setenv("HOME", dir)
 	t.Setenv("USERPROFILE", dir)
 
-	path := filepath.Join(dir, ".radar", "config.json")
+	path := filepath.Join(dir, ".kubeatlas", "config.json")
 
 	if err := Save(Config{ArgoCDToken: "secret"}); err != nil {
 		t.Fatalf("Save failed: %v", err)
@@ -380,7 +380,7 @@ func TestLoadInvalidJSON(t *testing.T) {
 	t.Setenv("HOME", dir)
 	t.Setenv("USERPROFILE", dir)
 
-	path := filepath.Join(dir, ".radar")
+	path := filepath.Join(dir, ".kubeatlas")
 	os.MkdirAll(path, 0o755)
 	os.WriteFile(filepath.Join(path, "config.json"), []byte("not json"), 0o644)
 

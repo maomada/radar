@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/version"
 )
 
 // handleDesktopOpenFolder reveals a file in the system file manager.

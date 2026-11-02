@@ -9,8 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // RelationshipsIndex is a precomputed map from node ID to the edges touching

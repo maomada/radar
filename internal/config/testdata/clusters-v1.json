@@ -19,7 +19,7 @@
           "prometheus": {
             "url": "https://metrics.example/prometheus",
             "headers": { "X-Scope-OrgID": "test-tenant" },
-            "headersFromEnv": { "Authorization": "RADAR_TEST_METRICS_TOKEN" }
+            "headersFromEnv": { "Authorization": "KUBEATLAS_TEST_METRICS_TOKEN" }
           }
         },
         "argocd": {

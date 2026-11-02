@@ -6,8 +6,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // scopeOf says whether a kind is namespaced, and whether the check can tell.

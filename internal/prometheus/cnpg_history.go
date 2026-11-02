@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // CNPG history reads only server-built PromQL over the CloudNativePG exporter

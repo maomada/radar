@@ -11,8 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/images"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/images"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 type runtimeVersionsInput struct {

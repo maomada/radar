@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ChevronDown, Network } from 'lucide-react'
-import { pluralNoun } from '@skyhook-io/k8s-ui'
-import { SEVERITY_TEXT } from '@skyhook-io/k8s-ui/utils/badge-colors'
+import { pluralNoun } from '@maomada/k8s-ui'
+import { SEVERITY_TEXT } from '@maomada/k8s-ui/utils/badge-colors'
 import type { AggregatedFlow } from '../../types'
 import { LargeClusterNamespacePicker } from '../shared/LargeClusterNamespacePicker'
 import { TrafficConnectionsTable } from './TrafficConnectionsTable'
@@ -109,7 +109,7 @@ export function TrafficGraphTooLarge(props: TrafficGraphTooLargeProps) {
                         }}
                       />
                       <p className="mt-1 px-1 text-[10px] text-theme-text-tertiary">
-                        Sets the namespace for all of Radar. Traffic to and from other namespaces stays in view.
+                        Sets the namespace for all of KubeAtlas. Traffic to and from other namespaces stays in view.
                       </p>
                     </div>
                   )}

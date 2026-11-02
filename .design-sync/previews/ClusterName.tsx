@@ -1,4 +1,4 @@
-import { ClusterName } from '@skyhook-io/k8s-ui'
+import { ClusterName } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const row: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start' }

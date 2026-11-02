@@ -3,7 +3,7 @@
 // live in pkg/auth. This package wraps them with radar-specific HTTP routing and audit logging.
 package auth
 
-import pkgauth "github.com/skyhook-io/radar/pkg/auth"
+import pkgauth "github.com/maomada/radar/pkg/auth"
 
 // Re-export types from pkg/auth for backward compatibility.
 // All callers can continue to import "internal/auth" without changes.

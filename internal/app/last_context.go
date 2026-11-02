@@ -3,8 +3,8 @@ package app
 import (
 	"log"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
 )
 
 // remembersLastContext reports whether this process may record the active

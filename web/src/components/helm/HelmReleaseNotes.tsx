@@ -1,5 +1,5 @@
 import { Check, Copy } from 'lucide-react'
-import { stripAnsi } from '@skyhook-io/k8s-ui'
+import { stripAnsi } from '@maomada/k8s-ui'
 
 export function HelmReleaseNotes({ notes, copied, onCopy }: {
   notes: string

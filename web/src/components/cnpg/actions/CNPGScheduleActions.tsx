@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useCNPGNavigate } from '../useCNPGNavigate'
 import { cnpgDetailPath } from '../routes'
-import { ActionConfirmDialog, CNPGSchedulePreviewFacts, FactGrid, Tooltip, useDebouncedValue } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, CNPGSchedulePreviewFacts, FactGrid, Tooltip, useDebouncedValue } from '@maomada/k8s-ui'
 import { useCNPGAction, useCNPGScheduleCapabilities, useCNPGSchedulePreview, type CNPGScheduleActionName } from '../../../api/cnpg'
 import { actionDialogResult, capabilityReason } from '../../../api/actions'
 import { useToast } from '../../ui/Toast'
@@ -122,7 +122,7 @@ function EditScheduleDialog({ namespace, name, onClose }: { namespace: string; n
             </FactGrid>
           </div>
         )}
-        <div className="text-[11.5px] text-theme-text-tertiary">Checked by Radar with the parser CloudNativePG uses; the operator's admission webhook checks it again on save.</div>
+        <div className="text-[11.5px] text-theme-text-tertiary">Checked by KubeAtlas with the parser CloudNativePG uses; the operator's admission webhook checks it again on save.</div>
       </div>
     </ActionConfirmDialog>
   )

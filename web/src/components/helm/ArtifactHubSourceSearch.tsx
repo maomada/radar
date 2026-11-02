@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Badge, Input } from '@skyhook-io/k8s-ui'
+import { Badge, Input } from '@maomada/k8s-ui'
 import { useArtifactHubSearch } from '../../api/client'
 import type { ArtifactHubChart } from '../../types'
 import { artifactHubPublisher, isArtifactHubOfficial } from '../../utils/artifacthub'

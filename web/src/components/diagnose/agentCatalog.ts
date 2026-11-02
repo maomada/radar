@@ -1,4 +1,4 @@
-// Install metadata for the agent CLIs Radar can drive. Used by the setup notice
+// Install metadata for the agent CLIs KubeAtlas can drive. Used by the setup notice
 // shown when AI investigations are eligible but no agent is installed. Names match the
 // backend's supported set (see internal/ai/detect.go knownAgents + isSupportedAgent).
 export interface AgentInstall {

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import { DialogPortal } from '@skyhook-io/k8s-ui/components/ui/DialogPortal'
+import { DialogPortal } from '@maomada/k8s-ui/components/ui/DialogPortal'
 import { Trash2, X } from 'lucide-react'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 import {
   useAddHelmRepository,
   useAddOCISource,
@@ -537,7 +537,7 @@ function ChartSourcePicker({
               )}
               {manualType === 'oci' && clusterInfo?.inCluster && (
                 <p className="text-xs text-warning-text">
-                  Private OCI sources need credentials available to the in-cluster Radar process.
+                  Private OCI sources need credentials available to the in-cluster KubeAtlas process.
                 </p>
               )}
             </div>
@@ -641,14 +641,14 @@ function ChartSourcePicker({
                       )}
                     </>
                   ) : (
-                    'Radar picks a repository name from the address.'
+                    'KubeAtlas picks a repository name from the address.'
                   )}
                 </p>
               )}
               {selected && !selectedMissing && (
                 <p className="text-xs text-theme-text-tertiary">
                   {canVerify
-                    ? 'Radar compares the chart information Helm saved. Matching copies can come from more than one publisher.'
+                    ? 'KubeAtlas compares the chart information Helm saved. Matching copies can come from more than one publisher.'
                     : 'Review the chart version, settings and resource changes before applying.'}
                 </p>
               )}

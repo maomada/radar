@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloud"
 )
 
 // echoUser is a handler that returns the authenticated user as JSON, or 204 if no user.
@@ -132,8 +132,25 @@ func TestMiddleware_ProxyHeaders_LogsAcceptedIdentity(t *testing.T) {
 	if !strings.Contains(line, "[auth] accepted forwarded identity") {
 		t.Fatalf("expected accepted-identity log line, got: %q", line)
 	}
-	if !strings.Contains(line, "dave") || !strings.Contains(line, "radar:idp:read-only-team") {
-		t.Errorf("log line missing user/group: %q", line)
+	if strings.Contains(line, "dave") || strings.Contains(line, "radar:idp:read-only-team") {
+		t.Error("diagnostic log includes forwarded identity claims")
+	}
+}
+
+func TestRejectDisallowedIdentityDoesNotLogPrincipal(t *testing.T) {
+	var output bytes.Buffer
+	defer log.SetOutput(log.Writer())
+	log.SetOutput(&output)
+	rec := httptest.NewRecorder()
+	rejectDisallowedIdentity(rec, "system:private-principal", true)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+	if !strings.Contains(output.String(), "rejected identity with disallowed principal") {
+		t.Fatal("missing rejection event")
+	}
+	if strings.Contains(output.String(), "private-principal") {
+		t.Error("diagnostic log includes rejected principal")
 	}
 }
 
@@ -264,7 +281,7 @@ func TestMiddleware_SessionCookie_TakesPrecedence(t *testing.T) {
 }
 
 func TestMiddleware_CloudProxyHeadersOverrideSessionWithoutSettingCookie(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	cfg := proxyConfig()
 	handler := cloud.AuthenticatedTunnelHandler(Authenticate(cfg)(http.HandlerFunc(echoUser)))
 
@@ -299,7 +316,7 @@ func TestMiddleware_CloudProxyHeadersOverrideSessionWithoutSettingCookie(t *test
 }
 
 func TestMiddleware_CloudProxyRequiresHeadersEvenWithSessionCookie(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	cfg := proxyConfig()
 	handler := cloud.AuthenticatedTunnelHandler(Authenticate(cfg)(http.HandlerFunc(echoUser)))
 
@@ -319,7 +336,7 @@ func TestMiddleware_CloudProxyRequiresHeadersEvenWithSessionCookie(t *testing.T)
 }
 
 func TestMiddleware_CloudProxyRejectsSpoofedHeadersOutsideTunnel(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	cfg := proxyConfig()
 	handler := Authenticate(cfg)(http.HandlerFunc(echoUser))
 
@@ -478,7 +495,7 @@ func TestIsExemptPath(t *testing.T) {
 // the exact kubelet health path. Cloud owns authentication, so Radar's local
 // /auth/* endpoints and static assets must not bypass the tunnel identity.
 func TestIsExemptPath_CloudMode(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 
 	tests := []struct {
 		path string

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=KubeAtlas
+Comment=Kubernetes visibility — topology, traffic, and Helm management
+Exec=kubeatlas-desktop
+Icon=kubeatlas-desktop
+Type=Application
+Categories=Development;
+Keywords=kubernetes;k8s;cluster;devops;
+Terminal=false

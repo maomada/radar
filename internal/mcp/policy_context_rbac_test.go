@@ -5,10 +5,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/policyreports"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/policyreports"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // Policy findings attached to an agent's view of a resource are the same data

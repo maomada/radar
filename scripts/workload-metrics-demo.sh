@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES="$SCRIPT_DIR/workload-metrics-demo"
 export CLUSTER_NAME=radar-workload-metrics-demo
-export RADAR_METRICS_DEMO_HEADER=true
-export KUBECONFIG="${RADAR_METRICS_DEMO_STATE:-${TMPDIR:-/tmp}/radar-workload-metrics-demo}/kubeconfig"
+export KUBEATLAS_METRICS_DEMO_HEADER=true
+export KUBECONFIG="${KUBEATLAS_METRICS_DEMO_STATE:-${TMPDIR:-/tmp}/radar-workload-metrics-demo}/kubeconfig"
 CTX="kind-$CLUSTER_NAME"
 umask 077
 

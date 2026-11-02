@@ -1,4 +1,4 @@
-import { ClassBadge } from '@skyhook-io/k8s-ui'
+import { ClassBadge } from '@maomada/k8s-ui'
 
 const row = { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: 10 } as const
 

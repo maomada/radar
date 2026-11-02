@@ -1,4 +1,4 @@
-import { ResourceBar } from '@skyhook-io/k8s-ui'
+import { ResourceBar } from '@maomada/k8s-ui'
 
 const col = { display: 'flex', flexDirection: 'column', gap: 14, width: 300, padding: '12px 8px' } as const
 

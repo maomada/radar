@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
-import { useDock } from '@skyhook-io/k8s-ui'
+import { useDock } from '@maomada/k8s-ui'
 import { useConnection } from '../../context/ConnectionContext'
 import { useToast } from '../ui/Toast'
 
@@ -11,8 +11,8 @@ export {
   useOpenLogs,
   useOpenWorkloadLogs,
   useOpenNodeTerminal,
-} from '@skyhook-io/k8s-ui'
-export type { DockTab, DockTabType, DockContextValue } from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
+export type { DockTab, DockTabType, DockContextValue } from '@maomada/k8s-ui'
 
 export function useOpenLocalTerminal() {
   const { addTab } = useDock()

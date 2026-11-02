@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/portalagent"
+	"github.com/maomada/radar/internal/portalagent"
 )
 
 func TestPortalReporterStartsForLocalAndInClusterModes(t *testing.T) {
@@ -39,7 +39,7 @@ func TestPortalReporterDoesNotStartWhenConfigurationIsOmitted(t *testing.T) {
 }
 
 func TestPortalReporterSkipsCloudBeforeParsingEnvironment(t *testing.T) {
-	t.Setenv("RADAR_PORTAL_URL", "not-a-url")
+	t.Setenv("KUBEATLAS_PORTAL_URL", "not-a-url")
 	calls := 0
 	load := func() (portalagent.Config, bool, error) {
 		calls++

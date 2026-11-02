@@ -18,14 +18,38 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 const testToken = "rhc_SUPERSECRET_TEST_TOKEN"
+
+func TestCloudMutationRoutesReturnGoneAndHideCapability(t *testing.T) {
+	srv := New(Config{})
+	for _, route := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/cloud/install/prepare"},
+		{http.MethodPost, "/api/cloud/install/start"},
+		{http.MethodGet, "/api/cloud/install/status"},
+		{http.MethodGet, "/api/cloud/install/discover"},
+		{http.MethodPost, "/api/cloud/install/cancel"},
+		{http.MethodPost, "/api/cloud/install/dismiss"},
+	} {
+		recorder := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(recorder, httptest.NewRequest(route.method, route.path, nil))
+		if recorder.Code != http.StatusGone {
+			t.Errorf("%s %s returned %d, want %d", route.method, route.path, recorder.Code, http.StatusGone)
+		}
+	}
+	if got := srv.cloudConnectCapability(); got != nil {
+		t.Fatalf("Cloud capability = %+v, want nil", got)
+	}
+}
 
 type fakePrepared struct {
 	mode      cloudinstall.ProvisionMode
@@ -593,7 +617,7 @@ func TestCloudInstallEndpointGating(t *testing.T) {
 	})
 
 	t.Run("wizard lane capability when driver disabled", func(t *testing.T) {
-		t.Setenv("RADAR_CLOUD_FUNNEL", "on")
+		t.Setenv("KUBEATLAS_CLOUD_FUNNEL", "on")
 		srv := newSrv("127.0.0.1")
 		srv.authConfig.Mode = "proxy"
 		cap := srv.cloudConnectCapability()
@@ -605,7 +629,7 @@ func TestCloudInstallEndpointGating(t *testing.T) {
 	// apiUrl is what enables the dialog's live-copy fetch, so its presence is a
 	// server-side decision the frontend never second-guesses.
 	t.Run("capability carries the Hub API origin for the live-copy fetch", func(t *testing.T) {
-		t.Setenv("RADAR_CLOUD_FUNNEL", "on")
+		t.Setenv("KUBEATLAS_CLOUD_FUNNEL", "on")
 		srv := newSrv("127.0.0.1")
 		cap := srv.cloudConnectCapability()
 		if cap == nil || cap.APIURL != "https://api.test.example" {
@@ -624,7 +648,7 @@ func TestCloudInstallEndpointGating(t *testing.T) {
 	})
 
 	t.Run("driver lane capability on loopback", func(t *testing.T) {
-		t.Setenv("RADAR_CLOUD_FUNNEL", "on")
+		t.Setenv("KUBEATLAS_CLOUD_FUNNEL", "on")
 		srv := newSrv("127.0.0.1")
 		cap := srv.cloudConnectCapability()
 		if cap.Lane != "driver" {
@@ -633,7 +657,7 @@ func TestCloudInstallEndpointGating(t *testing.T) {
 	})
 
 	t.Run("out-of-cohort rollout hides the capability", func(t *testing.T) {
-		t.Setenv("RADAR_CLOUD_FUNNEL", "off")
+		t.Setenv("KUBEATLAS_CLOUD_FUNNEL", "off")
 		srv := newSrv("127.0.0.1")
 		if cap := srv.cloudConnectCapability(); cap != nil {
 			t.Fatalf("capability = %+v, want nil during staged rollout opt-out", cap)

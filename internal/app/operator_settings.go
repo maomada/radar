@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/pkg/audit"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/pkg/audit"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 

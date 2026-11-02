@@ -8,7 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/auth"
 )
 
 func TestNormalizeBasePath(t *testing.T) {
@@ -70,24 +70,24 @@ func TestRewriteFrontendIndexInjectsBasePathRuntimeConfig(t *testing.T) {
     <link rel="modulepreload" crossorigin href="./assets/vendor.js">
   </head>
   <body>
-    <img src="/images/radar/radar-icon.svg">
+    <img src="/images/kubeatlas/kubeatlas-icon.svg">
   </body>
 </html>`)
 
 	got := string(rewriteFrontendIndex(input, "/radar"))
 	for _, want := range []string{
-		`window.__RADAR_RUNTIME_CONFIG__={"basePath":"/radar","apiBase":"/radar/api","assetBase":"/radar"};`,
+		`window.__KUBEATLAS_RUNTIME_CONFIG__={"basePath":"/radar","apiBase":"/radar/api","assetBase":"/radar"};`,
 		`href="/radar/favicon.svg"`,
 		`src="/radar/assets/index.js"`,
 		`href="/radar/assets/vendor.js"`,
-		`src="/radar/images/radar/radar-icon.svg"`,
+		`src="/radar/images/kubeatlas/kubeatlas-icon.svg"`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("rewritten index missing %q:\n%s", want, got)
 		}
 	}
 
-	runtimeIdx := strings.Index(got, `window.__RADAR_RUNTIME_CONFIG__`)
+	runtimeIdx := strings.Index(got, `window.__KUBEATLAS_RUNTIME_CONFIG__`)
 	moduleIdx := strings.Index(got, `<script type="module"`)
 	if runtimeIdx == -1 || moduleIdx == -1 || runtimeIdx > moduleIdx {
 		t.Fatalf("runtime config must be emitted before module script:\n%s", got)
@@ -113,7 +113,7 @@ func TestRewriteFrontendIndexRootMakesRelativeAssetsAbsolute(t *testing.T) {
 			t.Fatalf("rewritten root index missing %q:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, `__RADAR_RUNTIME_CONFIG__`) {
+	if strings.Contains(got, `__KUBEATLAS_RUNTIME_CONFIG__`) {
 		t.Fatalf("root base path should not inject runtime config:\n%s", got)
 	}
 }
@@ -131,7 +131,7 @@ func TestFrontendHandlerRewritesIndexFallbackButNotAssets(t *testing.T) {
 		t.Fatalf("client-route fallback status = %d, want 200", indexResp.Code)
 	}
 	indexBody := indexResp.Body.String()
-	if !strings.Contains(indexBody, `window.__RADAR_RUNTIME_CONFIG__={"basePath":"/radar","apiBase":"/radar/api","assetBase":"/radar"};`) {
+	if !strings.Contains(indexBody, `window.__KUBEATLAS_RUNTIME_CONFIG__={"basePath":"/radar","apiBase":"/radar/api","assetBase":"/radar"};`) {
 		t.Fatalf("client-route fallback did not inject runtime config:\n%s", indexBody)
 	}
 	if !strings.Contains(indexBody, `src="/radar/assets/index.js"`) {

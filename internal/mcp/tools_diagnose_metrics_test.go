@@ -19,10 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // metricsMatrixBody renders a one-series matrix with the given number of

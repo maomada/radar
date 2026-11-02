@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { WorkflowExecutionActivity } from '@skyhook-io/k8s-ui/utils/workflow-execution'
+import type { WorkflowExecutionActivity } from '@maomada/k8s-ui/utils/workflow-execution'
 import {
   activityPreviewItems,
   selectedRunMissing,

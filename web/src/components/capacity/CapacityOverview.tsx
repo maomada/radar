@@ -23,20 +23,20 @@ import {
   type CapacityOverviewSummary,
   type CapacityPoolSummary,
   type CapacitySourceCoverage,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { ClusterSchedulingCard } from "./ClusterSchedulingCard";
-import { Badge } from "@skyhook-io/k8s-ui/components/ui/Badge";
+import { Badge } from "@maomada/k8s-ui/components/ui/Badge";
 import type { useCapacityOverview } from "../../api/client";
 import type { SelectedResource } from "../../types";
 import { actionSeverity, CapacityFreshness, capacityManagerLabel, coverageHasObservations, coverageIsDenied, coverageIsLowerBound, formatQuantity, coverageMessage, DeniedBadge, errorMessage, formatTimestamp, humanizeCode, identityToSelectedResource, InlineEmpty, integrationBlock, InventoryQuantityCell, KpiTile, LinkButton, managerStatusTone, pickWorstPressure, PoolReadyBadge, poolReadinessDetail, RefreshError, relativeTime, ScopeBadges, ScrollableContent, SectionCard, shortResourceLabel, sortedResourceEntries, worstManagerStatus, type CapacityConnectionState } from "./shared";
-import { CertaintyGlyph } from "@skyhook-io/k8s-ui";
+import { CertaintyGlyph } from "@maomada/k8s-ui";
 import { Notice, ScreenEmptyState } from "../workspace/layout";
 import { ROW_HOVER, TABLE_HEAD, TABLE_WRAP, TBODY, TD, TH } from "../workspace/table";
 
 const EXPLAIN_CARDS: { term: string; body: string }[] = [
   {
     term: "Capacity managers",
-    body: 'The controllers that add and remove nodes — Karpenter, the GKE or AKS cluster autoscaler, or the standalone Cluster Autoscaler. Detection is coverage-gated: whenever the autoscaler status cannot be read — permissions, watch scope, or an unparseable payload — Radar says detection is unavailable rather than reporting none. "None detected" means the status ConfigMap was looked for in kube-system and is not there.',
+    body: 'The controllers that add and remove nodes — Karpenter, the GKE or AKS cluster autoscaler, or the standalone Cluster Autoscaler. Detection is coverage-gated: whenever the autoscaler status cannot be read — permissions, watch scope, or an unparseable payload — KubeAtlas says detection is unavailable rather than reporting none. "None detected" means the status ConfigMap was looked for in kube-system and is not there.',
   },
   {
     term: "Node groups",
@@ -60,7 +60,7 @@ const EXPLAIN_CARDS: { term: string; body: string }[] = [
   },
   {
     term: "Negative-priority requests",
-    body: "The subset of scheduled requests coming from pods with a priority below zero — potential preemption victims. Default-priority workloads can reclaim their capacity, subject to preemption policy, placement, and disruption constraints. A measured priority fact, never added to scheduled requests: Radar does not claim these are an overprovisioning buffer.",
+    body: "The subset of scheduled requests coming from pods with a priority below zero — potential preemption victims. Default-priority workloads can reclaim their capacity, subject to preemption policy, placement, and disruption constraints. A measured priority fact, never added to scheduled requests: KubeAtlas does not claim these are an overprovisioning buffer.",
   },
   {
     term: "Actual usage",
@@ -145,7 +145,7 @@ export function autoscalerDetectionFailure(
     case "autoscaler_status_not_published":
       return null;
     case "autoscaler_status_cache_scope":
-      return "The autoscaler status ConfigMap is outside the namespaces Radar watches.";
+      return "The autoscaler status ConfigMap is outside the namespaces KubeAtlas watches.";
     case "autoscaler_status_cache_unavailable":
       return "The autoscaler status ConfigMap could not be read.";
     case "autoscaler_status_read_failed":
@@ -490,7 +490,7 @@ export function CapacityOverview({
           {signals.length === 0 ? (
             <InlineEmpty
               title="No operational signals"
-              detail="Radar reported no capacity-affecting actions for this cluster."
+              detail="KubeAtlas reported no capacity-affecting actions for this cluster."
             />
           ) : (
             signals.map((signal) => (
@@ -675,7 +675,7 @@ function ManagersTile({
   );
 }
 
-/** Quiet marker for a manager whose node→group attribution Radar has not yet
+/** Quiet marker for a manager whose node→group attribution KubeAtlas has not yet
  *  validated against a live cluster of that platform. */
 function UnvalidatedHint() {
   return (
@@ -832,7 +832,7 @@ function NodeGroupsSection({
             </div>
             {unattributedNodeCount > 0 && (
               <div className="border-t border-theme-border-subtle px-4 py-2.5">
-                <WithTooltip tip="No group-identity label and no Karpenter ownership — Radar does not guess group membership from node names.">
+                <WithTooltip tip="No group-identity label and no Karpenter ownership — KubeAtlas does not guess group membership from node names.">
                   <span className="text-xs text-theme-text-tertiary">
                     {`${unattributedNodeCount} ${
                       unattributedNodeCount === 1 ? "node" : "nodes"
@@ -1205,7 +1205,7 @@ const MIN_SIZE_EXPLANATION =
   "Every observed autoscaler group has its target at its published minimum. Lowering the pool's minimum is required for it to shrink below this size. Unattributed groups are separate; current registered nodes may still exceed the target.";
 
 const SCALE_DOWN_EXPLANATION =
-  "Scale-down candidates are observations, not guaranteed removals. PodDisruptionBudgets, local storage, kube-system pods, or safe-to-evict annotations can block removal. Radar can't tell which nodes the autoscaler picked, but a node's drain plan shows what would block removing it.";
+  "Scale-down candidates are observations, not guaranteed removals. PodDisruptionBudgets, local storage, kube-system pods, or safe-to-evict annotations can block removal. KubeAtlas can't tell which nodes the autoscaler picked, but a node's drain plan shows what would block removing it.";
 const NO_CANDIDATES_EXPLANATION =
   "The autoscaler found no node it can remove. Usually every node is above its utilization threshold, or pods on emptier nodes can't move (PodDisruptionBudgets, local storage, kube-system pods, safe-to-evict annotations). A node's drain plan shows what would block it.";
 const SCALE_DOWN_STATUS_LABELS = new Map([

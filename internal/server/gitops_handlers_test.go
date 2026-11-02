@@ -15,11 +15,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/gitops"
-	gitopsinsights "github.com/skyhook-io/radar/pkg/gitops/insights"
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/gitops"
+	gitopsinsights "github.com/maomada/radar/pkg/gitops/insights"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/gofrs/flock"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestProfileStoreRejectsInvalidFiles(t *testing.T) {
@@ -162,9 +162,9 @@ func TestProfileStoreBusyLock(t *testing.T) {
 }
 
 func TestProfileStoreAcrossProcesses(t *testing.T) {
-	if path := os.Getenv("RADAR_PROFILE_CHILD_PATH"); path != "" {
+	if path := os.Getenv("KUBEATLAS_PROFILE_CHILD_PATH"); path != "" {
 		s := &ProfileStore{Path: path}
-		_, err := s.Update(context.Background(), os.Getenv("RADAR_PROFILE_CHILD_REVISION"), func(p *ClusterProfiles) error {
+		_, err := s.Update(context.Background(), os.Getenv("KUBEATLAS_PROFILE_CHILD_REVISION"), func(p *ClusterProfiles) error {
 			p.Imported[IntegrationMetrics] = true
 			return nil
 		})
@@ -184,7 +184,7 @@ func TestProfileStoreAcrossProcesses(t *testing.T) {
 	commands := make([]*exec.Cmd, 2)
 	for i := range commands {
 		commands[i] = exec.Command(os.Args[0], "-test.run=^TestProfileStoreAcrossProcesses$")
-		commands[i].Env = append(os.Environ(), "RADAR_PROFILE_CHILD_PATH="+s.Path, "RADAR_PROFILE_CHILD_REVISION="+revision)
+		commands[i].Env = append(os.Environ(), "KUBEATLAS_PROFILE_CHILD_PATH="+s.Path, "KUBEATLAS_PROFILE_CHILD_REVISION="+revision)
 		if err := commands[i].Start(); err != nil {
 			t.Fatal(err)
 		}

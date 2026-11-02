@@ -7,9 +7,9 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // onsetObservationMargin absorbs clock skew between the API server, which

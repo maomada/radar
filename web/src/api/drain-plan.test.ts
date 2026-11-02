@@ -25,7 +25,7 @@ describe("drain plan request", () => {
 });
 
 describe("describeDrainResult", () => {
-  const pod = (name: string, expectedSkip = false): import("@skyhook-io/k8s-ui").DrainPlanPod => ({
+  const pod = (name: string, expectedSkip = false): import("@maomada/k8s-ui").DrainPlanPod => ({
     namespace: "shop", name, outcome: "skip", reason: expectedSkip ? "expected exclusion" : "protected workload",
     emptyDir: false, pdbChecked: false, expectedSkip,
   });

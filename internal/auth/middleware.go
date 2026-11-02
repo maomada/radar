@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/cloud"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // cloudMode reports whether Radar is running under Radar Cloud. Reads
 // the resolved deployment mode from internal/cloud (single source of
-// truth across server, auth, and main; normalizes RADAR_CLOUD_MODE
+// truth across server, auth, and main; normalizes KUBEATLAS_CLOUD_MODE
 // via strconv.ParseBool so a typo'd "True" / "1" doesn't silently
 // degrade to OSS mode).
 func cloudMode() bool { return cloud.Mode() }
@@ -175,7 +175,7 @@ func Authenticate(cfg Config) func(http.Handler) http.Handler {
 }
 
 func rejectDisallowedIdentity(w http.ResponseWriter, username string, cloud bool) {
-	log.Printf("[auth] rejected identity with disallowed principal (user=%q, cloud=%v)", username, cloud)
+	log.Printf("[auth] rejected identity with disallowed principal (cloud=%v)", cloud)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusForbidden)
 	json.NewEncoder(w).Encode(map[string]string{

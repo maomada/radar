@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/cnpg"
+	"github.com/maomada/radar/pkg/cnpg"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"

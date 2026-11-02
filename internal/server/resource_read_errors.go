@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/readplan"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/readplan"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // readStatus is the HTTP status of a failed resource read, by code. It is

@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -23,10 +23,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/hpadiag"
-	"github.com/skyhook-io/radar/pkg/rolloutdiag"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/hpadiag"
+	"github.com/maomada/radar/pkg/rolloutdiag"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // Options carries everything Build needs to compute a ResourceContext.

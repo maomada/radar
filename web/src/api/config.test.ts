@@ -1,7 +1,19 @@
 // @vitest-environment jsdom
 import { describe, expect, it, afterEach } from 'vitest'
 
-import { setBasename, stripBasename, routePath, mcpEndpointUrl, apiUrl, getApiBase, setApiBase } from './config'
+import { setBasename, getBasename, stripBasename, routePath, mcpEndpointUrl, apiUrl, getApiBase, setApiBase } from './config'
+
+it('strips long trailing slash runs without changing internal slashes', () => {
+  const suffix = '/'.repeat(100000)
+  setApiBase('https://example.test/api' + suffix)
+  setBasename('/tools//atlas' + suffix)
+  expect(getApiBase()).toBe('https://example.test/api')
+  expect(getBasename()).toBe('/tools//atlas')
+  setApiBase(suffix)
+  setBasename('')
+  expect(getApiBase()).toBe('')
+  expect(getBasename()).toBe('')
+})
 
 // setBasename mutates module state — restore standalone default after each test.
 afterEach(() => {
@@ -62,7 +74,7 @@ describe('stripBasename', () => {
     expect(stripBasename('/c/abcdef/resources')).toBe('/c/abcdef/resources')
   })
 
-  // Standalone Radar sets a basename too once --base-path is configured, so the
+  // Standalone KubeAtlas sets a basename too once --base-path is configured, so the
   // session-expiry return path round-trips through this in a new shape. Store
   // strips once (client.ts) and restore strips again defensively (App.tsx) before
   // navigate() re-applies the basename — the net effect must be the original

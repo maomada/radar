@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 // browserOriginAllowed decides whether a request may act with Radar's cluster
@@ -215,5 +215,5 @@ func crossOriginRefusalMessage(r *http.Request) string {
 	}
 	return fmt.Sprintf("Radar refused this request because it came from %s, but reached Radar addressed to %s. "+
 		"If %s is the address you open Radar at, set your proxy to keep the original Host header, "+
-		"or add %s to Radar's trusted origins (Helm value trustedOrigins, RADAR_TRUSTED_ORIGINS, or --trusted-origins).", origin, r.Host, origin, origin)
+		"or add %s to Radar's trusted origins (Helm value trustedOrigins, KUBEATLAS_TRUSTED_ORIGINS, or --trusted-origins).", origin, r.Host, origin, origin)
 }

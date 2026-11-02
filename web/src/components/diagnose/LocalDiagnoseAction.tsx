@@ -168,7 +168,7 @@ function notReadyTooltip(d: {
   setupState: DiagnoseSetup;
 }): string {
   if (d.cliOverride) {
-    return "AI investigations are off: can't run RADAR_AI_CLI_BIN";
+    return "AI investigations are off: can't run KUBEATLAS_AI_CLI_BIN";
   }
   if (d.setupState === "needs-restart") {
     return "AI investigations aren't available right now";

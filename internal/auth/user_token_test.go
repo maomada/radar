@@ -1,22 +1,70 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/cloud"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
+
+func TestUserTokenFailureLogsDoNotExposeClaimsOrReviewErrors(t *testing.T) {
+	const username = "private-user@example.invalid"
+	const token = "private-token-fixture"
+	const reviewError = "private-upstream-error"
+	for _, tc := range []struct {
+		name   string
+		user   *User
+		err    error
+		status int
+		reason string
+		event  string
+	}{
+		{"rejected", nil, apierrors.NewUnauthorized(reviewError + " " + token), http.StatusForbidden, "token_rejected", "Kubernetes rejected the sign-in token"},
+		{"outage", nil, errors.New(reviewError + " " + token), http.StatusServiceUnavailable, "token_review_unavailable", "Kubernetes token review unavailable"},
+		{"mismatch", &User{Username: "other-private-user"}, nil, http.StatusForbidden, "token_identity_mismatch", "token identity does not match forwarded identity"},
+		{"reserved group", &User{Username: username, Groups: []string{"radar:private-group"}}, nil, http.StatusForbidden, "token_reserved_group", "token identity carries a reserved group"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var output bytes.Buffer
+			defer log.SetOutput(log.Writer())
+			log.SetOutput(&output)
+			req := httptest.NewRequest(http.MethodGet, "/api/topology", nil)
+			req.Header.Set(pkgauth.UserTokenHeader, token)
+			rec := httptest.NewRecorder()
+			user, ok := userTokenIdentity(rec, req, Config{Mode: "proxy", TokenReviewer: func(_ context.Context, got string) (*User, error) {
+				if got != token {
+					t.Error("reviewer did not receive the supplied token")
+				}
+				return tc.user, tc.err
+			}}, username, nil)
+			if ok || user != nil || rec.Code != tc.status || !strings.Contains(rec.Body.String(), tc.reason) {
+				t.Fatalf("rejection changed: ok=%v, status=%d, reason=%s", ok, rec.Code, tc.reason)
+			}
+			if !strings.Contains(output.String(), tc.event) {
+				t.Fatal("missing authentication outcome event")
+			}
+			for _, sensitive := range []string{username, token, reviewError, "other-private-user", "radar:private-group"} {
+				if strings.Contains(output.String(), sensitive) {
+					t.Error("diagnostic log includes a private claim or upstream error")
+				}
+			}
+		})
+	}
+}
 
 func userTokenMode(t *testing.T) {
 	t.Helper()
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	pkgauth.SetCredentialMode(pkgauth.CredentialsUserToken)
 	t.Cleanup(func() { pkgauth.SetCredentialMode(pkgauth.CredentialsImpersonate) })
 }
@@ -161,7 +209,7 @@ func TestUserToken_ReservedForwardedGroupRejected(t *testing.T) {
 }
 
 func TestUserToken_OffByDefaultKeepsCloudVocabularyRule(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	rec, got := serveUserToken(t, nil, "oidc:alice@example.com", "k8s-admins,radar:viewer", "good-token")
 	if rec.Code != http.StatusForbidden || got != nil {
 		t.Fatalf("status = %d, want impersonate mode to keep rejecting non-radar groups", rec.Code)

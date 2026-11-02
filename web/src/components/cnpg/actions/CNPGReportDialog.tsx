@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActionConfirmDialog } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog } from '@maomada/k8s-ui'
 import { downloadCNPGReport } from '../../../api/cnpg-recovery'
 import { useRadarFeature } from '../../../api/client'
 import { useConnection } from '../../../context/ConnectionContext'
@@ -10,7 +10,7 @@ const INCLUDED = [
   'Events about those objects',
   'Backups, ScheduledBackups and Poolers of this cluster, and the ObjectStore it uses',
   'Operator and plugin versions and readiness',
-  'The live instance and storage snapshots Radar shows (instance manager status, selected exporter metrics)',
+  'The live instance and storage snapshots KubeAtlas shows (instance manager status, selected exporter metrics)',
   'report.json: what was read, what was skipped and why, and the Secrets referenced (names only)',
 ]
 

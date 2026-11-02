@@ -10,11 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/upgradereadiness"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/upgradereadiness"
 )
 
 // EvidenceAuthorizer is the seam through which upgrade-readiness

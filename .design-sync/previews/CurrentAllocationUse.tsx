@@ -1,4 +1,4 @@
-import { CurrentAllocationUse } from '@skyhook-io/k8s-ui'
+import { CurrentAllocationUse } from '@maomada/k8s-ui'
 
 const frame = { width: 580 } as const
 

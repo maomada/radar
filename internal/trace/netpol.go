@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 
-	"github.com/skyhook-io/radar/pkg/netpol"
+	"github.com/maomada/radar/pkg/netpol"
 )
 
 // policyVerdict is the caller-INDEPENDENT conclusion of static NetworkPolicy

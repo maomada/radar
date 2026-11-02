@@ -13,8 +13,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 const (

@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func tombstoneTestPod(name string, created time.Time) *corev1.Pod {

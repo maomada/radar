@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/cloudinstall"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +67,7 @@ func TestResolveCloudStartup(t *testing.T) {
 		{"no hub URL", func(f *cloudStartupFlags) { f.HubURL = "" }, "--cloud-hub-url"},
 		{"plaintext remote hub", func(f *cloudStartupFlags) { f.HubURL = "http://hub.example.com" }, "https://"},
 		{"insecure skip verify", func(f *cloudStartupFlags) { f.InsecureSkipVerify = true }, "--cloud-ca-file"},
-		{"no release env", func(f *cloudStartupFlags) { f.HelmRelease = "" }, "RADAR_HELM_RELEASE"},
+		{"no release env", func(f *cloudStartupFlags) { f.HelmRelease = "" }, "KUBEATLAS_HELM_RELEASE"},
 		{"name too long", func(f *cloudStartupFlags) { f.ClusterName = strings.Repeat("x", 81) }, "--cluster-name"},
 		{"missing CA file", func(f *cloudStartupFlags) { f.CAFile = filepath.Join(t.TempDir(), "nope") }, "--cloud-ca-file"},
 	} {
@@ -94,7 +94,7 @@ func enrolledDeployment() *appsv1.Deployment {
 		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{{
 			Name: "radar",
 			Args: []string{"--cloud-hub-url=https://hub.example.com", "--cloud-enrollment-key-file=/etc/radar/enrollment/key"},
-			Env:  []corev1.EnvVar{{Name: "RADAR_CLOUD_MODE", Value: "true"}},
+			Env:  []corev1.EnvVar{{Name: "KUBEATLAS_CLOUD_MODE", Value: "true"}},
 		}}}}},
 	}
 }

@@ -1,4 +1,4 @@
-import { InconclusiveCard } from '@skyhook-io/k8s-ui'
+import { InconclusiveCard } from '@maomada/k8s-ui'
 
 const wrap = { width: 540, padding: 8 }
 const noop = () => {}

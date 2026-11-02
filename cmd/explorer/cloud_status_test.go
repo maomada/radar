@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cliui"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/cliui"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/pkg/subject"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -59,9 +59,9 @@ func TestPrintCloudStatusConfiguredReady(t *testing.T) {
 		Namespace: "radar", DeploymentName: "radar", ReleaseName: "radar", Chart: "radar-1.8.1",
 		Ownership: cloudinstall.TargetOwnership{Classification: cloudinstall.OwnershipNativeHelm},
 		Runtime: cloudinstall.DeploymentRuntime{
-			Image: "ghcr.io/skyhook-io/radar:1.8.1", DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1,
+			Image: "ghcr.io/maomada/kubeatlas:1.8.1", DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1,
 			ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
-			AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true, CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+			AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true, CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 			ClusterNameConfigured: true, ClusterName: "cluster-123", CloudTokenConfigured: true,
 		},
 	}
@@ -72,7 +72,7 @@ func TestPrintCloudStatusConfiguredReady(t *testing.T) {
 	got := out.String()
 	for _, want := range []string{
 		"radar/radar", `Helm release "radar"`, "Agent: ✓ 1/1 replicas ready", "Cloud configuration: ✓ present",
-		"wss://api.radarhq.io/agent", "Configured cluster reference: cluster-123",
+		"wss://api.example.test/agent", "Configured cluster reference: cluster-123",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("status missing %q:\n%s", want, got)
@@ -217,7 +217,7 @@ func TestCloudStatusHeadlineSynthesizesHumanVerdict(t *testing.T) {
 	healthyRuntime := cloudinstall.DeploymentRuntime{
 		DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
 		AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true,
-		CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+		CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 		ClusterNameConfigured: true, ClusterName: "clus_123", CloudTokenConfigured: true,
 	}
 	for _, tc := range []struct {
@@ -229,7 +229,7 @@ func TestCloudStatusHeadlineSynthesizesHumanVerdict(t *testing.T) {
 	}{
 		{name: "not installed", want: "not installed"},
 		{name: "inconclusive discovery", err: errors.New("forbidden"), want: "inconclusive"},
-		{name: "multiple", targets: []cloudinstall.RadarTarget{{}, {}}, want: "Multiple Radar installations"},
+		{name: "multiple", targets: []cloudinstall.RadarTarget{{}, {}}, want: "Multiple KubeAtlas installations"},
 		{name: "connected", targets: []cloudinstall.RadarTarget{{Runtime: healthyRuntime}}, tunnel: hubTunnelResult{verdict: hubTunnelHealthy}, want: "healthy and connected"},
 		{name: "connected with partial discovery", targets: []cloudinstall.RadarTarget{{Runtime: healthyRuntime}}, err: errors.New("forbidden"), tunnel: hubTunnelResult{verdict: hubTunnelHealthy}, want: "Discovery was incomplete"},
 		{name: "disconnected", targets: []cloudinstall.RadarTarget{{Runtime: healthyRuntime}}, tunnel: hubTunnelResult{verdict: hubTunnelUnhealthy, summary: "disconnected"}, want: "disconnected from the Hub"},
@@ -251,7 +251,7 @@ func TestCloudStatusToneDistinguishesAttentionFromConfirmedFailure(t *testing.T)
 	healthyRuntime := cloudinstall.DeploymentRuntime{
 		DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
 		AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true,
-		CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+		CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 		ClusterNameConfigured: true, ClusterName: "clus_123", CloudTokenConfigured: true,
 	}
 	attentionRuntime := healthyRuntime
@@ -291,7 +291,7 @@ func TestCloudStatusStylingIsSemanticAndLeavesCopyableValuesPlain(t *testing.T) 
 	runtime := cloudinstall.DeploymentRuntime{
 		DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
 		AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true,
-		CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+		CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 		ClusterNameConfigured: true, ClusterName: "clus_123", CloudTokenConfigured: true,
 	}
 	target := cloudinstall.RadarTarget{Namespace: "radar", DeploymentName: "radar", Runtime: runtime}
@@ -314,7 +314,7 @@ func TestCloudStatusStylingIsSemanticAndLeavesCopyableValuesPlain(t *testing.T) 
 			t.Fatalf("state explanation %q was colored instead of remaining readable: %q", plain, got)
 		}
 	}
-	if !strings.Contains(got, "Hub: wss://api.radarhq.io/agent\n") || strings.Contains(got, "Hub: "+cliui.Cyan) {
+	if !strings.Contains(got, "Hub: wss://api.example.test/agent\n") || strings.Contains(got, "Hub: "+cliui.Cyan) {
 		t.Fatalf("Hub URL was styled instead of remaining copyable: %q", got)
 	}
 
@@ -344,20 +344,20 @@ func TestCheckHubTunnelStatusRejectedTokenNamesCredentialAndRecovery(t *testing.
 }
 
 func TestAddHubFrontendLinksUsesExactClusterAndRecoveryDestinations(t *testing.T) {
-	connected := addHubFrontendLinks(hubTunnelResult{verdict: hubTunnelHealthy, hubClusterID: "clus/a b"}, "https://app.radarhq.io/")
-	if connected.openURL != "https://app.radarhq.io/c/clus%2Fa%20b" {
+	connected := addHubFrontendLinks(hubTunnelResult{verdict: hubTunnelHealthy, hubClusterID: "clus/a b"}, "https://app.example.test/")
+	if connected.openURL != "https://app.example.test/c/clus%2Fa%20b" {
 		t.Fatalf("connected open URL = %q", connected.openURL)
 	}
 
-	recovery := addHubFrontendLinks(hubTunnelResult{reinstall: true}, "https://app.radarhq.io/")
-	if recovery.openURL != "https://app.radarhq.io/clusters" ||
+	recovery := addHubFrontendLinks(hubTunnelResult{reinstall: true}, "https://app.example.test/")
+	if recovery.openURL != "https://app.example.test/clusters" ||
 		!strings.Contains(recovery.next, "select Reinstall") ||
-		!strings.Contains(recovery.next, "ensure “Already running Radar” is selected") {
+		!strings.Contains(recovery.next, "ensure “Already running KubeAtlas” is selected") {
 		t.Fatalf("recovery = %#v", recovery)
 	}
 
-	disconnected := addHubFrontendLinks(hubTunnelResult{verdict: hubTunnelUnhealthy, hubClusterID: "clus_123", openClusters: true}, "https://app.radarhq.io/")
-	if disconnected.openURL != "https://app.radarhq.io/clusters" {
+	disconnected := addHubFrontendLinks(hubTunnelResult{verdict: hubTunnelUnhealthy, hubClusterID: "clus_123", openClusters: true}, "https://app.example.test/")
+	if disconnected.openURL != "https://app.example.test/clusters" {
 		t.Fatalf("disconnected open URL = %q", disconnected.openURL)
 	}
 }
@@ -367,11 +367,11 @@ func TestPrintHubTunnelStatusPrintsActionableURL(t *testing.T) {
 	printHubTunnelStatus(&out, cloudinstall.RadarTarget{}, hubTunnelResult{
 		verdict: hubTunnelUnhealthy,
 		summary: "failed — the Hub rejected the connection token",
-		openURL: "https://app.radarhq.io/clusters",
+		openURL: "https://app.example.test/clusters",
 		next:    "choose Reinstall.",
 	})
 	got := out.String()
-	if !strings.Contains(got, "Open: https://app.radarhq.io/clusters") || !strings.Contains(got, "Next: choose Reinstall.") {
+	if !strings.Contains(got, "Open: https://app.example.test/clusters") || !strings.Contains(got, "Next: choose Reinstall.") {
 		t.Fatalf("output = %q", got)
 	}
 }
@@ -428,7 +428,7 @@ func TestPrintCloudStatusIncompleteOrUnreadyFails(t *testing.T) {
 			target: cloudinstall.RadarTarget{Runtime: cloudinstall.DeploymentRuntime{
 				DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
 				AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true,
-				CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+				CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 				ClusterNameConfigured: true, ClusterName: "cluster-123",
 			}},
 			want: "missing connection token",
@@ -467,7 +467,7 @@ func TestPrintCloudStatusAcceptsSourcedCloudMode(t *testing.T) {
 	target := cloudinstall.RadarTarget{Runtime: cloudinstall.DeploymentRuntime{
 		DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true, AlreadyCloud: true,
 		CloudModeConfigured: true, CloudModeUnresolved: true,
-		CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+		CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 		ClusterNameConfigured: true, ClusterName: "cluster-123", CloudTokenConfigured: true,
 	}}
 	var out bytes.Buffer
@@ -552,7 +552,7 @@ func TestPrintCloudDiscoveryStatusHealthyTargetStillFailsAfterPartialScan(t *tes
 	target := cloudinstall.RadarTarget{Runtime: cloudinstall.DeploymentRuntime{
 		DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
 		AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true,
-		CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+		CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 		ClusterNameConfigured: true, ClusterName: "cluster-123", CloudTokenConfigured: true,
 	}}
 	var out, errOut bytes.Buffer
@@ -566,7 +566,7 @@ func TestPrintCloudDiscoveryStatusHealthyExactTargetSucceeds(t *testing.T) {
 	target := cloudinstall.RadarTarget{Runtime: cloudinstall.DeploymentRuntime{
 		DesiredReplicas: 1, TotalReplicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1, StatusObserved: true,
 		AlreadyCloud: true, CloudModeConfigured: true, CloudMode: true,
-		CloudURLConfigured: true, CloudURL: "wss://api.radarhq.io/agent",
+		CloudURLConfigured: true, CloudURL: "wss://api.example.test/agent",
 		ClusterNameConfigured: true, ClusterName: "cluster-123", CloudTokenConfigured: true,
 	}}
 	var out, errOut bytes.Buffer
@@ -581,7 +581,7 @@ func TestPrintCloudDiscoveryStatusExactTargetDescribesDeploymentLookup(t *testin
 	if code != 1 || errOut.Len() != 0 {
 		t.Fatalf("exit = %d, stdout = %q, stderr = %q", code, out.String(), errOut.String())
 	}
-	if !strings.Contains(out.String(), `Radar Deployment with release label "radar-prod" in namespace "radar-system"`) {
+	if !strings.Contains(out.String(), `KubeAtlas Deployment with release label "radar-prod" in namespace "radar-system"`) {
 		t.Fatalf("status misdescribed exact lookup: %q", out.String())
 	}
 	if strings.Contains(out.String(), "Checked Helm release") {

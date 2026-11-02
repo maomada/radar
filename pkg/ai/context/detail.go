@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/prune"
+	"github.com/maomada/radar/pkg/prune"
 )
 
 // minifyDetail strips metadata noise and per-type status noise, but keeps full spec

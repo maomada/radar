@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

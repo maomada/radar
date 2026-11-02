@@ -11,8 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/envresolve"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/envresolve"
 )
 
 const maxPodEnvSourceHistoryEvents = 1000

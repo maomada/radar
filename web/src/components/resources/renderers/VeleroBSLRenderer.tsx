@@ -1,6 +1,6 @@
-import { VeleroBSLRenderer as BaseVeleroBSLRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/VeleroBSLRenderer'
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { VeleroBSLRenderer as BaseVeleroBSLRenderer } from '@maomada/k8s-ui/components/resources/renderers/VeleroBSLRenderer'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useVeleroStoredBackups } from '../../../api/policy'
 
 /**

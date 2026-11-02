@@ -62,7 +62,7 @@ export function isRateBasedSource(source: string | undefined): boolean {
  * which keeps a trickle visible but makes their ratio meaningless at low rates:
  * 0.3 req/s with 0.01 err/s rounds to one of each, a 100% error rate. The counts
  * are only read when the rates are absent — Radar Hub renders clusters whose
- * Radar predates requestRate / errorRate, and for those they are all there is.
+ * KubeAtlas predates requestRate / errorRate, and for those they are all there is.
  */
 export function requestRateOf(flow: Pick<AggregatedFlow, 'requestRate' | 'requestCount'>): number {
   return flow.requestRate ?? flow.requestCount ?? 0
@@ -280,7 +280,7 @@ export function isPolicyDropReason(dropReasonDesc: string | undefined, deniedByC
  *
  * `callerOriented` is the server saying its responses run caller → callee on
  * the server's port, like their requests, so they match on endpoints, route and
- * port exactly. Without it the server is a Radar that predates that — Radar Hub
+ * port exactly. Without it the server is a KubeAtlas that predates that — Radar Hub
  * renders clusters running such builds — whose responses run server → client on
  * the client's ephemeral port, so they match reversed and without the port.
  * The orientation is taken from the server, never inferred from which records

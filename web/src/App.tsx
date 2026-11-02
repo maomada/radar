@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { startViewTransitionSafe } from '@skyhook-io/k8s-ui/utils/view-transition'
-import { englishPlural } from '@skyhook-io/k8s-ui/utils/pluralize'
+import { startViewTransitionSafe } from '@maomada/k8s-ui/utils/view-transition'
+import { englishPlural } from '@maomada/k8s-ui/utils/pluralize'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useLocation, useSearchParams, useNavigationType, NavigationType } from 'react-router-dom'
 import { HomeView } from './components/home/HomeView'
@@ -9,9 +9,9 @@ import { DebugOverlay } from './components/DebugOverlay'
 import { GlobalDiagnoseButton } from './components/diagnose/LocalDiagnoseAction'
 import { investigationWorkspaceSearch, isInvestigationWorkspacePath, useDiagnoseLayout } from './components/diagnose/DiagnoseContext'
 import { DiagnoseSurface } from './components/diagnose/DiagnoseSurface'
-import { TopologyGraph, TopologySearch, TopologyBreadcrumb, TopologyFilterSidebar, TopologyControls, FreshnessControl, gitOpsRouteForKind, gitOpsRouteForResource, ScopePill, PaneLoader, usePhoneLayout, PHONE_MEDIA_QUERY } from '@skyhook-io/k8s-ui'
-import { resetNavigationMap } from '@skyhook-io/k8s-ui/utils/navigation'
-import { topologyNodeResourceKind } from '@skyhook-io/k8s-ui/utils/topology-neighborhood'
+import { TopologyGraph, TopologySearch, TopologyBreadcrumb, TopologyFilterSidebar, TopologyControls, FreshnessControl, gitOpsRouteForKind, gitOpsRouteForResource, ScopePill, PaneLoader, usePhoneLayout, PHONE_MEDIA_QUERY } from '@maomada/k8s-ui'
+import { resetNavigationMap } from '@maomada/k8s-ui/utils/navigation'
+import { topologyNodeResourceKind } from '@maomada/k8s-ui/utils/topology-neighborhood'
 import { useAPIResources, findAPIResourceForRoute } from './api/apiResources'
 import { TimelineView } from './components/timeline/TimelineView'
 import { ResourcesView } from './components/resources/ResourcesView'
@@ -30,10 +30,9 @@ import { ApplicationsView } from './components/applications/ApplicationsView'
 import { HelmReleaseDrawer } from './components/helm/HelmReleaseDrawer'
 import { PortForwardProvider, PortForwardIndicator, PortForwardPanel } from './components/portforward/PortForwardManager'
 import { DockProvider, BottomDock, useDock, useDockReservedHeight, useOpenLocalTerminal } from './components/dock'
-import { DURATION_DOCK, overlayExitMs } from '@skyhook-io/k8s-ui/utils/animation'
+import { DURATION_DOCK, overlayExitMs } from '@maomada/k8s-ui/utils/animation'
 import { ContextSwitcher } from './components/ContextSwitcher'
 import { NamespaceSwitcher, type NamespaceSwitcherHandle } from './components/NamespaceSwitcher'
-import { CloudFunnelButton } from './components/CloudFunnelButton'
 import { useNavCustomization } from './context/NavCustomization'
 import type { FleetTakeoverTarget } from './context/NavCustomization'
 import { PrimaryNavRail } from './components/nav/PrimaryNavRail'
@@ -53,23 +52,19 @@ import { CapabilitiesProvider, useCapabilitiesContext } from './contexts/Capabil
 import { RadarUpgradeProvider } from './context/RadarUpgrade'
 import { UserMenu } from './components/UserMenu'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
-import { UpdateNotification } from './components/ui/UpdateNotification'
-import { openWhatsNew, useWhatsNewStatus, WhatsNew } from './components/whats-new/WhatsNew'
-import { useUsageData, useUsageRecording } from './api/usage-data'
-import { UsageDataPrompt } from './components/usage-data/UsageDataPrompt'
 import { ShortcutHelpOverlay } from './components/ui/ShortcutHelpOverlay'
 import { DiagnosticsOverlay, type DiagnosticsFocus } from './components/ui/DiagnosticsOverlay'
 import { useEventSource } from './hooks/useEventSource'
 import { debugNamespaceLog, refetchOnResourceEvents, resourceEventKey, useNamespaces, useNamespaceScope, useSetActiveNamespace, useSwitchContext, useAuthMe, useAudit, useClusterInfo } from './api/client'
 import { buildAuditSeverityMap } from './utils/auditBadges'
 import { isInNamespaceScope, scopeNodesToNamespaces } from './utils/topology-namespace'
-import { routePath, apiUrl, getApiBase, getAuthHeaders, getCredentialsMode, stripBasename } from './api/config'
+import { routePath, getApiBase, stripBasename } from './api/config'
 import { KeyboardShortcutProvider, useRegisterShortcut, useRegisterShortcuts, useSuppressBaseShortcuts } from './hooks/useKeyboardShortcuts'
 import { useAnimatedUnmount } from './hooks/useAnimatedUnmount'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import type { ClusterLoadState } from './types/clusterLoadState'
 import { useClusterLoadState } from './hooks/useClusterLoadState'
-import { Network, Sun, Moon, Star, Bug, SquareTerminal, HelpCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Network, Sun, Moon, Bug, SquareTerminal, HelpCircle, Loader2, RefreshCw } from 'lucide-react'
 import { useTheme } from './context/ThemeContext'
 import { Tooltip } from './components/ui/Tooltip'
 import { LargeClusterNamespacePicker } from './components/shared/LargeClusterNamespacePicker'
@@ -77,7 +72,7 @@ import { SettingsDialog, type SettingsSectionId } from './components/settings/Se
 import type { APIResource, TopologyNode, GroupingMode, MainView, SelectedResource, SelectedHelmRelease, NodeKind, TopologyMode, Topology, K8sEvent } from './types'
 import { createViewMemory } from './utils/viewMemory'
 import { createKindFilterStore } from './utils/kindFilterStore'
-import { kindToPluralWithGroup, pluralToKind, openExternal, apiVersionToGroup, relatedResourcePath, searchHitToSelectedResource, withCrossViewParams, writeViewParams, CROSS_VIEW_PARAMS, namespacesFromSearch } from './utils/navigation'
+import { kindToPluralWithGroup, pluralToKind, apiVersionToGroup, relatedResourcePath, searchHitToSelectedResource, withCrossViewParams, writeViewParams, CROSS_VIEW_PARAMS, namespacesFromSearch } from './utils/navigation'
 import { findSelectedTopologyNode } from './utils/topology-selection'
 import { type OmnibarHandle } from './components/ui/Omnibar'
 import { RadarOmnibar } from './components/ui/RadarOmnibar'
@@ -107,7 +102,7 @@ const CRD_HIDDEN_BY_DEFAULT = new Set(['GatewayClass', 'IngressClass', 'NodePool
 
 // Top-bar height in px. The body frame's right-side surfaces (AI panel, resource +
 // Helm drawers) all inset their top by this so they sit BELOW the header. 0 in
-// chromeless embeds (the host owns the chrome, no Radar header). Keep in sync with
+// chromeless embeds (the host owns the chrome, no KubeAtlas header). Keep in sync with
 // the <header> py/line-height; the drawers historically hardcoded the same 49.
 const APP_HEADER_HEIGHT = 49
 
@@ -158,18 +153,6 @@ function getViewFromPath(pathname: string): ExtendedMainView {
   if (path === 'issues') return 'issues'
   if (path === 'investigations') return 'investigations'
   return 'home'
-}
-
-// The usage-data name for the current screen: a resource list names its
-// kind's plural ("resources:deployments"); the server keeps built-in kinds
-// only, so a custom resource's name never leaves.
-function usageView(pathname: string, view: ExtendedMainView, upgrade: boolean): string {
-  if (upgrade) return 'upgrade'
-  if (view === 'resources') {
-    const plural = pathname.match(/^\/resources\/([^/]+)/)?.[1]
-    if (plural) return `resources:${plural.toLowerCase()}`
-  }
-  return view
 }
 
 // The screen a crash is counted under. Fixed names, because release builds
@@ -240,7 +223,7 @@ function namespaceFilterDisabled(
   return { disabled: false }
 }
 
-// Browser tab label for every Radar view, derived from the route URL so it's
+// Browser tab label for every KubeAtlas view, derived from the route URL so it's
 // correct regardless of which component renders it. A detail drawer that opens
 // over a list (?resource=…) is deliberately NOT titled — it's the same page, so
 // it keeps the list's title.
@@ -265,7 +248,7 @@ function radarPageTitle(pathname: string, search = '', apiResources?: APIResourc
   // bare /resources (before it redirects to a default kind) → "Resources".
   if (view === 'resources') {
     const resourceName = decode(pathSegments[1] ?? '')
-    if (!resourceName) return 'Resources'
+    if (!resourceName) return '资源'
     const group = new URLSearchParams(search).get('apiGroup') || ''
     const hostTitle = resourceKindListTitle({ name: resourceName, group })
     if (hostTitle) return hostTitle
@@ -278,21 +261,25 @@ function radarPageTitle(pathname: string, search = '', apiResources?: APIResourc
     return pathSegments[1] === 'detail' ? decode(pathSegments[4] ?? '') || 'GitOps' : 'GitOps'
   if (view === 'applications') {
     const appKey = new URLSearchParams(search).get('app')
-    if (!appKey) return 'Applications'
+    if (!appKey) return '应用'
     const decoded = decode(appKey)
     const slash = decoded.lastIndexOf('/')
     return slash >= 0 && slash < decoded.length - 1 ? decoded.slice(slash + 1) : decoded
   }
 
-  if (view === 'checks' && pathSegments[1] === 'upgrade') return 'Upgrade impact'
+  if (view === 'checks' && pathSegments[1] === 'upgrade') return '升级影响'
+  if (view === 'capacity') return '容量'
 
   // The landing view reads "Overview" rather than "Home" in the tab.
   const workspace = workspaceForView(view)
   if (workspace) return workspace.pageTitle(pathname)
-  if (view === 'home') return 'Overview'
-  // Every other view's label is its id capitalized — getViewFromPath has already
-  // normalized aliases (e.g. /audit → 'checks'), so no lookup table is needed.
-  return capitalize(view)
+  const titles: Partial<Record<ExtendedMainView, string>> = {
+    home: '总览', topology: '拓扑', timeline: '时间线', issues: '问题',
+    traffic: '实时流量', cost: '成本', checks: '检查', compare: '资源对比',
+    capacity: '容量', gitops: 'GitOps',
+    investigations: '诊断', helmCompare: 'Helm 版本对比', helm: 'Helm',
+  }
+  return titles[view] ?? capitalize(view)
 }
 
 function AuthBarrier({ authMode }: { authMode: string }) {
@@ -305,7 +292,7 @@ function AuthBarrier({ authMode }: { authMode: string }) {
   if (authMode === 'oidc') {
     return (
       <PaneLoader
-        label="Redirecting to login…"
+        label="正在跳转到登录页…"
         className="flex-1 min-h-0 bg-theme-base"
       />
     )
@@ -321,9 +308,9 @@ function AuthBarrier({ authMode }: { authMode: string }) {
           </svg>
         </div>
         <div>
-          <p className="text-lg font-medium text-theme-text-primary">Authentication Required</p>
+          <p className="text-lg font-medium text-theme-text-primary">需要身份验证</p>
           <p className="text-sm text-theme-text-secondary mt-2">
-            Radar is configured with proxy authentication. Access it through your organization's auth proxy to authenticate.
+            KubeAtlas is configured with proxy authentication. Access it through your organization's auth proxy to authenticate.
           </p>
         </div>
       </div>
@@ -364,7 +351,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     contentGutter,
     maximized: diagnoseMaximized,
   } = useDiagnoseLayout()
-  // Hand off to a host-owned URL. The host's `onHostNavigate` (Radar Cloud's
+  // Hand off to a host-owned URL. The host's `onHostNavigate` (upstream Cloud's
   // cross-tree swap) navigates same-document so the chrome morphs instead of
   // cold-booting; without it we fall back to a hard `window.location` nav.
   const goHost = useCallback(
@@ -378,7 +365,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   // setMainView intercept, redirect effect, inline-view gating, and the cert
   // click handler all consume the SAME value — host
   // callbacks aren't guaranteed idempotent (scope / flags / signed URLs can
-  // shift between calls). undefined = not taken over → Radar renders the view
+  // shift between calls). undefined = not taken over → KubeAtlas renders the view
   // itself.
   const takeover: Record<FleetTakeoverTarget, string | undefined> = useMemo(
     () => ({
@@ -436,11 +423,6 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   const mainView = getViewFromPath(location.pathname)
   const activeWorkspace = workspaceForView(mainView)
   const upgradeReadinessRoute = location.pathname.startsWith('/checks/upgrade')
-
-  // Opt-in usage data. Embedded hosts own their own consent, so Radar never asks there.
-  const usageData = useUsageData(!navCustomization.embedded)
-  // A status cached by another screen must not start recording inside a host.
-  useUsageRecording(usageView(location.pathname, mainView, upgradeReadinessRoute), navCustomization.embedded ? undefined : usageData.data)
 
   // The omnibar needs discovered plurals even before ResourcesView mounts.
   const { data: navApiResources } = useAPIResources()
@@ -552,8 +534,6 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     navigate({ pathname: path, search: newParams.toString() })
   }, [location.search, navigate, takeover, goHost, viewMemory, kindFilterStore])
 
-  const whatsNewStatus = useWhatsNewStatus()
-
   const navigateToPath = useCallback((path: string) => {
     navigate(withCrossViewParams(path, location.search))
   }, [location.search, navigate])
@@ -576,7 +556,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   // OSS (no fleetTakeoverHref) is unaffected and renders the in-app view.
   //
   // Has the host claimed this view? View-shaped targets only ('certs' has no
-  // Radar view — only its Home card consults `takeover`). Used to gate the
+  // KubeAtlas view — only its Home card consults `takeover`). Used to gate the
   // inline view render in favor of the "Opening…" splash.
   const isViewTakenOver = (view: ExtendedMainView): boolean =>
     (view === 'issues' || view === 'gitops' || view === 'checks') && !!takeover[view]
@@ -914,6 +894,20 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     // dedicated mnemonic — listed for exhaustiveness so the type stays total.
     workload: '', compare: '', helmCompare: '', investigations: '', cnpg: '',
   }
+  const VIEW_SHORTCUT_LABELS: Partial<Record<ExtendedMainView, string>> = {
+    home: '首页',
+    resources: '资源',
+    issues: '问题',
+    topology: '拓扑',
+    applications: '应用',
+    timeline: '时间线',
+    traffic: '实时流量',
+    helm: 'Helm',
+    gitops: 'GitOps',
+    checks: '检查',
+    cost: '成本',
+    capacity: '容量',
+  }
   const views = Object.keys(VIEW_SHORTCUT_KEYS).filter(
     (v): v is ExtendedMainView => VIEW_SHORTCUT_KEYS[v as ExtendedMainView] !== '',
   )
@@ -921,7 +915,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     ...views.map((view) => ({
       id: `view-${view}`,
       keys: VIEW_SHORTCUT_KEYS[view],
-      description: `Go to ${view.charAt(0).toUpperCase() + view.slice(1)}`,
+      description: `前往${VIEW_SHORTCUT_LABELS[view] ?? view}`,
       category: 'Navigation' as const,
       scope: 'global' as const,
       handler: () => setMainView(view),
@@ -929,7 +923,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'switch-namespace',
       keys: 'n',
-      description: 'Switch namespace',
+      description: '切换命名空间',
       category: 'Navigation' as const,
       scope: 'global' as const,
       handler: () => namespaceSwitcherRef.current?.open(),
@@ -937,7 +931,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'switch-context',
       keys: 'c',
-      description: 'Switch context',
+      description: '切换上下文',
       category: 'Navigation' as const,
       scope: 'global' as const,
       handler: () => contextSwitcherRef.current?.open(),
@@ -945,7 +939,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'theme-toggle',
       keys: 't',
-      description: 'Toggle dark/light theme',
+      description: '切换深色/浅色主题',
       category: 'General' as const,
       scope: 'global' as const,
       handler: () => toggleTheme(),
@@ -953,10 +947,10 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'help-toggle',
       keys: '?',
-      description: 'Show keyboard shortcuts',
+      description: '显示键盘快捷键',
       category: 'General' as const,
       scope: 'global' as const,
-      // Radar owns the shortcut registry even in a chromeless embed, so its `?`
+      // KubeAtlas owns the shortcut registry even in a chromeless embed, so its `?`
       // overlay is the one that actually lists the working shortcuts. The host
       // (Radar Hub) drives it from its own chrome by dispatching a `?` keydown —
       // it has no registry of its own to populate a competing overlay with.
@@ -965,7 +959,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'command-palette',
       keys: 'Cmd+k',
-      description: 'Search resources & commands',
+      description: '搜索资源和命令',
       category: 'General' as const,
       scope: 'global' as const,
       allowInInputs: true,
@@ -975,7 +969,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
     {
       id: 'diagnostics',
       keys: 'Ctrl+Shift+d',
-      description: 'Open diagnostics',
+      description: '打开诊断',
       category: 'General' as const,
       scope: 'global' as const,
       allowInInputs: true,
@@ -989,7 +983,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
       ? [{
           id: 'open-settings',
           keys: 'g s',
-          description: 'Open settings',
+          description: '打开设置',
           category: 'General' as const,
           scope: 'global' as const,
           handler: () => openSettings(),
@@ -1002,7 +996,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   useRegisterShortcut({
     id: 'help-close',
     keys: 'Escape',
-    description: 'Close overlay',
+    description: '关闭浮层',
     category: 'General',
     scope: 'global',
     handler: () => setShowHelp(false),
@@ -1403,7 +1397,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
 
     const nodeGroup = apiVersionToGroup(node.data.apiVersion as string | undefined)
     const resourceKind = topologyNodeResourceKind(node)
-    // Radar's topology PodGroup is a virtual pod aggregate. A Kubernetes
+    // KubeAtlas's topology PodGroup is a virtual pod aggregate. A Kubernetes
     // scheduling.k8s.io PodGroup carries apiVersion and is a real resource.
     if (node.kind === 'PodGroup' && !nodeGroup) return
 
@@ -1436,7 +1430,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
   const setActiveNamespace = useSetActiveNamespace()
   // Defer the state flip to onSuccess. Setting namespaces to [] before the
   // server-side pref has actually been cleared makes React Query refetch
-  // under the new empty key while a Radar that applies the stored pick to
+  // under the new empty key while a KubeAtlas that applies the stored pick to
   // reads naming no namespace (Hub embeds this UI against such Radars) returns
   // the previous pick's scope, caching stale data under the new key with no
   // later invalidation.
@@ -1830,7 +1824,6 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           showPinToggle={!railForcedSlim}
           onOpenSettings={() => openSettings()}
           accountSlot={<UserMenu variant="rail" pinned={navRailEffectivePinned} />}
-          whatsNew={whatsNewStatus.available ? { unread: whatsNewStatus.unread, onOpen: openWhatsNew } : undefined}
         />
       )}
       {/* `relative` makes this column the containing block for the absolute
@@ -1897,7 +1890,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
                     type="button"
                     onClick={headerReconnect}
                     disabled={headerReconnectPending}
-                    aria-label={clusterConnectionState === 'disconnected' ? 'Reconnect cluster' : 'Reconnect live updates'}
+                    aria-label={clusterConnectionState === 'disconnected' ? '重新连接集群' : '重新连接实时更新'}
                     className="p-1 text-theme-text-secondary hover:text-theme-text-primary disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <RefreshCw className={`w-3 h-3 ${headerReconnectPending ? 'animate-spin' : ''}`} />
@@ -1934,21 +1927,14 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             onSetNamespaces={(ns) => { setNamespaces(ns); setActiveNamespace.mutate({ namespaces: ns }) }}
             onToggleTheme={toggleTheme}
             onShowDiagnostics={() => setShowDiagnostics(true)}
-            onShowWhatsNew={whatsNewStatus.available ? openWhatsNew : undefined}
             onOpenResource={(hit) => navigateToResourceList(searchHitToSelectedResource(hit))}
           />
         </div>
 
         {/* Right: Controls */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden @min-[1100px]:block">
-            <GitHubStarButton />
-          </div>
-
           {/* AI investigations (self-hides when no agent CLI is present) */}
           <GlobalDiagnoseButton />
-
-          <CloudFunnelButton />
 
           {/* Local terminal */}
           {capabilities.localTerminal && (
@@ -1956,7 +1942,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             <button
               onClick={() => openLocalTerminal()}
               disabled={!connection.context && connection.state !== 'disconnected'}
-              aria-label="Open local terminal"
+              aria-label="打开本地终端"
               className="p-1.5 rounded-md bg-theme-elevated enabled:hover:bg-theme-hover text-theme-text-secondary enabled:hover:text-theme-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <SquareTerminal className="w-4 h-4" />
@@ -1971,7 +1957,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           <Tooltip content="Keyboard shortcuts (?)">
             <button
               onClick={() => setShowHelp(true)}
-              aria-label="Show keyboard shortcuts"
+              aria-label="显示键盘快捷键"
               className="p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
             >
               <HelpCircle className="w-4 h-4" />
@@ -1980,7 +1966,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           <Tooltip content="Report a bug / Diagnostics">
             <button
               onClick={() => setShowDiagnostics(true)}
-              aria-label="Open diagnostics"
+              aria-label="打开诊断"
               className="p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
             >
               <Bug className="w-4 h-4" />
@@ -2017,7 +2003,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
           host hub splash across cross-document transitions. */}
       {!isSwitching && !(authMe?.authEnabled && !authMe?.username) && connection.state === 'connecting' && !shellDuringSync && (
         <PaneLoader
-          label="Connecting to cluster"
+          label="正在连接集群"
           className="flex-1 min-h-0 bg-theme-base"
         >
           {connection.context && (
@@ -2036,7 +2022,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
       {/* Context switching overlay */}
       {isSwitching && (
         <PaneLoader
-          label="Switching context"
+          label="正在切换上下文"
           className="flex-1 min-h-0 bg-theme-base"
         >
           {targetContext && (
@@ -2105,7 +2091,6 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             onNavigateToView={setMainView}
             onNavigateToHelmRelease={navCustomization.embedded ? undefined : navigateToHelmRelease}
             onNavigateToManagerPath={navCustomization.embedded || takeover.gitops ? undefined : navigateToPath}
-            onShowWhatsNew={!navCustomization.embedded && whatsNewStatus.available ? openWhatsNew : undefined}
             // Upgrade impact lives under /checks, which a Cloud host takes
             // over wholesale — its fleet pages have no upgrade sub-route, so
             // the version line stays plain text there.
@@ -2144,11 +2129,11 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
               navigate({ pathname: `/resources/${kind}`, search: newParams.toString() })
             }}
             onNavigateToResource={navigateFromIssue}
-            // Certs has no Radar view, so it can't ride the view-redirect effect
+            // Certs has no KubeAtlas view, so it can't ride the view-redirect effect
             // above — wire the Certificate Health card straight to the host's
             // fleet Certs page (scoped to this cluster) when claimed. `assign`
             // (not replace): the user is navigating forward from a card, so this
-            // belongs in history. Omitted → the card falls back to Radar's own
+            // belongs in history. Omitted → the card falls back to KubeAtlas's own
             // TLS-secrets resource list.
             onNavigateToCerts={
               takeover.certs ? () => goHost(takeover.certs!) : undefined
@@ -2291,7 +2276,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             rememberedKindSearch={rememberedKindSearch}
             onKindFiltersChange={saveKindFilters}
             // Embedded hosts own their namespace picker, and a cache-scoped
-            // Radar can't take an arbitrary set.
+            // KubeAtlas can't take an arbitrary set.
             onApplyNamespacesToAllSections={namespaceScope?.cacheScoped || !kindFilterStore ? undefined : applyNamespacesToAllSections}
           />
         )}
@@ -2395,7 +2380,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
             issues / gitops with one block since only one view is active. */}
         {viewTakeoverHref && (
           <PaneLoader
-            label="Opening…"
+            label="正在打开…"
             className="flex-1 min-h-0 bg-theme-base"
           />
         )}
@@ -2448,7 +2433,7 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
         <ResourceDetailDrawer
           resource={drawerResource}
           initialTab={drawerInitialTab}
-          // No Radar header in chromeless embeds (Radar Hub) — anchor the drawer
+          // No KubeAtlas header in chromeless embeds (Radar Hub) — anchor the drawer
           // to the top of the content area instead of leaving a 49px gap.
           headerHeight={embedded ? 0 : undefined}
           rightInset={contentGutter}
@@ -2575,9 +2560,6 @@ function AppInner({ manageDocumentTitle = false, documentTitleSuffix, onClusterL
       <PortForwardPanel />
 
       {/* Update notification — hidden in embedded mode (OSS download nudge). */}
-      {!navCustomization.embedded && <UpdateNotification />}
-      {!navCustomization.embedded && <WhatsNew onNavigate={navigateToPath} usageData={usageData.data} />}
-      {!navCustomization.embedded && <UsageDataPrompt status={usageData.data} />}
 
       {/* Bottom Dock for Terminal/Logs */}
       <BottomDock viewNamespaces={namespaces} />
@@ -2649,150 +2631,6 @@ function App({ manageDocumentTitle = false, documentTitleSuffix, onClusterLoadSt
   )
 }
 
-// GitHub star button with live star count + programmatic starring via gh CLI
-// Shows a callout popover when the backend says shouldPrompt is true (synced with CLI state)
-function GitHubStarButton() {
-  const [starCount, setStarCount] = useState<number | null>(null)
-  const [starred, setStarred] = useState(false)
-  const [ghAvailable, setGhAvailable] = useState(false)
-  const [showCallout, setShowCallout] = useState(false)
-  const calloutRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLAnchorElement>(null)
-
-  useEffect(() => {
-    // Fetch star count from GitHub public API
-    fetch('https://api.github.com/repos/skyhook-io/radar')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data && typeof data.stargazers_count === 'number') setStarCount(data.stargazers_count) })
-      .catch(() => {})
-
-    // Check if user already starred (via backend/gh CLI) and whether to show prompt
-    fetch(apiUrl('/github/starred'), { credentials: getCredentialsMode(), headers: getAuthHeaders() })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) {
-          setStarred(data.starred)
-          setGhAvailable(data.ghAvailable)
-          if (data.shouldPrompt && !data.starred) {
-            // Delay the callout, then re-check in case CLI prompted during the wait
-            setTimeout(() => {
-              fetch(apiUrl('/github/starred'), { credentials: getCredentialsMode(), headers: getAuthHeaders() })
-                .then(res => res.ok ? res.json() : null)
-                .then(fresh => {
-                  if (fresh?.shouldPrompt && !fresh.starred) {
-                    setShowCallout(true)
-                  }
-                })
-                .catch(() => {})
-            }, 3000)
-          }
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const handleDismiss = useCallback(() => {
-    setShowCallout(false)
-    fetch(apiUrl('/github/dismiss'), { method: 'POST', credentials: getCredentialsMode(), headers: getAuthHeaders() }).catch(() => {})
-  }, [])
-
-  // Close callout when clicking outside
-  useEffect(() => {
-    if (!showCallout) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        calloutRef.current && !calloutRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
-      ) {
-        handleDismiss()
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showCallout, handleDismiss])
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (starred) return // Already starred, just let the link open GitHub
-
-    if (ghAvailable) {
-      // Star via backend gh CLI
-      e.preventDefault()
-      fetch(apiUrl('/github/star'), { method: 'POST', credentials: getCredentialsMode(), headers: getAuthHeaders() })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data?.starred) {
-            setStarred(true)
-            setShowCallout(false)
-            setStarCount(prev => prev !== null ? prev + 1 : prev)
-          }
-        })
-        .catch(() => {
-          // Fallback: open GitHub in browser
-          openExternal('https://github.com/skyhook-io/radar')
-        })
-    } else {
-      // No gh CLI — link opens GitHub; dismiss the callout
-      setShowCallout(false)
-      fetch(apiUrl('/github/dismiss'), { method: 'POST', credentials: getCredentialsMode(), headers: getAuthHeaders() }).catch(() => {})
-    }
-  }
-
-  return (
-    <div className="relative">
-      <a
-        ref={buttonRef}
-        href="https://github.com/skyhook-io/radar"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={handleClick}
-        aria-label={starred ? 'Open Radar on GitHub' : 'Star Radar on GitHub'}
-        className="flex items-center gap-1.5 h-7 px-2 rounded-md transition-colors bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        <Star className={`w-3 h-3 hidden xl:block ${starred ? 'text-yellow-500 fill-current' : ''}`} />
-        {starCount !== null && (
-          <>
-            <span className="w-px h-3 bg-theme-border hidden xl:block" />
-            <span className="text-xs tabular-nums hidden xl:inline">{starCount.toLocaleString()}</span>
-          </>
-        )}
-      </a>
-
-      {/* Callout popover — synced with CLI star.json state */}
-      {showCallout && (
-        <div
-          ref={calloutRef}
-          className="absolute top-full right-0 mt-2 w-64 p-3 bg-theme-surface border border-theme-border rounded-lg shadow-lg z-50"
-        >
-          {/* Arrow */}
-          <div className="absolute -top-1.5 right-4 w-3 h-3 bg-theme-surface border-l border-t border-theme-border rotate-45" />
-          <p className="text-sm text-theme-text-primary mb-2">
-            Enjoying Radar? Show your support with a star!
-          </p>
-          <div className="flex items-center gap-2">
-            <a
-              href="https://github.com/skyhook-io/radar"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 rounded-md transition-colors"
-            >
-              <Star className="w-3.5 h-3.5" />
-              Star on GitHub
-            </a>
-            <button
-              onClick={handleDismiss}
-              className="px-2 py-1.5 text-xs text-theme-text-tertiary hover:text-theme-text-secondary transition-colors"
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // Theme toggle button component
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
@@ -2801,7 +2639,7 @@ function ThemeToggle() {
     <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
     <button
       onClick={toggleTheme}
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      aria-label={`切换到${theme === 'dark' ? '浅色' : '深色'}主题`}
       className="p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
     >
       {theme === 'dark' ? (

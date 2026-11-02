@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // DrainOptions is an alias for the reusable DrainOptions type.

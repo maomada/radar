@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 // CNPGMaintenanceFacts is spec.nodeMaintenanceWindow as the confirmation binds

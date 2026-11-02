@@ -32,7 +32,7 @@ describe('HPARenderer', () => {
       />,
     )
 
-    expect(html).toContain('Conditions (3) · 1 failing')
+    expect(html).toContain('条件（3） · 1 项失败')
     expect(html).not.toContain('2 failing')
   })
 
@@ -111,7 +111,7 @@ describe('HPARenderer', () => {
       />,
     )
 
-    expect(html).toMatch(/>Min<\/span><span[^>]*>0<\/span>/)
+    expect(html).toMatch(/>最小值<\/span><span[^>]*>0<\/span>/)
     expect(html).toContain('ScaledToZero')
     expect(html).toContain('bg-gray-400/20')
     expect(html).not.toContain('failing')

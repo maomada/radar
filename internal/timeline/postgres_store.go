@@ -25,8 +25,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	pkgtimeline "github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/resourceid"
+	pkgtimeline "github.com/maomada/radar/pkg/timeline"
 )
 
 const (

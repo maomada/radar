@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom/promtest"
+	"github.com/maomada/radar/pkg/prom/promtest"
 )
 
 func TestCNPGDiskGrowthPromQL(t *testing.T) {
-	image := os.Getenv("RADAR_TEST_PROMTOOL_IMAGE")
+	image := os.Getenv("KUBEATLAS_TEST_PROMTOOL_IMAGE")
 	if image == "" {
-		t.Skip("set RADAR_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 to evaluate queries with Docker")
+		t.Skip("set KUBEATLAS_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 to evaluate queries with Docker")
 	}
 	q := &fakeCNPGQuerier{}
 	if _, err := queryCNPGDiskGrowth(context.Background(), q, "db", []string{"fresh", "stopped", "zero", "negative"}, 6*time.Hour, `cluster_id="current"`); err != nil {

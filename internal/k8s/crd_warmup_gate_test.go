@@ -14,7 +14,7 @@ import (
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // The CRD warmup/discovery LISTs share the apiserver connection with the

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { pluralize } from '@skyhook-io/k8s-ui'
+import { pluralize } from '@maomada/k8s-ui'
 import { useSwitchContext, fetchSessionCounts, type SessionCounts } from '../api/client'
 import { useContextSwitch } from '../context/ContextSwitchContext'
 import { useToast } from './ui/Toast'

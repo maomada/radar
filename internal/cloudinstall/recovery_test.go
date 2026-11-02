@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/helm"
+	"github.com/maomada/radar/internal/helm"
 )
 
 // Both presenters render Inspect as a copyable shell block, so prose there

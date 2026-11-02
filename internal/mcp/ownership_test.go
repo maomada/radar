@@ -15,13 +15,13 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // A namespaced kind in any namespace: a cluster-wide grant allows it, and

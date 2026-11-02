@@ -19,7 +19,7 @@ metadata:
 spec:
   project: radar-demo
   source:
-    repoURL: https://github.com/skyhook-io/radar
+    repoURL: https://github.com/maomada/radar
     targetRevision: main
     path: scripts/gitops-demo/argo3-health
   destination:

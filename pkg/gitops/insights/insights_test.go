@@ -8,8 +8,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/gitops/diagnose"
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
+	"github.com/maomada/radar/pkg/gitops/diagnose"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
 )
 
 // argoApp builds a minimal Argo Application *unstructured.Unstructured for

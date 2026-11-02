@@ -6,7 +6,7 @@ import {
   formatRelativeAgeTime,
   mapHealthToTone,
   ResourceLink,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { apiVersionToGroup } from "../../../../utils/navigation";
 import { Tooltip } from "../../../ui/Tooltip";
 import { EvidenceNavigationContext } from "../navigation";

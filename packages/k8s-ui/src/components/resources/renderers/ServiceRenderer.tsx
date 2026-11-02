@@ -59,8 +59,8 @@ export function ServiceRenderer({ data, onCopy, copied, endpointSlices, endpoint
         <AlertBanner
           variant="warning"
           icon={Clock}
-          title="Load Balancer Pending"
-          message="External IP/hostname has not been assigned yet. This may take a few minutes. Check Events below if provisioning is stuck."
+          title="Load Balancer 等待中"
+          message="尚未分配外部 IP/主机名，可能需要几分钟。如果配置过程停滞，请查看下方事件。"
         />
       )}
 
@@ -68,21 +68,21 @@ export function ServiceRenderer({ data, onCopy, copied, endpointSlices, endpoint
       {hasNoSelector && !isExternalName && (
         <AlertBanner
           variant="info"
-          title="No Pod Selector"
-          message="This service has no selector — endpoints must be managed manually or by an external controller."
+          title="没有 Pod 选择器"
+          message="此 Service 没有选择器 — 端点必须手动管理或由外部控制器管理。"
         />
       )}
 
       <Section title="Service" icon={Globe}>
         <PropertyList>
-          <Property label="Type" value={spec.type || 'ClusterIP'} />
+          <Property label="类型" value={spec.type || 'ClusterIP'} />
           {isExternalName ? (
-            <Property label="External Name" value={spec.externalName} copyable onCopy={onCopy} copied={copied} />
+            <Property label="外部名称" value={spec.externalName} copyable onCopy={onCopy} copied={copied} />
           ) : (
-            <Property label="Cluster IP" value={spec.clusterIP} copyable onCopy={onCopy} copied={copied} />
+            <Property label="集群 IP" value={spec.clusterIP} copyable onCopy={onCopy} copied={copied} />
           )}
           {spec.externalIPs?.length > 0 && (
-            <Property label="External IPs" value={spec.externalIPs.join(', ')} copyable onCopy={onCopy} copied={copied} />
+            <Property label="外部 IP" value={spec.externalIPs.join(', ')} copyable onCopy={onCopy} copied={copied} />
           )}
           {lbIngress.map((ing: any, i: number) => (
             <Property
@@ -94,22 +94,22 @@ export function ServiceRenderer({ data, onCopy, copied, endpointSlices, endpoint
               copied={copied}
             />
           ))}
-          <Property label="Session Affinity" value={spec.sessionAffinity} />
-          <Property label="External Traffic" value={spec.externalTrafficPolicy} />
-          <Property label="Internal Traffic" value={spec.internalTrafficPolicy} />
+          <Property label="会话亲和性" value={spec.sessionAffinity} />
+          <Property label="外部流量" value={spec.externalTrafficPolicy} />
+          <Property label="内部流量" value={spec.internalTrafficPolicy} />
           {spec.ipFamilyPolicy && <Property label="IP Family Policy" value={spec.ipFamilyPolicy} />}
           {spec.ipFamilies?.length > 0 && <Property label="IP Families" value={spec.ipFamilies.join(', ')} />}
         </PropertyList>
       </Section>
 
       {ports.length > 0 && (
-        <Section title="Ports" defaultExpanded>
+        <Section title="端口" defaultExpanded>
           <ServicePortCards service={data} renderPortAction={renderPortAction} renderPortPanel={renderPortPanel} />
         </Section>
       )}
 
       {spec.selector && (
-        <Section title="Selector">
+        <Section title="选择器">
           <KeyValueBadgeList items={spec.selector} />
         </Section>
       )}
@@ -117,9 +117,9 @@ export function ServiceRenderer({ data, onCopy, copied, endpointSlices, endpoint
       {!isExternalName && (hasNoSelector || endpointSlicesEnabled) && (
         <Section title="EndpointSlices" icon={Radio} defaultExpanded>
           {endpointSlicesLoading ? (
-            <div className="text-sm text-theme-text-tertiary">Loading EndpointSlices…</div>
+            <div className="text-sm text-theme-text-tertiary">正在加载 EndpointSlices…</div>
           ) : endpointSlicesError ? (
-            <AlertBanner variant="warning" title="EndpointSlice inventory unavailable" message={endpointSlicesError} />
+            <AlertBanner variant="warning" title="EndpointSlice 清单不可用" message={endpointSlicesError} />
           ) : endpointSlices && endpointSlices.length > 0 ? (
             <div className="space-y-2">
               {endpointSlices.map((slice: any) => {
@@ -157,7 +157,7 @@ export function ServiceRenderer({ data, onCopy, copied, endpointSlices, endpoint
               )}
             </div>
           ) : (
-            <div className="text-sm text-theme-text-tertiary">No EndpointSlices found for this Service.</div>
+            <div className="text-sm text-theme-text-tertiary">此 Service 未找到 EndpointSlice。</div>
           )}
         </Section>
       )}

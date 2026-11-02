@@ -1,7 +1,7 @@
 # UI load testing (synthetic fake cluster)
 
-Drive Radar's UI at high object counts — tens of thousands of pods — without a
-real cluster, real workloads, a kubelet, or etcd. Radar connects to an in-process
+Drive KubeAtlas's UI at high object counts — tens of thousands of pods — without a
+real cluster, real workloads, a kubelet, or etcd. KubeAtlas connects to an in-process
 fake Kubernetes client and treats the synthetic objects exactly as it would a
 real cluster: the same informer cache, topology builder, SSE broadcaster and
 React render path all run unchanged.
@@ -45,7 +45,7 @@ so the same count always produces the same objects.
 
 ## Control the pod count live
 
-The admin listener (default `<port>+1`) adjusts the count at runtime. Radar's
+The admin listener (default `<port>+1`) adjusts the count at runtime. KubeAtlas's
 informers observe the create/delete events and the UI updates over SSE with no
 reload:
 
@@ -69,10 +69,10 @@ batches, so it never overflows and always converges.
 
 ## Scope and limits
 
-- This exercises everything **at and above** Radar's informer store — informer
+- This exercises everything **at and above** KubeAtlas's informer store — informer
   memory, topology CPU, SSE fan-out, virtualized render. It deliberately does
   **not** exercise the real network transport, client-go decode, or a real
-  apiserver; for that fidelity, point Radar at a KWOK cluster instead (the
+  apiserver; for that fidelity, point KubeAtlas at a KWOK cluster instead (the
   generated object shapes are standard Kubernetes objects and feed KWOK as-is).
 - The test server does not initialize API discovery, so the sidebar count badges
   for **grouped** kinds (Deployments, ReplicaSets, Jobs, …) render as "–" even
@@ -83,5 +83,5 @@ batches, so it never overflows and always converges.
 - The Pods and ReplicaSets tables fetch `?include=summary` rows (only the fields
   the table reads, 5–8x smaller than full objects at realistic pod weight) and
   guard above 50,000 rows in scope; Events and EndpointSlices still guard at
-  25,000. Both limits are real Radar responsiveness boundaries this harness is
+  25,000. Both limits are real KubeAtlas responsiveness boundaries this harness is
   well suited to exercise.

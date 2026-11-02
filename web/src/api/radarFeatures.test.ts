@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { getRadarUpgradeRequirement } from '@skyhook-io/k8s-ui'
+import { getRadarUpgradeRequirement } from '@maomada/k8s-ui'
 import { ApiError } from './client'
 import {
   RADAR_FEATURES,
@@ -43,7 +43,7 @@ describe('radarFeatureSupport', () => {
   })
 
   it('keeps the unflagged entries to those that predate the first flag', () => {
-    // radarSpecSupport treats them as served by any Radar advertising
+    // radarSpecSupport treats them as served by any KubeAtlas advertising
     // resourceIssues; a new entry must ship its own flag instead.
     const unflagged = Object.entries(RADAR_FEATURES).filter(([, spec]) => !('flag' in spec)).map(([name]) => name)
     expect(unflagged.sort()).toEqual(['applications', 'capacity', 'drainPlan', 'upgradeReadiness'])
@@ -82,7 +82,7 @@ describe('radarSpecSupport for a feature whose flag shipped with its endpoint', 
 describe('guardRadarFeature', () => {
   const versions = { currentVersion: 'v1.7.2', latestVersion: 'v1.15.0' }
 
-  it('never asks a Radar known to be too old', async () => {
+  it('never asks a KubeAtlas known to be too old', async () => {
     const request = vi.fn(() => Promise.resolve('data'))
     await expect(guardRadarFeature('policyResource', 'unsupported', versions, request))
       .rejects.toBeInstanceOf(RadarFeatureUnsupportedError)
@@ -112,7 +112,7 @@ describe('guardRadarFeature', () => {
     expect(getRadarUpgradeRequirement(hubNotFound)).toBeNull()
   })
 
-  it("keeps the router's 404 an error on a Radar known to serve the feature", async () => {
+  it("keeps the router's 404 an error on a KubeAtlas known to serve the feature", async () => {
     const routing = new ApiError('HTTP 404 (Not Found)', 404, {}, { unknownRoute: true })
     const error = await guardRadarFeature('policyResource', 'supported', versions, () => Promise.reject(routing))
       .catch((e: unknown) => e)

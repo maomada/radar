@@ -1,4 +1,4 @@
-import { YamlDiffEditor } from '@skyhook-io/k8s-ui'
+import { YamlDiffEditor } from '@maomada/k8s-ui'
 
 const frame = { width: 720, maxWidth: '100%', height: 320 }
 

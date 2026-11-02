@@ -1,4 +1,4 @@
-import { TimeValue, Property, PropertyList } from '@skyhook-io/k8s-ui'
+import { TimeValue, Property, PropertyList } from '@maomada/k8s-ui'
 
 const box = { width: 380 } as const
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString()

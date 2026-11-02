@@ -19,7 +19,7 @@ ephemeral storage because the whole cluster is disposable.
 |----------|---------|----------------|
 | Real Kubecost data | `up` | Kubecost 3.2.4's FinOps Agent, local store, and Aggregator produce allocation data for the exact Deployment, StatefulSet, and DaemonSet fixture pods. Export intervals are reduced to one minute, but ingestion is still asynchronous and bounded at ten minutes. |
 | Raw REST shape | `query` | The active Aggregator exposes allocation and asset data through either the root or `/model` path, carries the configured cluster identity, namespaces, node assets, and any controller identity it resolved. The output calls out pods without controller identity. |
-| Local Radar | Run Radar locally after `up`, then `RADAR_BASE_URL=http://localhost:9347 ./scripts/kubecost-demo.sh radar-smoke` | Radar discovers the active Aggregator StatefulSet and named `tcp-api` Service, then owns a scoped port-forward because the ClusterIP is unreachable from the host. The same API contract assertions used in-cluster run against local Radar. |
+| Local Radar | Run Radar locally after `up`, then `KUBEATLAS_BASE_URL=http://localhost:9347 ./scripts/kubecost-demo.sh radar-smoke` | Radar discovers the active Aggregator StatefulSet and named `tcp-api` Service, then owns a scoped port-forward because the ClusterIP is unreachable from the host. The same API contract assertions used in-cluster run against local Radar. |
 | In-cluster Radar | `install-radar` | The current Go tree is built into the cluster and connects directly through Kubecost Service DNS, without a port-forward. |
 | Radar contract | `radar-smoke` | Summary, workload, node, and cluster trend endpoints report `source=kubecost`, current data has freshness metadata, and detected currency is EUR. |
 | Cleanup | `down` | Deletes the kind cluster and all of its ephemeral storage. `install-radar` leaves the reusable `radar-kubecost-demo:dev` image in the host Docker image store. |
@@ -32,11 +32,11 @@ make kubecost-demo
 
 kubectl config use-context kind-radar-kubecost-demo
 make build
-RADAR_COST_SOURCE=kubecost \
-RADAR_KUBECOST_CLUSTER_ID=radar-kubecost-demo \
+KUBEATLAS_COST_SOURCE=kubecost \
+KUBEATLAS_KUBECOST_CLUSTER_ID=radar-kubecost-demo \
 ./radar --port 9347 --no-browser
 
-RADAR_BASE_URL=http://localhost:9347 \
+KUBEATLAS_BASE_URL=http://localhost:9347 \
 ./scripts/kubecost-demo.sh radar-smoke
 ```
 
@@ -93,7 +93,7 @@ DATA_TIMEOUT_SECONDS=900 ./scripts/kubecost-demo.sh up
 
 `CLUSTER_ID` defaults to `CLUSTER_NAME`; override it only when the Kubecost
 identity should deliberately differ from the kind cluster name.
-`KUBECOST_LOCAL_PORT` and `RADAR_LOCAL_PORT` can be changed when ports 39004 or
+`KUBECOST_LOCAL_PORT` and `KUBEATLAS_LOCAL_PORT` can be changed when ports 39004 or
 39280 are occupied.
 
 ## Constraints learned from the live API

@@ -21,17 +21,17 @@ describe('ConfirmDialog warning disclosure', () => {
     const html = renderToStaticMarkup(<ConfirmDialog {...props} variant="warning" showWarning={false} />)
     expect(html).toContain(props.message)
     expect(html).toContain(props.confirmLabel)
-    expect(html).toContain('Cancel')
-    expect(html).not.toContain('Please confirm you want to proceed')
+    expect(html).toContain('取消')
+    expect(html).not.toContain('请确认是否继续此操作')
   })
 
   it('preserves warning boilerplate by default for existing callers', () => {
     expect(renderToStaticMarkup(<ConfirmDialog {...props} variant="warning" />))
-      .toContain('Please confirm you want to proceed with this action.')
+      .toContain('请确认是否继续此操作。')
   })
 
   it('preserves the irreversible-action warning for destructive callers', () => {
     expect(renderToStaticMarkup(<ConfirmDialog {...props} />))
-      .toContain('This action cannot be undone.')
+      .toContain('此操作无法撤销')
   })
 })

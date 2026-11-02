@@ -132,7 +132,7 @@ itself and must say so. `argo3-health` is built to show every branch of that:
 | `Deployment/crashloop` | Built-in check: Degraded after `progressDeadlineSeconds` | Issues engine: CrashLoopBackOff collapsed onto the Deployment | The mainstream case — a crashloop that Argo 2 used to attribute via the CR |
 
 The manifests live in this repo (`scripts/gitops-demo/argo3-health/`), so the
-Application points at `https://github.com/skyhook-io/radar` — no git server
+Application points at `https://github.com/maomada/radar` — no git server
 in the kind cluster. To exercise a branch before it lands on `main`:
 `ARGO3_FIXTURE_REVISION=my-branch ./scripts/gitops-demo.sh up`.
 

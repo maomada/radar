@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/certs"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/certs"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 const (

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { cnpgDimensions } from '@skyhook-io/k8s-ui'
+import { cnpgDimensions } from '@maomada/k8s-ui'
 import { useCNPGRuntime } from '../../api/cnpg'
 import { useCNPGClusterHA } from '../../api/cnpg-ha'
 import { cnpgReplicationGap, cnpgReplicationLive, withLiveReplication } from './runtimeAssessment'

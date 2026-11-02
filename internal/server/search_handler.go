@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/skyhook-io/radar/internal/filter"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/search"
-	"github.com/skyhook-io/radar/internal/summarycontext"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/internal/filter"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/search"
+	"github.com/maomada/radar/internal/summarycontext"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 // handleSearch serves GET /api/search.

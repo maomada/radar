@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/pkg/auth"
 )
 
 // gitopsIssuesMemo holds the cluster-wide issue composition the GitOps

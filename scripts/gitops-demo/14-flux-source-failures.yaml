@@ -17,7 +17,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 5m
-  url: https://github.com/skyhook-io/radar-demo-repository-that-does-not-exist
+  url: https://github.com/maomada/radar-demo-repository-that-does-not-exist
   ref:
     branch: main
 ---

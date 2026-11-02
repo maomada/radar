@@ -10,7 +10,7 @@ import {
   toneTextClass,
   type CNPGClusterHA,
   type NavigateToRef,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGRuntime, type CNPGRuntimeInstance } from '../../api/cnpg'
 import { useCNPGClusterHA } from '../../api/cnpg-ha'
 import { cnpgInstanceLive, cnpgInstanceLiveUnavailable } from './runtimeAssessment'

@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/filter"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/meaningfulchanges"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/filter"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/meaningfulchanges"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // callerReadsAllNamespaces reports whether the caller is unrestricted by

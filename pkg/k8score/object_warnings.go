@@ -8,8 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // EnrichRuntimeObjectWarnings converts a typed K8s runtime.Object to

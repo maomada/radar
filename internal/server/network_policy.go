@@ -13,10 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/netpol"
-	pkgtraffic "github.com/skyhook-io/radar/pkg/traffic"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/netpol"
+	pkgtraffic "github.com/maomada/radar/pkg/traffic"
 )
 
 // PolicyEvaluation is the response for /api/network-policies/evaluate.

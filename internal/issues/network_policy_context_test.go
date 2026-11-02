@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 func netpolDetection(refs ...Ref) k8s.Detection {

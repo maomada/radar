@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/issues"
+	"github.com/maomada/radar/internal/issues"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )

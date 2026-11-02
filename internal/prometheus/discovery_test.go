@@ -17,8 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/portforward"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/portforward"
+	"github.com/maomada/radar/pkg/prom"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/skyhook-io/radar/internal/podlogs"
+	"github.com/maomada/radar/internal/podlogs"
 	"net/http/httptest"
 	"reflect"
 	"strconv"
@@ -28,9 +28,9 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func TestSortRunsPrefersActiveThenNewest(t *testing.T) {

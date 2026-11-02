@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
-import type { CNPGDimension } from '@skyhook-io/k8s-ui'
+import type { CNPGDimension } from '@maomada/k8s-ui'
 import { CNPGBackupsTab, CNPGStorageTab } from './CNPGClusterTabs'
 const state = vi.hoisted(() => ({
   coverage: 'full',

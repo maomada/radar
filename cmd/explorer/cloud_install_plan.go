@@ -8,7 +8,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/cloudinstall"
 )
 
 type cloudInstallPlanMode = cloudinstall.InstallPlanMode
@@ -41,7 +41,7 @@ func inspectCloudInstallPlan(
 
 func renderMultipleTargetsHint(err *cloudinstall.MultipleTargetsError) error {
 	return fmt.Errorf(
-		"found multiple Radar installations; choose one explicitly with --namespace and --release:\n%s",
+		"found multiple KubeAtlas installations; choose one explicitly with --namespace and --release:\n%s",
 		cloudinstall.FormatTargets(err.Targets),
 	)
 }
@@ -50,7 +50,7 @@ func confirmDiscoveryUncertainty(in io.Reader, out io.Writer, scanErr error, int
 	if scanErr == nil {
 		return true
 	}
-	fmt.Fprintf(out, "Radar could not inspect all visible namespaces for an existing installation: %v\n", scanErr)
+	fmt.Fprintf(out, "KubeAtlas could not inspect all visible namespaces for an existing installation: %v\n", scanErr)
 	fmt.Fprintf(out, "Selected target: namespace %q, Helm release %q. Another installation outside this target could not be ruled out.\n", namespace, release)
 	if !interactive {
 		fmt.Fprintln(out, "Pass --namespace and --release to make the intended target explicit; -y does not bypass this safety check.")
@@ -64,13 +64,13 @@ func confirmExistingInstall(in io.Reader, out io.Writer, plan cloudInstallPlan, 
 		return true
 	}
 	if !interactive {
-		fmt.Fprintln(out, "An existing Radar installation was detected. Pass --adopt-existing to approve this action in a non-interactive run; -y only confirms the kube context.")
+		fmt.Fprintln(out, "An existing KubeAtlas installation was detected. Pass --adopt-existing to approve this action in a non-interactive run; -y only confirms the kube context.")
 		return false
 	}
 	if plan.Mode == cloudInstallGitOps {
-		return confirmPrompt(in, out, "Connect this existing GitOps-managed Radar and generate source-of-truth guidance? [y/N] ")
+		return confirmPrompt(in, out, "Connect this existing GitOps-managed KubeAtlas and generate source-of-truth guidance? [y/N] ")
 	}
-	return confirmPrompt(in, out, "Upgrade and connect this existing Helm-managed Radar installation? [y/N] ")
+	return confirmPrompt(in, out, "Upgrade and connect this existing Helm-managed KubeAtlas installation? [y/N] ")
 }
 
 func confirmPrompt(in io.Reader, out io.Writer, prompt string) bool {

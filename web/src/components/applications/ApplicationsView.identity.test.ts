@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AppWorkload, Issue } from '@skyhook-io/k8s-ui'
+import type { AppWorkload, Issue } from '@maomada/k8s-ui'
 import { appIssuesForWorkloads } from './ApplicationsView'
 
 function workload(group: string): AppWorkload {

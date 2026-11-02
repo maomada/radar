@@ -1,4 +1,4 @@
-import { TopologyPreview } from '@skyhook-io/k8s-ui'
+import { TopologyPreview } from '@maomada/k8s-ui'
 
 const frame = { width: 360, display: 'flex', flexDirection: 'column' } as const
 const noop = () => {}

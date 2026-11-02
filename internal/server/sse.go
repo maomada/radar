@@ -13,9 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/perfstats"
-	topology "github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/perfstats"
+	topology "github.com/maomada/radar/pkg/topology"
 )
 
 // MaxSSEClients limits the number of concurrent SSE connections to prevent resource exhaustion

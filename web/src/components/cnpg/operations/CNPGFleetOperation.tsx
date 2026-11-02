@@ -1,4 +1,4 @@
-import { StatusDot, Tooltip, formatAge } from '@skyhook-io/k8s-ui'
+import { StatusDot, Tooltip, formatAge } from '@maomada/k8s-ui'
 import { CNPG_OP_STATE_TEXT, CNPG_OP_STATE_TONE } from './presentation'
 import type { CNPGTrackedOperation } from './model'
 

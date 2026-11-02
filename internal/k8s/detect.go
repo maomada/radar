@@ -22,10 +22,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 const probeFailureWindow = 10 * time.Minute

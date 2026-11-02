@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Grant } from '@skyhook-io/k8s-ui'
+import type { Grant } from '@maomada/k8s-ui'
 import { apiFetch, ApiError, fetchJSON, useRadarFeature } from './client'
 import { actionErrorCode, type ActionCapability } from './actions'
 import { useReviewedActionMutation } from './reviewedActionMutation'

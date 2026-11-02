@@ -5,7 +5,7 @@ import type { HelmOperation, HelmRevision } from '../../types'
 import { getStatusColor, formatDate } from './helm-utils'
 import { SEVERITY_BADGE } from '../../utils/badge-colors'
 import { Tooltip } from '../ui/Tooltip'
-import { formatRelativeAgeTime } from '@skyhook-io/k8s-ui/utils/format'
+import { formatRelativeAgeTime } from '@maomada/k8s-ui/utils/format'
 
 interface RevisionHistoryProps {
   history: HelmRevision[]

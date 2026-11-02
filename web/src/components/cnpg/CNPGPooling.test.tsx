@@ -3,7 +3,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it, vi } from 'vitest'
-import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse, type CNPGPoolerPressureLive } from '@skyhook-io/k8s-ui'
+import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse, type CNPGPoolerPressureLive } from '@maomada/k8s-ui'
 import { CNPGPooling } from './CNPGPooling'
 
 const live = vi.hoisted(() => ({ pods: [] as CNPGPoolerPressureLive['pods'], failed: false }))
@@ -42,8 +42,8 @@ it('labels retained pressure and readiness after their refreshes fail', () => {
   expect(html).toContain('0/2 ready')
   expect(html).toContain('Last refresh failed: Readiness timeout')
   expect(html).toContain('Last refresh failed: Pressure timeout')
-  expect(html).toContain('3m ago')
-  expect(html).toContain('2m ago')
+  expect(html).toContain('3分钟前')
+  expect(html).toContain('2分钟前')
   live.failed = false
 })
 

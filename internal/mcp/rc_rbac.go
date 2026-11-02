@@ -3,8 +3,8 @@ package mcp
 import (
 	"context"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // requestScopedChecker adapts the MCP-side RBAC helpers

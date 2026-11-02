@@ -12,7 +12,7 @@ import {
   useId,
 } from "react";
 import { clsx } from "clsx";
-import { Collapse, CollapseChevron } from "@skyhook-io/k8s-ui";
+import { Collapse, CollapseChevron } from "@maomada/k8s-ui";
 import { parseLogLine } from "../../utils/log-format";
 import { evidenceDisplaySnapshot } from "./investigationEvidencePresentation";
 import {
@@ -316,10 +316,10 @@ export function EvidenceCard({
         "rounded-lg border",
         // The card the agent calls the cause sorts first and is often the
         // calmest thing on screen: a cause is frequently a Secret or a
-        // ConfigMap that Radar has no reason to colour, while every card
+        // ConfigMap that KubeAtlas has no reason to colour, while every card
         // echoing the failure below it carries red. Lifting the surface marks
         // it without borrowing a severity hue, and without touching the left
-        // rule (Radar's severity) or the ring (the source you are viewing).
+        // rule (KubeAtlas's severity) or the ring (the source you are viewing).
         agentCause ? "bg-theme-elevated shadow-theme-sm" : "bg-theme-surface",
         toneBorder(observation.tone, observation.tier, prominence),
         wide && "@min-[760px]/evidence:col-span-2",

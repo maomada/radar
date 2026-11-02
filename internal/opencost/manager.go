@@ -12,14 +12,14 @@ import (
 	"sync"
 	"time"
 
-	localconfig "github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/portforward"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
-	"github.com/skyhook-io/radar/pkg/prom"
+	localconfig "github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/portforward"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/k8score"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
+	"github.com/maomada/radar/pkg/prom"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -203,10 +203,10 @@ func (m *Manager) configure(config ManagerConfig, envManaged bool, envError stri
 
 func resolveEnvironmentConfig(base ManagerConfig, getenv func(string) string) (ManagerConfig, bool, error) {
 	const (
-		envSource    = "RADAR_COST_SOURCE"
-		envURL       = "RADAR_KUBECOST_URL"
-		envAPIKey    = "RADAR_KUBECOST_API_KEY"
-		envClusterID = "RADAR_KUBECOST_CLUSTER_ID"
+		envSource    = "KUBEATLAS_COST_SOURCE"
+		envURL       = "KUBEATLAS_KUBECOST_URL"
+		envAPIKey    = "KUBEATLAS_KUBECOST_API_KEY"
+		envClusterID = "KUBEATLAS_KUBECOST_CLUSTER_ID"
 	)
 	values := map[string]string{
 		envSource:    strings.TrimSpace(getenv(envSource)),

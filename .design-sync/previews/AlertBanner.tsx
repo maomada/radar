@@ -1,4 +1,4 @@
-import { AlertBanner } from '@skyhook-io/k8s-ui'
+import { AlertBanner } from '@maomada/k8s-ui'
 import { ShieldAlert } from 'lucide-react'
 
 const wrap = { width: 480 }

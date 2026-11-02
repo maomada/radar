@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/rest"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // printerColumn is one vendor-declared column from a CRD's

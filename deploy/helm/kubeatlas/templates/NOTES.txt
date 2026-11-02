@@ -1,0 +1,79 @@
+{{- /* Every sentence here is taken from the KubeAtlas docs (docs/*.md)
+       and the ingress/HTTPRoute commands from Helm's `helm create` NOTES.txt
+       scaffold. Keep it that way: don't add claims the docs don't make.
+       Never print a value that can hold a credential. cloud.url is named, not
+       printed, because a URL can carry userinfo or a token in its query. */ -}}
+{{- $fullName := include "radar.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+{{- $port := .Values.service.port -}}
+{{- $basePath := include "radar.basePath" . -}}
+{{- $authDocs := "https://github.com/maomada/radar/blob/main/docs/authentication.md" -}}
+{{- $mode := .Values.auth.mode -}}
+{{- $routed := or .Values.ingress.enabled .Values.httpRoute.enabled -}}
+{{- $proxyAuth := printf "Authentication: proxy (auth.mode=proxy). Users authenticate through the proxy,\nwhich forwards their identity to KubeAtlas via HTTP headers. The auth proxy should\nbe the only path to KubeAtlas.\nSetup: %s" $authDocs -}}
+{{- if include "radar.cloudEnrollmentMode" . | eq "true" }}
+Cloud enrollment is unavailable in KubeAtlas. Use the independent Portal registration feature.
+{{- else if .Values.cloud.enabled }}
+Cloud connectivity is unavailable in KubeAtlas. Use the independent Portal registration feature.
+{{- else if and (eq $mode "proxy") (not $routed) }}
+{{- /* No Service address or port-forward: the docs say the auth proxy should
+       be the only path to KubeAtlas. */}}
+{{ $proxyAuth }}
+{{- else }}
+{{- if .Values.ingress.enabled }}
+{{- $urls := list }}
+{{- range $h := .Values.ingress.hosts }}
+{{- range $h.paths }}
+{{- $path := ternary (printf "%s/" $basePath) .path (ne $basePath "") }}
+{{- $urls = append $urls (printf "http%s://%s%s" (ternary "s" "" (not (empty $.Values.ingress.tls))) ($h.host | default "") $path) }}
+{{- end }}
+{{- end }}
+Open KubeAtlas at:
+{{- range uniq $urls }}
+  {{ . }}
+{{- end }}
+{{- else if .Values.httpRoute.enabled }}
+{{- $gw := first .Values.httpRoute.parentRefs }}
+{{- $gwNs := $gw.namespace | default $ns }}
+{{- if .Values.httpRoute.hostnames }}
+KubeAtlas HTTPRoute hostnames:
+{{- range .Values.httpRoute.hostnames }}
+  {{ . }}{{ $basePath }}/
+{{- end }}
+{{- else }}
+Get the Gateway listener hostname:
+
+  export APP_HOSTNAME=$(kubectl get --namespace {{ $gwNs }} gateway/{{ $gw.name }} -o jsonpath="{.spec.listeners[0].hostname}")
+{{- end }}
+
+Your HTTPRoute depends on the listener configuration of your gateway.
+You can check the gateway configuration with:
+
+  kubectl get --namespace {{ $gwNs }} gateway/{{ $gw.name }} -o yaml
+{{- else }}
+Access via port-forward:
+
+  kubectl port-forward svc/{{ $fullName }} 9280:{{ $port }} -n {{ $ns }}
+  open http://localhost:9280{{ $basePath }}{{ if $basePath }}/{{ end }}
+{{- end }}
+{{- if eq $mode "oidc" }}
+
+Authentication: OIDC (auth.mode=oidc). KubeAtlas redirects to your identity
+provider, validates the token, and creates a session cookie.
+Setup: {{ $authDocs }}
+{{- else if eq $mode "proxy" }}
+
+{{ $proxyAuth }}
+{{- else if or $routed (ne .Values.service.type "ClusterIP") }}
+
+Warning: no auth (auth.mode=none). Only use this behind a trusted private
+network boundary. Anyone who can reach KubeAtlas can use the permissions granted to
+its ServiceAccount. For shared or externally reachable installations, configure
+authentication: {{ $authDocs }}
+
+Without authentication KubeAtlas answers only localhost, IP addresses, Kubernetes
+Service names and the ingress and HTTPRoute hostnames set in this chart. Add any
+other hostname users open KubeAtlas at, such as a Gateway listener or load balancer
+hostname, to allowedHosts.
+{{- end }}
+{{- end }}

@@ -37,7 +37,7 @@ import type { InvestigationEvidenceKind } from "./investigationEvidence";
  */
 export interface InvestigationEvidenceKindTraits {
   /**
-   * A card of this kind can contradict an all-clear. Radar captured a fact
+   * A card of this kind can contradict an all-clear. KubeAtlas captured a fact
    * about the investigated resource that says something is wrong right now,
    * so a model concluding otherwise has to be qualified rather than trusted.
    * False for kinds that describe context, configuration or a shape of the
@@ -64,7 +64,7 @@ export interface InvestigationEvidenceKindTraits {
 export const EVIDENCE_KIND_TRAITS: Readonly<
   Record<InvestigationEvidenceKind, InvestigationEvidenceKindTraits>
 > = {
-  // Radar classified a live problem on the resource.
+  // KubeAtlas classified a live problem on the resource.
   issue: {
     adverse: true,
     focused: false,
@@ -139,7 +139,7 @@ export const EVIDENCE_KIND_TRAITS: Readonly<
     fullRow: false,
     icon: Network,
     caveat:
-      "This shows direct relationships Radar found, not an inferred blast radius.",
+      "This shows direct relationships KubeAtlas found, not an inferred blast radius.",
   },
   topology: {
     adverse: false,
@@ -147,7 +147,7 @@ export const EVIDENCE_KIND_TRAITS: Readonly<
     fullRow: false,
     icon: Network,
     caveat:
-      "This shows direct relationships Radar found, not an inferred blast radius.",
+      "This shows direct relationships KubeAtlas found, not an inferred blast radius.",
   },
   inventory: {
     adverse: false,
@@ -184,7 +184,7 @@ export const EVIDENCE_KIND_TRAITS: Readonly<
     icon: CheckCircle2,
     caveat: undefined,
   },
-  // A rule firing about this workload is the most literal statement Radar
+  // A rule firing about this workload is the most literal statement KubeAtlas
   // holds that something is wrong with it.
   alerts: {
     adverse: true,

@@ -9,19 +9,19 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/version"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/version"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
-// newServer builds a Radar MCP server. instructions is the server-instructions
+// newServer builds a KubeAtlas MCP server. instructions is the server-instructions
 // text sent in the initialize result and, on protocol 2026-07-28, the
 // server/discover result; empty sends none.
 func newServer(includeWrites, includeExec bool, instructions string) *mcpsdk.Server {
 	paramRegistry := newToolParamRegistry()
 	server := mcpsdk.NewServer(
 		&mcpsdk.Implementation{
-			Name:    "radar",
+			Name:    "kubeatlas",
 			Version: version.Current,
 		},
 		&mcpsdk.ServerOptions{
@@ -193,7 +193,7 @@ func handlerForServer(server *mcpsdk.Server) http.Handler {
 	// opt-out via env for bench setups. Radar's own Host check still applies
 	// in front of /mcp: such callers also need --listen-address=0.0.0.0 and
 	// --allowed-hosts=host.docker.internal.
-	if os.Getenv("RADAR_MCP_DISABLE_LOCALHOST_PROTECTION") == "1" {
+	if os.Getenv("KUBEATLAS_MCP_DISABLE_LOCALHOST_PROTECTION") == "1" {
 		streamOpts.DisableLocalhostProtection = true
 		log.Printf("[mcp] WARNING: DNS-rebinding Host check DISABLED via env (bench mode)")
 	}
@@ -206,11 +206,11 @@ func handlerForServer(server *mcpsdk.Server) http.Handler {
 	// go-sdk v1.6 removed the implicit cross-origin protection default;
 	// wrap the handler so a malicious page can't drive the local MCP server.
 	//
-	// RADAR_MCP_DISABLE_ORIGIN_PROTECTION=1 fully bypasses the wrapper. Use
+	// KUBEATLAS_MCP_DISABLE_ORIGIN_PROTECTION=1 fully bypasses the wrapper. Use
 	// ONLY in trusted environments where radar is reached from a known
 	// non-localhost address (e.g. Docker-isolated bench agents calling via
 	// host.docker.internal). Never set in user-facing installs.
-	if os.Getenv("RADAR_MCP_DISABLE_ORIGIN_PROTECTION") == "1" {
+	if os.Getenv("KUBEATLAS_MCP_DISABLE_ORIGIN_PROTECTION") == "1" {
 		log.Printf("[mcp] WARNING: cross-origin protection DISABLED via env (bench mode)")
 		return handler
 	}
@@ -219,9 +219,9 @@ func handlerForServer(server *mcpsdk.Server) http.Handler {
 
 	// Allow additional origins for browser-style callers. Does NOT affect
 	// Host header validation, which is --allowed-hosts plus the SDK check
-	// above. RADAR_MCP_TRUSTED_ORIGINS is a comma-separated list of
+	// above. KUBEATLAS_MCP_TRUSTED_ORIGINS is a comma-separated list of
 	// scheme://host[:port] entries.
-	if env := strings.TrimSpace(os.Getenv("RADAR_MCP_TRUSTED_ORIGINS")); env != "" {
+	if env := strings.TrimSpace(os.Getenv("KUBEATLAS_MCP_TRUSTED_ORIGINS")); env != "" {
 		for _, origin := range strings.Split(env, ",") {
 			origin = strings.TrimSpace(origin)
 			if origin == "" {

@@ -5,19 +5,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestMaxResponseBytes(t *testing.T) {
-	t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "")
+	t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "")
 	if got := MaxResponseBytes(); got != DefaultMaxResponseBytes {
 		t.Fatalf("MaxResponseBytes() = %d, want default %d", got, DefaultMaxResponseBytes)
 	}
-	t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "50")
+	t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "50")
 	if got := MaxResponseBytes(); got != 50 {
 		t.Fatalf("MaxResponseBytes() = %d, want env override 50", got)
 	}
-	t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "-1")
+	t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "-1")
 	if got := MaxResponseBytes(); got != DefaultMaxResponseBytes {
 		t.Fatalf("MaxResponseBytes() = %d, want default for a non-positive override", got)
 	}

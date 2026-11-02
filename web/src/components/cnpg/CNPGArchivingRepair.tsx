@@ -1,4 +1,4 @@
-import { cnpgClusterPlugins, cnpgPluginPhase, formatAge, getCNPGClusterBarmanPlugin, StatusDot, toneTextClass, type CNPGFleetRow } from '@skyhook-io/k8s-ui'
+import { cnpgClusterPlugins, cnpgPluginPhase, formatAge, getCNPGClusterBarmanPlugin, StatusDot, toneTextClass, type CNPGFleetRow } from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import type { CNPGRuntimeInstance } from '../../api/cnpg'
 import { backupMethod, cnpgArchiveDestination, cnpgRecoveryBase, resumeBoundary, type CNPGRecoveryBase } from './archivingRepair'
@@ -124,7 +124,7 @@ export function CNPGArchivingRepair({
                         {s.key ? <span className="font-mono">/{s.key}</span> : null}
                       </span>
                     ))}
-              . Radar names them and does not read them.
+              . KubeAtlas names them and does not read them.
             </div>
           </div>
         )}
@@ -176,7 +176,7 @@ function recoveryBaseText(base: CNPGRecoveryBase): string {
   const label = (b: any) => `Backup ${b?.metadata?.name} (${backupMethod(b)})`
   switch (base.state) {
     case 'unread':
-      return 'Radar cannot read this namespace’s Backups, so it cannot tell.'
+      return 'KubeAtlas cannot read this namespace’s Backups, so it cannot tell.'
     case 'none':
       return 'No completed Backup of this cluster has started since archiving resumed.'
     case 'verified':
@@ -185,7 +185,7 @@ function recoveryBaseText(base: CNPGRecoveryBase): string {
       return `${label(base.backup)} started after archiving resumed but begins at WAL ${base.backup?.status?.beginWal ?? '(not reported)'}, not after ${base.failedWal} — likely from a standby that had not replayed past it. Take another.`
     case 'unverifiable':
       return base.missing === 'beginWal'
-        ? `${label(base.backup)} started after archiving resumed and completed, but its status does not say which WAL it begins at, so Radar cannot compare it with the last failed one.`
-        : `${label(base.backup)} started after archiving resumed and completed; Radar cannot compare where it begins with the last failed WAL, which only the primary’s instance manager reports and is not reporting now.`
+        ? `${label(base.backup)} started after archiving resumed and completed, but its status does not say which WAL it begins at, so KubeAtlas cannot compare it with the last failed one.`
+        : `${label(base.backup)} started after archiving resumed and completed; KubeAtlas cannot compare where it begins with the last failed WAL, which only the primary’s instance manager reports and is not reporting now.`
   }
 }

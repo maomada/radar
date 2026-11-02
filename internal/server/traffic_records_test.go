@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/traffic"
+	"github.com/maomada/radar/internal/traffic"
 )
 
 func TestTrafficFlowOptions(t *testing.T) {

@@ -29,9 +29,9 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	k8sexec "k8s.io/client-go/util/exec"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/images"
-	rcpkg "github.com/skyhook-io/radar/pkg/remotecommand"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/images"
+	rcpkg "github.com/maomada/radar/pkg/remotecommand"
 )
 
 // PodFilesystem represents the file listing response for a pod container

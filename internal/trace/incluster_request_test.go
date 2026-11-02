@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 func TestGuessConcretePath(t *testing.T) {

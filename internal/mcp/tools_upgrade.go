@@ -11,10 +11,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/upgrade"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/upgradereadiness"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/upgrade"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/upgradereadiness"
 )
 
 // upgradeFindingsPageSize caps tier-2 findings per call; offset + scanId page

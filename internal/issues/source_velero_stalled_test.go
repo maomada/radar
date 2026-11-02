@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // A phase means "in flight" only while something is advancing it. Velero moves

@@ -1,4 +1,4 @@
-import { CheckSeverityBar } from '@skyhook-io/k8s-ui'
+import { CheckSeverityBar } from '@maomada/k8s-ui'
 
 const box = { width: 340, padding: '16px 10px' }
 

@@ -12,21 +12,21 @@ export function MetricsUnavailableNotice({ rawError, diagnosis, noUsageYet }: Me
     <div className="card-inner-lg text-xs text-theme-text-tertiary">
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 leading-5">
-          {noUsageYet ? 'No usage yet: this Pod is not running' : 'Metrics unavailable. Radar cannot read metrics.k8s.io.'}
+          {noUsageYet ? '暂无用量：此 Pod 尚未运行' : '指标不可用。Radar 无法读取 metrics.k8s.io。'}
         </span>
         {rawError && (
           <Tooltip
             content={(
               <span className="space-y-1">
                 <span className="block">
-                  This panel uses Kubernetes metrics.k8s.io for live CPU and memory; Prometheus data does not fill it.
+                  此面板使用 Kubernetes metrics.k8s.io 获取实时 CPU 和内存；Prometheus 数据不会填充此处。
                 </span>
                 <span className="block">
                   {diagnosis ||
-                    "Check that metrics-server is installed and healthy, and that its metrics.k8s.io APIService is Available."}
+                    "请检查 metrics-server 是否已安装且运行正常，并确认其 metrics.k8s.io APIService 可用。"}
                 </span>
                 <span className="block">
-                  Raw error: <span className="font-mono break-words">{rawError}</span>
+                  原始错误：<span className="font-mono break-words">{rawError}</span>
                 </span>
               </span>
             )}
@@ -36,10 +36,10 @@ export function MetricsUnavailableNotice({ rawError, diagnosis, noUsageYet }: Me
             <button
               type="button"
               className="inline-flex shrink-0 cursor-help items-center gap-1 text-xs font-medium leading-5 text-theme-text-tertiary hover:text-theme-text-secondary"
-              aria-label="Metrics error details"
+              aria-label="指标错误详情"
             >
               <Info className="h-3.5 w-3.5" />
-              <span>Details</span>
+              <span>详情</span>
             </button>
           </Tooltip>
         )}

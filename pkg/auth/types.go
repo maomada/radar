@@ -93,10 +93,10 @@ func (c *Config) Defaults() {
 	}
 	// Fall back to env vars for secrets (used by Helm chart)
 	if c.Secret == "" {
-		c.Secret = os.Getenv("RADAR_AUTH_SECRET")
+		c.Secret = os.Getenv("KUBEATLAS_AUTH_SECRET")
 	}
 	if c.OIDCClientSecret == "" {
-		c.OIDCClientSecret = os.Getenv("RADAR_OIDC_CLIENT_SECRET")
+		c.OIDCClientSecret = os.Getenv("KUBEATLAS_OIDC_CLIENT_SECRET")
 	}
 	// Auto-generate secret if still empty and auth is enabled
 	if c.Secret == "" && c.Enabled() {

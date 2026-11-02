@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 //
 // `suffix` is the full trailing string after the label, so a host can rebrand
 // (' — My Cloud') or drop it entirely ('').
-const DEFAULT_SUFFIX = ' · Radar';
+const DEFAULT_SUFFIX = ' · KubeAtlas';
 
 export function useDocumentTitle(
   label: string | null | undefined,

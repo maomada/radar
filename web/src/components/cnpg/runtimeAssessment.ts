@@ -13,7 +13,7 @@ import {
   type CNPGReplicationLive,
   type CNPGSlotRetention,
   type CNPGStandbyGap,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { CNPGRuntimeResponse } from '../../api/cnpg'
 
 /** The instance-manager facts the HA section shows, from a runtime read. */

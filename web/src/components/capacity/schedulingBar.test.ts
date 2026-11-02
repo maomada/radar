@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CapacityQuantityObservation } from "@skyhook-io/k8s-ui";
+import type { CapacityQuantityObservation } from "@maomada/k8s-ui";
 import {
   deriveSchedulingRows,
   quantityToNumber,

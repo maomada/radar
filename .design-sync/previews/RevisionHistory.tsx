@@ -1,4 +1,4 @@
-import { RevisionHistory } from '@skyhook-io/k8s-ui'
+import { RevisionHistory } from '@maomada/k8s-ui'
 
 const frame = { width: 640 } as const
 const noop = () => {}

@@ -27,7 +27,7 @@ func desktopPortPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".radar", desktopPortFile)
+	return filepath.Join(home, ".kubeatlas", desktopPortFile)
 }
 
 func lastDesktopPort(path string) int {
@@ -47,9 +47,9 @@ func lastDesktopPort(path string) int {
 
 // rememberDesktopPort runs once the window is up, so a launch that fails
 // before then records nothing. A launch that fell back keeps the remembered
-// port unless it's clearly lost: something other than Radar answers there, or
+// port unless it's clearly lost: something other than KubeAtlas answers there, or
 // nothing answers and it still can't be bound — as when Windows reserves the
-// range for Hyper-V/WSL, which a reboot can move. Another Radar (a second
+// range for Hyper-V/WSL, which a reboot can move. Another KubeAtlas (a second
 // Desktop window), a timeout, or a port that frees up again all keep it; the
 // next launch gets it back.
 func rememberDesktopPort(path string, remembered, actual int, owner func(port int) portOwnerKind, canBind func(port int) bool) {
@@ -69,14 +69,14 @@ func rememberDesktopPort(path string, remembered, actual int, owner func(port in
 type portOwnerKind int
 
 const (
-	ownerUnknown portOwnerKind = iota // no answer in time: maybe a busy Radar
+	ownerUnknown portOwnerKind = iota // no answer in time: maybe a busy KubeAtlas
 	ownerSilent                       // nothing accepted the connection
 	ownerRadar
 	ownerOther
 )
 
 // portOwner asks who holds a loopback port. /api/connection answers from
-// memory, so a busy Radar still replies quickly, and ?contexts=0 keeps the
+// memory, so a busy KubeAtlas still replies quickly, and ?contexts=0 keeps the
 // reply small however many kubeconfig contexts there are. Dial errors are
 // told apart only by timeout: refusal error codes differ between Windows and
 // Unix, and any non-timeout failure means nothing is serving there.

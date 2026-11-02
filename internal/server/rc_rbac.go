@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // requestScopedChecker adapts Server.canRead into resourcecontext.RefAccessChecker

@@ -14,7 +14,7 @@ const state = vi.hoisted(() => ({ context: 'A', status: 'connected', mountTabs: 
 vi.mock('../../context/ConnectionContext', () => ({
   useConnection: () => ({ connection: { context: state.context, state: state.status } }),
 }))
-vi.mock('@skyhook-io/k8s-ui', async () => ({
+vi.mock('@maomada/k8s-ui', async () => ({
   ...await import('../../../../packages/k8s-ui/src/components/dock/DockContext'),
   ...await import('../../../../packages/k8s-ui/src/components/dock/LocalTerminalTab'),
   ...await import('../../../../packages/k8s-ui/src/components/ui/ClusterName'),

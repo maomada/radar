@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/app"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/desktopenv"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/updater"
-	versionpkg "github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/app"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/desktopenv"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/updater"
+	versionpkg "github.com/maomada/radar/internal/version"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -50,7 +50,7 @@ func gpuPolicyName(p linux.WebviewGpuPolicy) string {
 }
 
 func main() {
-	// Load persistent config (~/.radar/config.json) for flag defaults.
+	// Load persistent config (~/.kubeatlas/config.json) for flag defaults.
 	fileCfg, err := config.LoadForStartup()
 	if err != nil {
 		log.Fatal(err)
@@ -69,13 +69,13 @@ func main() {
 	disableExec := flag.Bool("disable-exec", false, "Disable pod exec: terminal, debug shells and pod file browsing")
 	podShellDefault := flag.String("pod-shell-default", "", "Override the default pod exec shell command (runs as 'sh -c <value>'; empty = built-in bash -il → ash → sh cascade)")
 	timelineStorage := flag.String("timeline-storage", fileCfg.TimelineStorageOr("memory"), "Timeline storage backend: memory, sqlite, or postgres")
-	timelineDBPath := flag.String("timeline-db", fileCfg.TimelineDBPath, "Path to timeline database file (default: ~/.radar/timeline.db)")
+	timelineDBPath := flag.String("timeline-db", fileCfg.TimelineDBPath, "Path to timeline database file (default: ~/.kubeatlas/timeline.db)")
 	timelineRetention := flag.Duration("timeline-retention", fileCfg.TimelineRetentionOr(7*24*time.Hour), "How long to retain timeline events when --timeline-storage=sqlite or postgres (e.g. 168h, 720h). 0 disables age-based cleanup.")
 	timelineMaxSize := flag.String("timeline-max-size", fileCfg.TimelineMaxSizeOr("1Gi"), "Maximum SQLite timeline storage size before pruning oldest events (e.g. 800Mi, 8Gi). 0 disables size-based pruning.")
 	prometheusURL := flag.String("prometheus-url", fileCfg.PrometheusURL, "Manual Prometheus/VictoriaMetrics URL (skips auto-discovery)")
 	openCostCurrency := flag.String("opencost-currency", fileCfg.OpenCostCurrency, "Override the ISO 4217 currency label for OpenCost values (empty: auto-detect, then USD)")
 	mcpFlags := config.RegisterMCPFlags(flag.CommandLine, fileCfg)
-	noVersionCheck := flag.Bool("no-version-check", fileCfg.NoVersionCheck, "Disable automatic checks for newer Radar versions and releases; manual Desktop checks remain available (also enabled via RADAR_DISABLE_VERSION_CHECK=1)")
+	noVersionCheck := flag.Bool("no-version-check", fileCfg.NoVersionCheck, "Disable automatic checks for newer KubeAtlas versions and releases; manual Desktop checks remain available (also enabled via KUBEATLAS_DISABLE_VERSION_CHECK=1)")
 	flag.Parse()
 
 	if *noVersionCheck {
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	if *showVersion {
-		fmt.Printf("radar-desktop %s\n", version)
+		fmt.Printf("kubeatlas-desktop %s\n", version)
 		os.Exit(0)
 	}
 
@@ -99,7 +99,7 @@ func main() {
 	_ = flag.Set("alsologtostderr", "false")
 	klog.SetOutput(os.Stderr)
 
-	log.Printf("Radar Desktop %s starting...", version)
+	log.Printf("KubeAtlas Desktop %s starting...", version)
 
 	// Log Linux desktop environment (session type, render overrides) so bug
 	// reports for startup failures include the diagnostic context by default.
@@ -205,7 +205,7 @@ func main() {
 		PodShellDefault:           *podShellDefault,
 		TimelineStorage:           *timelineStorage,
 		TimelineDBPath:            *timelineDBPath,
-		TimelinePostgresDSN:       os.Getenv("RADAR_TIMELINE_POSTGRES_DSN"),
+		TimelinePostgresDSN:       os.Getenv("KUBEATLAS_TIMELINE_POSTGRES_DSN"),
 		TimelineRetention:         *timelineRetention,
 		TimelineMaxSizeBytes:      timelineMaxSizeBytes,
 		PrometheusURL:             *prometheusURL,
@@ -343,13 +343,13 @@ func main() {
 		Mac: &mac.Options{
 			TitleBar: mac.TitleBarDefault(),
 			About: &mac.AboutInfo{
-				Title:   "Radar",
-				Message: "Kubernetes Visibility Tool\nBuilt by Skyhook\n\nVersion: " + version + "\n\nhttps://github.com/skyhook-io/radar",
+				Title:   "KubeAtlas",
+				Message: "KubeAtlas — Kubernetes Visibility Tool\nIndependently maintained by maomada\nDerived from Radar; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
 			},
 		},
 
 		Linux: &linux.Options{
-			ProgramName:      "radar",
+			ProgramName:      "kubeatlas",
 			WebviewGpuPolicy: linuxGPUPolicy,
 		},
 	})

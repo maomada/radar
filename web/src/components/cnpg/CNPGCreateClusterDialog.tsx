@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import yaml from 'yaml'
-import { ActionConfirmDialog, ConfirmDialog, isApiGroup } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, ConfirmDialog, isApiGroup } from '@maomada/k8s-ui'
 import { useNamespaces, useResources } from '../../api/client'
 import { useConnection } from '../../context/ConnectionContext'
 import type { SelectedResource } from '../../types'

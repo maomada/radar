@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // RangeQuerier is the range-query surface QueryWithContainerFilterFallback

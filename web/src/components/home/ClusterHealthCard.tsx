@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 import { formatCPUMillicores, formatMemoryMiB } from '../../utils/format'
 import { useCapabilitiesContext } from '../../contexts/CapabilitiesContext'
 import { MCPSetupDialog } from './MCPSetupDialog'
-import { assetUrl, pluralize, parseContextName } from '@skyhook-io/k8s-ui'
+import { assetUrl, pluralize, parseContextName } from '@maomada/k8s-ui'
 import { Tooltip } from '../ui/Tooltip'
 import { mcpEndpointUrl } from '../../api/config'
 import { parseMajorMinor } from '../../utils/version'
@@ -54,7 +54,7 @@ function getMetricsInstallHint(platform: string): string {
 
 function MetricsUnavailableHint({ platform, metricsServerAvailable }: { platform: string; metricsServerAvailable: boolean }) {
   if (metricsServerAvailable) {
-    return <span className="text-xs text-theme-text-tertiary">Waiting for metrics data...</span>
+    return <span className="text-xs text-theme-text-tertiary">等待指标数据…</span>
   }
 
   const hint = getMetricsInstallHint(platform)
@@ -64,8 +64,8 @@ function MetricsUnavailableHint({ platform, metricsServerAvailable }: { platform
     <Tooltip
       content={
         <div className="space-y-1">
-          <div className="font-medium">How to fix</div>
-          <div>{isPreInstalled ? hint : <>Install by running:<br /><code className="inline-code text-[10px] opacity-80">{hint}</code></>}</div>
+          <div className="font-medium">修复方法</div>
+          <div>{isPreInstalled ? hint : <>运行以下命令安装：<br /><code className="inline-code text-[10px] opacity-80">{hint}</code></>}</div>
         </div>
       }
       position="bottom"
@@ -73,7 +73,7 @@ function MetricsUnavailableHint({ platform, metricsServerAvailable }: { platform
     >
       <span className="flex items-center gap-1.5 text-xs text-theme-text-tertiary">
         <Info className="w-3 h-3 shrink-0" />
-        <span>Requires <span className="text-theme-text-secondary">metrics-server</span> to display CPU & memory usage</span>
+        <span>需要 <span className="text-theme-text-secondary">metrics-server</span> 才能显示 CPU 和内存使用情况</span>
       </span>
     </Tooltip>
   )
@@ -151,7 +151,7 @@ export function ClusterHealthCard({
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
   const caps = useCapabilitiesContext()
   // Default to local mode when the backend doesn't ship a `deployment`
-  // field (older Radar binaries pre-0.2.2). Local rendering is the safe
+  // field (older KubeAtlas binaries pre-0.2.2). Local rendering is the safe
   // OSS-shape default — wrong-direction defaults would briefly suppress
   // chrome OSS users expect to see.
   const deployment = caps.deployment ?? { mode: 'local' as const }
@@ -159,7 +159,8 @@ export function ClusterHealthCard({
   const isCloud = deployment.mode === 'cloud'
   const isInCluster = deployment.mode === 'in-cluster' || deployment.mode === 'cloud'
   const mcpUrl = mcpEndpointUrl(caps.mcpReadOnly)
-  // In Cloud, MCP is org-wide and PAT-authed (api.radarhq.io/mcp). The OSS
+  // Legacy Cloud clients used an org-wide, PAT-authenticated MCP endpoint.
+  // KubeAtlas does not connect to that service.
   // "this binary is your local MCP server" framing is wrong there — Cloud
   // surfaces MCP from the hub Home dashboard instead.
   const showLocalMcpCard = mcpEnabled && !isCloud
@@ -200,14 +201,14 @@ export function ClusterHealthCard({
 
   type SecondaryResource = { kind: string; group?: string; label: string; icon: typeof Globe; total: number; subtitle?: string; hasIssues?: boolean }
   const secondaryResources: SecondaryResource[] = [
-    { kind: 'statefulsets', label: 'StatefulSets', icon: Database, total: counts.statefulSets.total, subtitle: `${counts.statefulSets.ready} ready`, hasIssues: counts.statefulSets.unready > 0 },
-    { kind: 'daemonsets', label: 'DaemonSets', icon: Container, total: counts.daemonSets.total, subtitle: `${counts.daemonSets.ready} ready`, hasIssues: counts.daemonSets.unready > 0 },
+    { kind: 'statefulsets', label: 'StatefulSets', icon: Database, total: counts.statefulSets.total, subtitle: `${counts.statefulSets.ready} 就绪`, hasIssues: counts.statefulSets.unready > 0 },
+    { kind: 'daemonsets', label: 'DaemonSets', icon: Container, total: counts.daemonSets.total, subtitle: `${counts.daemonSets.ready} 就绪`, hasIssues: counts.daemonSets.unready > 0 },
     { kind: 'services', label: 'Services', icon: Globe, total: counts.services },
     routeCount > ingressCount
       ? { kind: 'httproutes', group: 'gateway.networking.k8s.io', label: 'Routes', icon: Globe, total: routeCount }
       : { kind: 'ingresses', label: 'Ingresses', icon: NetworkIcon, total: ingressCount },
-    { kind: 'jobs', label: 'Jobs', icon: Briefcase, total: counts.jobs.total, subtitle: `${counts.jobs.active} active`, hasIssues: counts.jobs.failed > 0 },
-    { kind: 'cronjobs', label: 'CronJobs', icon: Clock, total: counts.cronJobs.total, subtitle: `${counts.cronJobs.active} active` },
+    { kind: 'jobs', label: 'Jobs', icon: Briefcase, total: counts.jobs.total, subtitle: `${counts.jobs.active} 活跃`, hasIssues: counts.jobs.failed > 0 },
+    { kind: 'cronjobs', label: 'CronJobs', icon: Clock, total: counts.cronJobs.total, subtitle: `${counts.cronJobs.active} 活跃` },
   ]
   const platformInfo = getPlatformInfo(cluster.platform)
   // Headline-name derivation has three branches, in priority order:
@@ -232,9 +233,9 @@ export function ClusterHealthCard({
     <div className="rounded-xl bg-theme-surface shadow-theme-sm overflow-hidden">
       {/* Main health section - three columns; stacked on phones */}
       <div className="px-6 py-5 border-b border-theme-border/50 phone:px-4">
-        <div className="flex items-stretch gap-8 phone:flex-col phone:gap-5">
+        <div className="grid grid-cols-2 items-stretch gap-6 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,300px)] phone:grid-cols-1 phone:gap-5">
           {/* Left: Cluster info */}
-          <div className="flex flex-col justify-center w-[300px] shrink-0 pr-8 border-r border-theme-border/50 phone:w-auto phone:pr-0 phone:border-r-0">
+          <div className="flex min-w-0 flex-col justify-center pr-6 border-r border-theme-border/50 phone:pr-0 phone:border-r-0">
             <div className="flex items-center gap-2 mb-1.5">
               {platformInfo.icon ? (
                 <img src={platformInfo.icon} alt={platformInfo.name} className="w-5 h-5 object-contain" />
@@ -274,7 +275,7 @@ export function ClusterHealthCard({
                 />
               )}
               {radarVersion}
-              <span><span className="font-mono">{counts.namespaces}</span> namespaces</span>
+              <span><span className="font-mono">{counts.namespaces}</span> 个命名空间</span>
               {/* Show raw kubeconfig context as muted metadata only when
                   it differs from the headline AND we're in local mode
                   (in-cluster has no meaningful context name, cloud
@@ -292,7 +293,7 @@ export function ClusterHealthCard({
               <Tooltip
                 content={
                   <div className="space-y-1.5">
-                    <div className="font-medium">Node version skew detected</div>
+                    <div className="font-medium">检测到节点版本不一致</div>
                     {Object.entries(nodeVersionSkew.versions).map(([version, nodes]) => (
                       <div key={version}>
                         <span className="font-mono font-medium">v{version}</span>
@@ -307,7 +308,7 @@ export function ClusterHealthCard({
               >
                 <span className="flex items-center gap-1.5 mt-1 text-xs text-yellow-500">
                   <AlertTriangle className="w-3 h-3 shrink-0" />
-                  Version skew: v{nodeVersionSkew.minVersion} — v{nodeVersionSkew.maxVersion}
+                  版本不一致：v{nodeVersionSkew.minVersion} — v{nodeVersionSkew.maxVersion}
                 </span>
               </Tooltip>
             )}
@@ -322,7 +323,7 @@ export function ClusterHealthCard({
               >
                 <Radio className="w-3.5 h-3.5 text-purple-400 animate-pulse shrink-0" />
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1 text-left">
-                  <span className="text-xs font-medium text-purple-400">{caps.mcpReadOnly ? 'MCP Server Live (read-only)' : 'MCP Server Live'}</span>
+                  <span className="text-xs font-medium text-purple-400">{caps.mcpReadOnly ? 'MCP 服务运行中（只读）' : 'MCP 服务运行中'}</span>
                   <Tooltip content={mcpUrl} wrapperClassName="min-w-0">
                   <span className="text-[10px] text-theme-text-tertiary truncate font-mono">
                     HTTP · {mcpUrl}
@@ -337,7 +338,7 @@ export function ClusterHealthCard({
 
           {/* Center: Three health rings */}
           {/* Phones: the three rings share one row; each ring's status lines stack. */}
-          <div className="flex-1 flex items-center justify-center gap-12 phone:grid phone:grid-cols-3 phone:items-start phone:gap-2">
+          <div className="flex min-w-0 items-center justify-center gap-6 xl:gap-12 phone:grid phone:grid-cols-3 phone:items-start phone:gap-2">
             {/* Pods Ring */}
             {isRestricted('pods') ? (
               <RestrictedRing label="Pods" />
@@ -382,9 +383,9 @@ export function ClusterHealthCard({
                 <HealthRing segments={deploymentsRingSegments} size={88} strokeWidth={8} label={String(counts.deployments.total)} />
                 <span className="text-sm font-semibold uppercase tracking-wider text-theme-text-secondary phone:text-[11px] phone:tracking-wide">Deployments</span>
                 <div className="flex items-center gap-2 text-xs font-mono phone:flex-col phone:gap-0.5">
-                  <span className="text-green-500">{counts.deployments.available} available</span>
+                  <span className="text-green-500">{counts.deployments.available} 可用</span>
                   {counts.deployments.unavailable > 0 && (
-                    <span className="text-red-500">{counts.deployments.unavailable} unavailable</span>
+                    <span className="text-red-500">{counts.deployments.unavailable} 不可用</span>
                   )}
                 </div>
               </button>
@@ -401,15 +402,15 @@ export function ClusterHealthCard({
                 <HealthRing segments={nodesRingSegments} size={88} strokeWidth={8} label={String(counts.nodes.total)} />
                 <span className="text-sm font-semibold uppercase tracking-wider text-theme-text-secondary phone:text-[11px] phone:tracking-wide">Nodes</span>
                 <div className="flex items-center gap-2 text-xs font-mono phone:flex-col phone:gap-0.5">
-                  <span className="text-green-500">{counts.nodes.ready} ready</span>
+                  <span className="text-green-500">{counts.nodes.ready} 就绪</span>
                   {cordonedCount > 0 && (
-                    <span className="text-yellow-500">{cordonedCount} cordoned</span>
+                    <span className="text-yellow-500">{cordonedCount} 已禁止调度</span>
                   )}
                   {removingCount > 0 && (
-                    <span className="text-theme-text-secondary">{removingCount} removing{removingUnhealthyCount > 0 ? ` (${removingUnhealthyCount} unhealthy)` : ''}</span>
+                    <span className="text-theme-text-secondary">{removingCount} 移除中{removingUnhealthyCount > 0 ? `（${removingUnhealthyCount} 不健康）` : ''}</span>
                   )}
                   {counts.nodes.notReady > 0 && (
-                    <span className="text-red-500">{counts.nodes.notReady} not ready</span>
+                    <span className="text-red-500">{counts.nodes.notReady} 未就绪</span>
                   )}
                 </div>
               </button>
@@ -417,10 +418,10 @@ export function ClusterHealthCard({
           </div>
 
           {/* Right: Resource utilization */}
-          <div className="flex flex-col justify-center w-[300px] shrink-0 pl-8 border-l border-theme-border/50 phone:w-auto phone:pl-0 phone:border-l-0">
+          <div className="col-span-2 flex min-w-0 flex-col justify-center border-t border-theme-border/50 pt-4 xl:col-span-1 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-6 phone:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <Boxes className="w-4 h-4 text-theme-text-tertiary" />
-              <span className="text-[10px] uppercase tracking-wider text-theme-text-tertiary">Resource Utilization</span>
+              <span className="text-[10px] uppercase tracking-wider text-theme-text-tertiary">资源使用情况</span>
             </div>
 
             <div className="space-y-3">
@@ -432,14 +433,14 @@ export function ClusterHealthCard({
                   </div>
                   {metricsServerAvailable && (
                     <ResourceBar
-                      label="Used"
+                      label="已使用"
                       used={formatCPUMillicores(metrics.cpu.usageMillis)}
                       total={formatCPUMillicores(metrics.cpu.capacityMillis)}
                       percent={metrics.cpu.usagePercent}
                     />
                   )}
                   <ResourceBar
-                    label="Requested"
+                    label="请求量"
                     used={formatCPUMillicores(metrics.cpu.requestsMillis)}
                     total={formatCPUMillicores(metrics.cpu.capacityMillis)}
                     percent={metrics.cpu.requestPercent}
@@ -450,18 +451,18 @@ export function ClusterHealthCard({
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-theme-text-tertiary">
                     <MemoryStick className="w-3.5 h-3.5 text-theme-text-tertiary" />
-                    Memory
+                    内存
                   </div>
                   {metricsServerAvailable && (
                     <ResourceBar
-                      label="Used"
+                      label="已使用"
                       used={formatMemoryMiB(metrics.memory.usageMillis)}
                       total={formatMemoryMiB(metrics.memory.capacityMillis)}
                       percent={metrics.memory.usagePercent}
                     />
                   )}
                   <ResourceBar
-                    label="Requested"
+                  label="请求量"
                     used={formatMemoryMiB(metrics.memory.requestsMillis)}
                     total={formatMemoryMiB(metrics.memory.capacityMillis)}
                     percent={metrics.memory.requestPercent}
@@ -482,24 +483,24 @@ export function ClusterHealthCard({
         {/* Left column: Warning indicators (aligned with cluster info) */}
         <div className="flex flex-col justify-center gap-1 w-1/4 shrink-0 pr-4 border-r border-theme-border/50 phone:w-auto phone:flex-row phone:flex-wrap phone:pr-0 phone:border-r-0">
           {health.warningEvents > 0 && (
-            <Tooltip content="Native Kubernetes Warning events (e.g., ImagePullBackOff, FailedScheduling)" wrapperClassName="w-fit">
+            <Tooltip content="原生 Kubernetes Warning 事件（例如 ImagePullBackOff、FailedScheduling）" wrapperClassName="w-fit">
             <button
               onClick={onWarningEventsClick}
               className="badge status-degraded w-fit gap-1.5 hover:opacity-80 transition-opacity"
             >
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span><span className="font-mono">{health.warningEvents}</span> Warning Events</span>
+              <span><span className="font-mono">{health.warningEvents}</span> 个 Warning 事件</span>
             </button>
             </Tooltip>
           )}
           {issueCount > 0 && (
-            <Tooltip content="View grouped live operational issues" wrapperClassName="w-fit">
+            <Tooltip content="查看分组的实时运行问题" wrapperClassName="w-fit">
             <button
               onClick={onIssuesClick}
               className={clsx('badge w-fit gap-1.5 hover:opacity-80 transition-opacity', hasCriticalIssues ? 'status-unhealthy' : 'status-degraded')}
             >
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>{pluralize(issueCount, 'Active Issue')}</span>
+              <span>{issueCount} 个活跃问题</span>
             </button>
             </Tooltip>
           )}
@@ -535,7 +536,7 @@ export function ClusterHealthCard({
             onClick={onNavigateToView}
             className="flex items-center gap-2 text-base font-medium text-theme-text-secondary hover:text-theme-text-primary transition-colors"
           >
-            Browse All Resources
+              浏览全部资源
             <ArrowRight className="w-5 h-5" />
           </button>
         </div>
@@ -573,7 +574,7 @@ function KubernetesVersionLine({
     <Tooltip
       content={
         behind > 0
-          ? `Radar's upgrade checks cover Kubernetes through ${reviewedThrough}. Click to assess the next minor upgrade.`
+          ? `KubeAtlas's upgrade checks cover Kubernetes through ${reviewedThrough}. Click to assess the next minor upgrade.`
           : 'Assess the next minor Kubernetes upgrade.'
       }
       wrapperClassName="w-fit"
@@ -584,7 +585,7 @@ function KubernetesVersionLine({
       >
         <span>Kubernetes {version}</span>
         {behind > 0 && (
-          <span>· Upgrade impact</span>
+          <span>· 升级影响</span>
         )}
         <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
@@ -617,7 +618,7 @@ function RestrictedRing({ label }: { label: string }) {
         <Shield className="w-6 h-6 text-amber-400" />
       </div>
       <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">{label}</span>
-      <span className="text-[11px] text-amber-400">Restricted</span>
+      <span className="text-[11px] text-amber-400">受限</span>
     </div>
   )
 }

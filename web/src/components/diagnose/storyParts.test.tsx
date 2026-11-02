@@ -47,7 +47,7 @@ describe("ResultCard under the story contract", () => {
     expect(html).not.toContain("[[radar:evidence=0]]");
   });
 
-  it("frames adverse Radar cards on a healthy verdict by the agent's position, without a coloured box", () => {
+  it("frames adverse KubeAtlas cards on a healthy verdict by the agent's position, without a coloured box", () => {
     const healthy = {
       ...storyDiagnosis,
       healthy: true,
@@ -132,7 +132,7 @@ describe("ResultCard under the story contract", () => {
     expect(html).not.toContain("[[radar:evidence=0]]");
   });
 
-  it("lists Radar's own read limits under Still open beside the agent's items", () => {
+  it("lists KubeAtlas's own read limits under Still open beside the agent's items", () => {
     const html = renderToStaticMarkup(
       <ResultCard
         diagnosis={{ ...storyDiagnosis, unresolved: [] }}
@@ -244,7 +244,7 @@ describe("ResultCard under the story contract", () => {
           rootCause: "",
           inconclusive: true,
           summary:
-            "Radar could not read the pod logs, so the cause is unknown.",
+            "KubeAtlas could not read the pod logs, so the cause is unknown.",
           unresolved: ["Whether the container logs show an error on start."],
           report: "I could not read logs.",
           remediation: ["Grant `get pods/log` and re-run"],
@@ -262,24 +262,24 @@ describe("ResultCard under the story contract", () => {
 });
 
 describe("assessmentCopyText", () => {
-  it("carries Radar's own qualifications so the pasted text is no more confident than the screen", () => {
+  it("carries KubeAtlas's own qualifications so the pasted text is no more confident than the screen", () => {
     const text = assessmentCopyText(storyDiagnosis, {
       limits: ["Change history: incomplete"],
       signals: [
-        "Radar flagged Warning event · the agent reads it as not a live problem: probe timeout",
+        "KubeAtlas flagged Warning event · the agent reads it as not a live problem: probe timeout",
       ],
       flags: [
-        "Radar flagged CrashLoopBackOff · no explanation is linked to it",
+        "KubeAtlas flagged CrashLoopBackOff · no explanation is linked to it",
       ],
     });
     expect(text).toContain(
-      "Radar flagged:\n- Radar flagged CrashLoopBackOff · no explanation is linked to it\nRead those cards before treating this as an all-clear.",
+      "KubeAtlas flagged:\n- KubeAtlas flagged CrashLoopBackOff · no explanation is linked to it\nRead those cards before treating this as an all-clear.",
     );
     expect(text).toContain("- Change history: incomplete");
     expect(text).toContain(
-      "- Radar flagged Warning event · the agent reads it as not a live problem: probe timeout",
+      "- KubeAtlas flagged Warning event · the agent reads it as not a live problem: probe timeout",
     );
-    expect(text.indexOf("Radar flagged:")).toBeLessThan(
+    expect(text.indexOf("KubeAtlas flagged:")).toBeLessThan(
       text.indexOf("Still open:"),
     );
   });
@@ -294,7 +294,7 @@ describe("assessmentCopyText", () => {
       { context: { target: "Deployment shop/api" } },
     );
     expect(text).toContain("Next step: b");
-    expect(text).toContain("2 more steps in Radar.");
+    expect(text).toContain("2 more steps in KubeAtlas.");
   });
 
   it("puts the healthy word on the headline and the flags before Still open", () => {
@@ -306,11 +306,11 @@ describe("assessmentCopyText", () => {
         rootCause: "",
         unresolved: ["One thing."],
       },
-      { flags: ["Radar flagged BackOff · no explanation is linked to it"] },
+      { flags: ["KubeAtlas flagged BackOff · no explanation is linked to it"] },
     );
     expect(text).toContain("**Fine.**");
     expect(text).toContain("Healthy");
-    expect(text.indexOf("Radar flagged:")).toBeLessThan(
+    expect(text.indexOf("KubeAtlas flagged:")).toBeLessThan(
       text.indexOf("Still open:"),
     );
   });
@@ -348,11 +348,11 @@ describe("assessmentCopyText", () => {
       text.startsWith("**Deployment shop/api** · prod-east · via Claude Code"),
     ).toBe(true);
     expect(text).toContain(
-      "Evidence (Radar):\n- **Current logs · api-7d4 / api** · Cause\n  > MongoServerError: Authentication failed.\n  Not shown: Only the previous container instance was checked.",
+      "Evidence (KubeAtlas):\n- **Current logs · api-7d4 / api** · Cause\n  > MongoServerError: Authentication failed.\n  Not shown: Only the previous container instance was checked.",
     );
     expect(text).toContain("Next step: [Mitigate] Roll back to revision 7");
     expect(text).not.toContain("So the build changed.");
-    expect(text).toContain("open the investigation in Radar.");
+    expect(text).toContain("open the investigation in KubeAtlas.");
   });
 });
 

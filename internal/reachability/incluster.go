@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/trace"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/trace"
+	"github.com/maomada/radar/pkg/probe"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -69,7 +69,7 @@ func RunInClusterTestsWithOptions(ctx context.Context, tr *trace.Trace, namespac
 	typed := k8s.ClientFromContext(ctx)
 	// Self-read uses radar's OWN service-account client (k8s.GetClient), not the
 	// caller's impersonated one - the deployed image is radar's knowledge. Guard
-	// the typed-nil interface so a nil base client falls through to RADAR_IMAGE.
+	// the typed-nil interface so a nil base client falls through to KUBEATLAS_IMAGE.
 	var selfClient kubernetes.Interface
 	if base := k8s.GetClient(); base != nil {
 		selfClient = base

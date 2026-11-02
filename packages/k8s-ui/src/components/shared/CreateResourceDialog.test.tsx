@@ -9,7 +9,7 @@ vi.mock('../ui/YamlEditor', () => ({
 vi.mock('../ui/YamlReview', () => ({
   reviewedResourceVersionsForPreview: () => ({}),
   YamlReview: ({ onApply, onBack, applyLabel }: { onApply: () => void; onBack: () => void; applyLabel: string }) => (
-    <><button type="button" onClick={onApply}>{applyLabel}</button><button type="button" onClick={onBack}>Back to YAML</button></>
+    <><button type="button" onClick={onApply}>{applyLabel}</button><button type="button" onClick={onBack}>返回 YAML</button></>
   ),
 }))
 
@@ -18,6 +18,7 @@ const { CreateResourceDialog } = await import('./CreateResourceDialog')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const button = (text: string) => [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
+const submitButton = (text: string) => [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === text && b.classList.contains('btn-brand'))
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -38,9 +39,9 @@ describe('CreateResourceDialog lockMode', () => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(editor, draft)
       editor.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    await act(async () => button('Review')!.click())
+    await act(async () => button('审阅')!.click())
     expect(onPreview).toHaveBeenCalledWith({ yaml: draft, mode: 'create', force: false })
-    act(() => button('Back to YAML')!.click())
+    act(() => button('返回 YAML')!.click())
     expect(document.querySelector('textarea')!.value).toBe(draft)
     act(() => button('Back to setup')!.click())
     expect(onBack).toHaveBeenCalledWith(draft)
@@ -63,20 +64,20 @@ describe('CreateResourceDialog lockMode', () => {
         <CreateResourceDialog open onClose={() => {}} initialYaml={'kind: ConfigMap\n---\nkind: Service\n'} initialMode="create" lockMode onApply={onApply} isApplying={false} onPreview={onPreview} />,
       )
     })
-    expect(document.querySelector('[aria-label="Apply mode"]')).toBeNull()
+    expect(document.querySelector('[aria-label="应用模式"]')).toBeNull()
 
-    await act(async () => button('Review')!.click())
-    await act(async () => button('Create reviewed resources')!.click())
+    await act(async () => button('审阅')!.click())
+    await act(async () => button('创建已审阅的资源')!.click())
 
-    expect(document.body.textContent).toContain('This dialog only creates')
+    expect(document.body.textContent).toContain('此对话框仅用于创建')
     expect(document.body.textContent).toContain('ConfigMap settings')
-    expect(document.querySelector('[aria-label="Apply mode"]')).toBeNull()
-    expect(document.body.textContent).not.toContain('Force')
-    expect(document.body.textContent).not.toContain('Switch to Apply mode')
-    const recovery = [...document.querySelectorAll('p')].find(p => p.textContent?.includes('Created before it stopped'))!
+    expect(document.querySelector('[aria-label="应用模式"]')).toBeNull()
+    expect(document.body.textContent).not.toContain('强制应用')
+    expect(document.body.textContent).not.toContain('Radar 已切换到“应用”模式')
+    const recovery = [...document.querySelectorAll('p')].find(p => p.textContent?.includes('停止前已创建'))!
     expect(recovery.closest('[inert]')).toBeNull()
 
-    await act(async () => button('Review')!.click())
+    await act(async () => button('审阅')!.click())
     expect(onPreview).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'create', force: false }))
     act(() => root.unmount())
   })
@@ -93,8 +94,8 @@ it.each([false, true])('returns the exact submitted YAML after a successful writ
   const root = createRoot(host)
   const submitted = 'kind: ConfigMap\nmetadata:\n  name: settings\n'
   await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml={submitted} initialMode="create" lockMode onApply={onApply} isApplying={false} onPreview={onPreview} onCreated={onCreated} />))
-  await act(async () => button(reviewed ? 'Review' : 'Create')!.click())
-  if (reviewed) await act(async () => button('Create reviewed resources')!.click())
+  await act(async () => button(reviewed ? '审阅' : '创建')!.click())
+  if (reviewed) await act(async () => button('创建已审阅的资源')!.click())
   expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ yaml: submitted, mode: 'create', dryRun: false }))
   expect(onCreated).toHaveBeenCalledWith(result, submitted)
   act(() => root.unmount())
@@ -107,21 +108,21 @@ it('keeps ordinary Apply, Force and unlocked partial-create recovery', async () 
   const host = document.createElement('div'); document.body.appendChild(host)
   const root = createRoot(host)
   await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml="kind: ConfigMap" onApply={onApply} isApplying={false} onPreview={onPreview} />))
-  expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('apply')
+  expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('应用')
   const force = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!
   await act(async () => force.click())
-  await act(async () => button('Review')!.click())
+  await act(async () => button('审阅')!.click())
   expect(onPreview).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'apply', force: true }))
-  await act(async () => button('Back to YAML')!.click())
-  await act(async () => button('create')!.click())
-  await act(async () => button('Review')!.click())
-  await act(async () => button('Create reviewed resources')!.click())
-  expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('apply')
-  expect(document.body.textContent).toContain('Radar switched to Apply mode')
+  await act(async () => button('返回 YAML')!.click())
+  await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find(control => control.textContent === '创建')!.click())
+  await act(async () => button('审阅')!.click())
+  await act(async () => button('创建已审阅的资源')!.click())
+  expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('应用')
+  expect(document.body.textContent).toContain('Radar 已切换到“应用”模式，以便你审阅并根据当前集群状态继续。')
   expect(document.body.textContent).not.toContain('Change the name to create a new resource')
   expect(document.body.textContent).not.toContain('remove this document if it was already created')
   expect(document.body.textContent).not.toContain('Switch to Apply mode')
-  expect(document.body.textContent).toContain('Force')
+  expect(document.body.textContent).toContain('强制应用')
   await act(async () => root.unmount())
 })
 
@@ -131,7 +132,7 @@ it('does not close or notify the parent for a dry run', async () => {
   const root = createRoot(host)
   await act(async () => root.render(<CreateResourceDialog open onClose={onClose} initialYaml="kind: ConfigMap" onApply={onApply} isApplying={false} onCreated={onCreated} />))
   await act(async () => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click())
-  await act(async () => button('Apply')!.click())
+  await act(async () => submitButton('应用')!.click())
   expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }))
   expect(onClose).not.toHaveBeenCalled(); expect(onCreated).not.toHaveBeenCalled()
   expect(document.body.textContent).toContain('(dry run)')
@@ -147,7 +148,7 @@ it('closes before delivering the actual submitted draft and retains newer editor
   const root = createRoot(host)
   const original = 'kind: ConfigMap\nmetadata:\n  name: original\n'
   await act(async () => root.render(<CreateResourceDialog open onClose={() => calls.push('closed')} initialYaml={original} onApply={onApply} isApplying={false} onCreated={onCreated} />))
-  await act(async () => button('Apply')!.click())
+  await act(async () => submitButton('应用')!.click())
   const editor = document.querySelector('textarea')!
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(editor, 'kind: Service')
@@ -166,8 +167,8 @@ it('resets to the selected initial mode on reopen and cancel deliberately abando
   const props = { open: true, initialYaml: 'kind: ConfigMap', onClose, onBack, onApply: vi.fn(), isApplying: false }
   await act(async () => root.render(<CreateResourceDialog {...props} />))
   await act(async () => root.render(<CreateResourceDialog {...props} initialMode="create" lockMode />))
-  expect(button('Create')).toBeDefined(); expect(document.querySelector('[aria-label="Apply mode"]')).toBeNull()
-  await act(async () => button('Cancel')!.click())
+  expect(button('创建')).toBeDefined(); expect(document.querySelector('[aria-label="应用模式"]')).toBeNull()
+  await act(async () => button('取消')!.click())
   expect(onClose).toHaveBeenCalledOnce(); expect(onBack).not.toHaveBeenCalled()
   await act(async () => root.unmount())
 })
@@ -180,9 +181,9 @@ it.each(['back', 'reopen', 'cancel'])('retires a successful-write close timer wh
   const props = { open: true, initialYaml: 'kind: ConfigMap', onClose, onBack, onApply: vi.fn(async () => [{ kind: 'ConfigMap', namespace: 'app', name: 'settings', created: true }]), isApplying: false }
   try {
     await act(async () => root.render(<CreateResourceDialog {...props} />))
-    await act(async () => button('Apply')!.click())
-    if (choice === 'back') await act(async () => button('Back')!.click())
-    else if (choice === 'cancel') await act(async () => button('Cancel')!.click())
+    await act(async () => submitButton('应用')!.click())
+    if (choice === 'back') await act(async () => button('返回')!.click())
+    else if (choice === 'cancel') await act(async () => button('取消')!.click())
     else {
       await act(async () => root.render(<CreateResourceDialog {...props} open={false} />))
       await act(async () => root.render(<CreateResourceDialog {...props} />))
@@ -200,24 +201,24 @@ it.each([false, true])('shows real partial-create recovery without a preview (lo
   const host = document.createElement('div'); document.body.appendChild(host); const root = createRoot(host)
   try {
     await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml="kind: ConfigMap" initialMode="create" lockMode={lockMode} onApply={onApply} isApplying={false} onCreated={onCreated} />))
-    await act(async () => button('Create')!.click())
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+    await act(async () => submitButton('创建')!.click())
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
     expect(onCreated).not.toHaveBeenCalled()
     expect(document.body.textContent).not.toContain('Switch to Apply mode')
-    expect(document.body.textContent).not.toContain('Radar switched to Apply mode')
-    expect(document.body.textContent).toContain('Remove the created objects from the manifest before retrying Create.')
+    expect(document.body.textContent).not.toContain('Radar 已切换到“应用”模式')
+    expect(document.body.textContent).toContain('请从清单中移除已创建的对象，然后重试创建。')
     expect(document.body.textContent).toContain('Change the name to create a new resource')
     if (lockMode) {
-      expect(document.querySelector('[aria-label="Apply mode"]')).toBeNull()
-      expect(document.body.textContent).toContain('This dialog only creates')
+      expect(document.querySelector('[aria-label="应用模式"]')).toBeNull()
+      expect(document.body.textContent).toContain('此对话框仅用于创建')
     } else {
-      expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('create')
+      expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('创建')
     }
-    await act(async () => button('Create')!.click())
+    await act(async () => submitButton('创建')!.click())
     expect(onApply).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'create', dryRun: false }))
     if (!lockMode) {
-      await act(async () => button('apply')!.click())
-      await act(async () => button('Apply')!.click())
+      await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role=radio]')].find(option => option.textContent?.trim() === '应用')!.click())
+      await act(async () => submitButton('应用')!.click())
       expect(onApply).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'apply', dryRun: false }))
     }
   } finally { await act(async () => root.unmount()); host.remove() }
@@ -235,22 +236,22 @@ it.each([false, true])('retains and accumulates real partial-create results acro
   try {
     await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml="kind: ConfigMap" initialMode="create" lockMode onApply={onApply} isApplying={false} onPreview={onPreview} />))
     const submit = async () => {
-      await act(async () => button(reviewed ? 'Review' : 'Create')!.click())
-      if (reviewed) await act(async () => button('Create reviewed resources')!.click())
+      await act(async () => submitButton(reviewed ? '审阅' : '创建')!.click())
+      if (reviewed) await act(async () => button('创建已审阅的资源')!.click())
     }
     await submit()
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
     if (reviewed) {
-      await act(async () => button('Review')!.click())
-      await act(async () => button('Back to YAML')!.click())
-      expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+      await act(async () => button('审阅')!.click())
+      await act(async () => button('返回 YAML')!.click())
+      expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
       expect(document.body.textContent).not.toContain('Preview failed')
     }
     await submit()
-    if (reviewed) await act(async () => button('Back to YAML')!.click())
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+    if (reviewed) await act(async () => button('返回 YAML')!.click())
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
     await submit()
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first, Service app/later.')
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first、Service app/later。')
     expect(onApply).toHaveBeenCalledTimes(3)
   } finally { await act(async () => root.unmount()); host.remove() }
 })
@@ -264,17 +265,17 @@ it('keeps partial-create history after dry-run success and clears it after a com
   const host = document.createElement('div'); document.body.appendChild(host); const root = createRoot(host)
   try {
     await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml="kind: ConfigMap" initialMode="create" lockMode onApply={onApply} isApplying={false} />))
-    await act(async () => button('Create')!.click())
+    await act(async () => submitButton('创建')!.click())
     const dryRun = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     await act(async () => dryRun.click())
-    await act(async () => button('Create')!.click())
+    await act(async () => submitButton('创建')!.click())
     expect(onApply).toHaveBeenLastCalledWith(expect.objectContaining({ dryRun: true }))
     expect(document.body.textContent).toContain('(dry run)')
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
     await act(async () => dryRun.click())
-    await act(async () => button('Create')!.click())
+    await act(async () => submitButton('创建')!.click())
     expect(onApply).toHaveBeenLastCalledWith(expect.objectContaining({ dryRun: false }))
-    expect(document.body.textContent).not.toContain('Created before it stopped')
+    expect(document.body.textContent).not.toContain('停止前已创建')
   } finally { await act(async () => root.unmount()); host.remove() }
 })
 
@@ -289,13 +290,13 @@ it('adds only confirmed creations from an Apply recovery attempt to earlier part
   const host = document.createElement('div'); document.body.appendChild(host); const root = createRoot(host)
   try {
     await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml="kind: ConfigMap" initialMode="create" onApply={onApply} isApplying={false} onPreview={onPreview} />))
-    await act(async () => button('Review')!.click())
-    await act(async () => button('Create reviewed resources')!.click())
-    expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('apply')
-    await act(async () => button('Review')!.click())
-    await act(async () => button('Apply reviewed changes')!.click())
+    await act(async () => button('审阅')!.click())
+    await act(async () => button('创建已审阅的资源')!.click())
+    expect(document.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe('应用')
+    await act(async () => button('审阅')!.click())
+    await act(async () => button('应用已审阅的更改')!.click())
     expect(onApply).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'apply' }))
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first, Service app/later.')
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first、Service app/later。')
     expect(document.body.textContent).not.toContain('Service app/updated')
   } finally { await act(async () => root.unmount()); host.remove() }
 })
@@ -313,18 +314,18 @@ it('keeps created-object facts and the edited draft when canceling a file replac
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(editor, edited)
       editor.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    await act(async () => button('Create')!.click())
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+    await act(async () => submitButton('创建')!.click())
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
     const file = new File(['kind: Service'], 'replacement.yaml', { type: 'text/yaml' })
     Object.defineProperty(file, 'text', { value: async () => 'kind: Service' })
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
     Object.defineProperty(input, 'files', { value: [file], configurable: true })
     await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
-    const confirmation = [...document.querySelectorAll('h3')].find(heading => heading.textContent === 'Replace editor contents?')!.closest('[role="dialog"]')!
-    const cancel = [...confirmation.querySelectorAll('button')].find(control => control.textContent?.trim() === 'Cancel')!
+    const confirmation = [...document.querySelectorAll('h3')].find(heading => heading.textContent === '替换编辑器内容？')!.closest('[role="dialog"]')!
+    const cancel = [...confirmation.querySelectorAll('button')].find(control => control.textContent?.trim() === '取消')!
     await act(async () => cancel.click())
     expect(document.querySelector('textarea')!.value).toBe(edited)
-    expect(document.body.textContent).toContain('Created before it stopped: ConfigMap app/first.')
+    expect(document.body.textContent).toContain('停止前已创建：ConfigMap app/first。')
     expect(onClose).not.toHaveBeenCalled()
   } finally { await act(async () => root.unmount()); host.remove() }
 })
@@ -336,7 +337,7 @@ it.each(['apply', 'create'] as const)('explains unknown live pause only in direc
   try {
     await act(async () => root.render(<CreateResourceDialog open onClose={() => {}} initialYaml={yaml} initialMode={mode} lockMode={mode === 'create'} onApply={onApply} isApplying={false} />))
     expect(document.body.textContent?.includes('Existing pause state is unknown')).toBe(mode === 'apply')
-    const submit = button(mode === 'apply' ? 'Apply' : 'Create')!
+    const submit = submitButton(mode === 'apply' ? '应用' : '创建')!
     expect(submit.disabled).toBe(false)
     await act(async () => submit.click())
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ yaml, mode }))

@@ -4,7 +4,7 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // Profile controls how broadly a neighborhood expands. The public surface is

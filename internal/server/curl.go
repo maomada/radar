@@ -15,9 +15,10 @@ import (
 	authv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 const (
@@ -58,10 +59,8 @@ type curlResponse struct {
 // curlDialClient builds the client used to dial a Service directly. It sends no
 // Kubernetes credentials (a plain HTTP client, unlike the apiserver services/proxy
 // which forwards the caller's Authorization/Impersonate headers to the backend),
-// disables redirect-following (don't chase a Service-controlled 3xx), and skips
-// TLS verification (internal Services routinely serve self-signed/internal-CA
-// certs and we're inspecting the response, not establishing trust — and nothing
-// sensitive is sent).
+// disables redirect-following (don't chase a Service-controlled 3xx), and verifies
+// HTTPS peers against the process trust store, including operator-installed CAs.
 func curlDialClient() *http.Client {
 	return &http.Client{
 		Timeout: curlTimeout,
@@ -69,7 +68,9 @@ func curlDialClient() *http.Client {
 			return http.ErrUseLastResponse
 		},
 		Transport: &http.Transport{
-			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // diagnostic curl; no creds sent
+			TLSClientConfig:   &tls.Config{MinVersion: tls.VersionTLS12},
+			Proxy:             nil,
+			DialContext:       probe.GuardedDialContext,
 			DisableKeepAlives: true,
 		},
 	}

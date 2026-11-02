@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	bp "github.com/skyhook-io/radar/pkg/audit"
+	"github.com/maomada/radar/internal/k8s"
+	bp "github.com/maomada/radar/pkg/audit"
 )
 
 type dynamicConfigRefHandler func(*unstructured.Unstructured) []bp.ConfigObjectRef

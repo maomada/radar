@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react'
 import type { RenderDiagnoseAction } from '../../context/DiagnoseCustomization'
 import { useSearchParams } from 'react-router-dom'
-import { CNPGDimensionMark, CNPGDimensionVerdict, CNPGServingStatus, coverageReadable, toneTextClass, type CNPGDimension, type CNPGFleetRow } from '@skyhook-io/k8s-ui'
+import { CNPGDimensionMark, CNPGDimensionVerdict, CNPGServingStatus, coverageReadable, toneTextClass, type CNPGDimension, type CNPGFleetRow } from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { useCNPGRuntime } from '../../api/cnpg'
 import { CNPGStorage } from './CNPGStorage'

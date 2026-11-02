@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom/promtest"
+	"github.com/maomada/radar/pkg/prom/promtest"
 )
 
 // This opt-in suite evaluates the production expressions in real Prometheus,
 // rather than teaching a mock server to return the answers the test expects.
 func TestWorkloadPromQL(t *testing.T) {
-	image := os.Getenv("RADAR_TEST_PROMTOOL_IMAGE")
+	image := os.Getenv("KUBEATLAS_TEST_PROMTOOL_IMAGE")
 	if image == "" {
-		t.Skip("set RADAR_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 to evaluate queries with Docker")
+		t.Skip("set KUBEATLAS_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 to evaluate queries with Docker")
 	}
 	input := []map[string]string{}
 	add := func(name, labels, values string) {

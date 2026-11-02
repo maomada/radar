@@ -17,10 +17,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	"github.com/skyhook-io/radar/internal/k8s"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	"github.com/maomada/radar/internal/k8s"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 func cnpgTestPVC(ns, name, cluster, instance, role string, owner *metav1.OwnerReference, requested, capacity string) *corev1.PersistentVolumeClaim {

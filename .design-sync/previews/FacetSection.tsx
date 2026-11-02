@@ -1,4 +1,4 @@
-import { FacetButton, FacetSection } from '@skyhook-io/k8s-ui'
+import { FacetButton, FacetSection } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const rail: CSSProperties = {

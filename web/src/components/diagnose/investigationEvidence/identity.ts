@@ -1,5 +1,5 @@
-import { CORE_RESOURCES } from "@skyhook-io/k8s-ui";
-import { fnv1a32 } from "@skyhook-io/k8s-ui/utils/structure-hash";
+import { CORE_RESOURCES } from "@maomada/k8s-ui";
+import { fnv1a32 } from "@maomada/k8s-ui/utils/structure-hash";
 import { apiVersionToGroup } from "../../../utils/navigation";
 import { type DiagnosisResourceRef } from "../diagnoseEvidenceTypes";
 import { type RootCauseEvidence } from "../../../api/diagnose";
@@ -43,7 +43,7 @@ function exactDiagnosisResourceRef(ref: {
     knownKinds.map((resource) => resource.namespaced),
   );
   // This is deliberately only a negative guard. Unknown kinds/groups may be
-  // cluster-scoped CRDs, so suppress the link only when Radar's existing
+  // cluster-scoped CRDs, so suppress the link only when KubeAtlas's existing
   // resource metadata identifies the kind's scope without ambiguity.
   if (knownScopes.size === 1) {
     if (knownScopes.has(true) && !namespace) return undefined;

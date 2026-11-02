@@ -6,8 +6,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 type ReflectionLookup struct{ Cache *ResourceCache }

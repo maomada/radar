@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // These tests drive the MCP Prometheus handlers end-to-end against a fake
@@ -496,7 +496,7 @@ func TestPromMetricFamilyPrefix(t *testing.T) {
 }
 
 func TestHandleQueryPrometheus_OversizedResultSummary(t *testing.T) {
-	t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "50")
+	t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "50")
 
 	f := setupFakeProm(t)
 	var items []string
@@ -1199,7 +1199,7 @@ func TestHandleQueryPrometheus_RangeErrorMapping(t *testing.T) {
 }
 
 func TestHandleQueryPrometheus_RangePointsDominateSummary(t *testing.T) {
-	t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "50")
+	t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "50")
 	f := setupFakeProm(t)
 	// One series, many points → oversized but topk can't help; the range
 	// summary branch must say so instead of suggesting topk.
@@ -1358,7 +1358,7 @@ func TestHandleQueryPrometheus_Annotations(t *testing.T) {
 			f.rangeBody = f.queryBody
 			f.labelBody = `{"status":"success","data":["test_related_total"]}`
 			if tc.oversized {
-				t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "1")
+				t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "1")
 			}
 			result, _, err := handleQueryPrometheus(context.Background(), nil, queryPrometheusInput{Query: "test_metric", Type: tc.mode})
 			if err != nil {

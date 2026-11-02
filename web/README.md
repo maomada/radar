@@ -1,4 +1,4 @@
-# @skyhook-io/radar-app
+# @maomada/kubeatlas-app
 
 Radar's web UI, shared by the OSS binary and Radar Hub.
 
@@ -7,16 +7,16 @@ This package is source-only — it ships TypeScript + TSX files under `src/`. Co
 ## Install
 
 ```sh
-npm install @skyhook-io/radar-app
+npm install @maomada/kubeatlas-app
 ```
 
-Peer deps: `react >=19`, `react-dom >=19`, `react-router-dom >=7`, `@tanstack/react-query >=5`, `@skyhook-io/k8s-ui >=1.17.1`, plus `clsx`, `tailwind-merge`, `lucide-react`, `@xyflow/react`, `elkjs`.
+Peer deps: `react >=19`, `react-dom >=19`, `react-router-dom >=7`, `@tanstack/react-query >=5`, `@maomada/k8s-ui >=1.17.1`, plus `clsx`, `tailwind-merge`, `lucide-react`, `@xyflow/react`, `elkjs`.
 
 ## Use
 
 ```tsx
-import { RadarApp, setApiBase, setAuthHeadersProvider } from '@skyhook-io/radar-app';
-import '@skyhook-io/radar-app/style.css';
+import { RadarApp, setApiBase, setAuthHeadersProvider } from '@maomada/kubeatlas-app';
+import '@maomada/kubeatlas-app/style.css';
 
 setAuthHeadersProvider(() => ({ Authorization: `Bearer ${myToken()}` }));
 
@@ -51,8 +51,8 @@ Radar uses Tailwind v4 classes throughout. Your app's Tailwind config must scan 
 // tailwind.config.js or equivalent
 content: [
   './src/**/*.{ts,tsx}',
-  './node_modules/@skyhook-io/radar-app/src/**/*.{ts,tsx}',
-  './node_modules/@skyhook-io/k8s-ui/src/**/*.{ts,tsx}',
+  './node_modules/@maomada/kubeatlas-app/src/**/*.{ts,tsx}',
+  './node_modules/@maomada/k8s-ui/src/**/*.{ts,tsx}',
 ],
 ```
 

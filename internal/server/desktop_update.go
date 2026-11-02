@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/updater"
+	"github.com/maomada/radar/internal/updater"
 )
 
 // handleDesktopUpdateStart starts downloading the latest desktop release.

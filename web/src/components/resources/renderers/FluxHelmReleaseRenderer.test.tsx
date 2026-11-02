@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { FluxValuesReference } from '@skyhook-io/k8s-ui/components/resources/renderers/FluxHelmReleaseRenderer'
+import type { FluxValuesReference } from '@maomada/k8s-ui/components/resources/renderers/FluxHelmReleaseRenderer'
 import { FluxHelmReleaseRenderer } from './FluxHelmReleaseRenderer'
 
 const query = vi.hoisted(() => ({
@@ -101,7 +101,7 @@ describe('Flux Helm values references', () => {
     expect(referenceButton()).toBeUndefined()
   })
 
-  it('keeps navigation when the connected Radar cannot check availability', async () => {
+  it('keeps navigation when the connected KubeAtlas cannot check availability', async () => {
     query.data = 'unchecked'
     await render()
     expect(container.textContent).toContain('Availability not checked')

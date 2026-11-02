@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	rcpkg "github.com/skyhook-io/radar/pkg/remotecommand"
+	rcpkg "github.com/maomada/radar/pkg/remotecommand"
 )
 
 // NewPodExecExecutor creates an executor for running commands in a pod container.

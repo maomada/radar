@@ -1,6 +1,6 @@
 # Project structure
 
-Reference layout for the Radar repo. Use this when locating where a concern lives — most of the load-bearing detail is on the per-area sections inside `CLAUDE.md` (k8s caching, topology, MCP, error handling, renderers). This file is the directory map.
+Reference layout for the KubeAtlas repo. Use this when locating where a concern lives — most of the load-bearing detail is on the per-area sections inside `CLAUDE.md` (k8s caching, topology, MCP, error handling, renderers). This file is the directory map.
 
 ```
 radar/
@@ -94,7 +94,7 @@ radar/
 │       ├── pod_grouping.go    # Pod grouping/collapsing logic
 │       ├── relationships.go   # Resource relationship detection
 │       └── types.go           # Node, edge, topology definitions
-├── packages/k8s-ui/           # Shared UI package (@skyhook-io/k8s-ui)
+├── packages/k8s-ui/           # Shared UI package (@maomada/k8s-ui)
 │   └── src/
 │       ├── components/
 │       │   ├── audit/         # AuditCard, AuditAlerts, AuditFindingsTable
@@ -111,7 +111,7 @@ radar/
 │       ├── hooks/             # useKeyboardShortcuts, useRefreshAnimation
 │       ├── types/             # Shared TypeScript types
 │       └── utils/             # Pure utilities (api-resources, format, icons, etc.)
-├── web/                       # React frontend (embedded at build) — IS @skyhook-io/radar-app
+├── web/                       # React frontend (embedded at build) — IS @maomada/kubeatlas-app
 │   ├── src/
 │   │   ├── api/               # API client + SSE hooks + getApiBase/apiUrl/getWsUrl helpers
 │   │   ├── components/
@@ -122,7 +122,7 @@ radar/
 │   │   │   ├── logs/          # Logs viewer component
 │   │   │   ├── portforward/   # Port forward manager
 │   │   │   ├── resource/      # Single resource detail page
-│   │   │   ├── resources/     # Resource list panels (thin wrappers over @skyhook-io/k8s-ui)
+│   │   │   ├── resources/     # Resource list panels (thin wrappers over @maomada/k8s-ui)
 │   │   │   ├── workspace/     # Workspace screen layout, tables and notices (Capacity, CloudNativePG)
 │   │   │   ├── cnpg/          # CloudNativePG workspace screens, actions, runtime
 │   │   │   ├── audit/         # Cluster audit detail view

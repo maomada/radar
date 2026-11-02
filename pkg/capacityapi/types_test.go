@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 func TestResponseConstructorsInitializeWireCollections(t *testing.T) {

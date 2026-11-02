@@ -1,11 +1,12 @@
-# Radar installer for Windows
-# Usage: irm https://raw.githubusercontent.com/skyhook-io/radar/main/install.ps1 | iex
+# KubeAtlas installer for Windows
+# Usage: irm https://raw.githubusercontent.com/maomada/radar/main/install.ps1 | iex
+# Requires published CLI release assets in maomada/radar; GHCR images are separate.
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "skyhook-io/radar"
-$BinaryName = "kubectl-radar.exe"
-$InstallDir = "$env:LOCALAPPDATA\radar"
+$Repo = "maomada/radar"
+$BinaryName = "kubeatlas.exe"
+$InstallDir = "$env:LOCALAPPDATA\kubeatlas"
 
 # Only amd64 is supported on Windows
 $Arch = "amd64"
@@ -47,13 +48,13 @@ try {
     exit 1
 }
 
-Write-Host "Installing Radar v$Version..." -ForegroundColor Cyan
+Write-Host "Installing KubeAtlas v$Version..." -ForegroundColor Cyan
 
 # Download
-$Filename = "radar_v${Version}_windows_${Arch}.zip"
+$Filename = "kubeatlas_v${Version}_windows_${Arch}.zip"
 $DownloadUrl = "https://github.com/$Repo/releases/download/v$Version/$Filename"
 $ChecksumsUrl = "https://github.com/$Repo/releases/download/v$Version/checksums.txt"
-$TmpDir = Join-Path $env:TEMP "radar-install-$(Get-Random)"
+$TmpDir = Join-Path $env:TEMP "kubeatlas-install-$(Get-Random)"
 $ZipPath = Join-Path $TmpDir $Filename
 $ChecksumsPath = Join-Path $TmpDir "checksums.txt"
 
@@ -114,9 +115,11 @@ if (-not (Test-Path $InstallDir)) {
 
 Move-Item -Path (Join-Path $TmpDir $BinaryName) -Destination $InstallDir -Force
 
-# Create radar.exe symlink/copy for convenience
-$RadarExe = Join-Path $InstallDir "radar.exe"
-Copy-Item -Path (Join-Path $InstallDir $BinaryName) -Destination $RadarExe -Force
+# Make the binary available to kubectl when the plugin name is unused.
+$PluginExe = Join-Path $InstallDir "kubectl-kubeatlas.exe"
+if (-not (Test-Path -LiteralPath $PluginExe)) {
+    Copy-Item -Path (Join-Path $InstallDir $BinaryName) -Destination $PluginExe
+}
 
 # Cleanup
 Remove-Item -Path $TmpDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -130,13 +133,12 @@ if ($UserPath -notlike "*$InstallDir*") {
 }
 
 Write-Host ""
-Write-Host "Radar v$Version installed successfully!" -ForegroundColor Green
+Write-Host "KubeAtlas v$Version installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Usage:" -ForegroundColor Yellow
-Write-Host "  kubectl radar          # as kubectl plugin"
-Write-Host "  kubectl-radar          # standalone"
-Write-Host "  radar                  # short alias"
+Write-Host "  kubectl kubeatlas      # as kubectl plugin"
+Write-Host "  kubeatlas              # standalone"
 Write-Host ""
-Write-Host "Run 'radar --help' for more options." -ForegroundColor Yellow
+Write-Host "Run 'kubeatlas --help' for more options." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Note: Restart your terminal for PATH changes to take effect." -ForegroundColor Cyan

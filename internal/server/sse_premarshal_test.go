@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestResourceChangeEventDataIncludesAPIGroup(t *testing.T) {

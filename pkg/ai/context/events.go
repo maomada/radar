@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	corev1 "k8s.io/api/core/v1"
 )

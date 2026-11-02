@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { clsx } from 'clsx'
-import { PaneLoader, Tooltip, formatAge, toneTextClass, formatGrant } from '@skyhook-io/k8s-ui'
+import { PaneLoader, Tooltip, formatAge, toneTextClass, formatGrant } from '@maomada/k8s-ui'
 import { useCNPGRuntime, type CNPGRuntimeInstance } from '../../api/cnpg'
 import { useCNPGSessions, type CNPGSessionsResponse } from '../../api/cnpg-sessions'
 import { useCNPGClusterHistory } from '../../api/cnpg-history'

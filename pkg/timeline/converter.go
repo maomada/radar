@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

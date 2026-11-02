@@ -23,15 +23,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readplan"
-	"github.com/skyhook-io/radar/internal/readscope"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readplan"
+	"github.com/maomada/radar/internal/readscope"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // SummaryBuilderFunc, when supplied via Options.SummaryBuilder, is

@@ -14,7 +14,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/skyhook-io/radar/internal/usagedata"
+	"github.com/maomada/radar/internal/usagedata"
 )
 
 // Argument-name repair for tool calls.

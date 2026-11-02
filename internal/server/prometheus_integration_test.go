@@ -10,9 +10,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 // setupPrometheusIntegrationTest isolates the on-disk config and installs a

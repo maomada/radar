@@ -12,7 +12,7 @@ interface RadarOmnibarProps extends CommandItemCallbacks {
 
 const stillLoading = (data: SearchResult | undefined) => !!data?.coverage?.gaps.some((gap) => gap.code === 'kind_sync_pending')
 
-// Radar standalone's omnibar: wires the injectable Omnibar to Radar's own hooks
+// KubeAtlas standalone's omnibar: wires the injectable Omnibar to KubeAtlas's own hooks
 // (cluster /api/search, kubeconfig contexts, API discovery, recents). Radar Hub
 // provides a parallel wrapper over fleet search.
 export const RadarOmnibar = forwardRef<OmnibarHandle, RadarOmnibarProps>(function RadarOmnibar(

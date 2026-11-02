@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // With a manager answer in the context, the metadata-only manager warning is

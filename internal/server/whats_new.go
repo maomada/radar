@@ -14,23 +14,23 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/version"
 )
 
 // Which release notes the user has already seen. A personal install (the CLI or
-// Desktop, no auth) keeps this in ~/.radar because its browser origin is not
+// Desktop, no auth) keeps this in ~/.kubeatlas because its browser origin is not
 // stable — Desktop binds a random port on every launch, so browser storage would
 // read each upgrade as a fresh install. A shared install (in-cluster, or any
 // install with auth on) serves many people, so each browser keeps its own.
 
 const whatsNewFile = "whats-new.json"
 
-// Captured before main writes anything under ~/.radar (install-id, star.json),
+// Captured before main writes anything under ~/.kubeatlas (install-id, star.json),
 // which would otherwise make a first run look like an existing install.
 var whatsNewPriorInstall = radarDirHadState()
 
 // Serializes read-compare-write within this process (two tabs acknowledging at
-// once). Separate Radar processes sharing ~/.radar can still interleave; the
+// once). Separate Radar processes sharing ~/.kubeatlas can still interleave; the
 // cost is showing notes once more, not worth a cross-platform file lock.
 var whatsNewWriteMu sync.Mutex
 
@@ -89,7 +89,7 @@ func (s *Server) handleMarkWhatsNewSeen(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid version %q", req.Version))
 		return
 	}
-	// Two Radars can share ~/.radar (an older CLI beside an updated Desktop);
+	// Two Radars can share ~/.kubeatlas (an older CLI beside an updated Desktop);
 	// the record only moves forward, or the newer one would replay its notes.
 	whatsNewWriteMu.Lock()
 	defer whatsNewWriteMu.Unlock()
@@ -124,7 +124,7 @@ func radarDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".radar"), nil
+	return filepath.Join(home, ".kubeatlas"), nil
 }
 
 func radarDirHadState() bool {
@@ -185,7 +185,7 @@ func writeWhatsNewState(state whatsNewState) error {
 	if err != nil {
 		return err
 	}
-	// A unique temp file: two Radars can share ~/.radar.
+	// A unique temp file: two Radars can share ~/.kubeatlas.
 	tmp, err := os.CreateTemp(dir, whatsNewFile+".*.tmp")
 	if err != nil {
 		return err

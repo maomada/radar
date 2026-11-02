@@ -1,6 +1,6 @@
 # CRD Integrations
 
-Radar automatically discovers and displays **any** Custom Resource Definition (CRD) in your cluster — no configuration needed. For popular tools, Radar provides dedicated detail views, topology edges, smart table columns, and AI-optimized summaries for seamless integration.
+KubeAtlas automatically discovers and displays **any** Custom Resource Definition (CRD) in your cluster — no configuration needed. For popular tools, KubeAtlas provides dedicated detail views, topology edges, smart table columns, and AI-optimized summaries for seamless integration.
 
 ## ConfigMap and Secret reflection (Reflector)
 
@@ -12,11 +12,11 @@ showing source/mirror role, automatic versus manual mirrors, reflection permissi
 and configured namespace name patterns and label selectors. Visible sources and
 mirrors are linked directly. Source section titles show the visible mirror count; expanding shows five mirrors initially, with a control to show all. Automatic creation requires reflection permission;
 name patterns and selectors are alternatives within each rule on controller versions
-that support selectors. Radar displays these rules without predicting a destination
+that support selectors. KubeAtlas displays these rules without predicting a destination
 set or evaluating the controller's regular expressions.
 
 **Recorded copy evidence:** mirrors show `reflected-version` and `reflected-at` when
-present. When the source is visible, Radar compares its observed resource version
+present. When the source is visible, KubeAtlas compares its observed resource version
 with the mirror's recorded version. These cached observations can lag reconciliation.
 This is metadata evidence, not a content or
 health check: metadata-only changes advance source versions, and editing a mirror
@@ -44,7 +44,7 @@ unused; see [audit evidence under partial access](configuration.md#audit-evidenc
 **Agent context (MCP and REST):** `get_resource` and the REST AI resource context expose an optional `resourceContext.reflection` block. It separates `declaredSource` from an authorized observed `source`, includes recorded copy metadata and the authorized source resource version, and lists up to 20 `visibleMirrors` with `truncated` when more authorized mirrors were observed. This lookup spans namespaces in the available cache independently of the resource-context graph. Unreadable endpoints and their versions are withheld; omitted-field reasons describe unavailable cache evidence or denied access. These observations do not prove complete distribution or synchronization health.
 
 **Partial visibility:** unavailable sources are not called missing, and visible mirror
-counts are not expected totals. Radar does not diagnose absent mirrors, name conflicts,
+counts are not expected totals. KubeAtlas does not diagnose absent mirrors, name conflicts,
 controller availability, or synchronization lag. Controller configuration and version
 can further restrict eligible namespaces. Inspect controller logs when a declared
 relationship is not being reconciled.
@@ -60,9 +60,9 @@ relationship is not being reconciled.
 
 [Karpenter](https://karpenter.sh/) is the standard node autoscaler for Kubernetes, replacing Cluster Autoscaler on AWS (EKS), Azure (AKS NAP), and generic clusters.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
-**Capacity view:** When Radar discovers Karpenter NodePools (and the current identity can list them), a cluster-wide **Capacity** view appears in navigation — a read-only diagnosis surface across four screens:
+**Capacity view:** When KubeAtlas discovers Karpenter NodePools (and the current identity can list them), a cluster-wide **Capacity** view appears in navigation — a read-only diagnosis surface across four screens:
 - **Overview** — fleet KPIs with claim lifecycle detail, a cluster scheduling-capacity bar (scheduled requests vs allocatable, in-flight claim capacity beyond the allocatable edge, pending demand as a not-to-scale count), prioritized operational signals, and the NodePool inventory
 - **NodePool detail** — the capacity ledger (configured limit, provisioned, headroom, allocatable, scheduled requests, unallocated, actual usage) plus claim lifecycle, fleet composition, and workload attribution
 - **Demand** — pending pods grouped by scheduling signature, each group evaluated against every NodePool's declared constraints with per-predicate evidence
@@ -132,7 +132,7 @@ All provider-specific NodeClass variants are automatically detected and supporte
 
 [Cluster API](https://cluster-api.sigs.k8s.io/) is the Kubernetes sub-project for declarative cluster lifecycle management. Used by platform teams to provision and manage workload clusters.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Full CAPI ownership chain — ClusterClass → Cluster → KubeadmControlPlane → Machine → Node, and Cluster → MachineDeployment → MachineSet → Machine → Node. MachineHealthCheck → Cluster protection edges. Machine → Node edges use status.nodeRef (semantic, not owner-ref).
 
@@ -143,7 +143,7 @@ ClusterClass links use the namespace declared by the Cluster, defaulting to the 
 - Control plane and worker replica counts (v1beta2-aware)
 - Control plane and infrastructure references (clickable)
 - ClusterClass topology section (worker MachineDeployments table)
-- "Connect to Cluster" button — auto-connects Radar to the workload cluster
+- "Connect to Cluster" button — auto-connects KubeAtlas to the workload cluster
 - "Download Kubeconfig" button
 - Conditions
 
@@ -199,7 +199,7 @@ ClusterClass links use the namespace declared by the Cluster, defaulting to the 
 
 ### Infrastructure Provider Renderers
 
-Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure (CAPZ)** infrastructure provider resources. These surface provider-specific operational data — instance types, scaling config, VPC/subnet topology, managed service addons — that would otherwise be buried in raw YAML.
+KubeAtlas has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure (CAPZ)** infrastructure provider resources. These surface provider-specific operational data — instance types, scaling config, VPC/subnet topology, managed service addons — that would otherwise be buried in raw YAML.
 
 **AWS EKS control plane** — VPC topology with subnets (Public/Private badges), security groups, EKS addons, IAM roles:
 
@@ -245,7 +245,7 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 
 [KEDA](https://keda.sh/) (Kubernetes Event-Driven Autoscaling) is a CNCF graduated project that scales workloads based on external event sources — queues, streams, cron schedules, Prometheus metrics, and 60+ other triggers.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** ScaledObject → target workload (Deployment, StatefulSet, or Rollout). ScaledObject and ScaledJob triggers also link to observed TriggerAuthentication or ClusterTriggerAuthentication resources. Authentication is a dependency, not an autoscaler target; omitted kind defaults to a same-namespace TriggerAuthentication. Cluster-scoped targets retain per-kind read gating. These declarations do not prove credential validity or trigger readiness. Applications configuration references and counts exclude authentication objects the caller cannot read.
 
@@ -303,7 +303,7 @@ Radar has first-class renderers for **AWS (CAPA)**, **GCP (CAPG)**, and **Azure 
 
 [VPA](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler) automatically adjusts CPU and memory requests/limits for pods based on observed usage.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** VPA nodes appear in the Resources view with `EdgeUses` edges to target workloads, grouped in the Scalers section alongside HPA and KEDA.
 
@@ -325,7 +325,7 @@ Target links use the API group in `targetRef.apiVersion`. Built-in targets witho
 
 [Gateway API](https://gateway-api.sigs.k8s.io/) is the next-generation Kubernetes networking API, replacing Ingress with more expressive routing, traffic splitting, and multi-tenant support.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Full network path — GatewayClass → Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute/UDPRoute → Service → Pod. Visualize how traffic flows from the gateway controller through routes to your backend services.
 
@@ -360,7 +360,7 @@ Target links use the API group in `targetRef.apiVersion`. Built-in targets witho
 
 [Traefik](https://traefik.io/) is a modern reverse proxy and ingress controller for Kubernetes, with dynamic configuration, middleware chains, and advanced traffic management via CRDs.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Full Traefik routing path — IngressRoute → Middleware → Service (or TraefikService → Service) with TLS and transport configuration edges. See how traffic flows from entrypoints through middleware chains and weighted/mirroring TraefikServices to backend Kubernetes Services. Both **Resources** and **Traffic** view modes are supported.
 
@@ -386,7 +386,7 @@ Target links use the API group in `targetRef.apiVersion`. Built-in targets witho
 
 ### Cluster Audit checks
 
-Traefik ships no admission webhook or linter, so a typo'd reference is accepted silently and the route or middleware just doesn't do what you wrote. Radar's Cluster Audit catches the common dangling-reference cases as **Reliability** checks:
+Traefik ships no admission webhook or linter, so a typo'd reference is accepted silently and the route or middleware just doesn't do what you wrote. KubeAtlas's Cluster Audit catches the common dangling-reference cases as **Reliability** checks:
 
 | Check | What it catches |
 |-------|-----------------|
@@ -420,7 +420,7 @@ The legacy `traefik.containo.us` API group (pre-v2.11) is warm-listed alongside 
 
 [Contour](https://projectcontour.io/) is a Kubernetes ingress controller using Envoy proxy, providing a powerful HTTPProxy CRD with route delegation, weighted routing, TLS termination, and TCP proxying.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Full Contour routing path — HTTPProxy (root) → HTTPProxy (child, via delegation) → Service, with TLS secret configuration edges. Root proxies with `spec.virtualhost` appear as entry points; child proxies referenced via `spec.includes` are connected via delegation edges. Both **Resources** and **Traffic** view modes are supported.
 
@@ -453,7 +453,7 @@ TLS references resolve local Secret names and delegated `namespace/name` names c
 
 [cert-manager](https://cert-manager.io/) automates TLS certificate management — issuing, renewing, and revoking certificates from Let's Encrypt, Vault, Venafi, and other issuers.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Certificate → Issuer/ClusterIssuer edges connect each certificate to its observed built-in issuer, including ownerless issuers. Omitted `issuerRef.kind` and `issuerRef.group` use cert-manager defaults. Only referenced issuers are added; external issuer groups are not inferred. ClusterIssuer visibility uses its exact cluster-scoped read permission. Resource details and MCP context distinguish issuer dependencies from autoscaling. The full provisioning chain (Certificate → CertificateRequest → Order → Challenge) is connected via owner references.
 
@@ -504,7 +504,7 @@ Looking for CPU, memory, throttling or HTTP request charts? See
 backend and do not require Prometheus Operator. This integration page describes
 inspection of the Operator's Kubernetes resources and scrape configuration.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **ServiceMonitor Detail View:**
 - Status conditions
@@ -537,7 +537,7 @@ inspection of the Operator's Kubernetes resources and scrape configuration.
 
 ## VictoriaMetrics chart reads
 
-The Helm chart grants Radar cluster-wide `get/list/watch` on VMAgent, VMCluster
+The Helm chart grants KubeAtlas cluster-wide `get/list/watch` on VMAgent, VMCluster
 and VMSingle (`vmagents`, `vmclusters`, `vmsingles` in
 `operator.victoriametrics.com`) whenever it grants cluster-wide Secrets reads:
 `rbac.secrets: true`, `rbac.helm: true`, auth enabled (`auth.mode != none`), or
@@ -548,7 +548,7 @@ This rule excludes VMUser/VMAuth, alerting and scrape/probe resources, and the
 Logs, Traces, Distributed and Anomaly families. The wildcard
 `rbac.crdGroups.all: true` still grants `get/list/watch` on every API group and
 resource, including core Secrets and these excluded kinds. See the
-[chart reference](../deploy/helm/radar/README.md#crd-access).
+[chart reference](../deploy/helm/kubeatlas/README.md#crd-access).
 
 ---
 
@@ -556,7 +556,7 @@ resource, including core Secrets and these excluded kinds. See the
 
 [Trivy Operator](https://aquasecurity.github.io/trivy-operator/) continuously scans your cluster for vulnerabilities, misconfigurations, exposed secrets, and license compliance issues.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **VulnerabilityReport Detail View:** Severity breakdown (Critical/High/Medium/Low), affected images, and CVE counts.
 
@@ -589,7 +589,7 @@ resource, including core Secrets and these excluded kinds. See the
 
 [Sealed Secrets](https://sealed-secrets.netlify.app/) encrypts Kubernetes Secrets so they can be safely stored in Git. The controller decrypts them in-cluster at deploy time.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** SealedSecret → Secret → workload when Secret metadata is visible, or SealedSecret → workload when Secret reads are restricted. Only SealedSecrets that configure a visible workload are included.
 
@@ -622,7 +622,7 @@ See the main [README](../README.md#gitops) for the user-facing overview. This se
 **Workflow operations**: Reconcile, Reconcile-with-source (Kustomization/HelmRelease), Suspend/Resume.
 
 **Source relationships**: Topology, Related Resources and REST/MCP context link
-observed Flux sources in both directions within Radar's namespace scope.
+observed Flux sources in both directions within KubeAtlas's namespace scope.
 Kustomizations use `spec.sourceRef`; HelmReleases use `spec.chart.spec.sourceRef`
 or `spec.chartRef`. Inline releases also link the generated HelmChart named by
 `status.helmChart`; an observed HelmChart links its source in its own namespace.
@@ -630,7 +630,7 @@ These are dependencies, not owners: topology draws each source upstream, with
 the edge pointing into the object that reads it. A link does not prove that Flux
 permits the reference or has produced an artifact.
 
-**Diagnosis**: Conditions extracted to issues (Ready=False, Stalled=True, Reconciling=True). Per-resource diff and recent events not yet available for Flux (HelmRelease-installed resources don't carry `last-applied-configuration`; tracked in [#601](https://github.com/skyhook-io/radar/issues/601)).
+**Diagnosis**: Conditions extracted to issues (Ready=False, Stalled=True, Reconciling=True). Per-resource diff and recent events not yet available for Flux (HelmRelease-installed resources don't carry `last-applied-configuration`; tracked for future work).
 
 ### ArgoCD
 
@@ -651,8 +651,8 @@ permits the reference or has produced an artifact.
 - **Operation-failure parser** recognizes 11 patterns: annotation-too-large, label-too-long, hook failure, admission webhook denial, RBAC, conflict, immutable field, schema migration, connectivity, etc.
 
 **Limitations**:
-- SSA-applied resources (`ServerSideApply=true` sync-option) lack the `last-applied-configuration` annotation, so the local diff described above is unavailable for those rows. Configuring the [Argo CD API integration](gitops.md#argo-cd-api-integration-deep-diff) covers them: Radar then asks argocd-server for the Git-rendered desired state and diffs against that, which is canonical rather than annotation-derived. An annotation-free local fallback via `metadata.managedFields` is still tracked in [#601](https://github.com/skyhook-io/radar/issues/601).
-- Single-cluster only: Application↔resource edges only render when Radar is connected to the cluster where the managed resources live (not necessarily the cluster running the Argo controller).
+- SSA-applied resources (`ServerSideApply=true` sync-option) lack the `last-applied-configuration` annotation, so the local diff described above is unavailable for those rows. Configuring the [Argo CD API integration](gitops.md#argo-cd-api-integration-deep-diff) covers them: KubeAtlas then asks argocd-server for the Git-rendered desired state and diffs against that, which is canonical rather than annotation-derived. An annotation-free local fallback via `metadata.managedFields` remains future work.
+- Single-cluster only: Application↔resource edges only render when KubeAtlas is connected to the cluster where the managed resources live (not necessarily the cluster running the Argo controller).
 
 ---
 
@@ -668,11 +668,11 @@ permits the reference or has produced an artifact.
 | ClusterAnalysisTemplate | `argoproj.io/v1alpha1` | — | Yes | — |
 | Experiment | `argoproj.io/v1alpha1` | — | Yes | — |
 
-### What Radar Shows
+### What KubeAtlas Shows
 
-**Control surface:** Set image updates one or more regular or init-container images on the Rollout's pod template or supported `workloadRef` target. Radar reads the current images before editing, rejects stale changes instead of overwriting them, and lets the Rollout controller start the resulting canary or blue-green rollout. A paused Rollout saves the template change but does not start rolling out until it is resumed. Promote, Promote full, Skip step, Retry, and Abort are also available on the Rollout detail page, each gated on a live capability probe (`patch rollouts` and `patch rollouts/status` are separate grants). Rollback goes through revision history, with an opt-in "skip canary steps" follow-up for hotfixes.
+**Control surface:** Set image updates one or more regular or init-container images on the Rollout's pod template or supported `workloadRef` target. KubeAtlas reads the current images before editing, rejects stale changes instead of overwriting them, and lets the Rollout controller start the resulting canary or blue-green rollout. A paused Rollout saves the template change but does not start rolling out until it is resumed. Promote, Promote full, Skip step, Retry, and Abort are also available on the Rollout detail page, each gated on a live capability probe (`patch rollouts` and `patch rollouts/status` are separate grants). Rollback goes through revision history, with an opt-in "skip canary steps" follow-up for hotfixes.
 
-**Rollout visibility:** Radar keeps serving readiness separate from transient rollout activity. Resource tables, drawers, full workload views, and Applications show the active step, progress, pause, or failure without marking capacity served by the stable revision as unavailable.
+**Rollout visibility:** KubeAtlas keeps serving readiness separate from transient rollout activity. Resource tables, drawers, full workload views, and Applications show the active step, progress, pause, or failure without marking capacity served by the stable revision as unavailable.
 
 **Canary/blueGreen progression:** The Rollout detail page renders a connected step timeline — every canary step in declaration order, with the current step highlighted and, for an analysis step, its live AnalysisRun status shown inline alongside a clickable link to the AnalysisTemplate/ClusterAnalysisTemplate it references. A blueGreen Rollout gets an equivalent derived phase list (preview scaled up → pre/post-promotion analysis → awaiting promotion → active cutover), since blueGreen has no `steps[]` array of its own to render directly.
 
@@ -682,7 +682,7 @@ permits the reference or has produced an artifact.
 
 **AnalysisTemplate / ClusterAnalysisTemplate / Experiment:** Full detail renderers — metric definitions (provider, interval, count, success/failure conditions) for the templates; templates, duration, and per-template replica/analysis status for Experiment. Reached both directly and via the step-timeline/Analysis-section links above.
 
-**Why it's stuck:** `InconclusiveAnalysisRun` names nothing on its own, so Radar resolves the AnalysisRun the controller recorded and surfaces the deciding metric — its success/failure condition, latest measured value, and message. The same verdict reaches AI agents through the Rollout's `issue` field.
+**Why it's stuck:** `InconclusiveAnalysisRun` names nothing on its own, so KubeAtlas resolves the AnalysisRun the controller recorded and surfaces the deciding metric — its success/failure condition, latest measured value, and message. The same verdict reaches AI agents through the Rollout's `issue` field.
 
 **Topology:** Rollout → active AnalysisRun (`uses`), labelled by trigger (step / background / pre-promotion / post-promotion). Only the runs the Rollout's status points at are graphed — historical runs would grow the graph without bound. (The full AnalysisRun history above is a detail-page list, not a topology change — the graph's "only active runs" bound is unchanged.)
 
@@ -706,11 +706,11 @@ permits the reference or has produced an artifact.
 
 [Istio](https://istio.io/) is the most widely adopted service mesh, providing traffic management, security (mTLS), and observability for microservices.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Full Istio traffic path — IstioGateway → VirtualService → Service, and DestinationRule → Service configuration edges. See how traffic flows through gateway listeners, virtual service routing rules, and into backend services.
 
-Service links accept short names in the rule's namespace or full `name.namespace.svc.<domain>` names. Radar reads a unique registry domain from standard observed Istiod Deployments' `--domain` argument, using Istio's `cluster.local` default when no override is observed. Conflicting or unresolved control-plane arguments leave FQDN links unresolved. External control planes and nonstandard launch configurations may therefore need additional domain discovery; arbitrary dotted hosts are not treated as local Services.
+Service links accept short names in the rule's namespace or full `name.namespace.svc.<domain>` names. KubeAtlas reads a unique registry domain from standard observed Istiod Deployments' `--domain` argument, using Istio's `cluster.local` default when no override is observed. Conflicting or unresolved control-plane arguments leave FQDN links unresolved. External control planes and nonstandard launch configurations may therefore need additional domain discovery; arbitrary dotted hosts are not treated as local Services.
 
 **VirtualService Detail View:**
 - HTTP/TCP/TLS routing rules with match conditions
@@ -764,7 +764,7 @@ Service links accept short names in the rule's namespace or full `name.namespace
 
 [Velero](https://velero.io/) provides backup and restore capabilities for Kubernetes cluster resources and persistent volumes.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Backup Detail View:**
 - Phase with color-coded badge, start/completion timestamps, duration
@@ -799,7 +799,7 @@ Service links accept short names in the rule's namespace or full `name.namespace
 
 ### Backup failures on the Problems surface
 
-Velero reports every outcome through `status.phase` and has no `status.conditions` on any of its CRDs, so Radar reads phases directly rather than through the generic CRD-condition fallback. These become Issues (`/api/issues`, the Problems surface, MCP `issues`):
+Velero reports every outcome through `status.phase` and has no `status.conditions` on any of its CRDs, so KubeAtlas reads phases directly rather than through the generic CRD-condition fallback. These become Issues (`/api/issues`, the Problems surface, MCP `issues`):
 
 | Detection | Trigger | Severity |
 |-----------|---------|----------|
@@ -820,7 +820,7 @@ They roll up under three categories, split by what you'd go and look at: `backup
 
 **Namespace attribution.** Issues attribute to the Velero object's own namespace (`velero`, or `kommander` on NKP). They are therefore admin-visible, but *not* visible to a user whose namespace view-filter excludes the Velero namespace — including one scoped only to the namespace whose data was lost. Surfacing a failure against the *protected* namespaces needs the protection-coverage model and is not part of this.
 
-**What is not detected yet.** Every detection above is driven by something Velero wrote — a phase, or in the stalled case a `startTimestamp` measured against the run's own budget. Radar does not yet detect the *absence* of a run: a schedule that quietly stopped firing (controller down, wrong cron, schedule deleted) leaves its last run `Completed`, so no issue is raised even though backups have silently stopped. That needs the schedule cadence modelled against Velero's real controller semantics (a due run is *skipped* while a prior backup is in flight), which is tracked separately. **Treat "no Velero issues" as "nothing Velero recorded looks wrong", not as "backups are healthy."**
+**What is not detected yet.** Every detection above is driven by something Velero wrote — a phase, or in the stalled case a `startTimestamp` measured against the run's own budget. KubeAtlas does not yet detect the *absence* of a run: a schedule that quietly stopped firing (controller down, wrong cron, schedule deleted) leaves its last run `Completed`, so no issue is raised even though backups have silently stopped. That needs the schedule cadence modelled against Velero's real controller semantics (a due run is *skipped* while a prior backup is in flight), which is tracked separately. **Treat "no Velero issues" as "nothing Velero recorded looks wrong", not as "backups are healthy."**
 
 ### Supported CRDs
 
@@ -834,9 +834,9 @@ They roll up under three categories, split by what you'd go and look at: `backup
 | BackupRepository | `velero.io/v1` | — | Yes | Yes | — |
 
 **Limitations**:
-- **A backup's phase is not its restorability.** A `Completed` backup can sit on an Unavailable storage location or be past its TTL. The BackupStorageLocation page shows stored and restorable counts. Unavailable means it cannot restore now; expired means Velero intends to delete it, so Radar excludes it even if garbage collection has not run yet.
-- **Stalled-run detection depends on the phase.** `WaitingForPluginOperations` is measured against Velero's `spec.itemOperationTimeout`. For `InProgress` and `Finalizing`, that duration is only a yardstick because Velero defines no deadline. Radar reports the distinction and elapsed time without guessing at a cause. If the field is absent, Radar uses Velero's built-in four-hour default; a controller-level override is not visible in the resource.
-- **Fetching run messages needs a live controller and reachable storage.** Radar creates a `DownloadRequest` and follows Velero's pre-signed object-storage URL. A stopped controller or a URL unreachable from Radar returns an explicit error; configure the storage location's `publicUrl` when needed. Data-mover objects (`DataUpload`/`DataDownload`) and full backup logs remain unavailable.
+- **A backup's phase is not its restorability.** A `Completed` backup can sit on an Unavailable storage location or be past its TTL. The BackupStorageLocation page shows stored and restorable counts. Unavailable means it cannot restore now; expired means Velero intends to delete it, so KubeAtlas excludes it even if garbage collection has not run yet.
+- **Stalled-run detection depends on the phase.** `WaitingForPluginOperations` is measured against Velero's `spec.itemOperationTimeout`. For `InProgress` and `Finalizing`, that duration is only a yardstick because Velero defines no deadline. KubeAtlas reports the distinction and elapsed time without guessing at a cause. If the field is absent, KubeAtlas uses Velero's built-in four-hour default; a controller-level override is not visible in the resource.
+- **Fetching run messages needs a live controller and reachable storage.** KubeAtlas creates a `DownloadRequest` and follows Velero's pre-signed object-storage URL. A stopped controller or a URL unreachable from KubeAtlas returns an explicit error; configure the storage location's `publicUrl` when needed. Data-mover objects (`DataUpload`/`DataDownload`) and full backup logs remain unavailable.
 
 ---
 
@@ -844,7 +844,7 @@ They roll up under three categories, split by what you'd go and look at: `backup
 
 [External Secrets Operator](https://external-secrets.io/) (ESO) synchronizes secrets from external providers (AWS Secrets Manager, HashiCorp Vault, Azure Key Vault, GCP Secret Manager, and more) into Kubernetes Secrets.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **ExternalSecret Detail View:**
 - Sync status badge, last sync time, refresh interval
@@ -883,11 +883,11 @@ They roll up under three categories, split by what you'd go and look at: `backup
 
 ## Strimzi Kafka connectors
 
-Radar surfaces failure evidence from `KafkaConnector` resources in `kafka.strimzi.io` through Issues, including the API and MCP. A connector can remain `RUNNING` while an individual task is `FAILED`; Radar checks both. Explicit connector/task failures and `NotReady=True` produce one warning per connector, attributed to Strimzi's operator snapshot. Task IDs are bounded; configurations, exception messages and stack traces are not included in the issue.
+KubeAtlas surfaces failure evidence from `KafkaConnector` resources in `kafka.strimzi.io` through Issues, including the API and MCP. A connector can remain `RUNNING` while an individual task is `FAILED`; KubeAtlas checks both. Explicit connector/task failures and `NotReady=True` produce one warning per connector, attributed to Strimzi's operator snapshot. Task IDs are bounded; configurations, exception messages and stack traces are not included in the issue.
 
-This requires existing Kubernetes read access to the connector CRs, with no Kafka credentials or additional settings. Connectors managed only through the Connect REST API are outside this coverage. Radar does not connect to Connect or Kafka directly. Radar Cloud's default integration-read role does not add `kafkaconnectors` access because full connector objects can contain credentials; callers need an existing separately authorized read grant.
+This requires existing Kubernetes read access to the connector CRs, with no Kafka credentials or additional settings. Connectors managed only through the Connect REST API are outside this coverage. KubeAtlas does not connect to Connect or Kafka directly. The default integration-read role used by legacy upstream Radar Cloud does not add `kafkaconnectors` access because full connector objects can contain credentials; callers need an existing separately authorized read grant.
 
-Missing or malformed observations do not establish health. Radar suppresses these warnings when the observed generation is absent or differs from the resource generation, reconciliation is paused, or the resource is terminating. Matching generations only establishes that Strimzi processed that specification; runtime state can change before the next reconciliation. Intentional `PAUSED`/`STOPPED` states and task-count differences are not treated as failures. Failure onset is unknown because operator condition timestamps do not reliably establish when a task failed.
+Missing or malformed observations do not establish health. KubeAtlas suppresses these warnings when the observed generation is absent or differs from the resource generation, reconciliation is paused, or the resource is terminating. Matching generations only establishes that Strimzi processed that specification; runtime state can change before the next reconciliation. Intentional `PAUSED`/`STOPPED` states and task-count differences are not treated as failures. Failure onset is unknown because operator condition timestamps do not reliably establish when a task failed.
 
 The source contract is Strimzi's [KafkaConnector status schema](https://strimzi.io/docs/operators/1.2.0/configuring.html#type-KafkaConnectorStatus-reference) and [connector management documentation](https://strimzi.io/docs/operators/1.2.0/deploying.html#con-switching-api-to-kafka-connector-str). Discovery uses the served preferred version; partial-discovery recovery probes `v1` and `v1beta2`.
 
@@ -895,7 +895,7 @@ The source contract is Strimzi's [KafkaConnector status schema](https://strimzi.
 
 [CloudNativePG](https://cloudnative-pg.io/) (CNPG) is the Kubernetes operator for PostgreSQL, covering the full lifecycle from bootstrapping to monitoring, with high availability, automated failover, and backup management.
 
-Beyond the per-kind views below, CloudNativePG gets its own views under Resources (`/cnpg`): the fleet, backups and recovery evidence, declarations, pooling and the operator. Each Cluster has a page organized by task (what needs attention, replication, storage, performance, backups) and guarded actions such as switchover, fencing, backup setup and restore, each followed until Radar observes the outcome. Radar does not provision object storage or credentials. Design detail is in [cnpg.md](cnpg.md).
+Beyond the per-kind views below, CloudNativePG gets its own views under Resources (`/cnpg`): the fleet, backups and recovery evidence, declarations, pooling and the operator. Each Cluster has a page organized by task (what needs attention, replication, storage, performance, backups) and guarded actions such as switchover, fencing, backup setup and restore, each followed until KubeAtlas observes the outcome. KubeAtlas does not provision object storage or credentials. Design detail is in [cnpg.md](cnpg.md).
 
 **Fleet:** every Cluster ordered by urgency, each with its top problem.
 
@@ -905,7 +905,7 @@ Beyond the per-kind views below, CloudNativePG gets its own views under Resource
 
 ![A Cluster stuck because its first instance can't be scheduled: the scheduler's reason first, then Serving, Replication, Storage and Backups at a glance](images/cnpg/cnpg-cluster-overview.png)
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Cluster Detail View:**
 - Phase, instances ready/desired, primary instance, image version
@@ -916,8 +916,8 @@ Beyond the per-kind views below, CloudNativePG gets its own views under Resource
 - Replication settings (for replica clusters), with per-instance role and timeline ID
 - PostgreSQL parameters
 - Health detection (AlertBanner for degraded clusters, failover/switchover in progress)
-- **WAL archiving failure** — a first-class AlertBanner driven by the `ContinuousArchiving` condition. This is the classic silent CNPG incident: the cluster keeps serving traffic normally while the recovery point stops advancing. The condition proves the last archive attempt failed, so Radar reports "archiving failing since &lt;time&gt; — the recovery point may not be advancing" and deliberately does not claim an exact RPO
-- **Last-backup failure** — driven by the `LastBackupSucceeded` condition. CNPG also sets this condition False with reason `BackupStarted` while a backup is merely in flight; Radar ignores that state rather than alerting on every backup run
+- **WAL archiving failure** — a first-class AlertBanner driven by the `ContinuousArchiving` condition. This is the classic silent CNPG incident: the cluster keeps serving traffic normally while the recovery point stops advancing. The condition proves the last archive attempt failed, so KubeAtlas reports "archiving failing since &lt;time&gt; — the recovery point may not be advancing" and deliberately does not claim an exact RPO
+- **Last-backup failure** — driven by the `LastBackupSucceeded` condition. CNPG also sets this condition False with reason `BackupStarted` while a backup is merely in flight; KubeAtlas ignores that state rather than alerting on every backup run
 
 **Backup Detail View:**
 - Phase, backup method, duration, start/stop timestamps
@@ -938,7 +938,7 @@ Beyond the per-kind views below, CloudNativePG gets its own views under Resource
 - PgBouncer parameters
 - Degraded state detection (AlertBanner when not all instances are scheduled)
 
-Note `Pooler.status.instances` counts pods *trying to be scheduled*, not ready pods — a Pooler whose PgBouncer pods are all Pending still reports the full count. Radar labels the declared `spec.instances` count neutrally as **N instances requested**; actual readiness lives on the Deployment CNPG generates for the Pooler (same name, same namespace).
+Note `Pooler.status.instances` counts pods *trying to be scheduled*, not ready pods — a Pooler whose PgBouncer pods are all Pending still reports the full count. KubeAtlas labels the declared `spec.instances` count neutrally as **N instances requested**; actual readiness lives on the Deployment CNPG generates for the Pooler (same name, same namespace).
 
 **Resource Browser:** Smart columns show status, instance counts (with degraded highlighting), primary instance, image tag, storage size, cluster reference, and schedule expressions.
 
@@ -952,19 +952,19 @@ The taxonomy is defined twice — TypeScript for the badge, Go for the issue det
 
 ### Backup: in-tree vs the barman-cloud plugin
 
-In-tree `spec.backup.barmanObjectStore` is deprecated as of CNPG 1.26. Clusters migrated to the [barman-cloud plugin](https://github.com/cloudnative-pg/plugin-barman-cloud) keep their config in an `ObjectStore` CR (`barmancloud.cnpg.io/v1`), and CNPG stops populating `status.lastSuccessfulBackup` / `firstRecoverabilityPoint` by design. Radar detects the plugin from `spec.plugins[]`, names the ObjectStore and resolved server key, and says so explicitly — rather than rendering an empty backup section that reads identically to "no backups configured".
+In-tree `spec.backup.barmanObjectStore` is deprecated as of CNPG 1.26. Clusters migrated to the [barman-cloud plugin](https://github.com/cloudnative-pg/plugin-barman-cloud) keep their config in an `ObjectStore` CR (`barmancloud.cnpg.io/v1`), and CNPG stops populating `status.lastSuccessfulBackup` / `firstRecoverabilityPoint` by design. KubeAtlas detects the plugin from `spec.plugins[]`, names the ObjectStore and resolved server key, and says so explicitly — rather than rendering an empty backup section that reads identically to "no backups configured".
 
 The `ObjectStore` itself is rendered: destination and credential provider (never the credentials), retention, and `status.serverRecoveryWindow` per PostgreSQL server — `firstRecoverabilityPoint`, `lastSuccessfulBackupTime`, `lastFailedBackupTime`. Note the field names differ from the Cluster's (`lastSuccessfulBackupTime`, not `lastSuccessfulBackup`); reading the Cluster's spelling off an ObjectStore silently yields nothing.
 
 Two states carry the weight. A failure newer than the last success means the window has stopped advancing while its oldest point still ages out under retention — shrinking from both ends, so it is called out rather than left to be inferred from two timestamps. An ObjectStore with an empty `serverRecoveryWindow` is reported as holding nothing restorable rather than as healthy: on the plugin path the Cluster publishes no recovery point of its own, so a green badge here would be the only claim on screen and it would be wrong.
 
-`Backup` and `ScheduledBackup` with `spec.method: plugin` name the plugin and suppress the in-tree `destinationPath` / `serverName` rows, which are never populated on that path. For barman-cloud, their destination comes from the Cluster’s plugin entry; their own plugin parameters are ignored. The standalone renderers explain this without presenting a parameter as a destination link. Workspace destination links are inferred from the current Cluster configuration. Radar does not model third-party plugin destinations.
+`Backup` and `ScheduledBackup` with `spec.method: plugin` name the plugin and suppress the in-tree `destinationPath` / `serverName` rows, which are never populated on that path. For barman-cloud, their destination comes from the Cluster’s plugin entry; their own plugin parameters are ignored. The standalone renderers explain this without presenting a parameter as a destination link. Workspace destination links are inferred from the current Cluster configuration. KubeAtlas does not model third-party plugin destinations.
 
 ### Declarative objects: Database, Publication, Subscription
 
 CNPG can manage PostgreSQL-side objects from Kubernetes. All three report through `status.applied`, and it has **three** values, not two: `true`, `false` with the operator's message, and absent — meaning not reconciled yet. Absent is rendered as pending rather than failed; treating it as failure condemns every object in its first seconds.
 
-The names in these specs are PostgreSQL names, not Kubernetes names: a Publication `demo-app-pub` declares `dbname: demo_app`, and the Database CR that owns `demo_app` is called `demo-app`. Radar resolves them back to the CRs so the reference is a link rather than a dead string, and falls back to plain text when nothing matches. The Database detail runs the lookup in the other direction, listing what publishes from and subscribes into it — a link the API only models one way.
+The names in these specs are PostgreSQL names, not Kubernetes names: a Publication `demo-app-pub` declares `dbname: demo_app`, and the Database CR that owns `demo_app` is called `demo-app`. KubeAtlas resolves them back to the CRs so the reference is a link rather than a dead string, and falls back to plain text when nothing matches. The Database detail runs the lookup in the other direction, listing what publishes from and subscribes into it — a link the API only models one way.
 
 `databaseReclaimPolicy` (and its publication/subscription twins) decides whether deleting the manifest drops the real object. `delete` is called out as destructive; CNPG defaults to `retain`, and defaulting the other way in the UI would warn about data loss that is not going to happen.
 
@@ -1007,9 +1007,9 @@ Deliberately narrow: the absence of a ScheduledBackup does not prove a cluster i
 
 ## Crossplane
 
-[Crossplane](https://crossplane.io/) extends Kubernetes with declarative cloud-resource management. Operators define platform APIs (`CompositeResourceDefinition`s + `Composition`s), and provider packages reconcile real cloud resources from `Managed Resource` CRs in any cloud or SaaS. Radar treats every provider as a first-class integration without needing per-provider code — detection is heuristic, based on spec shape.
+[Crossplane](https://crossplane.io/) extends Kubernetes with declarative cloud-resource management. Operators define platform APIs (`CompositeResourceDefinition`s + `Composition`s), and provider packages reconcile real cloud resources from `Managed Resource` CRs in any cloud or SaaS. KubeAtlas treats every provider as a first-class integration without needing per-provider code — detection is heuristic, based on spec shape.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Sidebar:** All Crossplane resources land under a single "Crossplane" group, including provider-shipped MR groups (`*.upbound.io`, `*.crossplane.io` subgroups). Provider-Kubernetes and Provider-Helm config groups are first-class.
 
@@ -1055,9 +1055,9 @@ Deliberately narrow: the absence of a ScheduledBackup does not prove a cluster i
 
 **Resource Browser:** MR list shows kind / external name / provider config / status; Provider list shows package, revision, status; Composition list shows mode, composite kind, function count; XRD list shows generated kind and claim kind.
 
-**Topology:** Radar connects a v1 Claim to its bound XR, and an XR to its composed Managed Resources. Edges follow Crossplane's v1 and v2 spec references; only resources Radar already watches and can read are shown.
+**Topology:** KubeAtlas connects a v1 Claim to its bound XR, and an XR to its composed Managed Resources. Edges follow Crossplane's v1 and v2 spec references; only resources KubeAtlas already watches and can read are shown.
 
-**Pause display:** Exact annotation intent plus recorded `Synced=False/ReconcilePaused` also qualifies pause context before an XR or Claim has resource references; this does not infer its resource type or enable composite-specific features. An annotation-only request without a recognized Crossplane shape remains unclassified. A neutral chip stays beside the row name, including XR/Claim tables using CRD printer columns. Condition-derived printer values retain their raw text; only exact condition-source metadata plus corroborated pause changes the expected Synced=False or recorded Ready=True tone. Older Radar servers omit that source metadata, so their printer cells keep generic tones alongside the neutral pause chip. Deletion requested while pause intent is set gets an inline warning that reconciliation may defer this resource’s controller cleanup. No pause age or freshness is inferred from condition transition times. Without exact annotation intent, `ReconcilePaused` remains an alert with its raw reason. A newer UI against a server predating the pause Issue rule can still show that server’s warning Issue.
+**Pause display:** Exact annotation intent plus recorded `Synced=False/ReconcilePaused` also qualifies pause context before an XR or Claim has resource references; this does not infer its resource type or enable composite-specific features. An annotation-only request without a recognized Crossplane shape remains unclassified. A neutral chip stays beside the row name, including XR/Claim tables using CRD printer columns. Condition-derived printer values retain their raw text; only exact condition-source metadata plus corroborated pause changes the expected Synced=False or recorded Ready=True tone. Older KubeAtlas servers omit that source metadata, so their printer cells keep generic tones alongside the neutral pause chip. Deletion requested while pause intent is set gets an inline warning that reconciliation may defer this resource’s controller cleanup. No pause age or freshness is inferred from condition transition times. Without exact annotation intent, `ReconcilePaused` remains an alert with its raw reason. A newer UI against a server predating the pause Issue rule can still show that server’s warning Issue.
 
 For shape-detected XRs and Claims without printer columns, the primary table status, filter and sort share the Crossplane status helper even when unpaused, matching the detail header.
 
@@ -1076,7 +1076,7 @@ Resources without a known Crossplane spec shape qualify for operation context on
 
 ### v1 vs v2 Path Handling
 
-Crossplane v2 moved several fields under `spec.crossplane.*`. Radar's renderers and detectors check the v2 path first, fall back to v1 — no version detection needed. Fields handled this way:
+Crossplane v2 moved several fields under `spec.crossplane.*`. KubeAtlas's renderers and detectors check the v2 path first, fall back to v1 — no version detection needed. Fields handled this way:
 
 - `spec.crossplane.providerConfigRef` ↔ `spec.providerConfigRef`
 - `spec.crossplane.resourceRefs` ↔ `spec.resourceRefs`
@@ -1091,7 +1091,7 @@ Crossplane v2 moved several fields under `spec.crossplane.*`. Radar's renderers 
 - **Composite / Claim**: presence of `spec.resourceRefs` (v1 or v2 path) AND not an MR
 - **v1 Claim**: also has `spec.resourceRef` (singular, pointing at the bound XR) + `spec.compositionRef`
 
-The set of MR CRD kinds is unbounded — every provider ships its own. Detection by spec shape lets Radar handle providers it has never seen without per-provider code.
+The set of MR CRD kinds is unbounded — every provider ships its own. Detection by spec shape lets KubeAtlas handle providers it has never seen without per-provider code.
 
 ### RBAC
 
@@ -1135,7 +1135,7 @@ Deferred to a future "full Crossplane" pass:
 
 [Kyverno](https://kyverno.io/) is a Kubernetes-native policy engine for validation, mutation, generation, and image verification — no new language required, policies are written as Kubernetes resources.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Policy / ClusterPolicy Detail View:**
 - Enforcement badge: what the policy does at admission, not just what `validationFailureAction` reads. Enforce in red, Audit in yellow, and **Background only** (or **Inactive**, when background scanning is off too) in orange for a policy that declares Enforce but is kept out of the admission webhook by `spec.admission: false`
@@ -1159,7 +1159,7 @@ A resource page answers "which policies does this break". The policy page answer
 
 Keep these semantics in mind when reading the results:
 
-- **Report producers share the same fields.** Trivy and Falco can write their own identifiers into `results[].policy`; Radar labels those results by producer instead of presenting them as Kyverno policy outcomes.
+- **Report producers share the same fields.** Trivy and Falco can write their own identifiers into `results[].policy`; KubeAtlas labels those results by producer instead of presenting them as Kyverno policy outcomes.
 - **Status wording follows the rule type.** For example, a mutating rule's `fail` means the mutation was not applied, while a generate rule's `pass` means the resource was generated.
 - **Enforcement follows declared operations.** A CREATE-only policy rejects new resources, not updates to existing ones. A resource already failing that rule is grandfathered until it is recreated.
 
@@ -1169,7 +1169,7 @@ Passing resources are available behind an **all N passing** disclosure. Large su
 
 The count of queued work appears **on the policy itself**, above its configuration. The section is silent when a policy has nothing queued, so it stays out of the way for policies that only validate.
 
-**UpdateRequest** is where a generation or mutate-existing operation that silently stopped is diagnosed: the policy may report Ready while the target never appears, with a request sitting in `Pending` as the remaining evidence. Radar handles both Kyverno request shapes and links each request to the trigger resources it records.
+**UpdateRequest** is where a generation or mutate-existing operation that silently stopped is diagnosed: the policy may report Ready while the target never appears, with a request sitting in `Pending` as the remaining evidence. KubeAtlas handles both Kyverno request shapes and links each request to the trigger resources it records.
 
 **EphemeralReport** holds a background scan's findings before they are folded into a PolicyReport. Kyverno deletes these reports quickly after processing, so an empty list normally means the work completed rather than that reporting is unavailable.
 
@@ -1191,7 +1191,7 @@ PolicyReport findings are policy posture, not live operational failure, so they 
 **Limitations**:
 - Queued work (`UpdateRequest`) is only shown for policies that generate or mutate existing resources, and only while it is in flight — Kyverno deletes these seconds after the work completes, so an empty section is the normal resting state rather than evidence that nothing ran.
 - Coverage counts describe the whole cluster within what the caller is authorized to read; per-rule subject lists are capped by the server and additionally follow the namespace view filter. The screen states which number it is showing, but the two are not interchangeable.
-- Radar authorizes the `wgpolicyk8s.io` and `openreports.io` report families separately at each subject scope. A grant to read `policyreports` does not imply `clusterpolicyreports`, while a namespace-restricted caller can still see findings for namespaces they may read. Findings from an unreadable family are withheld from both lists and counts, and the number withheld is reported.
+- KubeAtlas authorizes the `wgpolicyk8s.io` and `openreports.io` report families separately at each subject scope. A grant to read `policyreports` does not imply `clusterpolicyreports`, while a namespace-restricted caller can still see findings for namespaces they may read. Findings from an unreadable family are withheld from both lists and counts, and the number withheld is reported.
 
 ---
 
@@ -1199,7 +1199,7 @@ PolicyReport findings are policy posture, not live operational failure, so they 
 
 [Knative](https://knative.dev/) extends Kubernetes with serverless capabilities: scale-to-zero, request-driven autoscaling, event-driven architectures, and simplified service deployment.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Full Knative Serving chain — Route → KnativeService → Configuration → Revision → Deployment → Pod. Eventing flow — PingSource → Broker → Trigger → subscriber target. See how traffic is split across revisions, which configurations are active, and how events flow from sources through brokers to triggers.
 
@@ -1302,7 +1302,7 @@ Event destinations retain the reference’s API group, kind, namespace and name.
 
 [OpenCost](https://www.opencost.io/) is a CNCF tool for Kubernetes cost monitoring, exposing cloud provider pricing and workload resource allocation as Prometheus metrics.
 
-Radar supports two read-only cost sources. **Automatic** prefers usable OpenCost
+KubeAtlas supports two read-only cost sources. **Automatic** prefers usable OpenCost
 metrics from Prometheus, then tries a Kubecost 3 Aggregator when those metrics
 are absent. If neither source is found, Cost reports that state and retries
 discovery.
@@ -1325,15 +1325,15 @@ Local Settings tests Kubecost mode, and Automatic with any Kubecost override
 Automatic without Kubecost overrides, or Prometheus mode, saves a preference
 without asserting that the backend is reachable.
 
-For Kubecost, Radar auto-discovers only an active Aggregator StatefulSet and its matching Service.
+For Kubecost, KubeAtlas auto-discovers only an active Aggregator StatefulSet and its matching Service.
 It tries the official named `tcp-api` port 9004 first. When that port rejects unauthenticated access
-and no API key is configured, Radar falls back only to the same Service's exact `tcp-api-rbac` port
+and no API key is configured, KubeAtlas falls back only to the same Service's exact `tcp-api-rbac` port
 9008, which Kubecost exposes for internal clients when SAML or OIDC is enabled. An explicitly
 configured key is never bypassed this way: a rejected key remains an authentication error.
-In-cluster Radar connects through Service DNS; local Radar uses a scoped port-forward to the selected
+In-cluster KubeAtlas connects through Service DNS; local KubeAtlas uses a scoped port-forward to the selected
 port. An explicit URL is required for federated agent-only clusters, which have a FinOps Agent but no
 local Aggregator. A Service exposing only port 9008 is not auto-discovered; configure that endpoint
-explicitly. Radar accepts either a root API URL or one ending in `/model`, can send an optional
+explicitly. KubeAtlas accepts either a root API URL or one ending in `/model`, can send an optional
 service-account key as `X-API-KEY`, and requires an exact cluster ID
 to filter a central Aggregator. It detects one literal `CLUSTER_ID` from an active FinOps Agent or
 Aggregator; indirect, missing, or conflicting values require an override. Local CLI/Desktop stores
@@ -1343,27 +1343,27 @@ its underlying cluster identity pauses them until you confirm. An explicit centr
 key can be copied through **Copy settings from…**. Later edits are independent, and cluster IDs
 are not copied. See [local integration connections](configuration.md#local-integration-connections).
 Shared installations bind a cluster-ID override saved in `config.json` to the active kubeconfig
-context, and also bind a saved API key when the URL is blank and Radar auto-discovers a local
+context, and also bind a saved API key when the URL is blank and KubeAtlas auto-discovers a local
 Aggregator.
 
 OpenCost-compatible Prometheus data powers current cost and historical charts. Kubecost REST powers
 the current namespace summary, workload/application compute allocation, node costs, and the cluster
 namespace trend from the allocation history retained by its Aggregator. Workload and application
-history remain unavailable for Kubecost. Radar never mixes current data from one source with history
+history remain unavailable for Kubecost. KubeAtlas never mixes current data from one source with history
 from another.
 
 Cost values contain no reliable per-response currency metadata. When the selected source is tied to
-the connected cluster, Radar looks for `currencyCode` in the pricing ConfigMap referenced by an
+the connected cluster, KubeAtlas looks for `currencyCode` in the pricing ConfigMap referenced by an
 active OpenCost/Kubecost workload, or literal `DISPLAY_CURRENCY` on an active Kubecost Deployment or
 StatefulSet. `DISPLAY_CURRENCY` takes precedence; conflicting or indirect values are treated as
 ambiguous. A manually configured Prometheus URL skips cluster inference because it may serve another
 cluster, while a selected Kubecost source still uses its connected-cluster workload evidence. If
-evidence is unavailable, Radar uses USD. Override the label in Settings → Cost or
-`opencostCurrency` (CLI: `--opencost-currency`; Helm: `cost.currency`). Radar labels values but does
+evidence is unavailable, KubeAtlas uses USD. Override the label in Settings → Cost or
+`opencostCurrency` (CLI: `--opencost-currency`; Helm: `cost.currency`). KubeAtlas labels values but does
 not convert them. The Settings currency preference saves independently of the live source action,
 so changing its label never requires the source probe to succeed.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Resource Costs** 
 
@@ -1394,9 +1394,9 @@ chart.
 
 ## Dynamic Resource Allocation (DRA)
 
-[Dynamic Resource Allocation](https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/) is Kubernetes' structured device-allocation API (GA in 1.34), replacing opaque extended-resource integers for GPUs and other accelerators. These are built-in `resource.k8s.io` APIs, not CRDs — Radar discovers them automatically when the cluster serves the group.
+[Dynamic Resource Allocation](https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/) is Kubernetes' structured device-allocation API (GA in 1.34), replacing opaque extended-resource integers for GPUs and other accelerators. These are built-in `resource.k8s.io` APIs, not CRDs — KubeAtlas discovers them automatically when the cluster serves the group.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **ResourceClaim Detail View:** Allocation lifecycle status (Pending → Allocated → reserved), device requests with their DeviceClass (handles v1 `exactly`/`firstAvailable` and v1beta1 request shapes), allocated driver/pool/device results, reserved-for consumers with Pod links, and per-device health conditions when drivers report them. An allocated-but-unreserved claim is flagged — long-lived, it leaks a device.
 
@@ -1419,9 +1419,9 @@ chart.
 
 The [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/) manages the GPU software stack (driver, container toolkit, device plugin, DCGM) on Kubernetes.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
-**ClusterPolicy Detail View:** Operator state (ready / notReady / disabled), enabled components (driver, toolkit, device plugin, DCGM exporter, GFD, MIG manager, …), and MIG strategy. NVIDIA's ClusterPolicy shares its kind name with Kyverno's — Radar disambiguates by API group everywhere.
+**ClusterPolicy Detail View:** Operator state (ready / notReady / disabled), enabled components (driver, toolkit, device plugin, DCGM exporter, GFD, MIG manager, …), and MIG strategy. NVIDIA's ClusterPolicy shares its kind name with Kyverno's — KubeAtlas disambiguates by API group everywhere.
 
 **NVIDIADriver Detail View:** Driver rollout state, type, version, image/repository, precompiled flag, and node selector.
 
@@ -1436,18 +1436,18 @@ The [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-op
 
 ## Network Policies
 
-[Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) control pod-to-pod and pod-to-external traffic at the network level. Radar supports standard Kubernetes NetworkPolicy, Cilium policies, and [Calico policies](https://docs.tigera.io/calico/latest/network-policy/), showing which policies exist and which workloads they select, which workloads no policy selects, and - when Hubble reports a policy drop - what the plugin recorded and what Radar can determine from the current Kubernetes NetworkPolicies. Applicable Cilium policies are listed, but their rules are not evaluated.
+[Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/) control pod-to-pod and pod-to-external traffic at the network level. KubeAtlas supports standard Kubernetes NetworkPolicy, Cilium policies, and [Calico policies](https://docs.tigera.io/calico/latest/network-policy/), showing which policies exist and which workloads they select, which workloads no policy selects, and - when Hubble reports a policy drop - what the plugin recorded and what KubeAtlas can determine from the current Kubernetes NetworkPolicies. Applicable Cilium policies are listed, but their rules are not evaluated.
 
 ### Why was this flow dropped?
 
-With Hubble as the traffic source, expand a dropped flow in the Traffic view to see the reason the network plugin reported. For policy drops, Radar also shows the deny policy the plugin named, if any, and checks the current Kubernetes NetworkPolicies against that connection. The panel answers in that order: what the plugin recorded, what current policies say, and what Radar could not check.
+With Hubble as the traffic source, expand a dropped flow in the Traffic view to see the reason the network plugin reported. For policy drops, KubeAtlas also shows the deny policy the plugin named, if any, and checks the current Kubernetes NetworkPolicies against that connection. The panel answers in that order: what the plugin recorded, what current policies say, and what KubeAtlas could not check.
 
-Radar reads policies as they are now and says so. The plugin's deny attribution and Radar's current-policy check are separate things, and the panel keeps them apart. When missing information — the pod is gone, the flow record has no direction, you cannot read the peer's namespace — keeps Radar from completing the check, the panel explains why instead of guessing. Applicable Cilium policies are listed, but their rules are not evaluated.
+KubeAtlas reads policies as they are now and says so. The plugin's deny attribution and KubeAtlas's current-policy check are separate things, and the panel keeps them apart. When missing information — the pod is gone, the flow record has no direction, you cannot read the peer's namespace — keeps KubeAtlas from completing the check, the panel explains why instead of guessing. Applicable Cilium policies are listed, but their rules are not evaluated.
 
-The common case is a default-deny policy with nothing that allows the client. Cilium reports the drop as a policy drop but names no policy, because no rule matched. Radar's own check names the policy that isolates the pod and explains what it does.
+The common case is a default-deny policy with nothing that allows the client. Cilium reports the drop as a policy drop but names no policy, because no rule matched. KubeAtlas's own check names the policy that isolates the pod and explains what it does.
 
 <p align="center">
-  <img src="screenshots/integrations/netpol-drop-default-deny.png" alt="Dropped flow with a default-deny NetworkPolicy named by Radar's check" width="900">
+  <img src="screenshots/integrations/netpol-drop-default-deny.png" alt="Dropped flow with a default-deny NetworkPolicy named by KubeAtlas's check" width="900">
   <br><em>Hubble reports POLICY_DENIED without naming a policy. The current check lists deny-echo-ingress and explains that it has no allow rules</em>
 </p>
 
@@ -1458,22 +1458,22 @@ When the plugin does name the policy — an explicit Cilium deny rule — that i
   <br><em>Hubble names a Cilium deny policy as the reason for the drop. The current Kubernetes NetworkPolicy check appears below it</em>
 </p>
 
-Cilium policies can allow or deny traffic on their own terms, alongside Kubernetes ones, and Radar does not evaluate their rules. So when a Cilium policy governs the pod in the flow's direction, Radar states the Kubernetes-only result as a result, lists the Cilium policy as *can't evaluate*, and does not call the connection allowed or denied.
+Cilium policies can allow or deny traffic on their own terms, alongside Kubernetes ones, and KubeAtlas does not evaluate their rules. So when a Cilium policy governs the pod in the flow's direction, KubeAtlas states the Kubernetes-only result as a result, lists the Cilium policy as *can't evaluate*, and does not call the connection allowed or denied.
 
 <p align="center">
   <img src="screenshots/integrations/netpol-drop-cilium-capped.png" alt="Dropped flow where a Cilium policy caps the Kubernetes-only verdict" width="900">
-  <br><em>A Cilium policy also applies. Radar shows the Kubernetes-only result and cannot determine the combined result</em>
+  <br><em>A Cilium policy also applies. KubeAtlas shows the Kubernetes-only result and cannot determine the combined result</em>
 </p>
 
 Each policy row says what it does to this connection in plain words: *allows this traffic*, *no matching allow rule*, or *can't evaluate*. NetworkPolicies combine their allow rules, so a policy with no matching rule does not override another policy's allow; the panel shows this reminder when several policies apply and at least one has no matching allow rule.
 
-Radar runs the current-policy check only when the plugin reports a policy drop. For other drops (an unroutable address, a malformed packet) the panel shows the reported reason and says that Radar checks NetworkPolicies only for policy drops. If the plugin reported no reason, the panel says Radar cannot tell whether a policy was involved. A policy drop over a protocol other than TCP, UDP or SCTP cannot be checked against port rules, and the panel says so.
+KubeAtlas runs the current-policy check only when the plugin reports a policy drop. For other drops (an unroutable address, a malformed packet) the panel shows the reported reason and says that KubeAtlas checks NetworkPolicies only for policy drops. If the plugin reported no reason, the panel says KubeAtlas cannot tell whether a policy was involved. A policy drop over a protocol other than TCP, UDP or SCTP cannot be checked against port rules, and the panel says so.
 
 The panel shows when the flow was seen and when the policies were checked, and refreshes every 30 seconds while the row is open. Policies may have changed since the drop: a current allow does not confirm that a new connection will succeed. What the panel does not do yet: propose the rule that would allow the traffic, or tell you whether a policy changed after the drop.
 
-The panel shows only what you could read yourself: listing policies and reading the pod in that namespace are required, a peer pod or Namespace you cannot read is left unresolved, and a policy name reported by the plugin is withheld when you cannot list policies of that kind. In the Helm chart, the Cloud cluster-read role grants Cilium policy reads under `rbac.crdGroups.cilium` so Radar can identify the Cilium policies that apply; it still does not evaluate their rules.
+The panel shows only what you could read yourself: listing policies and reading the pod in that namespace are required, a peer pod or Namespace you cannot read is left unresolved, and a policy name reported by the plugin is withheld when you cannot list policies of that kind. In the Helm chart, the Cloud cluster-read role grants Cilium policy reads under `rbac.crdGroups.cilium` so KubeAtlas can identify the Cilium policies that apply; it still does not evaluate their rules.
 
-### What Radar Shows
+### What KubeAtlas Shows
 
 **Topology:** Kubernetes, Cilium, and Calico policy nodes appear in the topology graph with edges connecting them to the Deployments, StatefulSets, and DaemonSets they protect. Calico matching evaluates workload, namespace, and service-account selectors. Staged Calico policies use dashed edges and preview styling so they are not mistaken for enforced protection; a staged policy whose `stagedAction` is `Delete` or `Ignore` draws no edge at all, because promoting it would remove protection rather than add it.
 
@@ -1530,7 +1530,7 @@ The panel shows only what you could read yourself: listing policies and reading 
 
 **Calico Infrastructure Detail Views:** IPPool details show CIDR, encapsulation, NAT, block size, assignment mode, and node selectors. HostEndpoints show interface, expected IP addresses, profiles, and a link to the owning Node. Tier details show order and default action, and policies link back to their Tier.
 
-Radar recognizes both `projectcalico.org` and `crd.projectcalico.org`. A cluster
+KubeAtlas recognizes both `projectcalico.org` and `crd.projectcalico.org`. A cluster
 running the Calico API server serves the same stored policies under both, so each
 policy appears once, identified by kind, namespace and name. The API group stays
 part of resource navigation and authorization — it is what keeps Calico
@@ -1556,7 +1556,7 @@ either grant is enough to read it.
 
 ### Calico Coverage Limits
 
-Radar statically evaluates Calico selectors against workload pod templates and the Namespace and ServiceAccount objects it can read. The result describes declared policy coverage, not live CNI enforcement or packet-level behavior. Missing labels or RBAC-restricted resources can prevent a relationship from being inferred, and staged policies are never included in enforced coverage. The projected "if staged" figure assumes every staged policy is promoted at once; it is a projection of the declared rules, not a simulation of what the data plane would do.
+KubeAtlas statically evaluates Calico selectors against workload pod templates and the Namespace and ServiceAccount objects it can read. The result describes declared policy coverage, not live CNI enforcement or packet-level behavior. Missing labels or RBAC-restricted resources can prevent a relationship from being inferred, and staged policies are never included in enforced coverage. The projected "if staged" figure assumes every staged policy is promoted at once; it is a projection of the declared rules, not a simulation of what the data plane would do.
 
 ---
 
@@ -1631,7 +1631,7 @@ name order and up to seven resource assignments per PodSet, prioritizing
 extended resources before core resources; explicit truncation flags point
 consumers back to the returned raw Workload for the complete status. Normal
 unsatisfied admission is scheduling context rather than an operational Issue.
-Radar does not infer feature-gate state, queue position, fairness math, Pod
+KubeAtlas does not infer feature-gate state, queue position, fairness math, Pod
 placement, or physical capacity. This is a bounded projection of the returned
 Workload's current status, not condition history, queue-wide observation
 coverage, or support for other Kueue API versions.
@@ -1764,7 +1764,7 @@ scoped to one Job (live) or a role/all current members (bounded snapshots with s
 attribution and read failures). Historical goodput and archived logs are not collected.
 
 
-Volcano Job, the Volcano/KAI Queues and PodGroups, and KAITO Workspaces share kind names with other resources — Radar disambiguates by API group in tables, filters, and status badges.
+Volcano Job, the Volcano/KAI Queues and PodGroups, and KAITO Workspaces share kind names with other resources — KubeAtlas disambiguates by API group in tables, filters, and status badges.
 
 ### Model serving operators: KAITO, NVIDIA NIM, AMD
 
@@ -1779,4 +1779,4 @@ Volcano Job, the Volcano/KAI Queues and PodGroups, and KAITO Workspaces share ki
 
 ## Any Other CRD
 
-Radar automatically discovers and displays **every** CRD installed in your cluster — no configuration or plugins required. Resources appear in the sidebar, can be filtered and searched, and show full YAML with syntax highlighting in the detail drawer. The integrations above add richer presentation, but every CRD is browsable out of the box.
+KubeAtlas automatically discovers and displays **every** CRD installed in your cluster — no configuration or plugins required. Resources appear in the sidebar, can be filtered and searched, and show full YAML with syntax highlighting in the detail drawer. The integrations above add richer presentation, but every CRD is browsable out of the box.

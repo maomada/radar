@@ -1,6 +1,6 @@
-import { type Issue, type IssueRecentChange } from "@skyhook-io/k8s-ui";
-import { fnv1a32 } from "@skyhook-io/k8s-ui/utils/structure-hash";
-import { type TimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+import { type Issue, type IssueRecentChange } from "@maomada/k8s-ui";
+import { fnv1a32 } from "@maomada/k8s-ui/utils/structure-hash";
+import { type TimeSeries } from "@maomada/k8s-ui/components/charts";
 import { apiVersionToGroup } from "../../../../utils/navigation";
 import {
   type DiagnosisDNSContext,
@@ -337,7 +337,7 @@ export function adaptDiagnose(
       tier: evidenceTierForRelevance("checked", bundleRelevance),
       relevance: bundleRelevance,
       tone: "neutral",
-      title: "Radar's diagnosis found no live issues",
+      title: "KubeAtlas's diagnosis found no live issues",
       summary: scope,
       data: {
         type: "receipt",
@@ -465,7 +465,7 @@ export function adaptDiagnose(
     builder.limit(
       source,
       "Crash evidence",
-      "Radar returned part of the crash-cause candidates.",
+      "KubeAtlas returned part of the crash-cause candidates.",
       "truncated",
     );
   }
@@ -567,7 +567,7 @@ export function adaptDiagnose(
         builder.limit(
           source,
           "Current logs",
-          "No container logs were available, so Radar could not evaluate them.",
+          "No container logs were available, so KubeAtlas could not evaluate them.",
           "unknown",
         );
       }
@@ -588,7 +588,7 @@ export function adaptDiagnose(
       builder.limit(
         source,
         "Current logs",
-        "No container logs were available, so Radar could not evaluate them.",
+        "No container logs were available, so KubeAtlas could not evaluate them.",
         "unknown",
       );
     }
@@ -677,7 +677,7 @@ export function adaptDiagnose(
     builder.limit(
       source,
       "Events",
-      `Radar received ${eventsRaw.length} of ${value.eventsTotalGroups} event groups.`,
+      `KubeAtlas received ${eventsRaw.length} of ${value.eventsTotalGroups} event groups.`,
       "truncated",
     );
   }
@@ -775,7 +775,7 @@ export function adaptDiagnose(
     builder.limit(
       source,
       "Recent changes",
-      "Recent-change coverage is limited because Radar could not confirm permission to read every referenced source. The visible result cannot prove that no recent changes exist.",
+      "Recent-change coverage is limited because KubeAtlas could not confirm permission to read every referenced source. The visible result cannot prove that no recent changes exist.",
       "unknown",
     );
   }

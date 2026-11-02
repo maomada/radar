@@ -1,9 +1,9 @@
-import type { CNPGFleetRow, HealthLevel } from '@skyhook-io/k8s-ui'
+import type { CNPGFleetRow, HealthLevel } from '@maomada/k8s-ui'
 
 /**
  * A fleet row's status dot and the sentence behind it. Problems (warning or
  * worse) decide it first; without any, the operator's phase does, and a phase
- * Radar cannot read stays unknown rather than healthy.
+ * KubeAtlas cannot read stays unknown rather than healthy.
  */
 export function cnpgRowStatus(row: Pick<CNPGFleetRow, 'attention' | 'problems' | 'controllerStatus'>): { tone: HealthLevel; label: string } {
   const phase = `CNPG phase: ${row.controllerStatus.text || 'not reported'}`
@@ -22,7 +22,7 @@ export function cnpgRowStatus(row: Pick<CNPGFleetRow, 'attention' | 'problems' |
   switch (level) {
     case 'healthy':
     case 'neutral':
-      return { tone: level, label: `No concerns detected in what Radar read · ${phase}` }
+      return { tone: level, label: `No concerns detected in what KubeAtlas read · ${phase}` }
     case 'unknown':
       return { tone: 'unknown', label: `Status unknown · ${phase}` }
     default:

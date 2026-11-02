@@ -21,9 +21,9 @@ import {
 import { clsx } from "clsx";
 import type { MainView } from "../../types";
 import { Tooltip } from "../ui/Tooltip";
-import { assetUrl } from "@skyhook-io/k8s-ui";
+import { assetUrl } from "@maomada/k8s-ui";
 
-const radarLogoUrl = assetUrl("/images/radar/radar-icon.svg");
+const radarLogoUrl = assetUrl("/images/kubeatlas/kubeatlas-icon.svg");
 
 // The views the rail can navigate to. Broader than k8s-ui's ExtendedMainView
 // (which omits 'applications') — it mirrors the navigable subset of App.tsx's
@@ -38,10 +38,10 @@ type NavRailView =
   | "capacity"
   | "checks";
 
-// Primary left nav rail for standalone (non-embedded) Radar.
+// Primary left nav rail for standalone (non-embedded) KubeAtlas.
 //
 // Ported from radar-hub-web's src/shell/LeftRail.tsx, simplified for OSS:
-// Radar's window is desktop-only (App.tsx outer `min-w-[800px]`), so there's
+// KubeAtlas's window is desktop-only (App.tsx outer `min-w-[800px]`), so there's
 // no mobile slide-in sheet — just two committed states driven by a persisted
 // pin (see useNavRailPinned):
 //   - pinned   → labeled w-48 sidebar.
@@ -67,18 +67,18 @@ interface NavItemDef {
 // posture across all node managers, not just Karpenter. The rail's vertical
 // room lets us surface every supported standalone destination.
 const NAV_ITEMS: NavItemDef[] = [
-  { view: "home", icon: Home, label: "Home" },
-  { view: "resources", icon: List, label: "Resources" },
-  { view: "issues", icon: AlertTriangle, label: "Issues" },
-  { view: "topology", icon: Network, label: "Topology" },
-  { view: "applications", icon: Boxes, label: "Applications" },
-  { view: "timeline", icon: Clock, label: "Timeline" },
-  { view: "traffic", icon: Activity, label: "Live Traffic" },
+  { view: "home", icon: Home, label: "首页" },
+  { view: "resources", icon: List, label: "资源" },
+  { view: "issues", icon: AlertTriangle, label: "问题" },
+  { view: "topology", icon: Network, label: "拓扑" },
+  { view: "applications", icon: Boxes, label: "应用" },
+  { view: "timeline", icon: Clock, label: "时间线" },
+  { view: "traffic", icon: Activity, label: "实时流量" },
   { view: "helm", icon: Package, label: "Helm" },
   { view: "gitops", icon: GitBranch, label: "GitOps" },
-  { view: "checks", icon: ShieldCheck, label: "Checks" },
-  { view: "capacity", icon: Gauge, label: "Capacity" },
-  { view: "cost", icon: Coins, label: "Cost" },
+  { view: "checks", icon: ShieldCheck, label: "检查" },
+  { view: "capacity", icon: Gauge, label: "容量" },
+  { view: "cost", icon: Coins, label: "成本" },
 ];
 
 interface PrimaryNavRailProps {
@@ -123,7 +123,7 @@ export function PrimaryNavRail({
         // the active item, not the nav background.
         "shrink-0 flex flex-col bg-theme-sidebar border-r border-theme-border h-full transition-[width] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
         // w-44 (176px): OSS labels are short (longest is "Applications"), so the
-        // rail is trimmer than Radar Cloud's w-60 (which carries long cluster
+        // rail is trimmer than upstream Cloud's w-60 (which carries long cluster
         // names). Keep in sync with the minWidth content-floor calc in App.tsx.
         pinned ? "w-44" : "w-14",
       )}
@@ -157,14 +157,14 @@ export function PrimaryNavRail({
       {!pinned && <div className="flex-1" />}
 
       {/* "Me & my tools" — account + settings, the conventional rail-bottom
-          cluster (VS Code / Discord / ArgoCD / Radar Cloud's own UserOrgMenu).
+          cluster (VS Code / Discord / ArgoCD / upstream Cloud's own UserOrgMenu).
           accountSlot self-nulls without auth, so no-auth OSS shows only Settings. */}
       <nav className="flex flex-col gap-0.5 px-2 pt-1 border-t border-theme-border/50">
         {accountSlot}
         {whatsNew && (
           <RailActionRow
             icon={Megaphone}
-            label="What's new"
+            label="更新内容"
             pinned={pinned}
             onClick={whatsNew.onOpen}
             unread={whatsNew.unread}
@@ -173,7 +173,7 @@ export function PrimaryNavRail({
         {onOpenSettings && (
           <RailActionRow
             icon={Settings}
-            label="Settings"
+            label="设置"
             pinned={pinned}
             onClick={onOpenSettings}
           />
@@ -187,14 +187,14 @@ export function PrimaryNavRail({
       {showPinToggle && (
         <div className="px-2 pb-2 pt-1 border-t border-theme-border/50">
           <Tooltip
-            content={pinned ? "Collapse navigation" : "Expand navigation"}
+            content={pinned ? "收起导航" : "展开导航"}
             position="right"
             wrapperClassName="!block w-full shrink-0"
           >
             <button
               type="button"
               onClick={onTogglePinned}
-              aria-label={pinned ? "Collapse navigation" : "Expand navigation"}
+              aria-label={pinned ? "收起导航" : "展开导航"}
               className="group/pin relative flex h-9 w-full items-center rounded-md text-theme-text-tertiary hover:bg-theme-hover hover:text-theme-text-secondary transition-colors"
             >
               <span className="flex w-10 shrink-0 items-center justify-center">
@@ -210,7 +210,7 @@ export function PrimaryNavRail({
               <span
                 className={clsx("text-[13px] font-medium", !pinned && "hidden")}
               >
-                Collapse
+                收起
               </span>
             </button>
           </Tooltip>
@@ -231,20 +231,20 @@ function BrandRow({
   // Home nav item below still carries the active state; the brand just navigates.
   return (
     <Tooltip
-      content="Home"
+      content="首页"
       position="right"
       wrapperClassName="!block w-full shrink-0"
     >
       <button
         type="button"
         onClick={() => onNavigate("home")}
-        aria-label="Radar — go to home"
+        aria-label="KubeAtlas — 返回首页"
         // Height matches the top bar header (App.tsx — items-center + py-2 = 51px)
         // so the rail's brand divider and the header's bottom border form one line.
         className="flex h-[51px] w-full items-center border-b border-theme-border/50 shrink-0 transition-opacity hover:opacity-80"
       >
         <span className="flex w-14 shrink-0 items-center justify-center">
-          <span className="relative w-7 h-7 rounded-lg overflow-hidden bg-emerald-500/10 border border-emerald-500/20">
+          <span className="relative w-7 h-7 rounded-lg overflow-hidden bg-accent-muted border border-theme-border">
             <img
               src={radarLogoUrl}
               alt=""
@@ -252,7 +252,7 @@ function BrandRow({
               className="w-full h-full p-0.5"
               onError={(e) =>
                 console.error(
-                  "Radar logo asset failed to load:",
+                  "KubeAtlas logo asset failed to load:",
                   (e.currentTarget as HTMLImageElement).src,
                 )
               }
@@ -266,7 +266,7 @@ function BrandRow({
           )}
         >
           <span className="font-semibold text-[15px] tracking-tight text-theme-text-primary">
-            Radar
+            KubeAtlas
           </span>
           <span className="text-[9px] mt-0.5 tracking-wide uppercase text-theme-text-tertiary">
             by Skyhook
@@ -379,7 +379,7 @@ export function RailActionRow({
         </span>
         <span className={clsx("pr-3 truncate", !pinned && "opacity-0", unread && "text-theme-text-primary")}>
           {label}
-          {unread && <span className="sr-only"> (unread)</span>}
+          {unread && <span className="sr-only">（未读）</span>}
         </span>
       </button>
       {!pinned && (

@@ -3,7 +3,7 @@ package issues
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 	"maps"
 	"slices"
 	"sort"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )

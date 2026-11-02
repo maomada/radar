@@ -13,8 +13,19 @@ export type IntegrationSectionId = 'prometheus' | 'cost' | 'argocd'
 // Tabs whose drafts save through their own form, not the startup footer.
 export type PendingSectionId = IntegrationSectionId | 'ai'
 
+export const SETTINGS_NAV_LABELS = {
+  overview: '总览',
+  perms: '我的权限',
+  connection: '连接',
+  prometheus: '指标',
+  cost: '成本',
+  ai: 'AI调查',
+  privacy: '隐私',
+  advanced: '高级',
+} as const
+
 export const pendingSectionLabels: Record<PendingSectionId, string> = {
-  prometheus: 'Metrics', cost: 'Cost', argocd: 'Argo CD', ai: 'AI investigations',
+  prometheus: '指标', cost: '成本', argocd: 'Argo CD', ai: 'AI 调查',
 }
 
 export function pendingSections(dirty: Record<PendingSectionId, boolean>): PendingSectionId[] {
@@ -44,7 +55,7 @@ export function shouldShowSettingsFooter(input: {
 export function costSourceApplyLabel(
   source: 'auto' | 'prometheus' | 'kubecost',
 ): string {
-  return source === 'prometheus' ? 'Apply source' : 'Test & apply source'
+  return source === 'prometheus' ? '应用数据源' : '测试并应用数据源'
 }
 
 export function prometheusHeadersFromRows(

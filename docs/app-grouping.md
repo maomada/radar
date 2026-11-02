@@ -1,6 +1,6 @@
 # Application grouping — the mental model
 
-A reader-first map of how Radar decides "these workloads are one app" and "these
+A reader-first map of how KubeAtlas decides "these workloads are one app" and "these
 apps across clusters are the same logical app." This is the *model*, in English;
 the code lives in the files named at the end.
 
@@ -61,7 +61,7 @@ An app is **the thing that ships together and is versioned together** — *not* 
 logical umbrella over services that happen to be related. This is the single most
 important judgment in the whole system, and it is deliberate:
 
-> Radar finds an app by climbing each workload's ownership to the **GitOps/Helm
+> KubeAtlas finds an app by climbing each workload's ownership to the **GitOps/Helm
 > manager that deploys it** (an Argo Application, a Flux Kustomization/HelmRelease,
 > a Helm release) and **stops there.** It does **not** climb up to the shared git
 > repo, or to a parent app-of-apps, even though it could.
@@ -88,9 +88,9 @@ shared weak overlay. And note: a shared **satellite** (Service/Ingress/ConfigMap
 never merges two apps — only the workload atoms do.
 
 **The honest edge case:** one Helm *umbrella* chart that bundles many services is
-a single release unit, so Radar calls it one app — even if you think of the
+a single release unit, so KubeAtlas calls it one app — even if you think of the
 services as standalone. Where "released together" and "feels standalone" diverge,
-Radar follows the *release unit.* (If that proves too coarse, the refinement is to
+KubeAtlas follows the *release unit.* (If that proves too coarse, the refinement is to
 split an umbrella by independently-versioned image — a future call, not today's
 behavior.)
 
@@ -129,7 +129,7 @@ A workload flows left-to-right; each layer answers part of the question.
    every cluster's rows and merges them in **two stages** (see §6): first it merges
    any rows sharing the same overlay key (`app.Key`) into one fleet row — a
    *structural* join that can span clusters even for non-declared apps; then the
-   fleet fold (`foldAppGroups`, a shared k8s-ui util that Radar Cloud renders)
+   fleet fold (`foldAppGroups`, a shared k8s-ui util used by the legacy upstream Radar Cloud renderer)
    collapses the remaining differently-keyed rows that share a **portable**
    identity. Non-portable, differently-keyed rows stay per-cluster.
 
@@ -256,7 +256,7 @@ When an app has only a name (no GitOps origin), it stays per-cluster — *and th
 operator needs to know why and how to fix it.* The answer:
 
 > Set **`app.skyhook.io/app: <name>`** on the app's workloads, the **same value in
-> every cluster**, and Radar folds them. (Or deploy via Argo/Flux with the
+> every cluster**, and KubeAtlas folds them. (Or deploy via Argo/Flux with the
 > environment in the source path.)
 
 Because the user sets it deliberately, it's a true cross-cluster declaration

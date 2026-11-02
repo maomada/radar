@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // NodeProblem describes a detected problem on a node.

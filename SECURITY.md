@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via email to security@skyhook.io.
+Use [GitHub's private vulnerability reporting](https://github.com/maomada/radar/security/advisories/new) when the maintainer has enabled it. If unavailable, ask the maintainer to establish a private reporting channel before sharing any vulnerability details. Do not post sensitive details in public issues or send reports about this derivative to upstream maintainers.
 
 Include as much of the following information as possible:
 
@@ -15,35 +15,24 @@ Include as much of the following information as possible:
 - Proof-of-concept or exploit code (if possible)
 - Impact of the issue, including how an attacker might exploit it
 
-## Response Timeline
-
-- **Initial response**: Within 48 hours
-- **Status update**: Within 7 days
-- **Fix timeline**: Depends on severity, typically within 30-90 days
-
-## Supported Versions
-
-| Version | Supported          |
-| ------- | ------------------ |
-| Latest release | :white_check_mark: |
-| Previous releases | Best effort |
+No response or fix timeline is guaranteed. Release support policy will be documented when releases are published.
 
 ## Security Model
 
 ### Local Execution (Default)
 
-When running Radar locally on your machine:
+When running KubeAtlas locally on your machine:
 
-- **Uses your kubeconfig**: Radar authenticates using your existing `~/.kube/config` credentials
+- **Uses your kubeconfig**: KubeAtlas authenticates using your existing `~/.kube/config` credentials
 - **Your permissions apply**: All operations are subject to your Kubernetes RBAC permissions
-- **No cluster data upload**: Radar does not upload manifests, logs, events, metric values, or resource names to Skyhook
-- **Usage stats are opt-in**: nothing about how you use Radar is recorded or sent unless you agree. If you do, a daily anonymous report counts views, actions and MCP tools, and describes each cluster's minor version, platform, node-count range and known integrations. It carries no install ID, names or contents. On a shared Radar, only its configuration (the Helm value `usageReporting.enabled`) decides. See [What Radar sends](docs/configuration.md#what-radar-sends)
+- **No maintainer data upload**: KubeAtlas does not send cluster data to this repository's maintainers. Integrations you configure, including AI providers, may receive data required for their operation.
+- **Usage stats are disabled**: see the [usage reporting policy](docs/usage-stats.md); old consent and environment settings cannot enable upstream telemetry
 - **No cloud dependency**: Local mode does not require an account, agent, or cloud backend
-- **No persistent storage**: By default, no data persists between sessions (optional SQLite timeline storage is local-only)
+- **Local storage**: Configuration persists under `~/.kubeatlas`; optional SQLite timeline storage is local-only. Review local files before sharing them.
 
 ### In-Cluster Deployment
 
-When deploying Radar inside a Kubernetes cluster:
+When deploying KubeAtlas inside a Kubernetes cluster:
 
 - **ServiceAccount-based auth**: Uses the pod's ServiceAccount for Kubernetes API access
 - **RBAC-scoped permissions**: Configure the ServiceAccount with minimal required permissions
@@ -52,7 +41,7 @@ When deploying Radar inside a Kubernetes cluster:
 
 ### Capabilities
 
-Radar provides both read and write operations:
+KubeAtlas provides both read and write operations:
 
 **Read Operations:**
 - Browse all Kubernetes resources (Pods, Deployments, Services, etc.)
@@ -79,13 +68,13 @@ All write operations require appropriate RBAC permissions. If your kubeconfig or
 
 1. Use a kubeconfig with the minimum permissions you need
 2. Consider using read-only ServiceAccounts for browsing production clusters
-3. Don't expose the Radar port to the network when running locally
-4. Keep Radar updated to the latest version
+3. Don't expose the KubeAtlas port to the network when running locally
+4. Keep KubeAtlas updated to the latest version
 
 ### For In-Cluster Deployment
 
 1. Create a dedicated ServiceAccount with scoped RBAC permissions
 2. Use read-only ClusterRole bindings for view-only deployments
 3. Always deploy behind authentication (OAuth2 Proxy, Ingress auth, etc.)
-4. Use NetworkPolicies to restrict access to the Radar pod
+4. Use NetworkPolicies to restrict access to the KubeAtlas pod
 5. Regularly audit ServiceAccount permissions

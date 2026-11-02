@@ -8,7 +8,7 @@ vi.mock('./useCNPGSidebarWorkspace', () => ({ useCNPGFleet: () => ({ fleet: { ro
 vi.mock('./actions/CNPGInstanceActions', () => ({ CNPGInstanceActions: () => null }))
 vi.mock('./useCNPGNavigate', () => ({ useCNPGNavigate: () => state.navigate }))
 vi.mock('./CNPGClusterTabs', () => ({ CNPGTabVerdict: ({ id, alwaysShow }: { id: string; alwaysShow?: boolean }) => <span>verdict: {id}{alwaysShow ? " always" : ""}</span> }))
-vi.mock('@skyhook-io/k8s-ui', async (original) => ({ ...(await original<typeof import('@skyhook-io/k8s-ui')>()), CNPGClusterHASection: (props: any) => { state.haProps = props; return null } }))
+vi.mock('@maomada/k8s-ui', async (original) => ({ ...(await original<typeof import('@maomada/k8s-ui')>()), CNPGClusterHASection: (props: any) => { state.haProps = props; return null } }))
 it('explains Serving on Replication and connects endpoint evidence to Reachability', () => {
   const html = renderToStaticMarkup(<CNPGReplicationTab namespace="db" name="pg" />)
   expect(html).toContain('verdict: serving always')

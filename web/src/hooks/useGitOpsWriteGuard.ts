@@ -9,7 +9,7 @@ import {
   type GitOpsWriteEvidence,
   type GitOpsWriteGuard,
   type GitOpsWriteTarget,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { Relationships } from '../types'
 import { fetchGitOpsWriteEvidence, useResource, useRadarFeature } from '../api/client'
 import { getApiBase } from '../api/config'
@@ -131,13 +131,13 @@ export function useGitOpsWriteGuard({
   const unresolvedDeclaredManager = !manager && Boolean(declaredManager) && !managed && !lookupPending
   const unknownOwner = "so it can't tell whether a GitOps tool or Helm manages it."
   const ownershipError = targetLookupFailed
-    ? `Radar couldn't read this resource, ${unknownOwner}`
+    ? `KubeAtlas couldn't read this resource, ${unknownOwner}`
     : ownership.lookupError
-      ? `Radar couldn't read the resource that owns this one, ${unknownOwner}`
+      ? `KubeAtlas couldn't read the resource that owns this one, ${unknownOwner}`
       : relationshipsUnavailable || targetRelationshipsMissing || ownership.relationshipsUnavailable
-        ? `Radar hasn't mapped this resource's owners yet, ${unknownOwner}`
+        ? `KubeAtlas hasn't mapped this resource's owners yet, ${unknownOwner}`
         : unresolvedDeclaredManager
-          ? `Its labels mark it as managed by ${declaredManager}, but Radar couldn't find the owner to check whether it would revert this change.`
+          ? `Its labels mark it as managed by ${declaredManager}, but KubeAtlas couldn't find the owner to check whether it would revert this change.`
           : null
 
   // React Query keeps earlier data after a failed refetch, and while the query

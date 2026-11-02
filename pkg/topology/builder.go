@@ -22,14 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/hpadiag"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/karpenter"
-	"github.com/skyhook-io/radar/pkg/perfstats"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/hpadiag"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/karpenter"
+	"github.com/maomada/radar/pkg/perfstats"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // Builder constructs topology graphs from K8s resources

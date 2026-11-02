@@ -1,10 +1,10 @@
 import { renderToString } from 'react-dom/server'
 import { afterEach, expect, it, vi } from 'vitest'
-import type { NodeTerminalTabProps } from '@skyhook-io/k8s-ui'
+import type { NodeTerminalTabProps } from '@maomada/k8s-ui'
 import { NodeTerminalTab } from './NodeTerminalTab'
 
 const captured = vi.hoisted(() => ({ props: null as NodeTerminalTabProps | null }))
-vi.mock('@skyhook-io/k8s-ui', () => ({
+vi.mock('@maomada/k8s-ui', () => ({
   NodeTerminalTab: (props: NodeTerminalTabProps) => { captured.props = props; return null },
 }))
 vi.mock('../../api/config', () => ({

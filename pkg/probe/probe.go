@@ -52,8 +52,8 @@ import (
 var dialControl = denyInternalControl
 
 // denyInternalControl is a net.Dialer.Control hook that refuses DIRECT probe
-// connections to loopback, unspecified (0.0.0.0/::), and link-local addresses - most importantly the
-// cloud metadata endpoint 169.254.169.254. A user who can set an Ingress host
+// connections to loopback, unspecified (0.0.0.0/::), multicast, and link-local
+// addresses - most importantly the cloud metadata endpoint 169.254.169.254. A user who can set an Ingress host
 // or Gateway address could otherwise point it at an internal target and have
 // Radar's probe reach it on their behalf (SSRF). Legitimate probe targets are
 // declared external hosts and cluster Service/Pod IPs (private ranges like
@@ -63,16 +63,22 @@ var dialControl = denyInternalControl
 func denyInternalControl(_, address string, _ syscall.RawConn) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		host = address
+		return fmt.Errorf("refusing to probe unparseable address %q (SSRF guard)", address)
+	}
+	if zone := strings.LastIndexByte(host, '%'); zone >= 0 {
+		host = host[:zone]
 	}
 	ip := net.ParseIP(host)
 	if ip == nil {
-		return nil
+		return fmt.Errorf("refusing to probe unparseable address %q (SSRF guard)", address)
+	}
+	if v4 := ip.To4(); v4 != nil {
+		ip = v4
 	}
 	// IsUnspecified catches 0.0.0.0 / ::, which on Linux a connect() routes to
 	// 127.0.0.1 / ::1 - so an unspecified address reaches localhost just like a
 	// loopback dial (some Gateway controllers report 0.0.0.0 in status.addresses).
-	if ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+	if ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
 		return fmt.Errorf("refusing to probe internal address %s (SSRF guard)", ip)
 	}
 	// Cloud metadata endpoints that are NOT link-local (so the check above misses
@@ -82,6 +88,13 @@ func denyInternalControl(_, address string, _ syscall.RawConn) error {
 		return fmt.Errorf("refusing to probe cloud-metadata address %s (SSRF guard)", ip)
 	}
 	return nil
+}
+
+// GuardedDialContext is the immutable production dial policy for direct
+// operator-side probes. It deliberately does not use the mutable test seam
+// used by the probe implementations.
+func GuardedDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	return (&net.Dialer{Control: denyInternalControl}).DialContext(ctx, network, address)
 }
 
 // isCertTrustError reports whether err is a TLS certificate VERIFICATION
@@ -477,7 +490,7 @@ func HTTP(ctx context.Context, url, host string, vantage Vantage) Result {
 	if host != "" {
 		req.Host = host
 	}
-	req.Header.Set("User-Agent", "radar-trace-probe/1 (https://github.com/skyhook-io/radar)")
+	req.Header.Set("User-Agent", "radar-trace-probe/1 (https://github.com/maomada/radar)")
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if host != "" {
 		tlsCfg.ServerName = host

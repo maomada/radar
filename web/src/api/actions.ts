@@ -4,7 +4,7 @@
 // object UID and facts the user confirmed, and the server refuses it with a
 // stable code when any of them no longer holds.
 
-import { formatGrant, type Grant, type ActionConfirmResult } from '@skyhook-io/k8s-ui'
+import { formatGrant, type Grant, type ActionConfirmResult } from '@maomada/k8s-ui'
 import { ApiError } from './client'
 import { isRadarFeatureUnsupported } from './radarFeatures'
 
@@ -33,7 +33,7 @@ export type ActionErrorCode = 'context_changed' | 'changed' | 'blocked' | 'parti
 // A request that timed out or lost its connection may have been applied by the
 // apiserver anyway. A 503 without a code is just as uncertain: an Envoy-based
 // ingress (Istio, Contour, Gateway API implementations) answers 503 when the
-// upstream connection reset after it forwarded the request. Radar's own
+// upstream connection reset after it forwarded the request. KubeAtlas's own
 // refusals before any write carry the code `unavailable`.
 const AMBIGUOUS_STATUSES = new Set([500, 502, 503, 504])
 

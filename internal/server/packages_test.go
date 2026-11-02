@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/packages"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/packages"
 )
 
 func TestErrorCodeForHelm(t *testing.T) {

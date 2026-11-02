@@ -1,17 +1,17 @@
 # Workload metrics
 
 See whether a workload is handling traffic, failing requests, slowing down or
-running short of resources, without building a dashboard from scratch. Radar's
+running short of resources, without building a dashboard from scratch. KubeAtlas's
 Metrics tab combines HTTP request rate, errors and latency with CPU, memory and
 CPU throttling for Deployments, StatefulSets and DaemonSets.
 
-Radar reads your existing Prometheus-compatible backend. It does not install a
+KubeAtlas reads your existing Prometheus-compatible backend. It does not install a
 collector, require Prometheus Operator, or replace a general-purpose dashboarding
 tool. Resource charts work without HTTP instrumentation; request charts appear
 when a supported Beyla or Istio source has usable observations.
 
 <p align="center">
-  <img src="screenshots/workload-metrics-overview.png" alt="Radar workload metrics showing HTTP requests, 5xx errors and latency above CPU, memory and throttling charts" width="1100" />
+  <img src="screenshots/workload-metrics-overview.png" alt="KubeAtlas workload metrics showing HTTP requests, 5xx errors and latency above CPU, memory and throttling charts" width="1100" />
   <br /><em>Demo workload with deliberate HTTP errors. Resource charts compare the workload with the highest single-Pod value at each point; each chart identifies its population.</em>
 </p>
 
@@ -23,7 +23,7 @@ when a supported Beyla or Istio source has usable observations.
 2. Choose a time window. The selection stays in the URL through reloads, tab
    changes and returning from a Pod drilldown. Missing or invalid values use one hour.
 3. If both HTTP observers are available, choose **Istio** or **Beyla** beside
-   Requests. Istio is the default when both have data. Radar never adds their
+   Requests. Istio is the default when both have data. KubeAtlas never adds their
    observations together; the choice does not force other workloads to use it.
 4. Read the population label beside each section. **Workload history** includes
    retained previous Pods. **Current Pods only** excludes previous replicas.
@@ -52,9 +52,9 @@ collector configuration, labels, retention and histogram format determine which
 panels work. See [what each chart needs](#what-each-chart-needs) for exact series
 and [live-tested coverage](#live-tested-coverage) for tested configurations.
 
-Radar discovers common in-cluster query Services and checks workload identity
+KubeAtlas discovers common in-cluster query Services and checks workload identity
 automatically. Hosted URLs, authentication and tenant headers still require
-configuration. **Configure metrics** opens Metrics settings in standalone Radar;
+configuration. **Configure metrics** opens Metrics settings in standalone KubeAtlas;
 embedded views direct users to their operator. **Discover Prometheus** retries
 discovery. Connecting a backend does not install missing instrumentation.
 
@@ -87,7 +87,7 @@ source, historical ownership, chart definitions and optional troubleshooting.
 | What you see | What it means / where to look |
 |---|---|
 | No usable HTTP metrics in this window | The workload may be idle, uninstrumented or unmatched. Expand the source explanation; CPU and memory can still be useful. |
-| Current Pods only | Radar has usable current-Pod observations but cannot serve workload history for that family. Previous replicas are excluded. |
+| Current Pods only | KubeAtlas has usable current-Pod observations but cannot serve workload history for that family. Previous replicas are excluded. |
 | Gaps, partial coverage or stale samples | Some observations are missing, incomplete or old. Read the notice beside that chart; do not interpret a gap as zero. |
 | Basic CPU / memory · identity unverified | A collapsed, older name-matched fallback. It does not prove Pod or cluster identity and is not a verified workload total. |
 | Prometheus not connected | Retry discovery or check the configured URL, network access, authentication and tenant. A reachable backend can still lack the required series. |
@@ -98,9 +98,9 @@ rollout; omitted values do not mean zero requests or unlimited capacity.
 
 ## Local multi-cluster settings
 
-Local CLI and Desktop Radar save the metrics URL and HTTP headers (including
+Local CLI and Desktop KubeAtlas save the metrics URL and HTTP headers (including
 credentials, tenant headers and environment-variable header references) per
-kubeconfig context in `~/.radar/clusters.json`. Switching Kubernetes context uses
+kubeconfig context in `~/.kubeatlas/clusters.json`. Switching Kubernetes context uses
 that context's saved backend, or discovery in the selected cluster when it has
 none; another context's backend and headers are never carried over. See
 [local integration connections](configuration.md#local-integration-connections).
@@ -109,7 +109,7 @@ When changing a saved endpoint, explicitly replace or clear saved headers; a
 URL-only change to a different server is rejected while headers are configured.
 Same-server URL edits retain headers. Headers require an explicit URL and are
 never sent to auto-discovered candidates or across HTTP redirects to another
-origin. A `--prometheus-url` launch override applies only to the context Radar
+origin. A `--prometheus-url` launch override applies only to the context KubeAtlas
 started with; change the startup configuration and restart to change it.
 
 The new workload charts invalidate identity evidence on connection changes and
@@ -122,15 +122,15 @@ it does not prove which cluster's series that backend holds, and older name-base
 charts are not identity-checked.
 
 See [integration settings when switching clusters](configuration.md#integration-settings-when-switching-clusters).
-In-cluster Radar has no context switcher; provision its backend and credentials for
-that installation. This guide does not certify every Radar Cloud transport or
+In-cluster KubeAtlas has no context switcher; provision its backend and credentials for
+that installation. This guide does not certify every legacy upstream Radar Cloud transport or
 managed-service authentication path.
 
 ## Which workloads benefit?
 
 The resource panels apply to service processes and background workers alike.
 HTTP request panels are conditional on observed metrics, not declared container
-ports, Services, or Ingresses. Radar does not scan application ports to generate RED
+ports, Services, or Ingresses. KubeAtlas does not scan application ports to generate RED
 (request rate, errors, duration) data.
 
 | Workload | Current behavior |
@@ -142,7 +142,7 @@ ports, Services, or Ingresses. Radar does not scan application ports to generate
 | Queue-pulling worker | CPU, memory, throttling, restarts and existing resource views remain useful. Queue depth, consumer lag, work completion, retries and processing duration are not implemented by these HTTP panels. |
 | Worker with only an HTTP health/admin endpoint | Its HTTP traffic can appear. That is health/admin traffic, not evidence of queue-processing throughput or success. |
 
-Radar does not universally exclude health checks, metrics scrapes or admin routes.
+KubeAtlas does not universally exclude health checks, metrics scrapes or admin routes.
 If the exporter includes them, the workload aggregate can include them. Multiple
 ports do not themselves mean duplicate scrapes, but multiple observation jobs or
 known HA populations can trigger the ambiguity guard. Incompatible histogram
@@ -168,7 +168,7 @@ it exports Kubernetes object state, not application request telemetry.
 | Beyla HTTP 5xx | The same count, split by `http_response_status_code` | Needs usable status coverage. Idle traffic does not have a defined error percentage. |
 | Beyla p50/p95 | `http_server_request_duration_seconds_bucket` with `le`, including `+Inf`, plus the count above | Classic histogram buckets must cover the request population; seconds. |
 | Istio HTTP requests / 5xx | `istio_requests_total`, including `response_code` for errors | `reporter="destination"`, `request_protocol="http"`, destination workload namespace and scrape `namespace`/`pod`; verified partition or override. |
-| Istio p50/p95 | `istio_request_duration_milliseconds_bucket` with `le`, `_count`, plus the request counter | Full label populations must match; `_count` and `+Inf` must agree per population. Counter values may lead histogram updates. Radar converts milliseconds to seconds. |
+| Istio p50/p95 | `istio_request_duration_milliseconds_bucket` with `le`, `_count`, plus the request counter | Full label populations must match; `_count` and `+Inf` must agree per population. Counter values may lead histogram updates. KubeAtlas converts milliseconds to seconds. |
 | Reporting Pods | Matching request rate series | Distinct observed Pods, not the number selected from Kubernetes; idle/new Pods can explain a shortfall. |
 | Pod comparison | CPU/memory/throttling metrics above | Separate bounded queries for current Pods, using UID attribution or verified partition / override. Not used to reconstruct history. |
 | Request/limit overlays | Current Kubernetes container resource settings | Only on current-only per-Pod charts, not historical aggregates. Unlimited containers suppress the whole-Pod limit line. |
@@ -181,18 +181,18 @@ without Beyla or Istio. KSM can supply inventory for fallback attribution, but d
 not create missing cAdvisor counters or HTTP histograms. Retention, scrape gaps,
 collector filters and relabeling still determine which panels are available.
 
-## What Radar discovers automatically
+## What KubeAtlas discovers automatically
 
 There are three separate steps; success at one does not imply success at the next:
 
 1. **Find a query endpoint.** At cluster startup/reconnect, probe known Service
    locations and ranked dynamic candidates. These include common Prometheus and
    VictoriaMetrics installations; dynamic discovery recognizes query services
-   such as Thanos Query. Radar tries direct connectivity and, from a laptop,
+   such as Thanos Query. KubeAtlas tries direct connectivity and, from a laptop,
    Kubernetes port-forwarding when needed and permitted. A manual URL overrides
    discovery. Hosted endpoints, tenants and credentials are not guessed. Configured
    HTTP headers require an explicit URL so credentials do not reach discovered
-   candidates. One selected backend supplies these panels; Radar does not combine
+   candidates. One selected backend supplies these panels; KubeAtlas does not combine
    data across every Prometheus it finds.
 2. **Establish scope and membership.** On opening Metrics, independently probe KSM
    name/UID anchors for cluster scope, even when sources already match by UID.
@@ -204,13 +204,13 @@ There are three separate steps; success at one does not imply success at the nex
    histogram and observation-population coverage. Reachability and identity are
    not guarantees that a requested chart has usable data.
 
-Radar does not install Prometheus, enable kubelet scraping, configure
+KubeAtlas does not install Prometheus, enable kubelet scraping, configure
 ServiceMonitors/PodMonitors, deploy Beyla/sidecars, repair missing resource labels,
 or infer worker semantics from HTTP health endpoints.
 
 ## Automatic attribution
 
-Radar checks each source independently when the workload Metrics tab opens. No
+KubeAtlas checks each source independently when the workload Metrics tab opens. No
 scope flag is needed when the evidence is sufficient:
 
 - Beyla: match application `k8s_pod_name` and `k8s_pod_uid` to current Kubernetes Pods.
@@ -247,7 +247,7 @@ Missing evidence is not cached, and unlabeled evidence cannot establish cluster
 identity for workload history.
 At zero Pods, bounded anchors can come from other Pods in that same namespace.
 A cold connection with no anchors and no assertion cannot establish scope.
-UID joins inside a store cannot prove which cluster Radar is connected to.
+UID joins inside a store cannot prove which cluster KubeAtlas is connected to.
 The UI points to operator configuration in **About these metrics** when this prevents history.
 
 Current UID-filtered charts exclude previous incarnations of same-name Pods.
@@ -267,11 +267,11 @@ recognized cluster identities before combining their values. Missing, failed or
 invalid measurements are unknown, not zero.
 
 Operator overrides take precedence and are trusted without that check.
-Otherwise, Radar matches current Pod UIDs to kube-state-metrics in the PVC's
+Otherwise, KubeAtlas matches current Pod UIDs to kube-state-metrics in the PVC's
 namespace and uses the cluster labels that evidence establishes. Conflicting recognized identities still
 withhold the measurement, even if they share a matched label.
 
-If that Pod evidence has no recognized cluster labels, Radar selects unlabeled
+If that Pod evidence has no recognized cluster labels, KubeAtlas selects unlabeled
 volume stats. Without usable Pod evidence, it falls back to namespace and claim
 names, refusing multiple labeled identities but allowing a labeled scrape plus
 an unlabeled duplicate. These paths remain **unverified**; successful values
@@ -293,13 +293,13 @@ assert the backend's scope. These assertions take precedence over probing.
 For a backend dedicated to the connected Kubernetes cluster:
 
 ```sh
-radar --prometheus-url http://localhost:9090 --prometheus-single-cluster
+kubeatlas --prometheus-url http://localhost:9090 --prometheus-single-cluster
 ```
 
 For a shared store with an exact cluster label on its metrics:
 
 ```sh
-radar --prometheus-url https://metrics.example.com --prometheus-cluster-label cluster=production
+kubeatlas --prometheus-url https://metrics.example.com --prometheus-cluster-label cluster=production
 ```
 
 Repeat `--prometheus-cluster-label` for additional exact label constraints. The
@@ -308,7 +308,7 @@ the cluster. For [Google Managed Service for Prometheus](https://docs.cloud.goog
 for example, include project and location when cluster names can repeat:
 
 ```sh
-radar --prometheus-url https://metrics.example.com \
+kubeatlas --prometheus-url https://metrics.example.com \
   --prometheus-cluster-label project_id=my-project \
   --prometheus-cluster-label location=us-central1 \
   --prometheus-cluster-label cluster=production
@@ -327,9 +327,9 @@ or the workload network/filesystem charts.
 Helm installations can provision the assertion with
 `traffic.prometheusSingleCluster: true` or `traffic.prometheusClusterLabels`,
 and optionally `traffic.beylaJobSelector`. Defaults do not assert trust. Use a
-chart and Radar image version containing this feature together; adding these
-arguments to an older image is not supported. In-cluster OSS and Radar Cloud
-viewers should ask their installation's operator to update Helm/GitOps settings,
+chart and KubeAtlas image version containing this feature together; adding these
+arguments to an older image is not supported. In-cluster KubeAtlas users and
+legacy upstream Radar Cloud viewers should ask their installation's operator to update Helm/GitOps settings,
 not try to configure a private scope for their own charts.
 
 Desktop supports automatic matching, but its separate flag parser and Settings
@@ -389,7 +389,7 @@ large-backend performance is not proven by the small lab.
 
 ### Historical Pods and existing resource queries
 
-Raw KSM and standard recording rules share one ownership contract. Radar selects
+Raw KSM and standard recording rules share one ownership contract. KubeAtlas selects
 the strategy reaching the earliest observation in the requested range, then the
 one covering more timestamps; raw wins equal coverage. One strategy is used per
 response, not a union or current-Pod fill. This handles newly installed rules and
@@ -437,7 +437,7 @@ filesystem series.
 See the upstream [Prometheus histogram query documentation](https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile),
 [Istio metrics reference](https://istio.io/latest/docs/reference/config/metrics/),
 and [Beyla attribute configuration](https://grafana.com/docs/beyla/latest/configure/metrics-traces-attributes/).
-These explain upstream capabilities; Radar's narrower supported mappings are
+These explain upstream capabilities; KubeAtlas's narrower supported mappings are
 listed above and verified in [live-tested coverage](#live-tested-coverage).
 
 ## Request sources
@@ -496,7 +496,7 @@ The response describes both data and coverage:
 | `comparison` | Current-Pod CPU/memory/throttling panels, independent of historical-chart availability. |
 | `history` | Per-family membership (`cpu`, `memory`, `throttling`, `requests`): `workload-history`, `current-pods`, or `unavailable`, with an optional reason. This describes whose samples can be included, not whether a panel has data. |
 | `pods`, `podsTotal` | Selected current Pods and total current Pods respectively; not historical replica counts. Current-Pod selection is bounded to 100. |
-| `start`, `end`, `stepSeconds`, `rateWindowSeconds` | Unix-second window bounds, evaluation spacing and rolling rate window. Radar selects the step, bounds evaluations and aligns the end to the step. Use these values rather than assuming the requested range's default step. |
+| `start`, `end`, `stepSeconds`, `rateWindowSeconds` | Unix-second window bounds, evaluation spacing and rolling rate window. KubeAtlas selects the step, bounds evaluations and aligns the end to the step. Use these values rather than assuming the requested range's default step. |
 | `source`, `sources` | Selected HTTP observer and candidate source status. Source status reflects rate collection before later histogram/status/population checks; inspect individual panels for final validity. |
 | `attribution` | Human-readable source evidence, with reserved `scope` and `history` entries for operator assertion and historical ownership. |
 | `scopeNotice` | Human-readable notice when a previous explicit assertion was cleared. It does not mean automatic matching has failed. |
@@ -514,17 +514,19 @@ those zeros are not a measured zero-Pod result or an epoch-zero query window.
 not stable machine-readable reason codes.
 
 HTTP errors use `{"error":"..."}`. A 403 can mean either the caller lacks the
-required workload/Pod permissions, or Radar's own cache cannot cover the Pod
+required workload/Pod permissions, or KubeAtlas's own cache cannot cover the Pod
 and controller data in that namespace. The latter needs an operator to check
-Radar's Kubernetes permissions and configured namespace scope, not necessarily
+KubeAtlas's Kubernetes permissions and configured namespace scope, not necessarily
 change the viewer's permissions. A 503 means the connection/client/cache is not ready; a
 502 can indicate workload-Pod resolution failed. A 409 means the metrics
 connection changed during collection: retry against the new connection.
 Upstream query failures are generally reported in panel or collection state,
-not as HTTP errors; backend authentication failures are distinct from Radar's
+not as HTTP errors; backend authentication failures are distinct from KubeAtlas's
 Kubernetes authorization gate.
 
 ## Live-tested coverage
+
+This section preserves inherited upstream Radar evidence for provenance; it is not acceptance of this KubeAtlas revision.
 
 Validation on 2026-09-13–14 exercised the following combinations. A successful
 query endpoint does not imply that every chart has the necessary metrics.
@@ -609,3 +611,4 @@ The [workload metrics demo](../scripts/workload-metrics-demo/README.md) document
 the isolated fixtures, numerical tests and commands used to check these
 configurations. Screenshots in this guide replay one recorded demo response
 through Radar's UI; they are illustrations, not an additional live-backend test.
+This screenshot provenance is inherited upstream Radar evidence, retained for history; it is not new screenshots or acceptance of this KubeAtlas revision.

@@ -9,8 +9,8 @@ import {
   type CapacityPoolObservation,
   type CapacityQuantityObservation,
   type CapacitySourceCoverage,
-} from "@skyhook-io/k8s-ui";
-import { Badge } from "@skyhook-io/k8s-ui/components/ui/Badge";
+} from "@maomada/k8s-ui";
+import { Badge } from "@maomada/k8s-ui/components/ui/Badge";
 import {
   isCapacityCursorInvalidError,
   isNotFoundError,
@@ -20,7 +20,7 @@ import {
 import type { SelectedResource } from "../../types";
 import { refToSelectedResource } from "../../utils/navigation";
 import { ActualUsageDetail, ActualUsageInline, CapacityFreshness, CapacityIssueEvidence, ClaimStageBadge, conditionSummary, ConditionBadge, coverageHasObservations, coverageIsDenied, coverageIsLowerBound, coverageMessage, DeniedBadge, errorMessage, formatQuantity, formatTaint, humanizeCode, identityKey, identityToSelectedResource, InlineEmpty, integrationBlock, KeyValueRows, LinkButton, memberCoverageSource, MiniCount, NodeReadyBadge, observationTitle, PoolReadyBadge, POOL_SECTIONS, PressureDetail, quantityResourceRank, QuantityInline, RefreshError, resourceLabel, ResourceLink, ScopeBadges, ScrollableContent, SectionCard, TokenGroup, useCapacityCursorRecovery, useCapacityPagination, type CapacityConnectionState, type PoolSection } from "./shared";
-import { CertaintyGlyph } from "@skyhook-io/k8s-ui";
+import { CertaintyGlyph } from "@maomada/k8s-ui";
 import { Notice, ScreenEmptyState } from "../workspace/layout";
 import { ROW_HOVER, TABLE_HEAD, TABLE_WRAP, TBODY, TD, TH } from "../workspace/table";
 
@@ -641,7 +641,7 @@ function LifecycleGrid({
             {pool.nodes.operational ? pool.nodes.operational.removingUnhealthy > 0 && (
               <p className="mt-2 text-xs text-theme-text-secondary">{pool.nodes.operational.removingUnhealthy} removing {pool.nodes.operational.removingUnhealthy === 1 ? "node has" : "nodes have"} critical pressure or prolonged removal.</p>
             ) : (
-              <p className="mt-2 text-xs text-theme-text-secondary">Readiness counts only; removal status is unavailable from this Radar.</p>
+              <p className="mt-2 text-xs text-theme-text-secondary">Readiness counts only; removal status is unavailable from this KubeAtlas.</p>
             )}
           </>
         ) : (

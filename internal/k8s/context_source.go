@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/errorlog"
 )
 
 // ContextRef identifies a kubeconfig context precisely enough to survive a

@@ -8,8 +8,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // GET /api/argo/destinations — the Argo CD cluster-secret registry as plain

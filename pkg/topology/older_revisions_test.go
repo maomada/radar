@@ -7,8 +7,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 func replicaSetChild(name string) ResourceRef {

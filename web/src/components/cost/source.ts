@@ -10,13 +10,13 @@ export function isCostConfigurable(reason?: string): boolean {
 export type CostSourcePreference = 'auto' | CostDataSource
 
 export const COST_SOURCE_OPTIONS: { value: CostSourcePreference; label: string; description: string }[] = [
-  { value: 'auto', label: 'Automatic', description: 'OpenCost metrics when available, otherwise Kubecost' },
-  { value: 'prometheus', label: 'OpenCost metrics', description: 'From the metrics connection' },
-  { value: 'kubecost', label: 'Kubecost', description: 'From a Kubecost Aggregator' },
+  { value: 'auto', label: '自动', description: '优先使用可用的 OpenCost 指标，否则使用 Kubecost' },
+  { value: 'prometheus', label: 'OpenCost 指标', description: '来自指标连接' },
+  { value: 'kubecost', label: 'Kubecost', description: '来自 Kubecost Aggregator' },
 ]
 
 export function costSourcePreferenceLabel(preference?: string): string {
-  return COST_SOURCE_OPTIONS.find(option => option.value === (preference || 'auto'))?.label ?? preference ?? 'Automatic'
+  return COST_SOURCE_OPTIONS.find(option => option.value === (preference || 'auto'))?.label ?? preference ?? '自动'
 }
 
 export function costSourceLabel(source?: CostDataSource): string {
@@ -114,25 +114,25 @@ export function costIntegrationUnavailableMessage(
     case 'no_cost_source':
       return settingsAvailable
         ? 'No compatible cost source was found. Connect OpenCost metrics in Settings → Metrics or configure Kubecost in Settings → Cost.'
-        : 'No compatible cost source is configured for this cluster. Configure OpenCost metrics or Kubecost in the host application or Radar deployment.'
+        : 'No compatible cost source is configured for this cluster. Configure OpenCost metrics or Kubecost in the host application or KubeAtlas deployment.'
     case 'source_unavailable':
       return settingsAvailable
         ? 'Kubecost Aggregator is unavailable. Check the URL, network path, and cluster ID in Settings → Cost.'
-        : 'Kubecost Aggregator is unavailable. Update this cluster’s cost-source configuration in the host application or Radar deployment.'
+        : 'Kubecost Aggregator is unavailable. Update this cluster’s cost-source configuration in the host application or KubeAtlas deployment.'
     case 'metrics_settings_error':
       return 'This cluster’s saved metrics settings need review before cost data can load. Review them in Settings → Metrics.'
     case 'cost_settings_error':
       return 'This cluster’s saved cost settings need review before cost data can load. Review them in Settings → Cost.'
     case 'deployment_configuration_error':
-      return "Radar's operator-supplied cost or metrics configuration is invalid. Check local launch flags or the deployment environment variables and Helm values."
+      return "KubeAtlas's operator-supplied cost or metrics configuration is invalid. Check local launch flags or the deployment environment variables and Helm values."
     case 'authentication_error':
       return settingsAvailable
         ? 'Kubecost rejected the configured API key. Update it in Settings → Cost.'
-        : 'Kubecost rejected the configured API key. Update this cluster’s credential in the host application or Radar deployment.'
+        : 'Kubecost rejected the configured API key. Update this cluster’s credential in the host application or KubeAtlas deployment.'
     case 'configuration_mismatch':
       return settingsAvailable
         ? 'Saved Kubecost settings are not valid for this cluster. Update the cluster ID or local API key in Settings → Cost.'
-        : 'Kubecost settings are not valid for this cluster. Update the cluster ID or credential in the host application or Radar deployment.'
+        : 'Kubecost settings are not valid for this cluster. Update the cluster ID or credential in the host application or KubeAtlas deployment.'
     default:
       return undefined
   }

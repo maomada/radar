@@ -1,4 +1,4 @@
-import { CardBody, CardSection, TerminalBlock } from '@skyhook-io/k8s-ui'
+import { CardBody, CardSection, TerminalBlock } from '@maomada/k8s-ui'
 import { FileText, TriangleAlert, Wrench } from 'lucide-react'
 import type { CSSProperties } from 'react'
 

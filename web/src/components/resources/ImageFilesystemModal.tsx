@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Folder, File, Link2, ChevronRight, ChevronDown, AlertTriangle, Loader2, Search, Download, HardDrive, Shield, ShieldCheck, Terminal, Copy, Check, RefreshCw } from 'lucide-react'
-import radarLoadingIcon from '@skyhook-io/k8s-ui/assets/radar/radar-icon-loading.svg'
-import { assetUrl } from '@skyhook-io/k8s-ui'
+import radarLoadingIcon from '@maomada/k8s-ui/assets/radar/radar-icon-loading.svg'
+import { assetUrl } from '@maomada/k8s-ui'
 import { clsx } from 'clsx'
 import { useImageMetadata, ApiError } from '../../api/client'
 import type { FileNode, ImageFilesystem } from '../../types'
@@ -11,7 +11,7 @@ import { downloadBlob, filterTree } from './file-browser-utils'
 import { Tooltip } from '../ui/Tooltip'
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../../api/config'
 import { readErrorBody } from '../../api/httpErrors'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 import { useIsAuthEnabled } from '../../contexts/CapabilitiesContext'
 
 const radarLoadingIconUrl = assetUrl(radarLoadingIcon)
@@ -493,9 +493,9 @@ function AuthenticationHelp({ image, registryType, onRetry }: AuthenticationHelp
       {/* Explanation */}
       <p className="text-xs text-theme-text-tertiary text-center max-w-md mb-6">
         {authEnabled ? (
-          <>Private images need exec access to the Pod, or read access to its imagePullSecrets. Exec access also lets Radar use its own registry credentials.</>
+          <>Private images need exec access to the Pod, or read access to its imagePullSecrets. Exec access also lets KubeAtlas use its own registry credentials.</>
         ) : (
-          <>Radar uses your local Docker credentials (<span className="font-mono">~/.docker/config.json</span>).
+          <>KubeAtlas uses your local Docker credentials (<span className="font-mono">~/.docker/config.json</span>).
           Run the command above in your terminal, then click Retry.</>
         )}
       </p>
@@ -546,14 +546,14 @@ function getAuthCommand(authMethod: string, image: string): string | null {
 
     case 'aws': {
       // Extract region from ECR URL: <account>.dkr.ecr.<region>.amazonaws.com
-      const match = registry.match(/\.dkr\.ecr\.([^.]+)\.amazonaws\.com/)
+      const match = registry.match(/^[0-9]+\.dkr\.ecr\.([a-z0-9-]+)\.amazonaws\.com(?:\.cn)?$/)
       const region = match ? match[1] : '<region>'
       return `aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}`
     }
 
     case 'azure': {
       // Extract ACR name from <name>.azurecr.io
-      const acrMatch = registry.match(/^([^.]+)\.azurecr\.io/)
+      const acrMatch = registry.match(/^([a-zA-Z0-9]+)\.azurecr\.io$/)
       const acrName = acrMatch ? acrMatch[1] : '<acr-name>'
       return `az acr login --name ${acrName}`
     }

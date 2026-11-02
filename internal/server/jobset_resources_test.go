@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/skyhook-io/radar/internal/podlogs"
+	"github.com/maomada/radar/internal/podlogs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

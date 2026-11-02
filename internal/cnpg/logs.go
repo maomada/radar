@@ -21,10 +21,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/podlogs"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/podlogs"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // ClusterLogsResponse is GET /api/cnpg/clusters/{namespace}/{name}/logs.

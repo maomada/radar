@@ -11,9 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/skyhook-io/radar/internal/imageutil"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/imageutil"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 const (

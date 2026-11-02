@@ -1,4 +1,4 @@
-import type { TimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+import type { TimeSeries } from "@maomada/k8s-ui/components/charts";
 
 export function latestWorkloadValue(
   series: TimeSeries,

@@ -1,5 +1,5 @@
 import { createElement, Fragment, type ComponentProps, type ComponentType, type ReactNode } from 'react'
-import type { RendererOverrides, WorkloadExtraTab, WorkloadView } from '@skyhook-io/k8s-ui'
+import type { RendererOverrides, WorkloadExtraTab, WorkloadView } from '@maomada/k8s-ui'
 import type { RadarFeature, RadarFeatureSupport } from '../api/radarFeatures'
 import type { RenderDiagnoseAction } from '../context/DiagnoseCustomization'
 import type { SelectedResource } from '../types'

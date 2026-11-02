@@ -1,4 +1,4 @@
-import { ReachabilityView, type Trace } from '@skyhook-io/k8s-ui'
+import { ReachabilityView, type Trace } from '@maomada/k8s-ui'
 
 const NS = 'payments'
 const SUBJECT = { kind: 'Service', name: 'checkout-api', namespace: NS }

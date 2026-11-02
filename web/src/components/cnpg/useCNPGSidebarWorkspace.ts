@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Database, FileCheck2, Settings2, ShieldCheck, Waypoints } from 'lucide-react'
-import { applyCNPGDisk, applyCNPGFleetMetrics, buildCNPGFleet, type CNPGDiskReading, type CNPGFleet, type SidebarCategoryWorkspace } from '@skyhook-io/k8s-ui'
+import { applyCNPGDisk, applyCNPGFleetMetrics, buildCNPGFleet, type CNPGDiskReading, type CNPGFleet, type SidebarCategoryWorkspace } from '@maomada/k8s-ui'
 import type { APIResource } from '../../types'
 import { useCNPGWorkspace } from '../../api/cnpg'
 import { useRadarFeature } from '../../api/client'

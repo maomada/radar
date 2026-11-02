@@ -31,11 +31,11 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 var (
@@ -101,7 +101,7 @@ func addPackageNamespaces(t *testing.T, names ...string) {
 }
 
 func TestMain(m *testing.M) {
-	// The Cloud-funnel rollout gate mints an install ID in ~/.radar on first
+	// The Cloud-funnel rollout gate mints an install ID in ~/.kubeatlas on first
 	// use; redirect HOME so no test run touches the developer's real settings.
 	tmpHome, err := os.MkdirTemp("", "radar-server-test-home")
 	if err == nil {
@@ -1801,7 +1801,7 @@ func TestSmokePutSettingsPreservesExisting(t *testing.T) {
 	}
 }
 
-// TestSmokeCloudMode_SettingsGetStripsUserScoped: under RADAR_CLOUD_MODE
+// TestSmokeCloudMode_SettingsGetStripsUserScoped: under KUBEATLAS_CLOUD_MODE
 // the GET /api/settings response must omit theme/pinnedKinds so Cloud's
 // intercept layer owns the contract. Audit stays (cluster-shared admin
 // policy).
@@ -1811,7 +1811,7 @@ func TestSmokeCloudMode_SettingsGetStripsUserScoped(t *testing.T) {
 	// stripped at the HTTP boundary, not just missing from the file.
 	put(t, "/api/settings", `{"theme":"dark","pinnedKinds":[{"name":"pods","kind":"Pod","group":""}]}`)
 
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 
 	var body map[string]any
 	assertOK(t, get(t, "/api/settings"), &body)
@@ -1823,14 +1823,14 @@ func TestSmokeCloudMode_SettingsGetStripsUserScoped(t *testing.T) {
 	}
 }
 
-// TestSmokeCloudMode_SettingsPutRejectsUserScoped: under RADAR_CLOUD_MODE,
+// TestSmokeCloudMode_SettingsPutRejectsUserScoped: under KUBEATLAS_CLOUD_MODE,
 // a raw PUT attempting to set theme/pinnedKinds must be rejected. Cloud's
 // intercept layer splits the body before forwarding; anything that reaches
 // this endpoint with those fields set has bypassed the intercept and must
 // not mutate shared settings.json.
 func TestSmokeCloudMode_SettingsPutRejectsUserScoped(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 
 	resp := put(t, "/api/settings", `{"theme":"dark"}`)
 	defer resp.Body.Close()
@@ -1847,10 +1847,10 @@ func TestSmokeCloudMode_SettingsPutRejectsUserScoped(t *testing.T) {
 
 // TestSmokeCloudMode_PprofNotMounted verifies that /debug/pprof/* is not
 // registered under cloud-mode. This test constructs a fresh server with
-// RADAR_CLOUD_MODE set before Server.setupRoutes reads it, so the
+// KUBEATLAS_CLOUD_MODE set before Server.setupRoutes reads it, so the
 // pprof-gate conditional fires.
 func TestSmokeCloudMode_PprofNotMounted(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 
 	srv := New(Config{DevMode: true})
 	ts := httptest.NewServer(srv.Handler())
@@ -1920,7 +1920,7 @@ func TestSmokePprofGating(t *testing.T) {
 		{name: "cloud overrides local auth dev opt in", address: "127.0.0.1", auth: true, dev: true, cloud: true, override: &enabled},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("RADAR_CLOUD_MODE", fmt.Sprint(tt.cloud))
+			t.Setenv("KUBEATLAS_CLOUD_MODE", fmt.Sprint(tt.cloud))
 			cfg := Config{ListenAddress: tt.address, DevMode: tt.dev, EnablePprof: tt.override, DiagConfig: &DiagConfig{}}
 			if tt.auth {
 				cfg.AuthConfig = auth.Config{Mode: "proxy"}

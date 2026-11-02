@@ -1,4 +1,4 @@
-import { KarpenterNodePoolRenderer as BaseKarpenterNodePoolRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/KarpenterNodePoolRenderer'
+import { KarpenterNodePoolRenderer as BaseKarpenterNodePoolRenderer } from '@maomada/k8s-ui/components/resources/renderers/KarpenterNodePoolRenderer'
 import { useNavigate } from 'react-router-dom'
 import { useCapabilitiesContext } from '../../../contexts/CapabilitiesContext'
 

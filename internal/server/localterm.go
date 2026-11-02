@@ -14,8 +14,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // ptyHandle abstracts platform-specific PTY implementations

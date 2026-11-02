@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	internalopencost "github.com/maomada/radar/internal/opencost"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 type kubecostServiceRef struct {

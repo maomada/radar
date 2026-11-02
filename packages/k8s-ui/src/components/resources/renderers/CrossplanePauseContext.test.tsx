@@ -38,7 +38,7 @@ it.each([
 it('retains one independent failing condition and its real banner message', () => {
   const data = { ...base, status: { conditions: [pause, { type: 'Ready', status: 'False', reason: 'Unavailable', message: 'external API access denied' }] } }
   const html = renderToStaticMarkup(<ManagedResourceRenderer data={data} />)
-  expect(html).toContain('1 failing')
+  expect(html).toContain('1 项失败')
   expect(html).toContain('Unavailable')
   expect(html.match(/external API access denied/g)).toHaveLength(2)
   expect(html.match(/controller pause observation/g)).toHaveLength(1)

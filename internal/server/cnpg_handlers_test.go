@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	"github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	"github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // A ClusterImageCatalog is cluster-scoped and referenceable from any namespace,

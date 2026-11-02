@@ -24,9 +24,9 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // kindAliases maps kubectl-style short/plural names to the canonical Kind.
@@ -83,7 +83,7 @@ func newFlagSet() (*flag.FlagSet, *options) {
 	fs.StringVar(&o.group, "group", "", "Kubernetes API group (inferred for built-in kinds; set for CRDs or kind collisions)")
 	fs.StringVar(&o.agent, "agent", "", "Agent backend to use (claude|codex|cursor-agent|opencode; default = server's pick)")
 	fs.StringVar(&o.profile, "profile", "", "Execution profile (safeguarded = Radar safeguards; full-local = your agent setup; default = safest available)")
-	fs.StringVar(&o.server, "server", "", "Radar server URL (default: discover the running instance via ~/.radar/mcp-port)")
+	fs.StringVar(&o.server, "server", "", "Radar server URL (default: discover the running instance via ~/.kubeatlas/mcp-port)")
 	fs.BoolVar(&o.jsonOut, "json", false, "Print the final conclusion as JSON on stdout (progress goes to stderr)")
 	fs.BoolVar(&o.open, "open", false, "Also open the investigation in the Radar UI")
 	fs.BoolVar(&o.yes, "yes", false, "Skip the first-run consent prompt")
@@ -149,7 +149,7 @@ Flags:
 	out := newRenderer(o.jsonOut)
 
 	// Resolve the engine: an explicit --server, else the running instance from
-	// ~/.radar/mcp-port, else fall back to a temporary in-process Radar (what
+	// ~/.kubeatlas/mcp-port, else fall back to a temporary in-process Radar (what
 	// --standalone forces). Cold start pays a cluster connect up front — the
 	// running-instance path stays the fast default.
 	standalone := o.standalone
@@ -172,7 +172,7 @@ Flags:
 	if standalone {
 		// Consent BEFORE the boot: nobody wants to answer a prompt after
 		// watching a cluster connect for 30 seconds. No server exists yet, so
-		// read/write the shared machine-scoped store (~/.radar/config.json)
+		// read/write the shared machine-scoped store (~/.kubeatlas/config.json)
 		// directly — the ephemeral server then sees it as already given.
 		effective := standaloneEffectiveAgent(context.Background(), o.agent)
 		if effective == "" {
@@ -211,10 +211,10 @@ Flags:
 	agents, err := fetchAgents(base)
 	if err != nil {
 		// A 404 here means SOMETHING answered but has no /api/agents — almost
-		// always an older Radar (or a stale ~/.radar/mcp-port pointing at one
+		// always an older Radar (or a stale ~/.kubeatlas/mcp-port pointing at one
 		// when several instances ran). Say that, not just "404".
 		if strings.Contains(err.Error(), "404") {
-			fmt.Fprintf(os.Stderr, "the Radar at %s doesn't support AI investigations — it's likely an older version (or a stale ~/.radar/mcp-port from another instance). Upgrade/restart it, pass --server for the right instance, or use --standalone.\n", base)
+			fmt.Fprintf(os.Stderr, "the Radar at %s doesn't support AI investigations — it's likely an older version (or a stale ~/.kubeatlas/mcp-port from another instance). Upgrade/restart it, pass --server for the right instance, or use --standalone.\n", base)
 		} else {
 			fmt.Fprintf(os.Stderr, "found Radar at %s but couldn't query it: %v\n", base, err)
 		}
@@ -225,7 +225,7 @@ Flags:
 		// no CLI" from "this deployment never can" (--no-mcp, auth, in-cluster or
 		// shared), where installing a CLI is the wrong advice.
 		if agents.Eligible && agents.CLIOverride {
-			fmt.Fprintf(os.Stderr, "the Radar at %s can't run its RADAR_AI_CLI_BIN. Fix the path, or remove it "+
+			fmt.Fprintf(os.Stderr, "the Radar at %s can't run its KUBEATLAS_AI_CLI_BIN. Fix the path, or remove it "+
 				"and restart that Radar.\n", base)
 		} else if agents.Eligible {
 			fmt.Fprintf(os.Stderr, "the Radar at %s found no agent CLI. Install Claude Code, Codex, Cursor, "+
@@ -307,15 +307,15 @@ func resolveServer(explicit string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot determine home dir: %w", err)
 	}
-	b, err := os.ReadFile(filepath.Join(home, ".radar", "mcp-port"))
+	b, err := os.ReadFile(filepath.Join(home, ".kubeatlas", "mcp-port"))
 	if err != nil {
 		return "", fmt.Errorf("no running Radar found (%s missing) — start radar first, or pass --server http://localhost:<port>",
-			filepath.Join(home, ".radar", "mcp-port"))
+			filepath.Join(home, ".kubeatlas", "mcp-port"))
 	}
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
 	port, err := strconv.Atoi(strings.TrimSpace(lines[0]))
 	if err != nil || port <= 0 {
-		return "", fmt.Errorf("~/.radar/mcp-port is unreadable — is radar running? (or pass --server)")
+		return "", fmt.Errorf("~/.kubeatlas/mcp-port is unreadable — is radar running? (or pass --server)")
 	}
 	basePath := ""
 	if len(lines) > 1 {
@@ -393,12 +393,12 @@ func standaloneEffectiveAgent(ctx context.Context, requested string) string {
 // drive". Every local surface that hits it reads this, so they can't drift.
 const noAgentCLIHint = "no supported agent CLI found. Install Claude Code, Codex, Cursor, or OpenCode"
 
-// localNoAgentHint is noAgentCLIHint unless RADAR_AI_CLI_BIN is set here: then
+// localNoAgentHint is noAgentCLIHint unless KUBEATLAS_AI_CLI_BIN is set here: then
 // detection is off and the variable names a file Radar can't run, so installing
 // a CLI wouldn't help.
 func localNoAgentHint() string {
-	if v := strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")); v != "" {
-		return "can't run RADAR_AI_CLI_BIN=" + v + ". Fix the path or unset it"
+	if v := strings.TrimSpace(os.Getenv("KUBEATLAS_AI_CLI_BIN")); v != "" {
+		return "can't run KUBEATLAS_AI_CLI_BIN=" + v + ". Fix the path or unset it"
 	}
 	return noAgentCLIHint
 }

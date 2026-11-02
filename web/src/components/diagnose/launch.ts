@@ -1,5 +1,5 @@
 // Builds the shell command that hands an investigation off to the user's own
-// interactive agent CLI, pointed at Radar's MCP. This is the "escape hatch" to the
+// interactive agent CLI, pointed at KubeAtlas's MCP. This is the "escape hatch" to the
 // full agent (their config, their other MCPs, interactive approvals) — distinct
 // from the contained in-panel engine. The endpoint follows the server MCP mode.
 // In full mode, the client approval prompts gate changes.
@@ -20,7 +20,7 @@ export function launchAgentLabel(run: RunSummary): string {
   return "Claude Code";
 }
 
-// openInTerminal asks App (which owns the DockProvider) to open Radar's local
+// openInTerminal asks App (which owns the DockProvider) to open KubeAtlas's local
 // terminal running `command`. The AI surface is portaled above the DockProvider,
 // so it can't use the dock hook directly — it dispatches this event instead.
 export function openInTerminal(command: string, title: string) {
@@ -47,9 +47,9 @@ export function buildLaunchCommand(
   if (run.agent === "opencode") return null;
 
   if (run.agent === "cursor-agent") {
-    // Cursor's --resume is workspace-scoped, and Radar runs each investigation in a
+    // Cursor's --resume is workspace-scoped, and KubeAtlas runs each investigation in a
     // throwaway per-run working directory the user doesn't have — no command can reattach
-    // both that session and Radar's MCP in the user's own terminal. So there's no
+    // both that session and KubeAtlas's MCP in the user's own terminal. So there's no
     // hand-off for Cursor; the in-panel investigation is self-contained.
     return null;
   }
@@ -57,8 +57,8 @@ export function buildLaunchCommand(
     // Codex threads are stored globally by id (cwd-independent); -c re-attaches MCP.
     return `codex resume ${sq(run.sessionId)} -c ${sq(`mcp_servers.radar.url="${mcpUrl}"`)}`;
   }
-  // Claude Code: --resume is cwd-scoped, and Radar runs its headless sessions from
-  // the home dir (see claudeAgent). The Radar terminal starts there too, but a user
+  // Claude Code: --resume is cwd-scoped, and KubeAtlas runs its headless sessions from
+  // the home dir (see claudeAgent). The KubeAtlas terminal starts there too, but a user
   // pasting this into their own terminal is usually in a project dir — so prefix
   // `cd ~` to resolve the session wherever it's run (harmless in the home-dir case).
   // --mcp-config MERGES radar alongside the user's own servers.

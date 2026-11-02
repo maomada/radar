@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func testStore(t *testing.T) (RunStore, string) {

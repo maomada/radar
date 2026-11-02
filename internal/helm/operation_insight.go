@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/helmhistory"
 )
 
 const (

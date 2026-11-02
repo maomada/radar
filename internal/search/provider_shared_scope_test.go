@@ -3,7 +3,7 @@ package search
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 func TestNamedUnwatchedKindReportsCollectionGap(t *testing.T) {

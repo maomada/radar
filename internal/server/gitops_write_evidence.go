@@ -18,10 +18,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // The write-evidence endpoint answers, before a direct write, what Radar can

@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { PaneLoader, WorkloadLogsViewer, type WorkloadLogsFetchParams, type WorkloadLogsResult } from '@skyhook-io/k8s-ui'
+import { PaneLoader, WorkloadLogsViewer, type WorkloadLogsFetchParams, type WorkloadLogsResult } from '@maomada/k8s-ui'
 import { fetchJSON, useCapabilities, useRadarFeature } from '../../api/client'
 import { getApiBase, getCredentialsMode } from '../../api/config'
 import { useDesktopDownload } from '../../hooks/useDesktopDownload'
@@ -88,7 +88,7 @@ export function CNPGClusterLogs({ namespace, name }: { namespace: string; name: 
           <CNPGIntervalBanner
             since={interval.since}
             until={interval.until}
-            note={support === 'unsupported' ? 'This interval needs a newer Radar. Clear it to read ordinary logs.' : 'Selected on a History chart. Lines from the start of the interval, up to 64 KiB per instance; the line-count selector does not apply and streaming is off.'}
+            note={support === 'unsupported' ? 'This interval needs a newer KubeAtlas. Clear it to read ordinary logs.' : 'Selected on a History chart. Lines from the start of the interval, up to 64 KiB per instance; the line-count selector does not apply and streaming is off.'}
             onClear={interval.clear}
           />
         </div>

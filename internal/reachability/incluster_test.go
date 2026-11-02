@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/trace"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/trace"
+	"github.com/maomada/radar/pkg/probe"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )

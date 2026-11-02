@@ -3,8 +3,8 @@ package readscope
 import (
 	"slices"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // NamespaceAccess is the caller's ceiling: nil namespaces means unrestricted,

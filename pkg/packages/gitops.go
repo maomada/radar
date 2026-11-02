@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/conditions"
 )
 
 // Parsers for GitOps controller resources. Take generic JSON-decoded

@@ -1,4 +1,4 @@
-import { TrafficGraph } from '@skyhook-io/k8s-ui'
+import { TrafficGraph } from '@maomada/k8s-ui'
 
 const frame = { width: 1200, height: 700 } as const
 const lastSeen = new Date(Date.now() - 12_000).toISOString()

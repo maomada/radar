@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // TestChartGrantsEveryWatchedCRDGroup guards against the drift where Radar
@@ -51,7 +51,7 @@ func TestChartGrantsEveryWatchedCRDGroup(t *testing.T) {
 	for group, source := range watched {
 		if !granted[group] {
 			t.Errorf("API group %q is watched by Radar (%s) but no rule in "+
-				"deploy/helm/radar/templates/clusterrole.yaml grants it. The informer "+
+				"deploy/helm/kubeatlas/templates/clusterrole.yaml grants it. The informer "+
 				"will 403 and the resource will silently never appear. Add a per-group "+
 				"rule (and values.yaml toggle) granting get/list/watch on %q.",
 				group, source, group)
@@ -67,7 +67,7 @@ func TestChartGrantsEveryWatchedCRDGroup(t *testing.T) {
 // because their toggles default to true; the wildcard "*" is excluded on purpose.
 func chartGrantedAPIGroups(t *testing.T) map[string]bool {
 	t.Helper()
-	path := filepath.Join("..", "..", "deploy", "helm", "radar", "templates", "clusterrole.yaml")
+	path := filepath.Join("..", "..", "deploy", "helm", "kubeatlas", "templates", "clusterrole.yaml")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read chart ClusterRole template: %v", err)

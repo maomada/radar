@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 func TestTaskPromptCrossplanePauseIndependentFromHealth(t *testing.T) {

@@ -5,9 +5,9 @@ import { clsx } from 'clsx'
 import { useAvailablePorts, AvailablePort } from '../../api/client'
 import { useStartPortForward } from './PortForwardManager'
 import { useIsLocalDeployment } from '../../contexts/CapabilitiesContext'
-import { validatePort } from '@skyhook-io/k8s-ui/utils/validators'
+import { validatePort } from '@maomada/k8s-ui/utils/validators'
 import { Tooltip } from '../ui/Tooltip'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 
 interface PortForwardButtonProps {
   type: 'pod' | 'service'
@@ -107,7 +107,7 @@ function KubectlCommandDialog({
         <div className="flex items-center justify-between p-4 border-b border-theme-border">
           <div className="flex items-center gap-2">
             <Terminal className="w-5 h-5 text-blue-400" />
-            <h3 className="text-base font-semibold text-theme-text-primary">Port Forward</h3>
+            <h3 className="text-base font-semibold text-theme-text-primary">端口转发</h3>
           </div>
           <button
             onClick={onClose}
@@ -286,7 +286,7 @@ export function PortForwardButton({
           ) : (
             <Plug className="w-4 h-4" />
           )}
-          Port Forward
+          端口转发
           <ChevronDown className={clsx('w-3 h-3 transition-transform', isOpen && 'rotate-180')} />
         </button>
 

@@ -1,4 +1,4 @@
-import { formatCPUString, formatMemoryString } from '@skyhook-io/k8s-ui/utils/format'
+import { formatCPUString, formatMemoryString } from '@maomada/k8s-ui/utils/format'
 
 export interface ExecutionUnitSummary {
   name: string

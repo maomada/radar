@@ -1,4 +1,4 @@
-import type { TopologyNode } from '@skyhook-io/k8s-ui/types/core'
+import type { TopologyNode } from '@maomada/k8s-ui/types/core'
 
 // A node with no namespace is cluster-scoped (Node, PersistentVolume,
 // Namespace, ...) and stays visible in every scope.

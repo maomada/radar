@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )

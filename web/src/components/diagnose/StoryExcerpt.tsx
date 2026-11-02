@@ -3,7 +3,7 @@ import {
   Collapse,
   TerminalBlock,
   TerminalBlockLabel,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import {
   InventoryRow,
   type NamedInventoryRow,
@@ -22,7 +22,7 @@ const unread = (entry: NamedInventoryRow) =>
   entry.readOnlyIn !== undefined ||
   entry.readUnnamed !== undefined;
 
-/** The inline slice of a placed card, rendered from Radar's record. */
+/** The inline slice of a placed card, rendered from KubeAtlas's record. */
 export function StoryExcerpt({
   excerpt,
   data,

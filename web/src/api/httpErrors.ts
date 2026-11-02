@@ -30,10 +30,10 @@ export function httpStatusMessage(status: number, statusText?: string): string {
 export const CHI_UNKNOWN_ROUTE_BODY = '404 page not found\n'
 
 /**
- * True only for chi's own unknown-route response. Radar's handlers answer a
+ * True only for chi's own unknown-route response. KubeAtlas's handlers answer a
  * missing resource with a JSON envelope, and Radar Hub's proxy answers a
  * cluster lookup failure with a plain-text "not found", so neither matches.
- * That exactness is what lets a caller read this as "the connected Radar
+ * That exactness is what lets a caller read this as "the connected KubeAtlas
  * predates this endpoint" rather than "something is missing".
  */
 export function isUnknownRouteResponse(status: number, contentType: string | null, body: string): boolean {
@@ -79,7 +79,7 @@ export async function readErrorResponse(response: Response): Promise<ErrorRespon
  * The message for a failed response whose body is not a JSON object, for
  * callers that already read the body as text. A short plain-text reason, such
  * as Radar Hub's `cluster "x" not connected`, leads and the status trails it
- * ("cluster "x" not connected (HTTP 503)"), so it reads like Radar's own
+ * ("cluster "x" not connected (HTTP 503)"), so it reads like KubeAtlas's own
  * errors. Without one (an HTML page, chi's unknown-route body, an empty body)
  * the status is the message: "HTTP 502 (Bad Gateway)".
  */

@@ -3,7 +3,7 @@ package k8s
 import (
 	"slices"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // VisibilitySummary explains when Radar is connected but cannot see enough

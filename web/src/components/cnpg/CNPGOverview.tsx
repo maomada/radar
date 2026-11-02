@@ -12,7 +12,7 @@ import {
   toneTextClass,
   type CNPGFleetRow,
   type CNPGProblemCategory,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { useConnection } from '../../context/ConnectionContext'
 import { getApiBase } from '../../api/config'
@@ -238,9 +238,9 @@ export function CNPGOverview({
       state === 'denied'
         ? { title: 'No access to PostgreSQL clusters', detail: 'Your identity cannot list CloudNativePG Clusters. Other CloudNativePG kinds may still be browsable under Resource kinds.' }
         : state === 'syncing'
-          ? { title: 'Loading PostgreSQL clusters', detail: 'Radar is still syncing CloudNativePG Clusters from the API server.' }
+          ? { title: 'Loading PostgreSQL clusters', detail: 'KubeAtlas is still syncing CloudNativePG Clusters from the API server.' }
           : state === 'error'
-            ? { title: 'PostgreSQL clusters could not be read', detail: 'Reading CloudNativePG Clusters failed; see the Radar server log.' }
+            ? { title: 'PostgreSQL clusters could not be read', detail: 'Reading CloudNativePG Clusters failed; see the KubeAtlas server log.' }
             : state === 'partial' || state === 'uncached'
               ? { title: 'No visible PostgreSQL clusters', detail: coverageEmpty(clustersCov, 'PostgreSQL clusters') }
               : namespaces.length > 0

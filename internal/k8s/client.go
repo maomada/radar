@@ -28,7 +28,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/errorlog"
 )
 
 var (

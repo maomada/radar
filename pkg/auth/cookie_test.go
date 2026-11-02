@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -90,6 +92,9 @@ func TestParseSessionCookie_WrongSecret(t *testing.T) {
 }
 
 func TestParseSessionCookie_Expired(t *testing.T) {
+	var output bytes.Buffer
+	defer log.SetOutput(log.Writer())
+	log.SetOutput(&output)
 	user := &User{Username: "alice"}
 	// TTL of -1 second = already expired
 	cookie := mainCookie(t, CreateSessionCookie(user, NewSessionID(), "", "secret", -1*time.Second, false))
@@ -100,6 +105,12 @@ func TestParseSessionCookie_Expired(t *testing.T) {
 	parsed := ParseSessionCookie(req, "secret")
 	if parsed != nil {
 		t.Error("ParseSessionCookie should return nil for expired cookie")
+	}
+	if !strings.Contains(output.String(), "Session cookie expired") {
+		t.Error("missing expired session event")
+	}
+	if strings.Contains(output.String(), user.Username) {
+		t.Error("diagnostic log includes session username")
 	}
 }
 

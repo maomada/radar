@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 func TestComputeDiff_ConditionPostgresRoundTrip(t *testing.T) {
-	baseDSN := os.Getenv("RADAR_TEST_POSTGRES_DSN")
+	baseDSN := os.Getenv("KUBEATLAS_TEST_POSTGRES_DSN")
 	if baseDSN == "" {
-		t.Skip("RADAR_TEST_POSTGRES_DSN is not set")
+		t.Skip("KUBEATLAS_TEST_POSTGRES_DSN is not set")
 	}
 	admin, err := sql.Open("pgx", baseDSN)
 	if err != nil {
@@ -38,7 +38,7 @@ func TestComputeDiff_ConditionPostgresRoundTrip(t *testing.T) {
 	})
 	parsed, err := url.Parse(baseDSN)
 	if err != nil {
-		t.Fatalf("parse RADAR_TEST_POSTGRES_DSN: %v", err)
+		t.Fatalf("parse KUBEATLAS_TEST_POSTGRES_DSN: %v", err)
 	}
 	query := parsed.Query()
 	query.Set("search_path", schema)

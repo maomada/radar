@@ -1,4 +1,4 @@
-import { Disclosure } from '@skyhook-io/k8s-ui'
+import { Disclosure } from '@maomada/k8s-ui'
 
 export function UncheckedSourceHelp({ onRetry, isRefreshing }: { onRetry: () => void; isRefreshing: boolean }) {
   return (
@@ -9,7 +9,7 @@ export function UncheckedSourceHelp({ onRetry, isRefreshing }: { onRetry: () => 
     >
       <div className="space-y-2 pt-2 leading-5">
         <p>Some checks didn’t return a usable result. Issues found by other checks are still shown.</p>
-        <p>Radar checks again automatically. If this keeps happening, check Radar’s connection and access to Kubernetes.</p>
+        <p>KubeAtlas checks again automatically. If this keeps happening, check KubeAtlas’s connection and access to Kubernetes.</p>
         <button
           type="button"
           onClick={onRetry}

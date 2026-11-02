@@ -53,7 +53,7 @@ func (c EnrollmentConfig) validate() error {
 	case c.Namespace == "":
 		return errors.New("cloud: Radar's namespace is required (MY_POD_NAMESPACE)")
 	case c.Release == "":
-		return errors.New("cloud: the Helm release name is required (RADAR_HELM_RELEASE)")
+		return errors.New("cloud: the Helm release name is required (KUBEATLAS_HELM_RELEASE)")
 	case c.Tunnel.Handler == nil:
 		return errors.New("cloud: Handler is required")
 	}

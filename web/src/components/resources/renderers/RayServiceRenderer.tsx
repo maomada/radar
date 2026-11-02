@@ -1,8 +1,8 @@
-import { apiVersionToGroup } from '@skyhook-io/k8s-ui/utils/navigation'
-import { RayServiceRenderer as BaseRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/RayServiceRenderer'
-import { isRayObservationStale } from '@skyhook-io/k8s-ui/components/resources/resource-utils-ray'
-import { AlertBanner, ConditionsSection, type ConditionTone } from '@skyhook-io/k8s-ui/components/ui/drawer-components'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { apiVersionToGroup } from '@maomada/k8s-ui/utils/navigation'
+import { RayServiceRenderer as BaseRenderer } from '@maomada/k8s-ui/components/resources/renderers/RayServiceRenderer'
+import { isRayObservationStale } from '@maomada/k8s-ui/components/resources/resource-utils-ray'
+import { AlertBanner, ConditionsSection, type ConditionTone } from '@maomada/k8s-ui/components/ui/drawer-components'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { ApiError, useResource } from '../../../api/client'
 
 function runtimeConditionTone(condition: any): ConditionTone {

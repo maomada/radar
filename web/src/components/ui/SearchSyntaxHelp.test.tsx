@@ -19,7 +19,7 @@ function render() {
   return host.querySelector('button')!
 }
 
-const cardShown = () => document.body.textContent?.includes('Search syntax') ?? false
+const cardShown = () => document.body.textContent?.includes('搜索语法') ?? false
 
 it('toggles on a click with no pointer before it (assistive activation)', () => {
   const button = render()

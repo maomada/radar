@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 // SameOriginRedirectClient copies a client, preserving its transport and stricter

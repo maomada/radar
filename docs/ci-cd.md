@@ -27,27 +27,27 @@ visibility was configured by this change.
 
 Images:
 
-- `ghcr.io/maomada/radar:<version>`
-- `ghcr.io/maomada/radar-portal:<version>`
+- `ghcr.io/maomada/kubeatlas:<version>`
+- `ghcr.io/maomada/kubeatlas-portal:<version>`
 
 Helm OCI charts:
 
-- `oci://ghcr.io/maomada/charts/radar --version <version>`
-- `oci://ghcr.io/maomada/charts/radar-portal --version <version>`
+- `oci://ghcr.io/maomada/charts/kubeatlas --version <version>`
+- `oci://ghcr.io/maomada/charts/kubeatlas-portal --version <version>`
 
 For example, after a version is actually published:
 
 ```sh
-helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
-  --version "$VERSION" --namespace radar --create-namespace
-helm upgrade --install radar-portal oci://ghcr.io/maomada/charts/radar-portal \
-  --version "$VERSION" --namespace radar-portal --create-namespace \
+helm upgrade --install kubeatlas oci://ghcr.io/maomada/charts/kubeatlas \
+  --version "$VERSION" --namespace kubeatlas --create-namespace
+helm upgrade --install kubeatlas-portal oci://ghcr.io/maomada/charts/kubeatlas-portal \
+  --version "$VERSION" --namespace kubeatlas-portal --create-namespace \
   --set existingSecret=portal-auth
 ```
 
 Use a secret manager or existing Kubernetes Secret for credentials. Do not put
 registry credentials in chart values, runtime configuration, command arguments,
-or this repository. The Radar chart supports an `imagePullSecrets` value. The
+or this repository. The KubeAtlas chart supports an `imagePullSecrets` value. The
 Portal chart does not; its Deployment uses the namespace default ServiceAccount.
 For private GHCR images used by Portal, have the cluster operator provision that
 ServiceAccount's `imagePullSecrets` before installation. Do not assume packages
@@ -67,6 +67,16 @@ the same version. Roll back by selecting a previously known-good image tag or
 Helm revision (`helm history` / `helm rollback`) and verify the matching
 manifest digest.
 
-The upstream installers, update feeds, and library identities remain upstream;
-they do not deliver fork releases. This migration does not change Go module or
-npm package identities or rewrite installer/runtime updater behavior.
+The CLI installers and direct update checks now use `maomada/radar`; they do
+not fall back to the upstream release relay. Installer scripts fail closed
+when the owned release lacks the expected CLI assets. GHCR images do not
+provide those assets, and no package-manager update command is advertised until
+an owned distribution path exists. The Go module path and npm package names
+retain their historical compatibility identifiers; those identifiers do not
+publish or install this repository's CLI releases.
+
+Upstream Cloud connectivity and usage reporting are disabled in KubeAtlas.
+Legacy environment settings cannot enable them, and the Helm charts reject
+enabling those features. See [Usage Stats](usage-stats.md) and
+[Authentication](authentication.md#upstream-cloud-mode) for the retained
+compatibility boundaries. The independent Portal is not the upstream Cloud.

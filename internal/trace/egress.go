@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/pkg/netpol"
+	"github.com/maomada/radar/pkg/netpol"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 

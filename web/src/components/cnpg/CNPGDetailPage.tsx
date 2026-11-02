@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { refetchCNPGDetail } from './refresh'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { Activity, Database, Gauge, HardDrive, Network, Settings2, ShieldCheck, Unplug } from 'lucide-react'
-import { CNPG_GROUP, refToSelectedResource, Tooltip, Badge, type WorkloadExtraTab } from '@skyhook-io/k8s-ui'
+import { CNPG_GROUP, refToSelectedResource, Tooltip, Badge, type WorkloadExtraTab } from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { useConnection } from '../../context/ConnectionContext'
 import { useContexts, useRadarFeature } from '../../api/client'
@@ -31,7 +31,7 @@ interface ReturnState {
 /**
  * The full detail of a CloudNativePG object, framed by the workspace: the
  * Resources sidebar keeps the workspace destination highlighted and the crumb
- * names the object's place. The object's own sections come from Radar's
+ * names the object's place. The object's own sections come from KubeAtlas's
  * detail view.
  *
  * `ctx` in the URL pins the Kubernetes context; when the active context is a
@@ -265,7 +265,7 @@ function NotInContext({
       <ScreenEmptyState
         icon={Unplug}
         title={`${target.name} is not in ${activeContext}`}
-        detail={`This link points at ${CNPG_DETAIL_KINDS[target.plural].kind} ${target.name} in context ${pinnedContext}. Radar does not open a same-named object from another cluster.`}
+        detail={`This link points at ${CNPG_DETAIL_KINDS[target.plural].kind} ${target.name} in context ${pinnedContext}. KubeAtlas does not open a same-named object from another cluster.`}
         action={
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {pinned && (

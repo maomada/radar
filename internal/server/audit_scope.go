@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
-	"github.com/skyhook-io/radar/internal/audit"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/audit"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func (s *Server) auditOptions(r *http.Request) *audit.RunOptions {

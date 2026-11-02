@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
+	k8score "github.com/maomada/radar/pkg/k8score"
 )
 
 // stubDP is the shared minimal DynamicProvider for topology package tests.

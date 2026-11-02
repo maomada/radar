@@ -1,16 +1,16 @@
-// Top-level React component for Radar's web UI.
+// Top-level React component for KubeAtlas's web UI.
 //
-// This is the entrypoint the `@skyhook-io/radar-app` library publishes.
-// It's also rendered by Radar's own binary via web/src/main.tsx — so
-// Radar standalone and Radar-embedded-in-another-app (e.g., Radar Hub)
+// This is the entrypoint the `@maomada/kubeatlas-app` library publishes.
+// It's also rendered by KubeAtlas's own binary via web/src/main.tsx — so
+// KubeAtlas standalone and KubeAtlas-embedded-in-another-app (e.g., Radar Hub)
 // share exactly one code path.
 //
 // Config model:
 //   - apiBase  — base URL for REST/SSE/WS. Default '/api' (same-origin,
-//                Radar's own binary). Hub passes a cluster-scoped URL
-//                like '/c/abc/api' or 'https://api.radarhq.io/c/abc/api'.
+//                KubeAtlas's own binary). Hub passes a cluster-scoped URL
+//                like '/c/abc/api' or 'https://api.example.test/c/abc/api'.
 //   - basename — router basename. Default '' (mounted at root). Hub
-//                passes '/c/abc' when embedding, so Radar's internal
+//                passes '/c/abc' when embedding, so KubeAtlas's internal
 //                paths (/topology, /resources/...) resolve correctly.
 //
 // Both are applied before any children render so downstream code that
@@ -75,17 +75,17 @@ export interface RadarAppProps {
   /** API base URL (REST + SSE + WS). Defaults to '/api' (same-origin). */
   apiBase?: string;
   /**
-   * The version of the Radar behind `apiBase`, as the host knows it (Radar
-   * Cloud: the cluster's `radar_version`). Radar prefers that Radar's own
+   * The version of the KubeAtlas behind `apiBase`, as the host knows it (KubeAtlas
+   * Cloud: the cluster's `radar_version`). KubeAtlas prefers that KubeAtlas's own
    * /version-check answer and uses this only until it arrives or when it
-   * fails, to decide up front that a feature needs a newer Radar instead of
+   * fails, to decide up front that a feature needs a newer KubeAtlas instead of
    * probing for it.
    */
   radarVersion?: string;
   /**
-   * Called when the user asks to upgrade from an inline "needs a newer Radar"
-   * note next to a feature the connected Radar is too old to serve. The host
-   * runs its own upgrade flow (Radar Cloud: one-click for owners, "ask an
+   * Called when the user asks to upgrade from an inline "needs a newer KubeAtlas"
+   * note next to a feature the connected KubeAtlas is too old to serve. The host
+   * runs its own upgrade flow (upstream Cloud: one-click for owners, "ask an
    * owner" otherwise). Omitted → the note links to the upgrade instructions.
    */
   onRequestRadarUpgrade?: (request: RadarUpgradeRequest) => void;
@@ -94,16 +94,16 @@ export interface RadarAppProps {
   /**
    * Router strategy:
    *   - 'browser' (default): BrowserRouter — URL bar reflects all navigation.
-   *     Use when Radar owns routing. Library consumers should mount RadarApp
+   *     Use when KubeAtlas owns routing. Library consumers should mount RadarApp
    *     above their own router (or replace the host's router with this one)
    *     and pass `basename` — React Router forbids nesting routers.
-   *   - 'memory': MemoryRouter — URL bar does NOT change as Radar navigates.
+   *   - 'memory': MemoryRouter — URL bar does NOT change as KubeAtlas navigates.
    *     Escape hatch for tests and for host apps that can't restructure
    *     around a single top-level BrowserRouter.
    */
   router?: "browser" | "memory";
   /**
-   * Optional QueryClient override. When consuming Radar inside another app
+   * Optional QueryClient override. When consuming KubeAtlas inside another app
    * that already has a QueryClientProvider higher in the tree, you may
    * prefer to share its client rather than nest two providers.
    */
@@ -111,40 +111,40 @@ export interface RadarAppProps {
   /** Embedded layout and host navigation hooks for Radar Hub. */
   navSlots?: NavCustomization;
   /**
-   * Whether Radar may set the browser tab title (`document.title`) per view.
+   * Whether KubeAtlas may set the browser tab title (`document.title`) per view.
    * Defaults to OFF: embedders keep title ownership without opting out. The
    * standalone binary opts in (`web/src/main.tsx` renders
    * `<RadarApp manageDocumentTitle />`), and any full-page embed that wants
-   * Radar's per-view titles can do the same.
+   * KubeAtlas's per-view titles can do the same.
    */
   manageDocumentTitle?: boolean;
   /**
    * Trailing string appended after the per-view label (only when
    * `manageDocumentTitle` is on). It's the *full* suffix including any
    * separator, so a host can rebrand (`' — My Cloud'`) or drop it (`''`).
-   * Defaults to `' · Radar'`.
+   * Defaults to `' · KubeAtlas'`.
    */
   documentTitleSuffix?: string;
   /**
    * Injects a resource-level "Investigate" action (e.g. an "Investigate with AI"
    * button) into every resource detail action bar's right-aligned universal
    * actions. The host returns the node to render given the resource context.
-   * Standalone Radar omits this and renders no Investigate button — OSS stays
+   * Standalone KubeAtlas omits this and renders no Investigate button — OSS stays
    * agent-free. See ./context/DiagnoseCustomization for the render-prop shape.
    */
   renderDiagnoseAction?: RenderDiagnoseAction;
-  /** Host-owned controls for the focused investigation; absent in standalone Radar. */
+  /** Host-owned controls for the focused investigation; absent in standalone KubeAtlas. */
   renderInvestigationRunActions?: RenderInvestigationRunActions;
-  /** Host action beside a refused investigation start or follow-up, e.g. Radar
+  /** Host action beside a refused investigation start or follow-up, e.g. KubeAtlas
    *  Cloud's "Upgrade" when the organization has used its investigations.
-   *  Absent in standalone Radar, whose backend sends no refusal details. */
+   *  Absent in standalone KubeAtlas, whose backend sends no refusal details. */
   renderInvestigationRefusalAction?: RenderInvestigationRefusalAction;
   /**
    * Replaces the first-run consent card's trust copy. REQUIRED of any host whose
    * backend runs the agent somewhere other than the user's own machine — the
    * default copy states the agent runs locally, under the user's own model
    * account, with transcripts kept on their disk, and none of that is true of a
-   * hosted runner. Radar keeps the card's chrome and the Approve/Cancel flow; a
+   * hosted runner. KubeAtlas keeps the card's chrome and the Approve/Cancel flow; a
    * host only supplies the claims. See ./context/DiagnoseCustomization.
    */
   diagnoseConsent?: DiagnoseConsentCopy;
@@ -158,7 +158,7 @@ export interface RadarAppProps {
   /**
    * Reports cluster-data warmup after the main connection is usable. Embedders
    * with their own chrome (Radar Hub) can render this in their topbar while
-   * Radar runs with `navSlots.embedded: true`.
+   * KubeAtlas runs with `navSlots.embedded: true`.
    */
   onClusterLoadStateChange?: (state: ClusterLoadState) => void;
   /**
@@ -169,7 +169,7 @@ export interface RadarAppProps {
   onInvestigationFocus?: (runID: string) => void;
   /**
    * Selects the store backing the event timeline. Omit for the local event
-   * store the Radar binary keeps (default, standalone behavior). Set
+   * store the KubeAtlas binary keeps (default, standalone behavior). Set
    * `{ mode: 'retained' }` when embedding behind a proxy that serves a
    * longer-horizon history at `{apiBase}/timeline/events` +
    * `{apiBase}/timeline/overview`; `maxRangeDays` caps how far back the
@@ -189,7 +189,7 @@ export interface RadarAppProps {
   timelineRetentionNote?: React.ReactNode;
 }
 
-// Default QueryClient with the same shape Radar's standalone binary uses.
+// Default QueryClient with the same shape KubeAtlas's standalone binary uses.
 // Extracted so both standalone + library consumers get identical
 // toast-on-error / toast-on-success behavior.
 export function makeDefaultQueryClient(): QueryClient {
@@ -313,5 +313,8 @@ export function RadarApp({
     <BrowserRouter basename={basename || undefined}>{inner}</BrowserRouter>
   );
 }
+
+export const KubeAtlasApp = RadarApp;
+export type KubeAtlasAppProps = RadarAppProps;
 
 export default RadarApp;

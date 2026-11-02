@@ -1,5 +1,5 @@
-import { MetricsSparkline } from '@skyhook-io/k8s-ui'
-import type { MetricsDataPoint } from '@skyhook-io/k8s-ui'
+import { MetricsSparkline } from '@maomada/k8s-ui'
+import type { MetricsDataPoint } from '@maomada/k8s-ui'
 
 const cell = {
   display: 'flex',

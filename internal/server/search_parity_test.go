@@ -21,11 +21,11 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	ktesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/mcp"
-	"github.com/skyhook-io/radar/internal/search"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/mcp"
+	"github.com/maomada/radar/internal/search"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // REST and MCP search share one engine but each handler builds its own

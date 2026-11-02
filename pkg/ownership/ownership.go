@@ -9,7 +9,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // Source opens sessions over one cluster's observations.

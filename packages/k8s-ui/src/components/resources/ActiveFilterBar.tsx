@@ -35,7 +35,7 @@ export function ActiveFilterBar({
       {restored && (
         <span className="flex items-center gap-1 text-xs text-theme-text-tertiary">
           <History className="w-3 h-3" />
-          <span>Filters restored from your last visit.</span>
+          <span>已恢复你上次使用的筛选条件。</span>
           {onClearAll && (
             <button
               type="button"

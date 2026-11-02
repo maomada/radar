@@ -34,7 +34,7 @@ describe('resource list transport', () => {
     }))
     await fetchResourceList('pods', { summary: true })
   })
-  it('reads an older Radar array, sent the same budget it ignores, without inventing complete coverage', async () => {
+  it('reads an older KubeAtlas array, sent the same budget it ignores, without inventing complete coverage', async () => {
     const mock = vi.fn(async (url: RequestInfo | URL) => {
       expect(url).toBe('/api/resources/pods?maxItems=25000')
       return new Response('[{"metadata":{"name":"api"}}]', { status: 200 })
@@ -63,7 +63,7 @@ describe('read errors that a retry cannot answer', () => {
     expect(isUnretryableReadError(failure(409, 'radar_namespace_not_collected'))).toBe(true)
     expect(isUnretryableReadError(failure(403, 'user_forbidden'))).toBe(true)
     expect(isUnretryableReadError(failure(503, 'kind_sync_timed_out'))).toBe(true)
-    // The spellings Radar releases before the shared vocabulary sent.
+    // The spellings KubeAtlas releases before the shared vocabulary sent.
     expect(isUnretryableReadError(failure(403, 'rbac_denied'))).toBe(true)
     expect(isUnretryableReadError(failure(503, 'kind_sync_failed'))).toBe(true)
   })

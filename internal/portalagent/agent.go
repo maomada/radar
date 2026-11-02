@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/skyhook-io/radar/internal/portal"
+	"github.com/maomada/radar/internal/portal"
 )
 
 const (
@@ -57,9 +57,9 @@ type Reporter struct {
 func ConfigFromEnv() (Config, bool, error) {
 	enabled := false
 	for _, name := range []string{
-		"RADAR_PORTAL_URL", "RADAR_PORTAL_TOKEN", "RADAR_PORTAL_CLUSTER_ID", "RADAR_PORTAL_CLUSTER_NAME",
-		"RADAR_PORTAL_DESCRIPTION", "RADAR_PORTAL_ENVIRONMENT", "RADAR_PORTAL_REGION", "RADAR_PORTAL_RADAR_URL",
-		"RADAR_PORTAL_MCP_BASE_URL", "RADAR_PORTAL_ALLOW_HTTP",
+		"KUBEATLAS_PORTAL_URL", "KUBEATLAS_PORTAL_TOKEN", "KUBEATLAS_PORTAL_CLUSTER_ID", "KUBEATLAS_PORTAL_CLUSTER_NAME",
+		"KUBEATLAS_PORTAL_DESCRIPTION", "KUBEATLAS_PORTAL_ENVIRONMENT", "KUBEATLAS_PORTAL_REGION", "KUBEATLAS_PORTAL_RADAR_URL",
+		"KUBEATLAS_PORTAL_MCP_BASE_URL", "KUBEATLAS_PORTAL_ALLOW_HTTP",
 	} {
 		enabled = enabled || os.Getenv(name) != ""
 	}
@@ -67,23 +67,23 @@ func ConfigFromEnv() (Config, bool, error) {
 		return Config{}, false, nil
 	}
 	allowHTTP := false
-	if value := os.Getenv("RADAR_PORTAL_ALLOW_HTTP"); value != "" {
+	if value := os.Getenv("KUBEATLAS_PORTAL_ALLOW_HTTP"); value != "" {
 		parsed, err := strconv.ParseBool(value)
 		if err != nil {
-			return Config{}, false, errors.New("RADAR_PORTAL_ALLOW_HTTP must be a boolean")
+			return Config{}, false, errors.New("KUBEATLAS_PORTAL_ALLOW_HTTP must be a boolean")
 		}
 		allowHTTP = parsed
 	}
 	config := Config{
-		PortalURL:   os.Getenv("RADAR_PORTAL_URL"),
-		Token:       os.Getenv("RADAR_PORTAL_TOKEN"),
-		ClusterID:   os.Getenv("RADAR_PORTAL_CLUSTER_ID"),
-		ClusterName: os.Getenv("RADAR_PORTAL_CLUSTER_NAME"),
-		Description: os.Getenv("RADAR_PORTAL_DESCRIPTION"),
-		Environment: os.Getenv("RADAR_PORTAL_ENVIRONMENT"),
-		Region:      os.Getenv("RADAR_PORTAL_REGION"),
-		RadarURL:    os.Getenv("RADAR_PORTAL_RADAR_URL"),
-		MCPBaseURL:  os.Getenv("RADAR_PORTAL_MCP_BASE_URL"),
+		PortalURL:   os.Getenv("KUBEATLAS_PORTAL_URL"),
+		Token:       os.Getenv("KUBEATLAS_PORTAL_TOKEN"),
+		ClusterID:   os.Getenv("KUBEATLAS_PORTAL_CLUSTER_ID"),
+		ClusterName: os.Getenv("KUBEATLAS_PORTAL_CLUSTER_NAME"),
+		Description: os.Getenv("KUBEATLAS_PORTAL_DESCRIPTION"),
+		Environment: os.Getenv("KUBEATLAS_PORTAL_ENVIRONMENT"),
+		Region:      os.Getenv("KUBEATLAS_PORTAL_REGION"),
+		RadarURL:    os.Getenv("KUBEATLAS_PORTAL_RADAR_URL"),
+		MCPBaseURL:  os.Getenv("KUBEATLAS_PORTAL_MCP_BASE_URL"),
 		AllowHTTP:   allowHTTP,
 	}
 	if config.MCPBaseURL == "" {

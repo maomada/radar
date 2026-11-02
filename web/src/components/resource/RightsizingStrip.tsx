@@ -1,6 +1,6 @@
 import { ArrowRight, ExternalLink, Gauge, HelpCircle, Loader2 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { Badge } from '@skyhook-io/k8s-ui/components/ui/Badge'
+import { Badge } from '@maomada/k8s-ui/components/ui/Badge'
 import {
   usePrometheusRightsizing,
   usePrometheusStatus,
@@ -12,11 +12,11 @@ import {
 import { Tooltip } from '../ui/Tooltip'
 
 const RIGHTSIZING_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet'])
-export const RIGHTSIZING_DOCS_URL = 'https://radarhq.io/docs/features/rightsizing'
+export const RIGHTSIZING_DOCS_URL = 'https://github.com/maomada/radar/blob/main/docs/mcp.md#cost-and-rightsizing-evidence-limits'
 export const RIGHTSIZING_SUMMARY =
   'Evidence-based guidance for this workload, not a savings estimate or automatic change.'
 export const RIGHTSIZING_METHODOLOGY =
-  'Uses seven days of 5-minute samples: CPU P95 and memory maximum, plus 15% headroom. Reductions are staged and rounded to practical values; memory reductions also require verifiable restart history. Radar does not change requests.'
+  'Uses seven days of 5-minute samples: CPU P95 and memory maximum, plus 15% headroom. Reductions are staged and rounded to practical values; memory reductions also require verifiable restart history. KubeAtlas does not change requests.'
 
 interface RightsizingProps {
   kind: string
@@ -321,10 +321,10 @@ export function getRightsizingExplanation(row: RightsizingRow): string | undefin
     insufficient_history: 'At least six hours of samples are required before suggesting a request.',
     hpa_managed: `The HPA manages ${row.resource}; review its target before changing this request.`,
     hpa_evidence_unavailable:
-      'Radar could not verify HPA ownership, so it withheld a suggested request.',
+      'KubeAtlas could not verify HPA ownership, so it withheld a suggested request.',
     oom_evidence: 'A lower memory request is withheld because OOM evidence exists.',
     oom_evidence_unavailable:
-      'Radar could not verify recent OOM history, so it withheld a lower memory request.',
+      'KubeAtlas could not verify recent OOM history, so it withheld a lower memory request.',
     recommended_request_exceeds_limit:
       'The evidence-based request would exceed the current limit; review the limit first.',
   }
@@ -333,13 +333,13 @@ export function getRightsizingExplanation(row: RightsizingRow): string | undefin
   // staged reduction, which is exactly where an unchecked pod matters most.
   const inventoryNote =
     row.liveInventoryUnavailable && row.resource === 'memory'
-      ? "Radar could not read this workload's pods, so it could not check them for out-of-memory restarts."
+      ? "KubeAtlas could not read this workload's pods, so it could not check them for out-of-memory restarts."
       : undefined
   const qualified = (base: string) => (inventoryNote ? `${base} ${inventoryNote}` : base)
   if (row.reductionLimited && row.calculatedRequest && row.recommendedRequest) {
     const burstNote = row.bursty && row.peak ? ` CPU P99 reached ${row.peak.formatted}.` : ''
     return qualified(
-      `Demand-based target: ${row.calculatedRequest}. Radar suggests ${row.recommendedRequest} as a conservative next step; observe another full window before reducing further.${burstNote}`,
+      `Demand-based target: ${row.calculatedRequest}. KubeAtlas suggests ${row.recommendedRequest} as a conservative next step; observe another full window before reducing further.${burstNote}`,
     )
   }
   const message = row.queryError

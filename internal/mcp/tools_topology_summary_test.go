@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 func TestBuildTopologySummaryPreservesCoverageMetadata(t *testing.T) {

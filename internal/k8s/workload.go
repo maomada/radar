@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 var ErrWorkloadAccessDenied = errors.New("workload access denied")

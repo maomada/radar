@@ -2,13 +2,13 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { resourcePath } from "../../utils/navigation";
 import { Info } from "lucide-react";
-import { SEVERITY_TEXT } from "@skyhook-io/k8s-ui/utils/badge-colors";
+import { SEVERITY_TEXT } from "@maomada/k8s-ui/utils/badge-colors";
 import {
   AreaChart,
   SeriesLegend,
   formatMetricValue,
   type ReferenceLine,
-} from "@skyhook-io/k8s-ui/components/charts";
+} from "@maomada/k8s-ui/components/charts";
 import { type PrometheusTimeRange } from "../../api/client";
 import {
   useWorkloadMetrics,
@@ -18,7 +18,7 @@ import {
 } from "../../api/workloadMetrics";
 import { latestWorkloadValue, workloadPodValues } from "./workloadMetricValues";
 import { WorkloadMetricsHelpDialog } from './WorkloadMetricsHelpDialog';
-import { Disclosure } from '@skyhook-io/k8s-ui/components/ui/Disclosure';
+import { Disclosure } from '@maomada/k8s-ui/components/ui/Disclosure';
 
 interface Props {
   kind: string;

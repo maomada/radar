@@ -57,12 +57,12 @@ func TestGetUpdateCommand(t *testing.T) {
 		goos   string
 		want   string
 	}{
-		{"homebrew tap", InstallHomebrew, "darwin", "brew upgrade skyhook-io/tap/radar"},
-		{"krew", InstallKrew, "linux", "kubectl krew upgrade radar"},
-		{"scoop", InstallScoop, "windows", "scoop update radar"},
-		{"direct linux", InstallDirect, "linux", "curl -fsSL https://get.radarhq.io | sh"},
-		{"direct darwin", InstallDirect, "darwin", "curl -fsSL https://get.radarhq.io | sh"},
-		{"direct windows", InstallDirect, "windows", "irm https://get.radarhq.io/install.ps1 | iex"},
+		{"homebrew tap", InstallHomebrew, "darwin", ""},
+		{"krew", InstallKrew, "linux", ""},
+		{"scoop", InstallScoop, "windows", ""},
+		{"direct linux", InstallDirect, "linux", "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh"},
+		{"direct darwin", InstallDirect, "darwin", "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh"},
+		{"direct windows", InstallDirect, "windows", "irm https://raw.githubusercontent.com/maomada/radar/main/install.ps1 | iex"},
 		{"direct freebsd falls through", InstallDirect, "freebsd", ""},
 		{"direct empty goos falls through", InstallDirect, "", ""},
 		{"desktop", InstallDesktop, "darwin", ""},
@@ -71,7 +71,7 @@ func TestGetUpdateCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getUpdateCommandForOS(tt.method, tt.goos, "/opt/homebrew/Cellar/radar/1.0/bin/kubectl-radar")
+			got := getUpdateCommandForOS(tt.method, tt.goos, "/opt/homebrew/Cellar/radar/1.0/bin/kubectl-kubeatlas")
 			if got != tt.want {
 				t.Errorf("getUpdateCommandForOS(%q, %q, tap path) = %q, want %q", tt.method, tt.goos, got, tt.want)
 			}
@@ -85,12 +85,12 @@ func TestHomebrewUpgradeCommand(t *testing.T) {
 		exe  string
 		want string
 	}{
-		{"core on Apple Silicon", "/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", "brew upgrade kubectl-radar"},
-		{"core on Intel", "/usr/local/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", "brew upgrade kubectl-radar"},
-		{"core on Linux", "/home/linuxbrew/.linuxbrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", "brew upgrade kubectl-radar"},
-		{"tap", "/opt/homebrew/Cellar/radar/1.16.0/bin/kubectl-radar", "brew upgrade skyhook-io/tap/radar"},
-		{"unresolved link falls back to tap", "/opt/homebrew/bin/radar", "brew upgrade skyhook-io/tap/radar"},
-		{"unknown path falls back to tap", "", "brew upgrade skyhook-io/tap/radar"},
+		{"core on Apple Silicon", "/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas", ""},
+		{"core on Intel", "/usr/local/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas", ""},
+		{"core on Linux", "/home/linuxbrew/.linuxbrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas", ""},
+		{"tap", "/opt/homebrew/Cellar/radar/1.16.0/bin/kubectl-kubeatlas", ""},
+		{"unresolved link falls back to tap", "/opt/homebrew/bin/radar", ""},
+		{"unknown path falls back to tap", "", ""},
 	}
 
 	for _, tt := range tests {
@@ -134,85 +134,85 @@ func TestInstallLayouts(t *testing.T) {
 		{
 			name: "homebrew-core on Apple Silicon",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar")
-				link(t, "kubectl-radar", root+"/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/radar")
-				link(t, "../Cellar/kubectl-radar/1.16.0/bin/radar", root+"/opt/homebrew/bin/radar")
+				binary(t, root+"/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas")
+				link(t, "kubectl-kubeatlas", root+"/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/radar")
+				link(t, "../Cellar/kubectl-kubeatlas/1.16.0/bin/radar", root+"/opt/homebrew/bin/radar")
 				return root + "/opt/homebrew/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "homebrew-core on Intel, previously reported as a direct install",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/usr/local/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar")
-				link(t, "kubectl-radar", root+"/usr/local/Cellar/kubectl-radar/1.16.0/bin/radar")
-				link(t, "../Cellar/kubectl-radar/1.16.0/bin/radar", root+"/usr/local/bin/radar")
+				binary(t, root+"/usr/local/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas")
+				link(t, "kubectl-kubeatlas", root+"/usr/local/Cellar/kubectl-kubeatlas/1.16.0/bin/radar")
+				link(t, "../Cellar/kubectl-kubeatlas/1.16.0/bin/radar", root+"/usr/local/bin/radar")
 				return root + "/usr/local/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "homebrew-core via kubectl plugin name",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar")
-				link(t, "../Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", root+"/opt/homebrew/bin/kubectl-radar")
-				return root + "/opt/homebrew/bin/kubectl-radar"
+				binary(t, root+"/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas")
+				link(t, "../Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas", root+"/opt/homebrew/bin/kubectl-kubeatlas")
+				return root + "/opt/homebrew/bin/kubectl-kubeatlas"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "homebrew-core via opt link, as brew services runs it",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar")
-				link(t, "../Cellar/kubectl-radar/1.16.0", root+"/opt/homebrew/opt/kubectl-radar")
-				return root + "/opt/homebrew/opt/kubectl-radar/bin/kubectl-radar"
+				binary(t, root+"/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas")
+				link(t, "../Cellar/kubectl-kubeatlas/1.16.0", root+"/opt/homebrew/opt/kubectl-kubeatlas")
+				return root + "/opt/homebrew/opt/kubectl-kubeatlas/bin/kubectl-kubeatlas"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "skyhook-io tap",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/opt/homebrew/Cellar/radar/1.16.0/bin/kubectl-radar")
-				link(t, "kubectl-radar", root+"/opt/homebrew/Cellar/radar/1.16.0/bin/radar")
+				binary(t, root+"/opt/homebrew/Cellar/radar/1.16.0/bin/kubectl-kubeatlas")
+				link(t, "kubectl-kubeatlas", root+"/opt/homebrew/Cellar/radar/1.16.0/bin/radar")
 				link(t, "../Cellar/radar/1.16.0/bin/radar", root+"/opt/homebrew/bin/radar")
 				return root + "/opt/homebrew/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade skyhook-io/tap/radar",
+			wantCommand: "",
 		},
 		{
 			name: "own symlink to a Homebrew install",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar")
-				link(t, root+"/opt/homebrew/Cellar/kubectl-radar/1.16.0/bin/kubectl-radar", root+"/home/user/bin/radar")
+				binary(t, root+"/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas")
+				link(t, root+"/opt/homebrew/Cellar/kubectl-kubeatlas/1.16.0/bin/kubectl-kubeatlas", root+"/home/user/bin/radar")
 				return root + "/home/user/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade kubectl-radar",
+			wantCommand: "",
 		},
 		{
 			name: "install script shorthand link",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/usr/local/bin/kubectl-radar")
-				link(t, "kubectl-radar", root+"/usr/local/bin/radar")
+				binary(t, root+"/usr/local/bin/kubectl-kubeatlas")
+				link(t, "kubectl-kubeatlas", root+"/usr/local/bin/radar")
 				return root + "/usr/local/bin/radar"
 			},
 			wantMethod:  InstallDirect,
-			wantCommand: "curl -fsSL https://get.radarhq.io | sh",
+			wantCommand: "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh",
 		},
 		{
 			name: "krew",
 			setup: func(t *testing.T, root string) string {
-				binary(t, root+"/home/user/.krew/store/radar/v1.16.0/kubectl-radar")
-				link(t, "../store/radar/v1.16.0/kubectl-radar", root+"/home/user/.krew/bin/kubectl-radar")
-				return root + "/home/user/.krew/bin/kubectl-radar"
+				binary(t, root+"/home/user/.krew/store/radar/v1.16.0/kubectl-kubeatlas")
+				link(t, "../store/radar/v1.16.0/kubectl-kubeatlas", root+"/home/user/.krew/bin/kubectl-kubeatlas")
+				return root + "/home/user/.krew/bin/kubectl-kubeatlas"
 			},
 			wantMethod:  InstallKrew,
-			wantCommand: "kubectl krew upgrade radar",
+			wantCommand: "",
 		},
 		{
 			name: "scoop current link",
@@ -222,7 +222,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/home/user/scoop/apps/radar/current/radar"
 			},
 			wantMethod:  InstallScoop,
-			wantCommand: "scoop update radar",
+			wantCommand: "",
 		},
 		{
 			name: "plain binary, no links",
@@ -231,7 +231,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/home/user/bin/radar"
 			},
 			wantMethod:  InstallDirect,
-			wantCommand: "curl -fsSL https://get.radarhq.io | sh",
+			wantCommand: "curl -fsSL https://raw.githubusercontent.com/maomada/radar/main/install.sh | sh",
 		},
 		{
 			name: "dangling link keeps the original path",
@@ -240,7 +240,7 @@ func TestInstallLayouts(t *testing.T) {
 				return root + "/opt/homebrew/bin/radar"
 			},
 			wantMethod:  InstallHomebrew,
-			wantCommand: "brew upgrade skyhook-io/tap/radar",
+			wantCommand: "",
 		},
 	}
 
@@ -319,8 +319,8 @@ func TestInstallTimestampFallsBackInCluster(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 	t.Setenv("USERPROFILE", dir)
-	if err := os.MkdirAll(filepath.Join(dir, ".radar"), 0o755); err != nil {
-		t.Fatalf("seed ~/.radar: %v", err)
+	if err := os.MkdirAll(filepath.Join(dir, ".kubeatlas"), 0o755); err != nil {
+		t.Fatalf("seed ~/.kubeatlas: %v", err)
 	}
 
 	ctx := context.Background()
@@ -622,14 +622,14 @@ func TestCheckForUpdateEnvironment(t *testing.T) {
 		value    string
 		disabled bool
 	}{
-		{"explicit opt-out", "RADAR_DISABLE_VERSION_CHECK", "1", true},
-		{"true opt-out", "RADAR_DISABLE_VERSION_CHECK", "true", true},
-		{"case-insensitive opt-out", "RADAR_DISABLE_VERSION_CHECK", "TRUE", true},
-		{"zero leaves checks enabled", "RADAR_DISABLE_VERSION_CHECK", "0", false},
-		{"false leaves checks enabled", "RADAR_DISABLE_VERSION_CHECK", "false", false},
-		{"unset leaves checks enabled", "RADAR_DISABLE_VERSION_CHECK", "", false},
+		{"explicit opt-out", "KUBEATLAS_DISABLE_VERSION_CHECK", "1", true},
+		{"true opt-out", "KUBEATLAS_DISABLE_VERSION_CHECK", "true", true},
+		{"case-insensitive opt-out", "KUBEATLAS_DISABLE_VERSION_CHECK", "TRUE", true},
+		{"zero leaves checks enabled", "KUBEATLAS_DISABLE_VERSION_CHECK", "0", false},
+		{"false leaves checks enabled", "KUBEATLAS_DISABLE_VERSION_CHECK", "false", false},
+		{"unset leaves checks enabled", "KUBEATLAS_DISABLE_VERSION_CHECK", "", false},
 		{"DNT leaves checks enabled", "DO_NOT_TRACK", "1", false},
-		{"unused alias leaves checks enabled", "RADAR_NO_VERSION_CHECK", "1", false},
+		{"unused alias leaves checks enabled", "KUBEATLAS_NO_VERSION_CHECK", "1", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var requestCount int
@@ -649,7 +649,7 @@ func TestCheckForUpdateEnvironment(t *testing.T) {
 				resetUpdateCache()
 			})
 
-			t.Setenv("RADAR_DISABLE_VERSION_CHECK", "")
+			t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "")
 			t.Setenv(tc.envVar, tc.value)
 			if got := IsDisabled(); got != tc.disabled {
 				t.Fatalf("IsDisabled() = %v for %s=%q, want %v", got, tc.envVar, tc.value, tc.disabled)
@@ -685,7 +685,7 @@ func TestManualUpdateCheckPreservesAutomaticOptOut(t *testing.T) {
 			name = "environment"
 		}
 		t.Run(name, func(t *testing.T) {
-			t.Setenv("RADAR_DISABLE_VERSION_CHECK", "")
+			t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "")
 			var requests atomic.Int32
 			var status atomic.Int32
 			status.Store(http.StatusOK)
@@ -717,7 +717,7 @@ func TestManualUpdateCheckPreservesAutomaticOptOut(t *testing.T) {
 			}
 			<-queries
 			if byEnv {
-				t.Setenv("RADAR_DISABLE_VERSION_CHECK", "1")
+				t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "1")
 			} else {
 				SetDisabled(true)
 			}
@@ -775,7 +775,7 @@ func TestManualUpdateCheckPreservesAutomaticOptOut(t *testing.T) {
 func TestManualUpdateCheckSupersedesInFlightAutomaticLookup(t *testing.T) {
 	for _, source := range []string{"", "release-only"} {
 		t.Run(source, func(t *testing.T) {
-			t.Setenv("RADAR_DISABLE_VERSION_CHECK", "")
+			t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "")
 			started, release := make(chan struct{}), make(chan struct{})
 			var once sync.Once
 			var requests atomic.Int32
@@ -827,7 +827,7 @@ func TestManualUpdateCheckSupersedesInFlightAutomaticLookup(t *testing.T) {
 // A build of a commit past a release tag parses as a prerelease of that tag,
 // so the tag would always read as an update.
 func TestAutomaticCheckOffersNoUpdateToDevelopmentBuilds(t *testing.T) {
-	t.Setenv("RADAR_DISABLE_VERSION_CHECK", "")
+	t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "")
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(githubRelease{TagName: "v1.18.2"})
 	}))

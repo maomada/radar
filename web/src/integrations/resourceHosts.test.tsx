@@ -2,7 +2,7 @@ import { isValidElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ResourceRendererDispatch } from '@skyhook-io/k8s-ui'
+import { ResourceRendererDispatch } from '@maomada/k8s-ui'
 import { encodeDrawerTrail } from '../utils/drawer-trail'
 import { kindToPluralWithGroup } from '../utils/navigation'
 import {

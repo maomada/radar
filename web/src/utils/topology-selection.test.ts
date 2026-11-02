@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { SelectedResource, Topology, TopologyNode } from '@skyhook-io/k8s-ui/types/core'
+import type { SelectedResource, Topology, TopologyNode } from '@maomada/k8s-ui/types/core'
 import { findSelectedTopologyNode } from './topology-selection'
 
 function node(id: string, kind: string, name: string, apiVersion?: string): TopologyNode {

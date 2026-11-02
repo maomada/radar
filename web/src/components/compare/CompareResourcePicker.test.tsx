@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { CompareResourcePicker, type CompareResourceRef } from '@skyhook-io/k8s-ui'
+import { CompareResourcePicker, type CompareResourceRef } from '@maomada/k8s-ui'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -36,23 +36,23 @@ describe('compare picker empty state', () => {
   })
 
   it("doesn't claim nothing else exists after a qualified read", () => {
-    const partial = 'Partial results. Radar read read-a; your permissions exclude configmaps in read-b.'
+    const partial = 'Partial results. KubeAtlas read read-a; your permissions exclude configmaps in read-b.'
     const text = render({ coverageNote: partial })
-    expect(text).toContain('No other configmaps found in what Radar could read.')
+    expect(text).toContain('No other configmaps found in what KubeAtlas could read.')
     expect(text).not.toContain('available to compare against')
     expect(note(partial)?.className).toContain('text-warning-text')
   })
 
   it('shows a collection-narrowed list as scope, not as a warning', () => {
-    const scope = 'Radar collects this kind only in 1 namespace: read-a.'
+    const scope = 'KubeAtlas collects this kind only in 1 namespace: read-a.'
     const text = render({ scopeNote: scope })
     expect(text).toContain('No other configmaps found in the collected namespaces.')
     expect(note(scope)?.className).not.toContain('text-warning-text')
   })
 
   it('lets the warning win when both notes are set', () => {
-    const text = render({ coverageNote: 'Partial results.', scopeNote: 'Radar collects this kind only in 1 namespace: read-a.' })
+    const text = render({ coverageNote: 'Partial results.', scopeNote: 'KubeAtlas collects this kind only in 1 namespace: read-a.' })
     expect(text).toContain('Partial results.')
-    expect(text).not.toContain('Radar collects this kind')
+    expect(text).not.toContain('KubeAtlas collects this kind')
   })
 })

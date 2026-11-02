@@ -35,10 +35,10 @@ func TestServiceDependencyBoundary(t *testing.T) {
 				name = spec.Name.Name
 			}
 			imports[name] = path
-			if path == "github.com/skyhook-io/radar/internal/server" || strings.HasPrefix(path, "github.com/go-chi/chi") {
+			if path == "github.com/maomada/radar/internal/server" || strings.HasPrefix(path, "github.com/go-chi/chi") {
 				t.Errorf("%s: service imports browser routing package %s", fset.Position(spec.Pos()), path)
 			}
-			if name == "." && path == "github.com/skyhook-io/radar/internal/k8s" {
+			if name == "." && path == "github.com/maomada/radar/internal/k8s" {
 				t.Errorf("%s: a dot import hides singleton access", fset.Position(spec.Pos()))
 			}
 		}
@@ -82,10 +82,10 @@ func TestServiceDependencyBoundary(t *testing.T) {
 			if !ok {
 				return true
 			}
-			if imports[owner.Name] == "github.com/skyhook-io/radar/internal/prometheus" && selector.Sel.Name == "GetClient" {
+			if imports[owner.Name] == "github.com/maomada/radar/internal/prometheus" && selector.Sel.Name == "GetClient" {
 				t.Errorf("%s: service resolves global metrics client; use caller-scoped dependencies", fset.Position(call.Pos()))
 			}
-			if imports[owner.Name] != "github.com/skyhook-io/radar/internal/k8s" {
+			if imports[owner.Name] != "github.com/maomada/radar/internal/k8s" {
 				return true
 			}
 			name := selector.Sel.Name

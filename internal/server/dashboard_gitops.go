@@ -7,8 +7,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	controllerhealth "github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/internal/k8s"
+	controllerhealth "github.com/maomada/radar/pkg/health"
 )
 
 // DashboardGitOpsControllers is the Home dashboard summary of in-cluster

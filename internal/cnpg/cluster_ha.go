@@ -23,11 +23,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 
-	auth "github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	auth "github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 const (

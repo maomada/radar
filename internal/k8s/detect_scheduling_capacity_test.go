@@ -3,8 +3,8 @@ package k8s
 import (
 	"testing"
 
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/pkg/karpenter"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/pkg/karpenter"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

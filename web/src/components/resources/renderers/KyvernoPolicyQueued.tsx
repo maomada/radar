@@ -1,13 +1,13 @@
 import { Workflow } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Section, PropertyList, Property, AlertBanner } from '@skyhook-io/k8s-ui'
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import { HEALTH_BADGE_COLORS } from '@skyhook-io/k8s-ui/utils/badge-colors'
-import { formatAge } from '@skyhook-io/k8s-ui/components/resources/resource-utils'
+import { Section, PropertyList, Property, AlertBanner } from '@maomada/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import { HEALTH_BADGE_COLORS } from '@maomada/k8s-ui/utils/badge-colors'
+import { formatAge } from '@maomada/k8s-ui/components/resources/resource-utils'
 import { isForbiddenError } from '../../../api/client'
-import { isKyvernoMutateExistingEnabled } from '@skyhook-io/k8s-ui/components/resources/resource-utils-kyverno-modern'
+import { isKyvernoMutateExistingEnabled } from '@maomada/k8s-ui/components/resources/resource-utils-kyverno-modern'
 import { usePolicyQueued } from '../../../api/policy'
-import { TimeValue } from '@skyhook-io/k8s-ui/components/ui/ScheduleValue'
+import { TimeValue } from '@maomada/k8s-ui/components/ui/ScheduleValue'
 
 /** A request sitting this long is not mid-flight. Kyverno retries on every
  *  reconcile, so past this point a backlog grows rather than drains. */

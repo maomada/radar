@@ -4,7 +4,7 @@ import {
   MetricsSummary as BaseMetricsSummary,
   type TimeSeries,
   type ReferenceLine,
-} from '@skyhook-io/k8s-ui/components/charts'
+} from '@maomada/k8s-ui/components/charts'
 import {
   usePrometheusStatus,
   usePrometheusConnect,
@@ -15,8 +15,8 @@ import {
 } from '../../api/client'
 
 // ============================================================================
-// Radar-specific category config (lives here, not in k8s-ui, so consumers
-// reusing AreaChart aren't forced to inherit Radar's category vocabulary).
+// KubeAtlas-specific category config (lives here, not in k8s-ui, so consumers
+// reusing AreaChart aren't forced to inherit KubeAtlas's category vocabulary).
 // ============================================================================
 
 const SUPPORTED_KINDS = new Set([
@@ -33,15 +33,15 @@ export interface CategoryDef {
 
 export const WORKLOAD_CATEGORIES: CategoryDef[] = [
   { key: 'cpu', label: 'CPU', color: 'text-blue-400', chartColor: '#60a5fa', fillColor: '#60a5fa22' },
-  { key: 'memory', label: 'Memory', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
-  { key: 'network_rx', label: 'Net RX', color: 'text-emerald-400', chartColor: '#34d399', fillColor: '#34d39922' },
-  { key: 'network_tx', label: 'Net TX', color: 'text-orange-400', chartColor: '#fb923c', fillColor: '#fb923c22' },
-  { key: 'filesystem', label: 'Disk I/O', color: 'text-amber-400', chartColor: '#fbbf24', fillColor: '#fbbf2422' },
+  { key: 'memory', label: '内存', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
+  { key: 'network_rx', label: '网络接收', color: 'text-emerald-400', chartColor: '#34d399', fillColor: '#34d39922' },
+  { key: 'network_tx', label: '网络发送', color: 'text-orange-400', chartColor: '#fb923c', fillColor: '#fb923c22' },
+  { key: 'filesystem', label: '磁盘I/O', color: 'text-amber-400', chartColor: '#fbbf24', fillColor: '#fbbf2422' },
 ]
 
 export const NODE_CATEGORIES: CategoryDef[] = [
   { key: 'cpu', label: 'CPU', color: 'text-blue-400', chartColor: '#60a5fa', fillColor: '#60a5fa22' },
-  { key: 'memory', label: 'Memory', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
+  { key: 'memory', label: '内存', color: 'text-purple-400', chartColor: '#c084fc', fillColor: '#c084fc22' },
   { key: 'filesystem', label: 'Disk', color: 'text-amber-400', chartColor: '#fbbf24', fillColor: '#fbbf2422' },
 ]
 
@@ -56,7 +56,7 @@ export const TIME_RANGES: { value: PrometheusTimeRange; label: string }[] = [
   { value: '7d', label: '7d' },
 ]
 
-// Radar's MetricsSummary thin wrapper — adapts CategoryDef to the slim
+// KubeAtlas's MetricsSummary thin wrapper — adapts CategoryDef to the slim
 // interface of the shared k8s-ui primitive so callers downstream don't change.
 export function MetricsSummary({ series, category, unit }: {
   series: TimeSeries[]
@@ -212,7 +212,7 @@ const MEMORY_SUFFIXES: Record<string, number> = {
   n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, K: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18,
 }
 
-// NOT a duplicate of @skyhook-io/k8s-ui/utils/format's parseCPUToNanocores /
+// NOT a duplicate of @maomada/k8s-ui/utils/format's parseCPUToNanocores /
 // parseMemoryToBytes — those return 0 on invalid input. We need null so that
 // "abcMi" doesn't silently poison the caller's running sum and produce a
 // missing/zeroed reference line on the chart (real garbage data must be

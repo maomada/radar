@@ -1505,10 +1505,10 @@ func waitForRuntimeAuthCheck(t *testing.T, generation uint64) {
 }
 
 func TestRuntimeAuthExecCredentialHelper(t *testing.T) {
-	if os.Getenv("RADAR_RUNTIME_AUTH_HELPER") != "1" {
+	if os.Getenv("KUBEATLAS_RUNTIME_AUTH_HELPER") != "1" {
 		return
 	}
-	state, err := os.ReadFile(os.Getenv("RADAR_RUNTIME_AUTH_STATE"))
+	state, err := os.ReadFile(os.Getenv("KUBEATLAS_RUNTIME_AUTH_STATE"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -1555,8 +1555,8 @@ func TestRuntimeAuthExecCredentialExpiry(t *testing.T) {
 			APIVersion:      "client.authentication.k8s.io/v1",
 			InteractiveMode: clientcmdapi.NeverExecInteractiveMode,
 			Env: []clientcmdapi.ExecEnvVar{
-				{Name: "RADAR_RUNTIME_AUTH_HELPER", Value: "1"},
-				{Name: "RADAR_RUNTIME_AUTH_STATE", Value: statePath},
+				{Name: "KUBEATLAS_RUNTIME_AUTH_HELPER", Value: "1"},
+				{Name: "KUBEATLAS_RUNTIME_AUTH_STATE", Value: statePath},
 			},
 		},
 	}

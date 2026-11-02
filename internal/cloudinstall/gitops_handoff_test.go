@@ -7,7 +7,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 func verifiedHandoffTarget(candidate ControllerCandidate) RadarTarget {
@@ -26,11 +26,11 @@ func verifiedHandoffTarget(candidate ControllerCandidate) RadarTarget {
 func handoffConfig(candidate ControllerCandidate) GitOpsHandoffConfig {
 	return GitOpsHandoffConfig{
 		Target:    verifiedHandoffTarget(candidate),
-		CloudURL:  "wss://api.radarhq.io/agent",
+		CloudURL:  "wss://api.example.test/agent",
 		ClusterID: "cluster-id",
 		Current: GitOpsVersionSummary{
 			Chart: "radar-1.5.4",
-			App:   "ghcr.io/skyhook-io/radar:1.5.8",
+			App:   "ghcr.io/maomada/kubeatlas:1.5.8",
 		},
 		TargetVersion: GitOpsVersionSummary{Chart: "1.6.0", App: "1.6.2"},
 	}
@@ -65,7 +65,7 @@ func TestBuildGitOpsHandoffFluxHelmReleaseIsTokenSafe(t *testing.T) {
 	if !ok {
 		t.Fatalf("cloud values = %#v", values["cloud"])
 	}
-	if len(cloudValues) != 4 || cloudValues["enabled"] != true || cloudValues["url"] != "wss://api.radarhq.io/agent" || cloudValues["clusterName"] != "cluster-id" || cloudValues["existingSecret"] != CloudTokenSecretName {
+	if len(cloudValues) != 4 || cloudValues["enabled"] != true || cloudValues["url"] != "wss://api.example.test/agent" || cloudValues["clusterName"] != "cluster-id" || cloudValues["existingSecret"] != CloudTokenSecretName {
 		t.Fatalf("cloud values = %#v", cloudValues)
 	}
 	rbac, ok := values["rbac"].(map[string]any)
@@ -76,12 +76,12 @@ func TestBuildGitOpsHandoffFluxHelmReleaseIsTokenSafe(t *testing.T) {
 	if !ok || len(image) != 1 || image["tag"] != "" {
 		t.Fatalf("stable image override = %#v", values["image"])
 	}
-	for _, forbidden := range []string{"rhc_test_secret", "RADAR_CLOUD_TOKEN", "token:"} {
+	for _, forbidden := range []string{"rhc_test_secret", "KUBEATLAS_CLOUD_TOKEN", "token:"} {
 		if strings.Contains(handoff.ValuesFragment, forbidden) {
 			t.Fatalf("values fragment contains credential material %q:\n%s", forbidden, handoff.ValuesFragment)
 		}
 	}
-	if !strings.Contains(handoff.SecretCommand, "${RADAR_CLOUD_TOKEN:?set RADAR_CLOUD_TOKEN}") || !strings.Contains(handoff.SecretCommand, "--dry-run=client") {
+	if !strings.Contains(handoff.SecretCommand, "${KUBEATLAS_CLOUD_TOKEN:?set KUBEATLAS_CLOUD_TOKEN}") || !strings.Contains(handoff.SecretCommand, "--dry-run=client") {
 		t.Fatalf("Secret command = %q", handoff.SecretCommand)
 	}
 	if strings.Contains(handoff.SecretCommand, "rhc_test_secret") {
@@ -91,7 +91,7 @@ func TestBuildGitOpsHandoffFluxHelmReleaseIsTokenSafe(t *testing.T) {
 		"Flux HelmRelease flux-system/radar-prod",
 		"Radar target: observability/prod",
 		"Chart: radar-1.5.4 -> 1.6.0",
-		"App: ghcr.io/skyhook-io/radar:1.5.8 -> 1.6.2",
+		"App: ghcr.io/maomada/kubeatlas:1.5.8 -> 1.6.2",
 		"merge the fragment",
 		"set the Radar container tag to 1.6.2",
 		"rbac.selfUpgrade is forced off",

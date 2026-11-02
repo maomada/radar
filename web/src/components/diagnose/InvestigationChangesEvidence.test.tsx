@@ -6,14 +6,14 @@ import {
   ResourceLink,
   formatRelativeAgeTime,
   type IssueRecentChange,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { ChangesBody } from "./investigationEvidence/bodies/streams";
 import { EvidenceNavigationContext } from "./investigationEvidence/navigation";
 import { recentChange } from "./investigationEvidence/parse";
 import { projectInvestigationEvidence } from "./investigationEvidence";
 
-vi.mock("@skyhook-io/k8s-ui", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@skyhook-io/k8s-ui")>();
+vi.mock("@maomada/k8s-ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@maomada/k8s-ui")>();
   return {
     ...actual,
     ResourceLink: vi.fn(actual.ResourceLink),
@@ -27,7 +27,7 @@ const annotation = {
   workloads: ["Deployment/env-reader", "Deployment/envfrom-reader"],
   pods: 2,
   keys: ["password"],
-  note: "These Pods started before Radar observed this write and read the changed keys as env vars. Env values are set when a container starts, so they likely still hold the earlier value until they restart.",
+  note: "These Pods started before KubeAtlas observed this write and read the changed keys as env vars. Env values are set when a container starts, so they likely still hold the earlier value until they restart.",
 };
 const secretChange: IssueRecentChange = {
   kind: "Secret",

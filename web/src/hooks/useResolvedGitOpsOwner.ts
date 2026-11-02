@@ -6,7 +6,7 @@ import {
   type GitOpsOwnerRef,
   type GitOpsStatus,
   type HelmOwnerRef,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { Relationships, ResourceRef } from '../types'
 import { kindToPluralWithGroup } from '../utils/navigation'
 import { useResource, useResourceWithRelationships, useResources } from '../api/client'
@@ -22,7 +22,7 @@ export interface ResolvedGitOpsOwner {
   ownerObject: any
   ownerPending: boolean
   ownerVerified: boolean
-  /** The Argo CD tracking label named no namespace and Radar filled it in
+  /** The Argo CD tracking label named no namespace and KubeAtlas filled it in
    *  from a single Application of that name. */
   ownerMatchedByName: boolean
   ownerStatus: GitOpsStatus | null

@@ -12,8 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/pkg/gitops"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/pkg/gitops"
 )
 
 // handleArgoSync triggers a sync operation on an ArgoCD Application

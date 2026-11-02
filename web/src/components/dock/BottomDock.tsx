@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { BottomDock as K8sBottomDock, DockTab, useDock, Input } from '@skyhook-io/k8s-ui'
+import { BottomDock as K8sBottomDock, DockTab, useDock, Input } from '@maomada/k8s-ui'
 import { TerminalTab } from './TerminalTab'
 import { LogsTab } from './LogsTab'
 import { WorkloadLogsTab } from './WorkloadLogsTab'

@@ -1,4 +1,4 @@
-# design-sync notes — @skyhook-io/k8s-ui → claude.ai/design "Skyhook Radar"
+# design-sync notes — @maomada/k8s-ui → claude.ai/design "Skyhook KubeAtlas"
 
 ## Re-sync (from repo root)
 
@@ -93,7 +93,7 @@ Last synced 2026-09-28: 414 components (37 from web/), 89 authored previews, bun
 
 - `[TOKENS_MISSING]`: `--vscode-*` (Monaco runtime-injected), `--xy-*` (xyflow defaults with
   fallbacks). `--color-brand-50`, `--color-brand-950`, `--color-radar-accent` are referenced by
-  FilterPill (`brand` tone), ChecksView and AuditFindingsTable but defined nowhere in Radar OSS —
+  FilterPill (`brand` tone), ChecksView and AuditFindingsTable but defined nowhere in KubeAtlas OSS —
   a real product gap, not a sync issue.
 - `[FONT_MISSING]` "DM Sans": fallback name in the app stack `"DM Sans Variable", "DM Sans", …`;
   the variable family ships and resolves first.

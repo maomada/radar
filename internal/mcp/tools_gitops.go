@@ -7,8 +7,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/gitops"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/gitops"
 )
 
 // GitOps tool input types

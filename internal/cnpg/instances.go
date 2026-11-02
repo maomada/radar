@@ -10,8 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/cnpg"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/cnpg"
 )
 
 const (

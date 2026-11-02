@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Bug, X } from 'lucide-react'
-import { Collapse, CollapseChevron, useDisclosure } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { Collapse, CollapseChevron, useDisclosure } from '@maomada/k8s-ui/components/ui/Collapse'
 import { useRuntimeStats } from '../api/client'
 import { Tooltip } from './ui/Tooltip'
 

@@ -1,4 +1,5 @@
 version: 2
+project_name: kubeatlas
 
 before:
   hooks:
@@ -7,9 +8,9 @@ before:
     - sh -c "cp -r web/dist/* internal/static/dist/"
 
 builds:
-  - id: radar
+  - id: kubeatlas
     main: ./cmd/explorer
-    binary: kubectl-radar
+    binary: kubeatlas
     env:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]

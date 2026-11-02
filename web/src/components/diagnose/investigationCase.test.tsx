@@ -1489,7 +1489,7 @@ describe("agent case visibility and ordering (D-2, D-5)", () => {
     }
   });
 
-  it("orders main by role: cause items in agent order, unlabelled in Radar order, demoted last", () => {
+  it("orders main by role: cause items in agent order, unlabelled in KubeAtlas order, demoted last", () => {
     const issueRef = evidenceRef("a", "c");
     const logsRef = evidenceRef("a", "d");
     const eventsRef = evidenceRef("a", "e");
@@ -1563,7 +1563,7 @@ describe("agent case visibility and ordering (D-2, D-5)", () => {
       ),
     ).toEqual(["logs", "events", "issue"]);
     // Unlabelled and ruled-out cards sit between symptom and context; a
-    // demoted Key card goes last even though Radar would lead with it.
+    // demoted Key card goes last even though KubeAtlas would lead with it.
     const framed = resolveInvestigationCase(
       projection,
       {
@@ -1784,7 +1784,7 @@ describe("diagnose-bundled metrics placement (D-5 with D1)", () => {
       "main",
     );
     // The chart is now in main and, as the only symptom item, leads the
-    // unlabelled Radar cards; the other chart stays where Radar had it.
+    // unlabelled KubeAtlas cards; the other chart stays where KubeAtlas had it.
     expect(partition.main[0].kind).toBe("metrics");
     expect(
       partition.main.filter((group) => group.kind === "metrics"),
@@ -1936,7 +1936,7 @@ describe("follow-up answers that cite evidence", () => {
   });
 
   it("keeps a malformed subject at its source instead of treating it as omitted", () => {
-    // Omitting a subject asks Radar to place the note wherever the cited call
+    // Omitting a subject asks KubeAtlas to place the note wherever the cited call
     // produced; supplying a broken one asked for something specific. Falling
     // back to the omitted behaviour put the note on whichever observation
     // happened to be the only one for that source.
@@ -2327,7 +2327,7 @@ describe("the agent's contribution is one attributed row", () => {
     );
     // Sparkle, role and sentence share one row, so the role is as plainly the
     // agent's as the sentence is. Beside the title it sat in the same slot as
-    // Radar's own badges.
+    // KubeAtlas's own badges.
     const row = html.match(/<p[^>]*data-agent-claim[\s\S]*<\/p>/)?.[0] ?? "";
     expect(row).toContain("Cause");
     // The chip carries the attribution visually; the word is the fallback for
@@ -2377,7 +2377,7 @@ describe("the agent's contribution is one attributed row", () => {
       <AssessmentSources unlinkedEvidence={2} onViewSource={onViewSource} />,
     );
     expect(html).toContain(
-      "2 agent notes could not be linked to Radar results and are not shown.",
+      "2 agent notes could not be linked to KubeAtlas results and are not shown.",
     );
     const one = renderToStaticMarkup(
       <AssessmentSources unlinkedEvidence={1} onViewSource={onViewSource} />,

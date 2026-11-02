@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func setupResolver(t *testing.T) (*Resolver, k8s.ProfileTarget, k8s.ProfileTarget) {
@@ -352,13 +352,13 @@ func TestLegacyAdoptionAppliesDraftWithoutLeakingCredentials(t *testing.T) {
 	for _, kind := range config.IntegrationKinds {
 		t.Run(string(kind), func(t *testing.T) {
 			r, target, other := setupResolver(t)
-			t.Setenv("RADAR_TEST_IMPORT_TOKEN", "env-secret")
+			t.Setenv("KUBEATLAS_TEST_IMPORT_TOKEN", "env-secret")
 			_, err := config.Update(func(c *config.Config) {
 				switch kind {
 				case config.IntegrationMetrics:
 					c.PrometheusURL = "https://previous.example"
 					c.PrometheusHeaders = map[string]string{"Authorization": "secret"}
-					c.PrometheusHeadersFromEnv = map[string]string{"X-Tenant": "RADAR_TEST_IMPORT_TOKEN"}
+					c.PrometheusHeadersFromEnv = map[string]string{"X-Tenant": "KUBEATLAS_TEST_IMPORT_TOKEN"}
 				case config.IntegrationArgoCD:
 					c.ArgoCDURL, c.ArgoCDToken = "https://previous.example", "secret"
 					c.ArgoCDInsecureTLS = true
@@ -419,7 +419,7 @@ func TestLegacyAdoptionAppliesDraftWithoutLeakingCredentials(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if file.Settings(target.Binding, kind).Prometheus.HeadersFromEnv["X-Tenant"] != "RADAR_TEST_IMPORT_TOKEN" {
+				if file.Settings(target.Binding, kind).Prometheus.HeadersFromEnv["X-Tenant"] != "KUBEATLAS_TEST_IMPORT_TOKEN" {
 					t.Fatal("environment reference lost")
 				}
 			case config.IntegrationArgoCD:
@@ -653,14 +653,14 @@ func TestCopyEnvironmentReferencesRemainReferences(t *testing.T) {
 	apply(t, r, a, Update{Kind: config.IntegrationMetrics, Action: "save", URL: stringPtr("https://backend.example")})
 	_, revision, _ := r.Store.Read()
 	_, err := r.Store.Update(context.Background(), revision, func(file *config.ClusterProfiles) error {
-		file.Profiles[a.Binding].Integrations[config.IntegrationMetrics].Prometheus.HeadersFromEnv = map[string]string{"Authorization": "RADAR_TEST_COPY_TOKEN"}
+		file.Profiles[a.Binding].Integrations[config.IntegrationMetrics].Prometheus.HeadersFromEnv = map[string]string{"Authorization": "KUBEATLAS_TEST_COPY_TOKEN"}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("RADAR_TEST_COPY_TOKEN", "")
-	if err := os.Unsetenv("RADAR_TEST_COPY_TOKEN"); err != nil {
+	t.Setenv("KUBEATLAS_TEST_COPY_TOKEN", "")
+	if err := os.Unsetenv("KUBEATLAS_TEST_COPY_TOKEN"); err != nil {
 		t.Fatal(err)
 	}
 	file, _, _ := r.Store.Read()
@@ -668,11 +668,11 @@ func TestCopyEnvironmentReferencesRemainReferences(t *testing.T) {
 	if _, err := r.Prepare(b, request); err == nil {
 		t.Fatal("unresolved environment reference copied")
 	}
-	t.Setenv("RADAR_TEST_COPY_TOKEN", "synthetic-env-secret")
+	t.Setenv("KUBEATLAS_TEST_COPY_TOKEN", "synthetic-env-secret")
 	apply(t, r, b, request)
 	file, _, _ = r.Store.Read()
 	stored := file.Profiles[b.Binding].Integrations[config.IntegrationMetrics].Prometheus
-	if stored.HeadersFromEnv["Authorization"] != "RADAR_TEST_COPY_TOKEN" || len(stored.Headers) != 0 {
+	if stored.HeadersFromEnv["Authorization"] != "KUBEATLAS_TEST_COPY_TOKEN" || len(stored.Headers) != 0 {
 		t.Fatal("resolved secret persisted instead of reference")
 	}
 }

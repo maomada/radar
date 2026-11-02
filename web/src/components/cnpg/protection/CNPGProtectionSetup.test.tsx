@@ -47,8 +47,8 @@ vi.mock('../../../api/cnpg', () => ({
     data: { actions: { backup: { allowed: false, reason: 'You need create backups in namespace db' } } },
   }),
 }))
-vi.mock('@skyhook-io/k8s-ui', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@skyhook-io/k8s-ui')>()),
+vi.mock('@maomada/k8s-ui', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@maomada/k8s-ui')>()),
   DialogPortal: ({ children }: any) => children,
 }))
 
@@ -105,9 +105,9 @@ it('does not interpret denied schedule inventory as an absent schedule', () => {
   expect(text()).toContain('Schedules may exist outside the readable inventory')
 })
 
-it('shows the upgrade path before offering setup writes against an older Radar', () => {
+it('shows the upgrade path before offering setup writes against an older KubeAtlas', () => {
   state.support = 'unsupported'
-  expect(text()).toContain('need a newer Radar')
+  expect(text()).toContain('需要更新版本的 KubeAtlas')
   expect(text()).not.toContain('Choose existing ObjectStore')
 })
 

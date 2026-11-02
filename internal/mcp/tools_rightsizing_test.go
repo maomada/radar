@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 func TestGetRightsizingRequiresScope(t *testing.T) {

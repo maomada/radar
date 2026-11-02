@@ -5,7 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // healthLevelToStatus projects a canonical health.Level onto the topology

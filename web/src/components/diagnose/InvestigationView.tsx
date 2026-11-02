@@ -60,7 +60,7 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Badge, gitOpsRouteForOwner, type GitOpsOwnerRef, type GitOpsWrite } from "@skyhook-io/k8s-ui";
+import { Badge, gitOpsRouteForOwner, type GitOpsOwnerRef, type GitOpsWrite } from "@maomada/k8s-ui";
 import { useResource } from "../../api/client";
 import { getApiBase } from "../../api/config";
 import { kindToPluralWithGroup } from "../../utils/navigation";
@@ -283,9 +283,9 @@ export function InvestigationView({
   run: RunSummary;
   agentLabel: string;
   maximized: boolean;
-  /** Opens an unambiguous evidence subject in Radar's native resource views. */
+  /** Opens an unambiguous evidence subject in KubeAtlas's native resource views. */
   onOpenResource?: (ref: DiagnosisResourceRef) => void;
-  /** Opens Radar's Timeline filtered to the resource a changes card is about. */
+  /** Opens KubeAtlas's Timeline filtered to the resource a changes card is about. */
   onOpenTimeline?: (scope: InvestigationTimelineScope) => void;
   /** Makes a page this view navigates to visible: restores or closes the panel. */
   onRevealDestination?: () => void;
@@ -712,7 +712,7 @@ export function InvestigationView({
           }
           case "history_unavailable":
             setHistoryUnavailable({
-              error: ev.error || "Radar could not read the saved history.",
+              error: ev.error || "KubeAtlas could not read the saved history.",
               retryable: ev.retryable === true,
             });
             setStreamReady(false);
@@ -804,7 +804,7 @@ export function InvestigationView({
                   ...t,
                   status: "error" as const,
                   error: applyMayHaveMutated
-                    ? "This investigation is no longer available. The requested change may have completed; Radar refreshed cluster state, but you should start a new investigation to verify it before applying anything again."
+                    ? "This investigation is no longer available. The requested change may have completed; KubeAtlas refreshed cluster state, but you should start a new investigation to verify it before applying anything again."
                     : "This investigation is no longer available. Start a new investigation to analyze the current cluster.",
                 }
               : t,
@@ -1052,8 +1052,8 @@ export function InvestigationView({
       const detail = e instanceof DiagnoseError ? e.message.trim() : "";
       setApplyOutcomeUncertain(
         detail
-          ? `${detail} Radar has not verified the current state; check it before applying again.`
-          : "Radar couldn't confirm whether the apply request completed. Cluster state was refreshed; check current status before applying again.",
+          ? `${detail} KubeAtlas has not verified the current state; check it before applying again.`
+          : "KubeAtlas couldn't confirm whether the apply request completed. Cluster state was refreshed; check current status before applying again.",
       );
     });
   };
@@ -1495,7 +1495,7 @@ export function InvestigationView({
     applyOutcomeUncertain,
   });
   const findingsTabAccessibleLabel =
-    "Findings: current assessment, Radar evidence, and next steps";
+    "Findings: current assessment, KubeAtlas evidence, and next steps";
   const currentAssessmentCoverageLimited = investigationEvidenceCoverageLimited(
     currentAssessmentProjection,
     kind,
@@ -1503,7 +1503,7 @@ export function InvestigationView({
   // The agent's notes per source. In the legacy shape this is Assessment
   // details; in the story shape the notes sit on the cards, so it appears
   // only inside Captured results and only when something has no card: a
-  // note that pins to no single observation, or a citation Radar rejected.
+  // note that pins to no single observation, or a citation KubeAtlas rejected.
   const assessmentSourcesNode =
     currentAssessment?.diagnosis &&
     (rootCauseEvidenceResolution?.links.length ||
@@ -1532,7 +1532,7 @@ export function InvestigationView({
   const assessmentLimits = useMemo(() => {
     const lines = groupEvidenceCoverage(currentAssessmentProjection.limitations)
       // A capped preview or a history bound is bookkeeping for the record; Still
-      // open keeps the reads Radar could not complete.
+      // open keeps the reads KubeAtlas could not complete.
       .filter((group) => !group.historyOnly && !group.bookkeepingOnly)
       .map((group) => `${group.label}: ${group.summary}`);
     // Two coverage gaps carry no limitation of their own; name the one that
@@ -1545,7 +1545,7 @@ export function InvestigationView({
       lines.push("No evidence was recorded for this assessment");
     else if (gaps.noTargetDiagnosis)
       lines.push(
-        "Radar's full diagnose of this workload was not collected, so this check is partial",
+        "KubeAtlas's full diagnose of this workload was not collected, so this check is partial",
       );
     return lines;
   }, [currentAssessmentProjection, kind]);
@@ -1908,7 +1908,7 @@ export function InvestigationView({
           <span className="min-w-0 flex-1">
             This investigation is closed and read-only.{" "}
             {turns.length > 0
-              ? "Evidence already loaded in this view is preserved, but Radar can no longer continue the run."
+              ? "Evidence already loaded in this view is preserved, but KubeAtlas can no longer continue the run."
               : "It may be private, your access may have changed, or its history may have been cleared. Check your account and organization, or ask the creator for access."}
           </span>
           <button
@@ -2091,9 +2091,9 @@ export function InvestigationView({
                       <p className="mt-1 text-xs text-theme-text-tertiary">
                         {!streamReady
                           ? historyUnavailablePresentation?.loading
-                            ? "Radar will continue when saved history is available."
+                            ? "KubeAtlas will continue when saved history is available."
                             : historyUnavailablePresentation
-                              ? "Radar could not restore this run from saved history."
+                              ? "KubeAtlas could not restore this run from saved history."
                               : "Restoring this run from saved history."
                           : busy
                             ? "Reasoning and tool activity will appear here."
@@ -2286,7 +2286,7 @@ export function InvestigationView({
         </section>
         <section
           id={findingsPaneId}
-          aria-label="Findings: current assessment, Radar evidence, and next steps"
+          aria-label="Findings: current assessment, KubeAtlas evidence, and next steps"
           aria-busy={
             busy || requestPending || verificationPending || rebuildingReplay
           }
@@ -2364,9 +2364,9 @@ export function InvestigationView({
                   </p>
                   <p className="mt-1 text-xs text-theme-text-tertiary">
                     {historyUnavailablePresentation?.loading
-                      ? "Radar will continue when saved history is available."
+                      ? "KubeAtlas will continue when saved history is available."
                       : historyUnavailablePresentation
-                        ? "Radar could not restore evidence from saved history."
+                        ? "KubeAtlas could not restore evidence from saved history."
                         : "Restoring the assessment and evidence from saved history."}
                   </p>
                 </div>
@@ -2419,7 +2419,7 @@ export function InvestigationView({
                       {assessmentNeedsCurrentStateVerification ? (
                         <p className="mt-0.5 text-xs text-theme-text-tertiary">
                           {verificationRunning || verificationPending
-                            ? "This assessment predates the apply attempt. Radar is checking the current state now."
+                            ? "This assessment predates the apply attempt. KubeAtlas is checking the current state now."
                             : "This assessment predates the apply attempt; cluster state after it has not been verified."}
                         </p>
                       ) : hasEvidenceCollectedAfterAssessment ? (

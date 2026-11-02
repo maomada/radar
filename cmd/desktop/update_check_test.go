@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	versionpkg "github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/timeline"
+	versionpkg "github.com/maomada/radar/internal/version"
 )
 
 func TestManualUpdateCheckBridgeCoalescesClicksAndEncodesResult(t *testing.T) {

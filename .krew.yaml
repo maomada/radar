@@ -1,13 +1,13 @@
 apiVersion: krew.googlecontainertools.github.com/v1alpha2
 kind: Plugin
 metadata:
-  name: radar
+  name: kubeatlas
 spec:
   version: {{ .TagName }}
-  homepage: https://github.com/skyhook-io/radar
+  homepage: https://github.com/maomada/radar
   shortDescription: Cluster dashboard with topology and traffic maps
   description: |
-    Radar provides real-time visibility into your Kubernetes cluster.
+    KubeAtlas provides real-time visibility into your Kubernetes cluster.
 
     Features:
     - Topology visualization of resources and their relationships
@@ -23,55 +23,55 @@ spec:
     This plugin opens a web UI in your browser by default.
     Use --no-browser to start the server without opening a browser.
   platforms:
-  - bin: kubectl-radar
-    {{ addURIAndSha "https://github.com/skyhook-io/radar/releases/download/{{ .TagName }}/radar_{{ .TagName }}_darwin_arm64.tar.gz" .TagName }}
+  - bin: kubectl-kubeatlas
+    {{ addURIAndSha "https://github.com/maomada/radar/releases/download/{{ .TagName }}/kubeatlas_{{ .TagName }}_darwin_arm64.tar.gz" .TagName }}
     files:
-    - from: kubectl-radar
-      to: .
+    - from: kubeatlas
+      to: kubectl-kubeatlas
     - from: LICENSE
       to: .
     selector:
       matchLabels:
         os: darwin
         arch: arm64
-  - bin: kubectl-radar
-    {{ addURIAndSha "https://github.com/skyhook-io/radar/releases/download/{{ .TagName }}/radar_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
+  - bin: kubectl-kubeatlas
+    {{ addURIAndSha "https://github.com/maomada/radar/releases/download/{{ .TagName }}/kubeatlas_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
     files:
-    - from: kubectl-radar
-      to: .
+    - from: kubeatlas
+      to: kubectl-kubeatlas
     - from: LICENSE
       to: .
     selector:
       matchLabels:
         os: darwin
         arch: amd64
-  - bin: kubectl-radar
-    {{ addURIAndSha "https://github.com/skyhook-io/radar/releases/download/{{ .TagName }}/radar_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
+  - bin: kubectl-kubeatlas
+    {{ addURIAndSha "https://github.com/maomada/radar/releases/download/{{ .TagName }}/kubeatlas_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
     files:
-    - from: kubectl-radar
-      to: .
+    - from: kubeatlas
+      to: kubectl-kubeatlas
     - from: LICENSE
       to: .
     selector:
       matchLabels:
         os: linux
         arch: amd64
-  - bin: kubectl-radar
-    {{ addURIAndSha "https://github.com/skyhook-io/radar/releases/download/{{ .TagName }}/radar_{{ .TagName }}_linux_arm64.tar.gz" .TagName }}
+  - bin: kubectl-kubeatlas
+    {{ addURIAndSha "https://github.com/maomada/radar/releases/download/{{ .TagName }}/kubeatlas_{{ .TagName }}_linux_arm64.tar.gz" .TagName }}
     files:
-    - from: kubectl-radar
-      to: .
+    - from: kubeatlas
+      to: kubectl-kubeatlas
     - from: LICENSE
       to: .
     selector:
       matchLabels:
         os: linux
         arch: arm64
-  - bin: kubectl-radar.exe
-    {{ addURIAndSha "https://github.com/skyhook-io/radar/releases/download/{{ .TagName }}/radar_{{ .TagName }}_windows_amd64.zip" .TagName }}
+  - bin: kubectl-kubeatlas.exe
+    {{ addURIAndSha "https://github.com/maomada/radar/releases/download/{{ .TagName }}/kubeatlas_{{ .TagName }}_windows_amd64.zip" .TagName }}
     files:
-    - from: kubectl-radar.exe
-      to: .
+    - from: kubeatlas.exe
+      to: kubectl-kubeatlas.exe
     - from: LICENSE
       to: .
     selector:

@@ -1,5 +1,5 @@
-import { ArgoResourceDiff } from '@skyhook-io/k8s-ui'
-import type { GitOpsDrift, GitOpsInsightRef } from '@skyhook-io/k8s-ui'
+import { ArgoResourceDiff } from '@maomada/k8s-ui'
+import type { GitOpsDrift, GitOpsInsightRef } from '@maomada/k8s-ui'
 import { useArgoResourceDiff } from '../../api/client'
 
 interface ArgoResourceDiffLoaderProps {

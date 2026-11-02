@@ -36,15 +36,15 @@ import (
 	"k8s.io/client-go/rest"
 	ktesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/investigation"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/k8score"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 func TestResourceReadsReportCallerDenial(t *testing.T) {
@@ -2457,7 +2457,7 @@ func TestDenialNamesRadarCloudOwner(t *testing.T) {
 		{"no role", "true", as("radar:ai:reader"), ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("RADAR_CLOUD_MODE", tc.cloud)
+			t.Setenv("KUBEATLAS_CLOUD_MODE", tc.cloud)
 			msg := resourcePermissionError(tc.ctx, true, "list", "", "secrets", "beta").Error()
 			_, who := gapReason(tc.ctx, "secrets", readreason.UserForbidden)
 			for _, got := range []string{msg, who} {
@@ -2483,7 +2483,7 @@ func TestDenialNamesRadarCloudOwner(t *testing.T) {
 // collection is the fix.
 func TestListNamesRadarCloudOwnerOnlyForDenials(t *testing.T) {
 	setupFakeCacheForFilterTests(t)
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	const remedy = "an owner of your Radar Cloud organization can raise your viewer role, which may grant it"
 	viewer := func(name string, canI map[string]bool) context.Context {
 		groups := []string{"radar:viewer"}

@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/readscope"
+	"github.com/maomada/radar/internal/readscope"
 )
 
 func TestListPodsScoped_SentinelContract(t *testing.T) {

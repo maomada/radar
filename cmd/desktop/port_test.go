@@ -12,7 +12,7 @@ import (
 )
 
 func TestDesktopPortRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), ".radar", desktopPortFile)
+	path := filepath.Join(t.TempDir(), ".kubeatlas", desktopPortFile)
 	if got := lastDesktopPort(path); got != 0 {
 		t.Fatalf("lastDesktopPort before any launch = %d, want 0", got)
 	}
@@ -98,7 +98,7 @@ func TestPortOwner(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		// Radar lists every kubeconfig context unless asked not to; a large
+		// KubeAtlas lists every kubeconfig context unless asked not to; a large
 		// kubeconfig would otherwise push the reply past the probe's read limit.
 		if r.URL.Query().Get("contexts") != "0" {
 			_, _ = w.Write([]byte(`{"state":"connected","contexts":[` + strings.Repeat(`{"name":"ctx"},`, 10000) + `{"name":"last"}]}`))
@@ -108,7 +108,7 @@ func TestPortOwner(t *testing.T) {
 	}))
 	defer radar.Close()
 	if got := portOwner(port(radar.Listener.Addr())); got != ownerRadar {
-		t.Errorf("Radar: got %v, want ownerRadar", got)
+		t.Errorf("KubeAtlas: got %v, want ownerRadar", got)
 	}
 
 	other := httptest.NewServer(http.NotFoundHandler())

@@ -3,15 +3,15 @@ package k8s
 import (
 	"context"
 	"fmt"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // DeletionPreview shares the caller-scoped deletion projection between REST

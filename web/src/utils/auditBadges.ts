@@ -1,4 +1,4 @@
-import { resourceKey, type AuditFinding, type CheckMeta } from '@skyhook-io/k8s-ui'
+import { resourceKey, type AuditFinding, type CheckMeta } from '@maomada/k8s-ui'
 
 export interface AuditBadgeMessage {
   severity: string

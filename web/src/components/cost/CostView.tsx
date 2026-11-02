@@ -23,7 +23,7 @@ import {
   Server,
   X,
 } from 'lucide-react'
-import { PaneLoader, FreshnessControl, PageHeader } from '@skyhook-io/k8s-ui'
+import { PaneLoader, FreshnessControl, PageHeader } from '@maomada/k8s-ui'
 import { CostTrendChart } from './CostTrendChart'
 import {
   COST_HOURS_PER_MONTH,
@@ -107,7 +107,7 @@ function CostOverview({ onBack, onOpenResource }: CostViewProps) {
                   Looking for cost data…
                 </p>
                 <p className="mt-1 text-xs text-theme-text-tertiary">
-                  Radar is checking OpenCost metrics in a PromQL-compatible backend and a local
+                  KubeAtlas is checking OpenCost metrics in a PromQL-compatible backend and a local
                   Kubecost 3 Aggregator. First discovery can take a few seconds.
                 </p>
               </div>
@@ -860,7 +860,7 @@ function CostHelpDialog({ currency, source, window, onClose }: { currency: strin
               Where do these costs come from?
             </h3>
             <p>
-              Radar reads either OpenCost-compatible metrics from Prometheus or allocation
+              KubeAtlas reads either OpenCost-compatible metrics from Prometheus or allocation
               and asset data from a Kubecost 3 Aggregator. This view is currently using{' '}
               <strong>{costSourceLabel(source)}</strong>.
             </p>
@@ -871,7 +871,7 @@ function CostHelpDialog({ currency, source, window, onClose }: { currency: strin
               Which currency is shown?
             </h3>
             <p>
-              Radar labels these values <strong>{currency}</strong> and does not convert them. Automatic
+              KubeAtlas labels these values <strong>{currency}</strong> and does not convert them. Automatic
               reads <code>currencyCode</code> or <code>DISPLAY_CURRENCY</code> from a
               cluster-discovered OpenCost installation or any active Kubecost installation, then
               falls back to USD. A manually configured Prometheus URL disables OpenCost currency

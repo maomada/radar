@@ -19,10 +19,10 @@ const state = vi.hoisted(() => ({
   ociSources: [] as string[],
 }))
 
-vi.mock('@skyhook-io/k8s-ui/components/ui/DialogPortal', () => ({
+vi.mock('@maomada/k8s-ui/components/ui/DialogPortal', () => ({
   DialogPortal: ({ open, children }: { open: boolean; children: ReactNode }) => (open ? <div>{children}</div> : null),
 }))
-vi.mock('@skyhook-io/k8s-ui', () => ({
+vi.mock('@maomada/k8s-ui', () => ({
   Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
   Badge: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }))

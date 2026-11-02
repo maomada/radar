@@ -14,10 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
-	"github.com/skyhook-io/radar/internal/audit"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	bp "github.com/skyhook-io/radar/pkg/audit"
+	"github.com/maomada/radar/internal/audit"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	bp "github.com/maomada/radar/pkg/audit"
 )
 
 func TestAuditSecretAuthorizationAcrossSurfacesAndCachedScopes(t *testing.T) {

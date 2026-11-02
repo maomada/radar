@@ -6,6 +6,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -102,11 +103,17 @@ func Relaunch() error {
 
 func findExtractedBinary(dir string) (string, error) {
 	return findInExtracted(dir, func(e os.DirEntry) bool {
-		return !e.IsDir() && strings.Contains(e.Name(), "radar-desktop")
+		return !e.IsDir() && strings.Contains(e.Name(), "kubeatlas-desktop")
 	})
 }
 
 func extractTarGz(archivePath, destDir string) error {
+	return extractTarGzWith(archivePath, destDir, func(path string, mode os.FileMode) (io.WriteCloser, error) {
+		return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	}, io.Copy)
+}
+
+func extractTarGzWith(archivePath, destDir string, openOutput func(string, os.FileMode) (io.WriteCloser, error), copyOutput func(io.Writer, io.Reader) (int64, error)) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return err
@@ -144,13 +151,12 @@ func extractTarGz(archivePath, destDir string) error {
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}
-			outFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
+			outFile, err := openOutput(target, os.FileMode(header.Mode))
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
-				return err
+			if _, err := copyOutput(outFile, tr); err != nil {
+				return errors.Join(err, outFile.Close())
 			}
 			// A failed close can mean a truncated write; swallowing it would let
 			// the updater install a corrupt binary.

@@ -115,9 +115,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - component: radar
+          - component: kubeatlas
             dockerfile: Dockerfile
-          - component: radar-portal
+          - component: kubeatlas-portal
             dockerfile: Dockerfile.portal
     steps:
       - name: Check out trusted archive validator
@@ -374,74 +374,74 @@ jobs:
           fi
           python3 trusted/scripts/release_manifest.py preflight \
             --manifest "$RUNNER_TEMP/release-manifest.json" --status passed
-      - name: Copy Radar image archive to GHCR
+      - name: Copy KubeAtlas image archive to GHCR
         id: push-radar
         env:
-          TARGET_REF: ghcr.io/maomada/radar:${{ needs.validate.outputs.version }}
-          ARCHIVE: ${{ runner.temp }}/release-artifacts/images/release-image-radar/radar.oci.tar
+          TARGET_REF: ghcr.io/maomada/kubeatlas:${{ needs.validate.outputs.version }}
+          ARCHIVE: ${{ runner.temp }}/release-artifacts/images/release-image-kubeatlas/kubeatlas.oci.tar
           MANIFEST: ${{ runner.temp }}/release-manifest.json
         run: |
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name radar --status attempted
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas --status attempted
           if ! skopeo copy --all --preserve-digests \
             --authfile "$HOME/.docker/config.json" \
             "oci-archive:$ARCHIVE" "docker://$TARGET_REF"; then
-            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name radar --status push-failed-or-unknown
+            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas --status push-failed-or-unknown
             exit 1
           fi
           DIGEST="$(skopeo inspect --format '{{.Digest}}' --authfile "$HOME/.docker/config.json" "docker://$TARGET_REF")"
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name radar --status published --digest "$DIGEST"
-      - name: Copy Radar Portal image archive to GHCR
-        id: push-radar-portal
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas --status published --digest "$DIGEST"
+      - name: Copy KubeAtlas Portal image archive to GHCR
+        id: push-kubeatlas-portal
         env:
-          TARGET_REF: ghcr.io/maomada/radar-portal:${{ needs.validate.outputs.version }}
-          ARCHIVE: ${{ runner.temp }}/release-artifacts/images/release-image-radar-portal/radar-portal.oci.tar
+          TARGET_REF: ghcr.io/maomada/kubeatlas-portal:${{ needs.validate.outputs.version }}
+          ARCHIVE: ${{ runner.temp }}/release-artifacts/images/release-image-kubeatlas-portal/kubeatlas-portal.oci.tar
           MANIFEST: ${{ runner.temp }}/release-manifest.json
         run: |
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name radar-portal --status attempted
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas-portal --status attempted
           if ! skopeo copy --all --preserve-digests \
             --authfile "$HOME/.docker/config.json" \
             "oci-archive:$ARCHIVE" "docker://$TARGET_REF"; then
-            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name radar-portal --status push-failed-or-unknown
+            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas-portal --status push-failed-or-unknown
             exit 1
           fi
           DIGEST="$(skopeo inspect --format '{{.Digest}}' --authfile "$HOME/.docker/config.json" "docker://$TARGET_REF")"
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name radar-portal --status published --digest "$DIGEST"
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas-portal --status published --digest "$DIGEST"
       - name: Log in to GHCR for chart push
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-      - name: Push Radar chart
+      - name: Push KubeAtlas chart
         id: push-radar-chart
         env:
-          TARGET_REF: ghcr.io/maomada/charts/radar:${{ needs.validate.outputs.version }}
-          ARCHIVE: ${{ runner.temp }}/release-artifacts/charts/radar-${{ needs.validate.outputs.version }}.tgz
+          TARGET_REF: ghcr.io/maomada/charts/kubeatlas:${{ needs.validate.outputs.version }}
+          ARCHIVE: ${{ runner.temp }}/release-artifacts/charts/kubeatlas-${{ needs.validate.outputs.version }}.tgz
           MANIFEST: ${{ runner.temp }}/release-manifest.json
         run: |
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name radar --status attempted
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas --status attempted
           if ! PUSH_RESULT="$(helm push "$ARCHIVE" oci://ghcr.io/maomada/charts 2>&1)"; then
             printf '%s\n' "$PUSH_RESULT"
-            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name radar --status push-failed-or-unknown
+            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas --status push-failed-or-unknown
             exit 1
           fi
           printf '%s\n' "$PUSH_RESULT"
           DIGEST="$(printf '%s\n' "$PUSH_RESULT" | awk '/^Digest: / { print $2 }' | tail -n 1)"
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name radar --status published --digest "$DIGEST"
-      - name: Push Radar Portal chart
-        id: push-radar-portal-chart
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas --status published --digest "$DIGEST"
+      - name: Push KubeAtlas Portal chart
+        id: push-kubeatlas-portal-chart
         env:
-          TARGET_REF: ghcr.io/maomada/charts/radar-portal:${{ needs.validate.outputs.version }}
-          ARCHIVE: ${{ runner.temp }}/release-artifacts/charts/radar-portal-${{ needs.validate.outputs.version }}.tgz
+          TARGET_REF: ghcr.io/maomada/charts/kubeatlas-portal:${{ needs.validate.outputs.version }}
+          ARCHIVE: ${{ runner.temp }}/release-artifacts/charts/kubeatlas-portal-${{ needs.validate.outputs.version }}.tgz
           MANIFEST: ${{ runner.temp }}/release-manifest.json
         run: |
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name radar-portal --status attempted
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas-portal --status attempted
           if ! PUSH_RESULT="$(helm push "$ARCHIVE" oci://ghcr.io/maomada/charts 2>&1)"; then
             printf '%s\n' "$PUSH_RESULT"
-            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name radar-portal --status push-failed-or-unknown
+            python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas-portal --status push-failed-or-unknown
             exit 1
           fi
           printf '%s\n' "$PUSH_RESULT"
           DIGEST="$(printf '%s\n' "$PUSH_RESULT" | awk '/^Digest: / { print $2 }' | tail -n 1)"
-          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name radar-portal --status published --digest "$DIGEST"
+          python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas-portal --status published --digest "$DIGEST"
       - name: Finalize release summary
         if: always()
         env:

@@ -2090,7 +2090,7 @@ describe("honest zero and partial-result states", () => {
         expect.objectContaining({
           source: "Cluster-scoped admission changes",
           message:
-            "Radar couldn't summarize this investigation step. Review it in Activity.",
+            "KubeAtlas couldn't summarize this investigation step. Review it in Activity.",
         }),
       ]),
     );
@@ -2225,7 +2225,7 @@ describe("honest zero and partial-result states", () => {
         total_matched: 0,
         visibility: {
           state: "degraded",
-          impact: "Radar cannot read core workload resources.",
+          impact: "KubeAtlas cannot read core workload resources.",
         },
       }),
       tool("changes", "get_changes", {

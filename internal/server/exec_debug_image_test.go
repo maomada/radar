@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func TestResolveDebugImage(t *testing.T) {

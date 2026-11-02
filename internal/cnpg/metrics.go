@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/pkg/prom"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 type Metrics struct {

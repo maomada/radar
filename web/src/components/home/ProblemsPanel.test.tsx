@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
-import type { Issue } from '@skyhook-io/k8s-ui'
+import type { Issue } from '@maomada/k8s-ui'
 import { ProblemsPanel } from './HomeView'
 import { uncheckedSourceLines } from '../issues/uncheckedSources'
 import type { IssuesResponse } from '../../api/client'
@@ -33,19 +33,19 @@ function render(props: { issues?: Issue[]; unchecked?: IssuesResponse['unchecked
   ).replaceAll('<!-- -->', '').replace(/&#x27;|&#39;/g, "'")
 }
 
-describe('Home Active Issues when Radar could not read Helm releases', () => {
+describe('Home Active Issues when KubeAtlas could not read Helm releases', () => {
   it('gives no all-clear when nothing else was found', () => {
     const html = render({ unchecked: helm })
-    expect(html).toContain('No issues found')
+    expect(html).toContain('未找到问题')
     expect(html).toContain(line)
-    expect(html).not.toContain('No active issues')
+    expect(html).not.toContain('没有活跃问题')
     expect(html).not.toContain('status-healthy')
     expect(html).not.toContain('text-green-500')
   })
 
   it('keeps the line when limited visibility owns the empty state', () => {
     const html = render({ unchecked: helm, visibility: { impact: 'Pods are not readable.' } })
-    expect(html).toContain('No visible active issues')
+    expect(html).toContain('没有可见的活跃问题')
     expect(html).toContain(line)
   })
 
@@ -56,17 +56,17 @@ describe('Home Active Issues when Radar could not read Helm releases', () => {
 
   it('keeps the all-clear when the field is absent', () => {
     const html = render({})
-    expect(html).toContain('No active issues')
+    expect(html).toContain('没有活跃问题')
     expect(html).toContain('status-healthy')
     expect(html).not.toContain('couldn')
   })
 
   it('gives no all-clear for a source this version does not know, and says so generically', () => {
     const html = render({ unchecked: [{ source: 'some-new-source', reason: 'read_failed' }] })
-    expect(html).toContain('No issues found')
+    expect(html).toContain('未找到问题')
     expect(html).toContain(generic)
     expect(html).not.toContain('some-new-source')
-    expect(html).not.toContain('No active issues')
+    expect(html).not.toContain('没有活跃问题')
     expect(html).not.toContain('status-healthy')
     expect(html).not.toContain('text-green-500')
   })

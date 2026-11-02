@@ -7,7 +7,7 @@ import (
 )
 
 func TestLocalTCPHandlerCloudModeExposesExactHealthOnly(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	var reached []string
 	handler := localTCPHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reached = append(reached, r.URL.Path)
@@ -44,7 +44,7 @@ func TestLocalTCPHandlerCloudModeExposesExactHealthOnly(t *testing.T) {
 }
 
 func TestLocalTCPHandlerNonCloudPreservesApplication(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "false")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "false")
 	handler := localTCPHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 	}))

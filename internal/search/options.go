@@ -1,8 +1,8 @@
 package search
 
 import (
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // Options configures a Search call. Per-user exact-kind authorization requires

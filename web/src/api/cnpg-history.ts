@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { CNPGFleetMetricsReading, Grant } from '@skyhook-io/k8s-ui'
+import type { CNPGFleetMetricsReading, Grant } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 import { shouldRetryRadarQuery } from './radarFeatures'
 import type { CNPGClusterActivityResponse } from './cnpg'
@@ -44,7 +44,7 @@ export interface CNPGHistoryChart {
 
 export interface CNPGClusterHistoryResponse {
   cluster: { namespace: string; name: string; uid: string }
-  /** prometheus | none (Radar has no Prometheus; `reason` says why) */
+  /** prometheus | none (KubeAtlas has no Prometheus; `reason` says why) */
   source: 'prometheus' | 'none'
   /** ok | ambiguous | scopeMismatch | error, for the query as a whole */
   state?: string

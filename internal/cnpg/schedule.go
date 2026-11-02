@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/pkg/cnpg"
+	"github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/pkg/cnpg"
 )
 
 const (

@@ -20,11 +20,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/cachesource"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/cachesource"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // typedKinds are the kinds Radar's typed cache holds.
@@ -49,11 +49,11 @@ const passes = 2
 // the rest as confirmed by a change the API server shows, or as caught up
 // with no change shown. It only lists, watches and gets.
 //
-//	RADAR_LIVE_KUBECONFIG=... RADAR_LIVE_CONTEXT=... go test -tags liveparity,withoutebpf -run TestLiveParity -timeout 20m ./internal/ownershiplive/
+//	KUBEATLAS_LIVE_KUBECONFIG=... KUBEATLAS_LIVE_CONTEXT=... go test -tags liveparity,withoutebpf -run TestLiveParity -timeout 20m ./internal/ownershiplive/
 func TestLiveParity(t *testing.T) {
-	kubeconfig, kubeContext := os.Getenv("RADAR_LIVE_KUBECONFIG"), os.Getenv("RADAR_LIVE_CONTEXT")
+	kubeconfig, kubeContext := os.Getenv("KUBEATLAS_LIVE_KUBECONFIG"), os.Getenv("KUBEATLAS_LIVE_CONTEXT")
 	if kubeconfig == "" || kubeContext == "" {
-		t.Skip("set RADAR_LIVE_KUBECONFIG and RADAR_LIVE_CONTEXT")
+		t.Skip("set KUBEATLAS_LIVE_KUBECONFIG and KUBEATLAS_LIVE_CONTEXT")
 	}
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // canReadNeighborhoodNode must apply per-kind Secret RBAC inside an allowed

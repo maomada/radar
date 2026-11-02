@@ -8,9 +8,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	topology "github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/k8s"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
+	topology "github.com/maomada/radar/pkg/topology"
 )
 
 func registerResources(server *mcp.Server) {

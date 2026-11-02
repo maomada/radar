@@ -4,7 +4,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
 )
 
 type recoveredResolver struct{ fakeResolver }

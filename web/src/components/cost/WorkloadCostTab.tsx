@@ -336,7 +336,7 @@ function WorkloadCostDiscovering({
             Looking for cost data…
           </p>
           <p className="mt-1 text-xs text-theme-text-tertiary">
-            Radar is checking OpenCost metrics in a PromQL-compatible backend and a local Kubecost
+            KubeAtlas is checking OpenCost metrics in a PromQL-compatible backend and a local Kubecost
             3 Aggregator. First discovery can take a few seconds.
           </p>
         </div>

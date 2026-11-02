@@ -20,8 +20,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	"github.com/maomada/radar/internal/k8s"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 )
 
 func typedEvent(name, reason, eventType string, last time.Time) *corev1.Event {

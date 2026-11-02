@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 
 
-IMAGE_NAMES = ("radar", "radar-portal")
-CHART_NAMES = ("radar", "radar-portal")
+IMAGE_NAMES = ("kubeatlas", "kubeatlas-portal")
+CHART_NAMES = ("kubeatlas", "kubeatlas-portal")
 
 
 def _sha256(path):

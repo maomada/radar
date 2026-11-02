@@ -10,12 +10,12 @@ import (
 )
 
 func TestAgentStatusClientGet(t *testing.T) {
-	c, err := NewAgentStatusClient("wss://api.radarhq.io/agent")
+	c, err := NewAgentStatusClient("wss://api.example.test/agent")
 	if err != nil {
 		t.Fatalf("NewAgentStatusClient: %v", err)
 	}
 	c.HTTP = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() != "https://api.radarhq.io/api/agent/status" {
+		if r.URL.String() != "https://api.example.test/api/agent/status" {
 			t.Fatalf("URL = %q", r.URL.String())
 		}
 		if got := r.Header.Get("Authorization"); got != "Bearer rhc_secret" {
@@ -39,7 +39,7 @@ func TestAgentStatusClientGet(t *testing.T) {
 }
 
 func TestAgentStatusClientRejectsUnauthorizedWithoutResponseBodyLeak(t *testing.T) {
-	c, err := NewAgentStatusClient("wss://api.radarhq.io/agent")
+	c, err := NewAgentStatusClient("wss://api.example.test/agent")
 	if err != nil {
 		t.Fatalf("NewAgentStatusClient: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestAgentStatusClientGetsCanonicalFrontendURLWithoutClusterToken(t *testing
 }
 
 func TestAgentStatusClientRejectsInvalidFrontendURL(t *testing.T) {
-	c, err := NewAgentStatusClient("wss://api.radarhq.io/agent")
+	c, err := NewAgentStatusClient("wss://api.example.test/agent")
 	if err != nil {
 		t.Fatalf("NewAgentStatusClient: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestAgentStatusClientHandlesOlderHubConfigShapes(t *testing.T) {
 		{name: "config endpoint unavailable", statusCode: http.StatusNotFound, status: "404 Not Found", body: "not found", want: "Hub returned 404 Not Found"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := NewAgentStatusClient("wss://api.radarhq.io/agent")
+			c, err := NewAgentStatusClient("wss://api.example.test/agent")
 			if err != nil {
 				t.Fatalf("NewAgentStatusClient: %v", err)
 			}
@@ -162,7 +162,7 @@ func TestAgentStatusClientRecognizesMissingStatusEndpoint(t *testing.T) {
 }
 
 func TestAgentStatusClientRejectsRedirects(t *testing.T) {
-	c, err := NewAgentStatusClient("wss://api.radarhq.io/agent")
+	c, err := NewAgentStatusClient("wss://api.example.test/agent")
 	if err != nil {
 		t.Fatalf("NewAgentStatusClient: %v", err)
 	}

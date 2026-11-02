@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/settings"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/settings"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/k8score"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -997,10 +997,10 @@ func TestLoadSavedNamespacePreference_UnreadableSettingsNoSeed(t *testing.T) {
 	prevNs := k8s.SetTestContextNamespace("default")
 	t.Cleanup(func() { k8s.SetTestContextNamespace(prevNs) })
 
-	if err := os.MkdirAll(filepath.Join(home, ".radar"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, ".kubeatlas"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(home, ".radar", "settings.json"), []byte("{corrupt"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(home, ".kubeatlas", "settings.json"), []byte("{corrupt"), 0o644); err != nil {
 		t.Fatalf("write corrupt settings: %v", err)
 	}
 

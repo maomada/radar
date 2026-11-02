@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/cliui"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/cliui"
 )
 
 const (

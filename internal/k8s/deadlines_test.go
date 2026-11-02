@@ -114,48 +114,48 @@ func TestConfigureDeadlines_NegativeRejected(t *testing.T) {
 }
 
 func TestEnvDurationOr_UnsetReturnsFallback(t *testing.T) {
-	t.Setenv("RADAR_TEST_EMPTY", "")
-	got := EnvDurationOr("RADAR_TEST_EMPTY", 7*time.Second)
+	t.Setenv("KUBEATLAS_TEST_EMPTY", "")
+	got := EnvDurationOr("KUBEATLAS_TEST_EMPTY", 7*time.Second)
 	if got != 7*time.Second {
 		t.Errorf("unset env should return fallback, got %v", got)
 	}
 }
 
 func TestEnvDurationOr_ParsesValid(t *testing.T) {
-	t.Setenv("RADAR_TEST_DUR", "45s")
-	got := EnvDurationOr("RADAR_TEST_DUR", 5*time.Second)
+	t.Setenv("KUBEATLAS_TEST_DUR", "45s")
+	got := EnvDurationOr("KUBEATLAS_TEST_DUR", 5*time.Second)
 	if got != 45*time.Second {
 		t.Errorf("valid env should be parsed, got %v", got)
 	}
 }
 
 func TestEnvDurationOr_InvalidFallsBack(t *testing.T) {
-	t.Setenv("RADAR_TEST_DUR_BAD", "not-a-duration")
-	got := EnvDurationOr("RADAR_TEST_DUR_BAD", 12*time.Second)
+	t.Setenv("KUBEATLAS_TEST_DUR_BAD", "not-a-duration")
+	got := EnvDurationOr("KUBEATLAS_TEST_DUR_BAD", 12*time.Second)
 	if got != 12*time.Second {
 		t.Errorf("invalid env should fall back to default, got %v", got)
 	}
 }
 
 func TestEnvIntOr_UnsetReturnsFallback(t *testing.T) {
-	t.Setenv("RADAR_TEST_EMPTY_INT", "")
-	got := EnvIntOr("RADAR_TEST_EMPTY_INT", 42)
+	t.Setenv("KUBEATLAS_TEST_EMPTY_INT", "")
+	got := EnvIntOr("KUBEATLAS_TEST_EMPTY_INT", 42)
 	if got != 42 {
 		t.Errorf("unset env should return fallback, got %d", got)
 	}
 }
 
 func TestEnvIntOr_ParsesValid(t *testing.T) {
-	t.Setenv("RADAR_TEST_INT", "200")
-	got := EnvIntOr("RADAR_TEST_INT", 20)
+	t.Setenv("KUBEATLAS_TEST_INT", "200")
+	got := EnvIntOr("KUBEATLAS_TEST_INT", 20)
 	if got != 200 {
 		t.Errorf("valid env should be parsed, got %d", got)
 	}
 }
 
 func TestEnvIntOr_InvalidFallsBack(t *testing.T) {
-	t.Setenv("RADAR_TEST_INT_BAD", "twenty")
-	got := EnvIntOr("RADAR_TEST_INT_BAD", 20)
+	t.Setenv("KUBEATLAS_TEST_INT_BAD", "twenty")
+	got := EnvIntOr("KUBEATLAS_TEST_INT_BAD", 20)
 	if got != 20 {
 		t.Errorf("invalid env should fall back to default, got %d", got)
 	}
@@ -168,12 +168,12 @@ func TestEnvIntOr_InvalidFallsBack(t *testing.T) {
 // value flows into the flag's default. The flag.Parse path then either
 // keeps that or overrides — both behaviors are stdlib flag, not our code.
 func TestEnvPrecedence_EnvOverridesHardcodedDefault(t *testing.T) {
-	t.Setenv("RADAR_PREC_DUR", "99s")
-	t.Setenv("RADAR_PREC_INT", "999")
-	if got := EnvDurationOr("RADAR_PREC_DUR", 1*time.Second); got != 99*time.Second {
+	t.Setenv("KUBEATLAS_PREC_DUR", "99s")
+	t.Setenv("KUBEATLAS_PREC_INT", "999")
+	if got := EnvDurationOr("KUBEATLAS_PREC_DUR", 1*time.Second); got != 99*time.Second {
 		t.Errorf("env should win over hardcoded default, got %v", got)
 	}
-	if got := EnvIntOr("RADAR_PREC_INT", 1); got != 999 {
+	if got := EnvIntOr("KUBEATLAS_PREC_INT", 1); got != 999 {
 		t.Errorf("env should win over hardcoded default, got %d", got)
 	}
 }

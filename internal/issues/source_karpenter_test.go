@@ -10,9 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/karpenter"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/karpenter"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 type fakeKarpenterIssueProvider struct {

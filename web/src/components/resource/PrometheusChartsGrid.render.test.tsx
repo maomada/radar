@@ -23,8 +23,8 @@ vi.mock('../../api/client', async (importActual) => ({
 vi.mock('../../api/workloadMetrics', () => ({ useWorkloadMetrics: () => ({ data: workload }) }))
 vi.mock('./RestartChart', () => ({ RestartEventLane: () => null }))
 vi.mock('./RightsizingStrip', () => ({ RightsizingStrip: () => null }))
-vi.mock('@skyhook-io/k8s-ui/components/charts', async (importActual) => ({
-  ...(await importActual<typeof import('@skyhook-io/k8s-ui/components/charts')>()),
+vi.mock('@maomada/k8s-ui/components/charts', async (importActual) => ({
+  ...(await importActual<typeof import('@maomada/k8s-ui/components/charts')>()),
   AreaChart: (props: typeof charts[number]) => { charts.push(props); return <span>Chart</span> },
 }))
 

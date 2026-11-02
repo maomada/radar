@@ -1,4 +1,4 @@
-import { TerminalBlock, TerminalBlockLabel } from '@skyhook-io/k8s-ui'
+import { TerminalBlock, TerminalBlockLabel } from '@maomada/k8s-ui'
 
 const wrap = { width: 520 }
 

@@ -1,8 +1,8 @@
 package server
 
 import (
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/pkg/capacityapi"
 )
 
 func capacityDemandActions(groups []capacitymodel.DemandGroupModel) []capacityapi.ActionSummary {

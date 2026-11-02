@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // ---------------------------------------------------------------------------

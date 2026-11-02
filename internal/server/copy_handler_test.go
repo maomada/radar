@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	k8sexec "k8s.io/client-go/util/exec"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // These tests drive the real routes and the real handlers. Only the exec client

@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/version"
 )
 
 func TestVersionCheckBrowserAcceptsInClusterRequest(t *testing.T) {
@@ -37,7 +37,7 @@ func TestVersionCheckBrowserRejectsOtherDeploymentModes(t *testing.T) {
 		{name: "cloud", cloud: "true"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("RADAR_CLOUD_MODE", tc.cloud)
+			t.Setenv("KUBEATLAS_CLOUD_MODE", tc.cloud)
 			restoreLocalMode := k8s.SetTestLocalMode()
 			t.Cleanup(restoreLocalMode)
 

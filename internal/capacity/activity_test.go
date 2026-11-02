@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/capacityapi"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/timeline"
 )
 
 func TestAggregateActivityRecordsCountsByTypeAndState(t *testing.T) {

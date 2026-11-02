@@ -13,13 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/usagedata"
-	"github.com/skyhook-io/radar/internal/version"
-	"github.com/skyhook-io/radar/pkg/packages"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/usagedata"
+	"github.com/maomada/radar/internal/version"
+	"github.com/maomada/radar/pkg/packages"
 )
 
 func (s *Server) startUsageData() {

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/loadtest"
+	"github.com/maomada/radar/internal/loadtest"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -28,7 +28,7 @@ import (
 // Scale defaults low enough for CI, where the build is milliseconds and the
 // derived arrival count is a handful of changes — at that scale this is a smoke
 // test that the comparison still runs, not a measurement of anything.
-// RADAR_CENSUS_SCALE=1.0 reproduces the reported census (628k objects) and the
+// KUBEATLAS_CENSUS_SCALE=1.0 reproduces the reported census (628k objects) and the
 // numbers in the commit message; it is slow and memory hungry.
 func TestMeasureConsumerStallPerDebounceFire(t *testing.T) {
 	if testing.Short() {
@@ -36,10 +36,10 @@ func TestMeasureConsumerStallPerDebounceFire(t *testing.T) {
 	}
 
 	scale := 0.05
-	if v := os.Getenv("RADAR_CENSUS_SCALE"); v != "" {
+	if v := os.Getenv("KUBEATLAS_CENSUS_SCALE"); v != "" {
 		parsed, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			t.Fatalf("RADAR_CENSUS_SCALE=%q: %v", v, err)
+			t.Fatalf("KUBEATLAS_CENSUS_SCALE=%q: %v", v, err)
 		}
 		scale = parsed
 	}

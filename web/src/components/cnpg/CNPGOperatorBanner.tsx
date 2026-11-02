@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { AlertBanner } from '@skyhook-io/k8s-ui'
+import { AlertBanner } from '@maomada/k8s-ui'
 import { useCNPGOperatorStatus } from '../../api/cnpg'
 import { cnpgScreenPath } from './routes'
 import { cnpgOperatorBannerModel } from './operatorStatus'

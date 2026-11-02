@@ -14,10 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 type networkingIngress = networkingv1.Ingress

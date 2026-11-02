@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 )
 
 // trivyGroup is the API group Trivy Operator writes its reports in.

@@ -9,8 +9,8 @@ import {
   RadarUpgradeNote,
   getRadarUpgradeRequirement,
   useDebouncedValue,
-} from '@skyhook-io/k8s-ui'
-import { validateRFC1123Label } from '@skyhook-io/k8s-ui/utils/validators'
+} from '@maomada/k8s-ui'
+import { validateRFC1123Label } from '@maomada/k8s-ui/utils/validators'
 import { useCNPGDraftSchedulePreview } from '../../../api/cnpg-protection'
 import { useConnection } from '../../../context/ConnectionContext'
 import { CreateResourceDialog } from '../../shared/CreateResourceDialog'

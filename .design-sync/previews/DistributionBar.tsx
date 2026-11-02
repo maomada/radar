@@ -1,4 +1,4 @@
-import { DistributionBar } from '@skyhook-io/k8s-ui'
+import { DistributionBar } from '@maomada/k8s-ui'
 
 const wrap = { width: 300, padding: '12px 4px' }
 

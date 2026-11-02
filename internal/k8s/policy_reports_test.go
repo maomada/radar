@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/policyreports"
+	"github.com/maomada/radar/pkg/policyreports"
 )
 
 // TestGetKyvernoStatus_LifecycleTransitions pins the four states callers

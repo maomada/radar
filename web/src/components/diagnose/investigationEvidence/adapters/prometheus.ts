@@ -1,5 +1,5 @@
-import { displayKind } from "@skyhook-io/k8s-ui";
-import { type TimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+import { displayKind } from "@maomada/k8s-ui";
+import { type TimeSeries } from "@maomada/k8s-ui/components/charts";
 import { metricsUnitForExpression } from "../../investigationMetrics";
 import { stableHash } from "../identity";
 import {
@@ -604,10 +604,10 @@ export function metricsWindowLabel(data: {
     ? `${window} window · ${data.step} step`
     : `${window} window`;
 }
-// Radar's reading of a metric name, so an agent-written query gets a title a
+// KubeAtlas's reading of a metric name, so an agent-written query gets a title a
 // reader can scan instead of the raw series name. Deliberately small and exact:
 // an unrecognised metric keeps its own name rather than being handed a meaning
-// Radar cannot derive from it.
+// KubeAtlas cannot derive from it.
 const METRIC_FAMILY_LABELS: Record<string, string> = {
   container_cpu_usage_seconds_total: "CPU usage",
   container_cpu_cfs_throttled_seconds_total: "CPU throttling",
@@ -746,13 +746,13 @@ export function adaptQueryPrometheus(
     builder.limit(
       source,
       "Prometheus query",
-      `The result of \`${value.query}\` was too large to keep${parts.length ? ` (${parts.join(", ")})` : ""}, so Radar cannot chart it.${note ? ` ${note}` : ""}`,
+      `The result of \`${value.query}\` was too large to keep${parts.length ? ` (${parts.join(", ")})` : ""}, so KubeAtlas cannot chart it.${note ? ` ${note}` : ""}`,
       "truncated",
     );
     return;
   }
   const windowLabel = metricsWindowLabel({ mode, start, end, step });
-  // One metric names the card; the title is Radar's reading of the query,
+  // One metric names the card; the title is KubeAtlas's reading of the query,
   // never the agent's, so a wrong claim cannot become the card's identity.
   // A bare matcher block such as `{namespace="shop"}` names no metric.
   const metricNames = [
@@ -762,7 +762,7 @@ export function adaptQueryPrometheus(
       ),
     ),
   ];
-  // A recognised family names the card; the scope is added only when Radar
+  // A recognised family names the card; the scope is added only when KubeAtlas
   // already decided the query is about the target, so the title never widens
   // or narrows what the relevance check concluded.
   const family =

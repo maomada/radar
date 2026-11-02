@@ -14,7 +14,7 @@ import {
   type CNPGKindCoverage,
   type CNPGWorkspaceResponse,
   type CNPGWorkspaceKey,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { useConnection } from '../../context/ConnectionContext'
 import { Notice, RefreshFailedNotice, ScreenEmptyState } from '../workspace/layout'
@@ -35,7 +35,7 @@ export interface CNPGScreenProps {
 const COVERAGE_LABEL: Record<string, string> = {
   denied: 'no access',
   partial: 'not read in some namespaces',
-  uncached: 'not cached by Radar',
+  uncached: 'not cached by KubeAtlas',
   syncing: 'still loading',
   error: 'could not be read',
 }
@@ -72,10 +72,10 @@ function namedCauses(cov: CNPGKindCoverage | undefined, uncachedNoun: string): {
   }
 }
 
-/** How much of a kind was read, in a few words ("not cached by Radar in pg"). */
+/** How much of a kind was read, in a few words ("not cached by KubeAtlas in pg"). */
 export function coverageLabel(cov: CNPGKindCoverage | undefined): string {
-  if (!cov) return 'not read by this Radar'
-  const { denied, uncached } = namedCauses(cov, 'not cached by Radar')
+  if (!cov) return 'not read by this KubeAtlas'
+  const { denied, uncached } = namedCauses(cov, 'not cached by KubeAtlas')
   const named = [denied && `no access in ${denied}`, uncached].filter(Boolean)
   if (named.length > 0) return named.join('; ')
   return COVERAGE_LABEL[cov?.state ?? ''] ?? cov?.state ?? 'unknown'
@@ -149,7 +149,7 @@ export function CNPGScreenGate({
       <ScreenEmptyState
         icon={Database}
         title="CloudNativePG data unavailable"
-        detail={query.error instanceof Error ? query.error.message : 'Radar could not load the CloudNativePG data.'}
+        detail={query.error instanceof Error ? query.error.message : 'KubeAtlas could not load the CloudNativePG data.'}
         action={
           <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="btn-secondary mt-3 px-3 py-1.5 text-sm">
             {query.isFetching ? 'Retrying…' : 'Retry'}
@@ -177,10 +177,10 @@ export function coverageEmpty(cov: CNPGKindCoverage | undefined, noun: string): 
       return `No ${noun} in this scope.`
     case 'partial':
     case 'uncached': {
-      const { denied, uncached } = namedCauses(cov, `Radar does not cache ${noun}`)
+      const { denied, uncached } = namedCauses(cov, `KubeAtlas does not cache ${noun}`)
       const causes = [denied && `no access in ${denied}`, uncached].filter(Boolean)
       if (causes.length > 0) return `No ${noun} visible: ${causes.join('; ')}.`
-      return cov.state === 'uncached' ? `Radar does not cache ${noun} in this scope.` : `No ${noun} visible. Some namespaces were not read.`
+      return cov.state === 'uncached' ? `KubeAtlas does not cache ${noun} in this scope.` : `No ${noun} visible. Some namespaces were not read.`
     }
     case 'denied':
       return `No access to ${noun}.`

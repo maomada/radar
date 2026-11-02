@@ -1,8 +1,8 @@
-import { AlertBanner } from '@skyhook-io/k8s-ui/components/ui/drawer-components'
+import { AlertBanner } from '@maomada/k8s-ui/components/ui/drawer-components'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { FetchResult, useDockReservedHeight, compareVersions } from '@skyhook-io/k8s-ui'
-import { startViewTransitionSafe } from '@skyhook-io/k8s-ui/utils/view-transition'
+import { FetchResult, useDockReservedHeight, compareVersions } from '@maomada/k8s-ui'
+import { startViewTransitionSafe } from '@maomada/k8s-ui/utils/view-transition'
 import { TRANSITION_DRAWER } from '../../utils/animation'
 import { useRefreshAnimation } from '../../hooks/useRefreshAnimation'
 import { X, Copy, Check, RefreshCw, Package, Code, History, Settings, Link2, Anchor, GitFork, BookOpen, ArrowUpCircle, Trash2, GitBranch, AlertTriangle, RotateCcw, Clock, GitCompare, ExternalLink, SlidersHorizontal, Eye, Loader2 } from 'lucide-react'
@@ -26,8 +26,8 @@ import { ManifestViewer } from './ManifestViewer'
 import { ValuesViewer } from './ValuesViewer'
 import { OwnedResources } from './OwnedResources'
 import { TrackChartSourceDialog } from './TrackChartSourceDialog'
-import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
-import { Disclosure } from '@skyhook-io/k8s-ui/components/ui/Disclosure'
+import { Collapse, CollapseChevron } from '@maomada/k8s-ui/components/ui/Collapse'
+import { Disclosure } from '@maomada/k8s-ui/components/ui/Disclosure'
 
 interface HelmReleaseDrawerProps {
   release: SelectedHelmRelease
@@ -98,9 +98,9 @@ function getUpgradeSourceIssueTooltip(issue: UpgradeSourceIssue, error: string |
     case 'ambiguous_source':
       return 'Multiple configured sources match this chart. Select the original source explicitly.'
     case 'source_unavailable':
-      return 'The recorded source is not configured or cannot verify the installed chart version on this Radar installation.'
+      return 'The recorded source is not configured or cannot verify the installed chart version on this KubeAtlas installation.'
     case 'untracked':
-      return "Radar can't tell where this chart was installed from. Register an OCI chart source to track upgrades."
+      return "KubeAtlas can't tell where this chart was installed from. Register an OCI chart source to track upgrades."
   }
 }
 
@@ -1008,7 +1008,7 @@ export function HelmReleaseDrawer({ release, onClose, onNavigateToResource, isOp
         )}
         {upgradeProgress.length === 0 && canHelmWrite && (
           <div className="mt-3 border-t border-theme-border pt-3">
-            <Tooltip content="Edit the user-supplied Helm values that Radar will pass to this upgrade.">
+            <Tooltip content="Edit the user-supplied Helm values that KubeAtlas will pass to this upgrade.">
               <button
                 type="button"
                 onClick={handleToggleAdjustValues}

@@ -14,9 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/internal/summarycontext"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/summarycontext"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // stubBuilder records calls and returns a deterministic ResourceSummaryContext

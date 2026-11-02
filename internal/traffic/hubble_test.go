@@ -8,11 +8,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/portforward"
+	"github.com/maomada/radar/internal/portforward"
 )
 
 type stubObserver struct {
@@ -119,7 +121,7 @@ func TestConnectDirectPlaintext(t *testing.T) {
 }
 
 func TestConnectDirectTLSWithSANDiscovery(t *testing.T) {
-	cert, pool := selfSignedCert(t, "relay.test.example")
+	cert, pool := caSignedCert(t, "relay.test.example", false)
 	port := startStubRelay(t, credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}}))
 	client := fake.NewSimpleClientset(relayService(port, intstr.FromInt(4245)))
 
@@ -143,6 +145,117 @@ func TestConnectDirectTLSWithSANDiscovery(t *testing.T) {
 	if info.LocalPort != 0 {
 		t.Errorf("LocalPort = %d, want 0 (direct mode)", info.LocalPort)
 	}
+}
+
+func TestDiscoverTLSServerNameRejectsInvalidTrust(t *testing.T) {
+	t.Run("missing CA", func(t *testing.T) {
+		h := &HubbleSource{tlsConfig: &tls.Config{ServerName: "relay.invalid"}}
+		if _, err := h.discoverTLSServerName(context.Background(), "127.0.0.1:1"); err == nil || !strings.Contains(err.Error(), "relay CA is required") {
+			t.Fatalf("missing CA error = %v", err)
+		}
+	})
+	t.Run("expired leaf", func(t *testing.T) {
+		cert, pool := caSignedCert(t, "relay.test.example", true)
+		port := startStubRelay(t, credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}}))
+		h := &HubbleSource{tlsConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}
+		if _, err := h.discoverTLSServerName(context.Background(), fmt.Sprintf("127.0.0.1:%d", port)); err == nil {
+			t.Fatal("expired server certificate unexpectedly trusted")
+		}
+	})
+	t.Run("unrelated signer", func(t *testing.T) {
+		serverCert, _ := caSignedCert(t, "relay.test.example", false)
+		_, trustedPool := caSignedCert(t, "trusted.test.example", false)
+		port := startStubRelay(t, credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{serverCert}}))
+		h := &HubbleSource{tlsConfig: &tls.Config{RootCAs: trustedPool, MinVersion: tls.VersionTLS12}}
+		if _, err := h.discoverTLSServerName(context.Background(), fmt.Sprintf("127.0.0.1:%d", port)); err == nil {
+			t.Fatal("certificate from unrelated signer unexpectedly trusted")
+		}
+	})
+}
+
+func TestDiscoverTLSDoesNotSendClientCertificateBeforeServerAuthentication(t *testing.T) {
+	serverCert, _ := caSignedCert(t, "untrusted.test.example", false)
+	clientCert, trustedPool := caSignedCert(t, "client.test.example", false)
+	var receivedClientCertificate atomic.Bool
+	serverTLS := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequestClientCert,
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			receivedClientCertificate.Store(len(rawCerts) > 0)
+			return nil
+		},
+	}
+	port := startStubRelay(t, credentials.NewTLS(serverTLS))
+	h := &HubbleSource{tlsConfig: &tls.Config{
+		RootCAs:      trustedPool,
+		Certificates: []tls.Certificate{clientCert},
+		MinVersion:   tls.VersionTLS12,
+	}}
+	if _, err := h.discoverTLSServerName(context.Background(), fmt.Sprintf("127.0.0.1:%d", port)); err == nil {
+		t.Fatal("untrusted server unexpectedly accepted")
+	}
+	if receivedClientCertificate.Load() {
+		t.Fatal("client certificate was sent to an unauthenticated server")
+	}
+}
+
+func caSignedCert(t *testing.T, san string, expired bool) (tls.Certificate, *x509.CertPool) {
+	t.Helper()
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate CA key: %v", err)
+	}
+	now := time.Now()
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(10),
+		Subject:      pkix.Name{CommonName: "relay test CA"},
+		NotBefore:    now.Add(-time.Hour), NotAfter: now.Add(24 * time.Hour),
+		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		IsCA:     true, BasicConstraintsValid: true,
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create CA: %v", err)
+	}
+	ca, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatalf("parse CA: %v", err)
+	}
+	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate leaf key: %v", err)
+	}
+	leafNotAfter := now.Add(24 * time.Hour)
+	if expired {
+		leafNotAfter = now.Add(-time.Hour)
+	}
+	leafTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(11),
+		Subject:      pkix.Name{CommonName: san},
+		DNSNames:     []string{san},
+		NotBefore:    now.Add(-2 * time.Hour), NotAfter: leafNotAfter,
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leafTemplate, ca, &leafKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create leaf: %v", err)
+	}
+	leafKeyDER, err := x509.MarshalECPrivateKey(leafKey)
+	if err != nil {
+		t.Fatalf("marshal leaf key: %v", err)
+	}
+	cert, err := tls.X509KeyPair(
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafDER}),
+		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: leafKeyDER}),
+	)
+	if err != nil {
+		t.Fatalf("parse leaf key pair: %v", err)
+	}
+	cert.Leaf, _ = x509.ParseCertificate(leafDER)
+	pool := x509.NewCertPool()
+	pool.AddCert(ca)
+	return cert, pool
 }
 
 func TestConnectBothLanesFailReportsBoth(t *testing.T) {

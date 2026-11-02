@@ -16,8 +16,8 @@ import (
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func waitFatalPod(name string, owner metav1.OwnerReference) *corev1.Pod {

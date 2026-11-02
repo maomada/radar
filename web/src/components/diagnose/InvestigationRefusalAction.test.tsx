@@ -29,7 +29,7 @@ describe("investigationRefusal", () => {
     });
   });
 
-  it("is null for Radar's own errors and for anything that isn't a DiagnoseError", () => {
+  it("is null for KubeAtlas's own errors and for anything that isn't a DiagnoseError", () => {
     expect(
       investigationRefusal(
         new DiagnoseError(409, "Too many investigations running."),
@@ -134,7 +134,7 @@ describe("InvestigationFailureNotice (Activity)", () => {
   it("keeps a status warning first and shows a newer refused follow-up, with its action, beside it", () => {
     const html = withHost(
       <InvestigationFailureNotice
-        message="Radar couldn't confirm whether the apply request completed."
+        message="KubeAtlas couldn't confirm whether the apply request completed."
         refusal={null}
         statusCheck={{
           label: "Check current status",

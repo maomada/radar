@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback, forwardRef } from 'react'
 import { useRegisterShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { Package, Search, ArrowUpCircle, LayoutGrid, List, Shield, GitBranch, ChevronRight, RotateCcw, Clock } from 'lucide-react'
-import { PaneLoader, PageHeader, SortableTh, FreshnessControl, type SortDir, Input, usePhoneLayout } from '@skyhook-io/k8s-ui'
+import { PaneLoader, PageHeader, SortableTh, FreshnessControl, type SortDir, Input, usePhoneLayout } from '@maomada/k8s-ui'
 import { useConnection } from '../../context/ConnectionContext'
 import { clsx } from 'clsx'
 import { useHelmReleases, useHelmBatchUpgradeInfo, isForbiddenError } from '../../api/client'

@@ -6,7 +6,7 @@ import { TimelineLoadError, TimelineStaleNote } from './TimelineLoadError'
 const driverError = 'open PostgreSQL timeline database: dial tcp 10.0.0.5:5432: connect: connection refused'
 
 function databaseDown(): ApiError {
-  return new ApiError('Timeline history is unavailable because Radar can\'t connect to its PostgreSQL database.', 503, {
+  return new ApiError('Timeline history is unavailable because KubeAtlas can\'t connect to its PostgreSQL database.', 503, {
     error_code: 'timeline_database_unreachable',
     detail: driverError,
   })

@@ -90,14 +90,14 @@ type LastContext struct {
 // overwriting each other's changes.
 var mu sync.Mutex
 
-// Path returns the settings file path (~/.radar/settings.json).
+// Path returns the settings file path (~/.kubeatlas/settings.json).
 func Path() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Printf("[settings] Cannot determine home directory: %v (settings will not be persisted)", err)
 		return ""
 	}
-	return filepath.Join(homeDir, ".radar", "settings.json")
+	return filepath.Join(homeDir, ".kubeatlas", "settings.json")
 }
 
 // Load reads settings from disk. Returns zero-value Settings if the file is missing or invalid.
@@ -201,7 +201,7 @@ func RolloutKey() string {
 	if err != nil {
 		return ""
 	}
-	path := filepath.Join(homeDir, ".radar", "install-id")
+	path := filepath.Join(homeDir, ".kubeatlas", "install-id")
 	if data, err := os.ReadFile(path); err == nil {
 		return strings.TrimSpace(string(data))
 	}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCNPGFleet, type CNPGFleetRow, type CNPGProblem } from '@skyhook-io/k8s-ui'
+import { buildCNPGFleet, type CNPGFleetRow, type CNPGProblem } from '@maomada/k8s-ui'
 import { cnpgInstancePillLabel, cnpgPillsToShow, cnpgRowStatus } from './fleetStatus'
 
 const problem = (severity: CNPGProblem['severity'], title: string) => ({ id: title, severity, title }) as CNPGProblem
@@ -18,7 +18,7 @@ describe('cnpgRowStatus', () => {
     })
   })
   it('says no problems only with a readable phase, never healthy when unknown', () => {
-    expect(cnpgRowStatus(row({}))).toEqual({ tone: 'healthy', label: 'No concerns detected in what Radar read · CNPG phase: Cluster in healthy state' })
+    expect(cnpgRowStatus(row({}))).toEqual({ tone: 'healthy', label: 'No concerns detected in what KubeAtlas read · CNPG phase: Cluster in healthy state' })
     const unknown = cnpgRowStatus(row({ controllerStatus: { text: '', level: 'unknown' } }))
     expect(unknown).toEqual({ tone: 'unknown', label: 'Status unknown · CNPG phase: not reported' })
     expect(unknown.label).not.toContain('No concerns')

@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/k8s"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/k8s"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
+	"github.com/maomada/radar/pkg/prom"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 )
 

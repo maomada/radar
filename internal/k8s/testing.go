@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/policyreports"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/policyreports"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"

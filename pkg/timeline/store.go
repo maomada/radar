@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 type SequenceOrder string

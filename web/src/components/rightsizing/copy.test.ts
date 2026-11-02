@@ -13,7 +13,7 @@ describe('rightsizing scan copy', () => {
     const copy = `${RIGHTSIZING_SCAN_DESCRIPTION} ${RIGHTSIZING_SCAN_METHODOLOGY}`
     expect(copy).toContain('CPU and memory requests')
     expect(copy).toContain('increase, reduce, or review')
-    expect(copy).toContain('Radar never changes them')
+    expect(copy).toContain('KubeAtlas never changes them')
     expect(copy).toContain('CPU P95 and memory maximum')
     expect(copy).toContain('Memory reductions require verifiable restart history')
     expect(copy.toLowerCase()).not.toContain('efficiency')

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { PolicyCoverageSection } from '@skyhook-io/k8s-ui/components/resources/renderers/PolicyCoverageSection'
-import type { PolicyCoverageSubject, ResourceRef } from '@skyhook-io/k8s-ui'
+import { PolicyCoverageSection } from '@maomada/k8s-ui/components/resources/renderers/PolicyCoverageSection'
+import type { PolicyCoverageSubject, ResourceRef } from '@maomada/k8s-ui'
 import { usePolicyCoverage } from '../../../api/policy'
 import { namespacesFromSearch } from '../../../utils/navigation'
 

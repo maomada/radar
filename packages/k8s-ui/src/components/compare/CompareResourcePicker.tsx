@@ -159,7 +159,7 @@ export function CompareResourcePicker({
             {candidates.length > 1
               ? 'No matches.'
               : coverageNote
-                ? `No other ${source.kind} found in what Radar could read.`
+                ? `No other ${source.kind} found in what KubeAtlas could read.`
                 : scopeNote
                   ? `No other ${source.kind} found in the collected namespaces.`
                   : `No other ${source.kind} available to compare against.`}

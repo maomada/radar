@@ -471,7 +471,7 @@ export function investigationEvidenceCoverageLimited(
 }
 
 /**
- * A model-authored all-clear must not overrule active adverse Radar evidence.
+ * A model-authored all-clear must not overrule active adverse KubeAtlas evidence.
  * Context-only warnings (for example a Helm ownership advisory) and ordinary
  * recent changes are deliberately excluded: they are useful context, not proof
  * that the investigated resource is unhealthy.
@@ -558,7 +558,7 @@ function healthTwinIds(
 }
 
 /**
- * One adverse Radar card on a healthy verdict, with the agent's position on
+ * One adverse KubeAtlas card on a healthy verdict, with the agent's position on
  * it: it read the card as not a live problem (explained), as related but not
  * what matters (related), never linked a reading to it (unaddressed), or
  * called it a cause or symptom while still reporting healthy (contradiction).
@@ -631,7 +631,7 @@ export function investigationHealthConflictGroups<
       !group.historical &&
       group.latest.relevance !== "broader" &&
       (group.latest.tier === "key" || group.latest.tier === "supporting") &&
-      // Radar's adverse tones run warning → alert → error; "high" severity
+      // KubeAtlas's adverse tones run warning → alert → error; "high" severity
       // from the Go side lands on alert, so leaving it out silently excused
       // every high-severity finding.
       (group.latest.tone === "warning" ||
@@ -648,7 +648,7 @@ export function investigationEvidenceConflictsWithHealthy(projection: {
 }
 
 /**
- * The banner over a healthy verdict points at adverse Radar evidence. When the
+ * The banner over a healthy verdict points at adverse KubeAtlas evidence. When the
  * agent placed a "not a problem" note on every such card, the evidence is
  * still shown but the reader has the agent's reason next to it, so the banner
  * can say that instead of accusing evidence the agent addressed.
@@ -748,15 +748,15 @@ export function investigationHistoryUnavailablePresentation(
     return {
       title: "Saved history is temporarily unavailable",
       detail: error
-        ? `${error}${/[.!?]$/.test(error) ? " " : ". "}Radar is retrying without discarding this run.`
-        : "Radar is retrying without discarding this run.",
+        ? `${error}${/[.!?]$/.test(error) ? " " : ". "}KubeAtlas is retrying without discarding this run.`
+        : "KubeAtlas is retrying without discarding this run.",
       loading: true,
     };
   }
   return {
     title: "Saved history is unavailable",
     detail:
-      state.error || "Radar could not restore this run from its saved history.",
+      state.error || "KubeAtlas could not restore this run from its saved history.",
     loading: false,
   };
 }

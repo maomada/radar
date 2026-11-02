@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/logsafe"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/internal/logsafe"
+	"github.com/maomada/radar/pkg/timeutil"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

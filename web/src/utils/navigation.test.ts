@@ -1,9 +1,9 @@
-import type { Topology } from '@skyhook-io/k8s-ui/types/core'
+import type { Topology } from '@maomada/k8s-ui/types/core'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   initNavigationMap,
   resetNavigationMap,
-} from '@skyhook-io/k8s-ui/utils/navigation'
+} from '@maomada/k8s-ui/utils/navigation'
 import { getNetworkPolicyResourceTarget, relatedResourcePath, resourcePath, withCrossViewParams, writeViewParams } from './navigation'
 
 afterEach(resetNavigationMap)
@@ -34,7 +34,7 @@ describe('resource navigation paths', () => {
     )
   })
 
-  it('preserves Radar virtual PodGroup navigation without an API group', () => {
+  it('preserves KubeAtlas virtual PodGroup navigation without an API group', () => {
     expect(
       relatedResourcePath({
         kind: 'PodGroup',

@@ -34,8 +34,8 @@ describe('signupUrlFor', () => {
   })
 })
 
-describe('exitFor — every blocked card has one exit, chosen by what Radar established', () => {
-  it('adopts a release Radar found, pinned to the Helm tab, named after the context', () => {
+describe('exitFor — every blocked card has one exit, chosen by what KubeAtlas established', () => {
+  it('adopts a release KubeAtlas found, pinned to the Helm tab, named after the context', () => {
     const h = handoffForBlocked('preflight', attempted({ mode: 'adopt', namespace: 'monitoring', release: 'radar-prod', stage: 'inspect' }))
     const exit = exitFor(APP, CARD, h, 'prod-east')
     expect(exit).toMatchObject({ install: true, label: 'Get the install command' })
@@ -52,10 +52,10 @@ describe('exitFor — every blocked card has one exit, chosen by what Radar esta
     expect(fresh.href).toContain('/install?method=helm&')
     expect(fresh.href).not.toContain('existing')
 
-    // A partial scan may have missed a Radar elsewhere; guessing fresh would
-    // reset its values, so the exit is Radar Cloud itself.
+    // A partial scan may have missed a KubeAtlas elsewhere; guessing fresh would
+    // reset its values, so the exit is upstream Cloud itself.
     const partial = exitFor(APP, CARD, handoffForBlocked('preflight', attempted({ partialScan: true })))
-    expect(partial).toMatchObject({ install: false, label: 'Open Radar Cloud' })
+    expect(partial).toMatchObject({ install: false, label: 'Open upstream Cloud' })
     expect(partial.href).toContain('/signup?')
     expect(partial.href).toContain('radar_outcome=blocked_preflight_checks_failed')
   })
@@ -66,9 +66,9 @@ describe('exitFor — every blocked card has one exit, chosen by what Radar esta
     expect(exit.href).toContain('/install?method=helm&')
   })
 
-  it('sends an unknown target to Radar Cloud, never to a guessed install', () => {
+  it('sends an unknown target to upstream Cloud, never to a guessed install', () => {
     const exit = exitFor(APP, CARD, handoffForBlocked('preflight'))
-    expect(exit).toMatchObject({ install: false, label: 'Open Radar Cloud' })
+    expect(exit).toMatchObject({ install: false, label: 'Open upstream Cloud' })
     expect(exit.href).toContain('/signup?')
   })
 
@@ -83,22 +83,22 @@ describe('exitFor — every blocked card has one exit, chosen by what Radar esta
     }
     // An unverified or unrecognized owner gets no patch for the wrong tool.
     const unknownOwner = exitFor(APP, CARD, handoffForBlocked('gitops', attempted({ mode: 'gitops', stage: 'inspect', method: '' })))
-    expect(unknownOwner).toMatchObject({ install: false, label: 'Open Radar Cloud' })
+    expect(unknownOwner).toMatchObject({ install: false, label: 'Open upstream Cloud' })
   })
 
   it('never turns an unsupported refusal into an install, even with a known release', () => {
     // Preparation can refuse after inspection found a release (incompatible
     // settings, a token Secret already present); the card still keeps that
-    // as evidence, but the exit is Radar Cloud, not an install over it.
+    // as evidence, but the exit is upstream Cloud, not an install over it.
     const exit = exitFor(APP, CARD, handoffForBlocked('unsupported', attempted({ mode: 'adopt', stage: 'prepare' })))
-    expect(exit).toMatchObject({ install: false, label: 'Open Radar Cloud' })
+    expect(exit).toMatchObject({ install: false, label: 'Open upstream Cloud' })
     expect(exit.href).toContain('radar_outcome=blocked_unsupported_install')
-    expect(exitFor(APP, CARD, handoffForBlocked('unsupported'))).toMatchObject({ install: false, label: 'Open Radar Cloud' })
+    expect(exitFor(APP, CARD, handoffForBlocked('unsupported'))).toMatchObject({ install: false, label: 'Open upstream Cloud' })
   })
 })
 
 describe('handoffForPrepareError', () => {
-  it('separates no cluster, inspection failed, Radar unreachable, and an unusable response', () => {
+  it('separates no cluster, inspection failed, KubeAtlas unreachable, and an unusable response', () => {
     expect(handoffForPrepareError(new ApiError('down', 503)).outcome).toBe('radar_not_connected_to_cluster')
     expect(handoffForPrepareError(new ApiError('nope', 500)).outcome).toBe('cluster_inspect_failed')
     expect(handoffForPrepareError(new TypeError('Failed to fetch')).outcome).toBe('radar_server_unreachable')
@@ -113,7 +113,7 @@ describe('handoffForPrepareError', () => {
 })
 
 describe('handoffForBlocked', () => {
-  it('names the refusal, does not offer a retry, and keeps what Radar attempted', () => {
+  it('names the refusal, does not offer a retry, and keeps what KubeAtlas attempted', () => {
     expect(handoffForBlocked('gitops')).toEqual({ outcome: 'blocked_gitops_managed_install', retryable: false, target: null })
     expect(handoffForBlocked('preflight')).toEqual({ outcome: 'blocked_preflight_checks_failed', retryable: false, target: null })
     expect(handoffForBlocked('unsupported')).toEqual({ outcome: 'blocked_unsupported_install', retryable: false, target: null })
@@ -157,21 +157,21 @@ describe('composeAdminNote — an ask, then the link, then the evidence', () => 
     }
     const exit = exitFor(APP, CARD, handoffForBlocked('preflight', blocked.attempted), where.context)
     const note = composeAdminNote(blocked, exit, where)
-    expect(note).toMatch(/^Request to connect cluster prod-east to Radar Cloud\n/)
+    expect(note).toMatch(/^Request to connect cluster prod-east to upstream Cloud\n/)
     expect(note).toContain("the identity in use (system:serviceaccount:default:limited) doesn't have the permissions to install it")
     expect(note).toContain('Nothing in the cluster was changed. Could someone with cluster access connect it?')
     // The link a person reads carries only what the page needs — no attribution.
     // The link a person reads keeps what the page needs to land prefilled,
     // plus one marker that the arrival came by handoff — no utm noise.
-    expect(note).toContain('Open Radar Cloud to get the install command (sign in, confirm the cluster name, pick Helm / Argo CD / Flux):\n' + `${APP}/install?name=prod-east&method=helm&via=admin_handoff`)
+    expect(note).toContain('Open upstream Cloud to get the install command (sign in, confirm the cluster name, pick Helm / Argo CD / Flux):\n' + `${APP}/install?name=prod-east&method=helm&via=admin_handoff`)
     expect(note).not.toContain('utm_')
     expect(note).not.toContain('radar_outcome')
-    expect(note).toContain("Details: No Radar install was found in the cluster; the check stopped while reading Helm's release records.")
+    expect(note).toContain("Details: No KubeAtlas install was found in the cluster; the check stopped while reading Helm's release records.")
     expect(note).toContain('inspect Helm release "radar" in namespace "radar" — User "system:serviceaccount:default:limited" cannot list resource "secrets" in API group "" in the namespace "radar".')
     expect(note).toContain('Please confirm nothing is already installed before a fresh install.')
     // The object of the request and the answer to "no SaaS", before the evidence.
-    expect(note.indexOf('What it is: Radar, the open-source Kubernetes tool')).toBeLessThan(note.indexOf('Details:'))
-    expect(note).toContain(`can run in-house as Radar Cloud Self-Managed: ${SELF_HOSTED_DOCS_URL}`)
+    expect(note.indexOf('What it is: KubeAtlas, the open-source Kubernetes tool')).toBeLessThan(note.indexOf('Details:'))
+    expect(note).toContain(`can run in-house as upstream Cloud Self-Managed: ${SELF_HOSTED_DOCS_URL}`)
     // Never the card's second person.
     expect(note).not.toMatch(/\byour\b/i)
   })
@@ -181,20 +181,20 @@ describe('composeAdminNote — an ask, then the link, then the evidence', () => 
     const exit = exitFor(APP, CARD, handoffForBlocked('gitops', blocked.attempted))
     const note = composeAdminNote(blocked, exit, where)
     expect(note).toContain('the install is managed by Flux, so connecting it is a values change in the repository')
-    expect(note).toContain('Open Radar Cloud to get the values patch for Flux (sign in, confirm the cluster name')
+    expect(note).toContain('Open upstream Cloud to get the values patch for Flux (sign in, confirm the cluster name')
     expect(note).toContain(`${APP}/install?existing=1&ns=radar&release=radar&method=flux&via=admin_handoff`)
     expect(note).toContain('Details: The release radar in namespace radar is managed by Flux.')
   })
 
-  it('quotes the refusal and sends the admin to Radar Cloud when Radar had no target', () => {
-    const blocked = { reason: 'unsupported' as const, message: 'Multiple Radar installations were found in this cluster.  Use `radar cloud install` to pick one.' }
+  it('quotes the refusal and sends the admin to upstream Cloud when KubeAtlas had no target', () => {
+    const blocked = { reason: 'unsupported' as const, message: 'Multiple KubeAtlas installations were found in this cluster.  Use `radar cloud install` to pick one.' }
     const exit = exitFor(APP, CARD, handoffForBlocked('unsupported'))
     const note = composeAdminNote(blocked, exit, { cluster: 'kind-dev' })
-    expect(note).toContain('Request to connect cluster kind-dev to Radar Cloud')
-    expect(note).toContain('Radar reported: Multiple Radar installations were found in this cluster. Use `radar cloud install` to pick one. Nothing in the cluster was changed.')
+    expect(note).toContain('Request to connect cluster kind-dev to upstream Cloud')
+    expect(note).toContain('KubeAtlas reported: Multiple KubeAtlas installations were found in this cluster. Use `radar cloud install` to pick one. Nothing in the cluster was changed.')
     expect(note).not.toContain('..')
-    expect(note).toContain('Could someone with cluster access connect it from Radar Cloud?')
-    expect(note).toContain('Open Radar Cloud:\n' + `${APP}/signup?via=admin_handoff`)
+    expect(note).toContain('Could someone with cluster access connect it from upstream Cloud?')
+    expect(note).toContain('Open upstream Cloud:\n' + `${APP}/signup?via=admin_handoff`)
   })
 
   it('trims a refusal to what was attempted and why, for the card as for the note', () => {
@@ -213,7 +213,7 @@ describe('composeAdminNote — an ask, then the link, then the evidence', () => 
     }
     const note = composeAdminNote(blocked, exitFor(APP, CARD, handoffForBlocked('preflight', blocked.attempted)))
     expect(note).toContain('the cluster refused part of the install — a policy, or something already there (details below)')
-    expect(note).toContain('Details: No Radar install was found in the cluster; the dry run of the install stopped. create Deployment "radar" in namespace "radar": an object already exists but is not owned by the current Helm release.')
+    expect(note).toContain('Details: No KubeAtlas install was found in the cluster; the dry run of the install stopped. create Deployment "radar" in namespace "radar": an object already exists but is not owned by the current Helm release.')
   })
 })
 
@@ -222,7 +222,7 @@ describe('composeFailureNote — finishing a connection the Hub already approved
     summary: 'Hub cluster "abc123" already exists. Do not rerun the installer; first inspect the existing attempt.',
     lines: ['The Helm upgrade did not start, so there was no rollback to verify.'],
     inspect: ['helm status radar -n radar', 'kubectl -n radar get secret/radar-cloud-config'],
-    clusterUrl: 'https://app.radarhq.io/c/abc123?utm_source=x',
+    clusterUrl: 'https://app.example.test/c/abc123?utm_source=x',
   }
 
   it('is offered only after the Hub approved and Helm ran', () => {
@@ -239,16 +239,16 @@ describe('composeFailureNote — finishing a connection the Hub already approved
       { kind: 'helm_provision_failed', message: 'helm install failed: timed out waiting for the condition', retrySafe: false, guidance },
       { context: 'prod-east' },
     )
-    expect(note).toMatch(/^Request to finish connecting cluster prod-east to Radar Cloud\n/)
-    expect(note).toContain('the Helm install of Radar failed. helm install failed: timed out waiting for the condition Could someone with cluster access take it from here?')
-    expect(note).toContain('The cluster in Radar Cloud (its page shows the recovery options):\nhttps://app.radarhq.io/c/abc123?via=admin_handoff')
+    expect(note).toMatch(/^Request to finish connecting cluster prod-east to upstream Cloud\n/)
+    expect(note).toContain('the Helm install of KubeAtlas failed. helm install failed: timed out waiting for the condition Could someone with cluster access take it from here?')
+    expect(note).toContain('The cluster in upstream Cloud (its page shows the recovery options):\nhttps://app.example.test/c/abc123?via=admin_handoff')
     expect(note).toContain('Details: Hub cluster "abc123" already exists. Do not rerun the installer; first inspect the existing attempt. The Helm upgrade did not start, so there was no rollback to verify.')
     expect(note).toContain('To inspect:\n  helm status radar -n radar\n  kubectl -n radar get secret/radar-cloud-config')
   })
 
   it('names the tunnel case for what it is', () => {
     const note = composeFailureNote({ kind: 'installed_but_tunnel_not_confirmed', message: 'No tunnel within 5 minutes.', retrySafe: false }, {})
-    expect(note).toContain('Radar was installed by Helm, but its connection to Radar Cloud could not be confirmed. No tunnel within 5 minutes.')
-    expect(note).toContain('cluster this cluster to Radar Cloud')
+    expect(note).toContain('KubeAtlas was installed by Helm, but its connection to upstream Cloud could not be confirmed. No tunnel within 5 minutes.')
+    expect(note).toContain('cluster this cluster to upstream Cloud')
   })
 })

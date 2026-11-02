@@ -15,10 +15,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/portforward"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/portforward"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // Background rediscovery. Prewarm runs discovery when Radar connects to a

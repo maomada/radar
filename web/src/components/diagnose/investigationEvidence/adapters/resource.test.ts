@@ -19,7 +19,7 @@ describe("resource cards scaled by an HPA", () => {
             name: "api-hpa",
             hpaSummary: {
               state,
-              summary: "summary from Radar",
+              summary: "summary from KubeAtlas",
               bounds: { min: 1, max: 5, current: 5, desired: 5 },
             },
           },

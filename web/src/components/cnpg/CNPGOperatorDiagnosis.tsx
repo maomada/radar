@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Badge, formatAge, type CNPGFleet } from '@skyhook-io/k8s-ui'
+import { Badge, formatAge, type CNPGFleet } from '@maomada/k8s-ui'
 import type { CNPGOperatorDiagnosis, CNPGOperatorReconcilePod, CNPGReadCoverage } from '../../api/cnpg-recovery'
 import { buildWorkloadPath } from '../../utils/navigation'
 import { GrantText, Mono, Sub } from '../workspace/layout'

@@ -3,8 +3,8 @@ package issues
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // classifyInput is the minimal signal the classifier reads. It mirrors the

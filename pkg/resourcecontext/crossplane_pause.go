@@ -4,8 +4,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/conditions"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // CrossplanePauseState describes a CRD's exact annotation intent independently of readiness.

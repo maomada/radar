@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/ownership"
 )
 
 // Argo CD's status.resources describes the destination it last compared,

@@ -1,13 +1,13 @@
 import { useMemo, type ReactNode } from 'react'
-import { RadarUpgradeContext, type RadarUpgradeActions } from '@skyhook-io/k8s-ui'
+import { RadarUpgradeContext, type RadarUpgradeActions } from '@maomada/k8s-ui'
 import { useCapabilities, useVersionCheck } from '../api/client'
 import { IN_CLUSTER_UPGRADE_URL } from '../utils/version'
 import { useRadarUpgradeHost } from './RadarUpgradeHost'
 
 /**
- * Supplies the "Upgrade Radar" action to the inline notes k8s-ui renders for
- * features the connected Radar is too old to serve. A host that owns upgrades
- * (Radar Cloud) gets the request; standalone Radar links to the instructions
+ * Supplies the "Upgrade KubeAtlas" action to the inline notes k8s-ui renders for
+ * features the connected KubeAtlas is too old to serve. A host that owns upgrades
+ * (upstream Cloud) gets the request; standalone KubeAtlas links to the instructions
  * for how it was installed.
  */
 export function RadarUpgradeProvider({ children }: { children: ReactNode }) {

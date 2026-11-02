@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	timeline "github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/resourceid"
+	timeline "github.com/maomada/radar/pkg/timeline"
 )
 
 // RunConformance runs the EventStore contract suite against a fresh store per

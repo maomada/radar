@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 type Connection struct {

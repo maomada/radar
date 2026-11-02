@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 func TestBuildTimelineStoreConfig(t *testing.T) {
@@ -71,7 +71,7 @@ func TestBuildTimelineStoreConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BuildTimelineStoreConfig: %v", err)
 		}
-		wantPath := filepath.Join(home, ".radar", "timeline.db")
+		wantPath := filepath.Join(home, ".kubeatlas", "timeline.db")
 		if got.Path != wantPath {
 			t.Fatalf("sqlite default path = %q, want %q", got.Path, wantPath)
 		}

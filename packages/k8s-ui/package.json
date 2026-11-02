@@ -1,9 +1,10 @@
 {
-  "name": "@skyhook-io/k8s-ui",
+  "name": "@maomada/k8s-ui",
   "version": "0.2.0",
+  "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/skyhook-io/radar",
+    "url": "https://github.com/maomada/radar",
     "directory": "packages/k8s-ui"
   },
   "type": "module",

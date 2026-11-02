@@ -1,7 +1,7 @@
 import { clsx } from 'clsx'
 import { AlertTriangle, Bug, RefreshCw } from 'lucide-react'
 import { timelineDatabaseError } from '../../api/client'
-import { SEVERITY_TEXT } from '@skyhook-io/k8s-ui'
+import { SEVERITY_TEXT } from '@maomada/k8s-ui'
 
 const SECONDARY_BUTTON =
   'flex items-center gap-2 px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border-light rounded-lg hover:bg-theme-hover transition-colors'
@@ -9,7 +9,7 @@ const SECONDARY_BUTTON =
 // TimelineLoadError is the full-screen state when the timeline has nothing to
 // show. An unreachable PostgreSQL database gets its own copy: it says the
 // database is the problem and where to look. The driver's error stays in
-// Radar's logs and the diagnostics overlay.
+// KubeAtlas's logs and the diagnostics overlay.
 export function TimelineLoadError({
   error,
   onRetry,
@@ -34,11 +34,11 @@ export function TimelineLoadError({
         <>
           <p className="text-base text-theme-text-secondary">Timeline history is unavailable</p>
           <p className="max-w-md text-center text-sm">
-            Radar can't connect to its PostgreSQL database, so changes aren't being recorded. It keeps
+            KubeAtlas can't connect to its PostgreSQL database, so changes aren't being recorded. It keeps
             retrying, and this page recovers on its own once the database is back.
           </p>
           <p className="max-w-md text-center text-xs">
-            Radar's logs have the details: search them for <code className="font-mono">[timeline]</code>.
+            KubeAtlas's logs have the details: search them for <code className="font-mono">[timeline]</code>.
           </p>
         </>
       ) : (
@@ -82,7 +82,7 @@ export function TimelineStaleNote({
       <AlertTriangle className={`h-3.5 w-3.5 shrink-0 ${SEVERITY_TEXT.warning}`} />
       {databaseDown ? (
         <span>
-          Radar can't connect to its PostgreSQL database, so the {subject} may be stale. Search Radar's logs
+          KubeAtlas can't connect to its PostgreSQL database, so the {subject} may be stale. Search KubeAtlas's logs
           for <code className="font-mono">[timeline]</code>.
         </span>
       ) : (

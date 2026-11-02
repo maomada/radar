@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 	"slices"
 	"testing"
 )

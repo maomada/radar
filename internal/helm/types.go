@@ -5,8 +5,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/helmhistory"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 type HelmOperation = helmhistory.Operation

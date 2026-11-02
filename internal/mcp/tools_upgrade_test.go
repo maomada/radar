@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/upgrade"
-	"github.com/skyhook-io/radar/pkg/upgradereadiness"
+	"github.com/maomada/radar/internal/upgrade"
+	"github.com/maomada/radar/pkg/upgradereadiness"
 )
 
 func upgradeScanFixture() *upgradereadiness.ScanResults {

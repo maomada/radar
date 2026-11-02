@@ -4,7 +4,7 @@
 package traffic
 
 import (
-	pkgtraffic "github.com/skyhook-io/radar/pkg/traffic"
+	pkgtraffic "github.com/maomada/radar/pkg/traffic"
 )
 
 // Re-export types from pkg/traffic so existing consumers don't need dual imports.

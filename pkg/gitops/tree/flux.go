@@ -5,8 +5,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // Older helm-controllers keep no status.inventory on a HelmRelease: they leave

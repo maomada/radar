@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 func TestParseNeighborhoodOptions_Defaults(t *testing.T) {

@@ -3,7 +3,7 @@ package cnpg
 import (
 	"k8s.io/apimachinery/pkg/types"
 
-	auth "github.com/skyhook-io/radar/internal/auth"
+	auth "github.com/maomada/radar/internal/auth"
 )
 
 type CNPGRuntimeObjectRef struct {

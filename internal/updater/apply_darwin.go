@@ -102,7 +102,7 @@ func Relaunch() error {
 }
 
 // findAppBundle walks up the path from the executable to find the .app directory.
-// e.g., /Applications/Radar.app/Contents/MacOS/radar-desktop → /Applications/Radar.app
+// e.g., /Applications/Radar.app/Contents/MacOS/kubeatlas-desktop → /Applications/Radar.app
 func findAppBundle(exe string) string {
 	path := exe
 	for {

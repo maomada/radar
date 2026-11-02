@@ -100,7 +100,7 @@ export function TrafficSummary({ data, onNavigate }: TrafficSummaryProps) {
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme-border/50">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-theme-text-tertiary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">Live Traffic</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">实时流量</span>
         </div>
         {hasFlows && (
           <span className="text-[11px] text-theme-text-tertiary">
@@ -119,7 +119,7 @@ export function TrafficSummary({ data, onNavigate }: TrafficSummaryProps) {
                 <ArrowRightLeft className="w-3 h-3 text-theme-text-tertiary shrink-0" />
                 <span className="text-theme-text-primary truncate">{flow.dst}</span>
                 <span className="text-xs text-theme-text-tertiary shrink-0 ml-auto">
-                  {flow.connections} conn
+                  {flow.connections} 个连接
                 </span>
               </div>
             ))}
@@ -129,11 +129,11 @@ export function TrafficSummary({ data, onNavigate }: TrafficSummaryProps) {
           <div className="flex items-stretch gap-2 px-3 py-1.5 h-full">
             <div className="flex flex-col justify-center gap-1.5 w-[105px] shrink-0">
               <p className="text-[11px] leading-snug text-theme-text-secondary">
-                Visualize live service-to-service network flows and external dependencies
+                查看实时服务间网络流量和外部依赖
               </p>
               {data && (
                 <span className="text-[10px] text-theme-text-tertiary">
-                  Source: {data.source}
+                  来源：{data.source}
                 </span>
               )}
             </div>
@@ -145,7 +145,7 @@ export function TrafficSummary({ data, onNavigate }: TrafficSummaryProps) {
       </div>
 
       <div className="px-4 py-1.5 border-t border-theme-border/50 flex items-center justify-end gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-theme-text-secondary group-hover:text-theme-text-primary transition-colors">
-        Open Live Traffic
+        打开实时流量
         <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
       </div>
       </div>

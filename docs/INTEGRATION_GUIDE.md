@@ -1,6 +1,6 @@
 # CRD Integration Guide
 
-Radar already discovers custom resources and provides generic details, status,
+KubeAtlas already discovers custom resources and provides generic details, status,
 MCP access and, for CRDs that declare them, Kubernetes printer columns. An
 integration adds useful interpretation and relationships—not just another kind
 in a list. This guide also applies to extension APIs such as OpenShift Routes;
@@ -18,20 +18,20 @@ don't assume every discoverable resource has a CRD object.
   operate the tool; otherwise identify a testing partner before starting.
 - [ ] Identify resources by **API group + kind/plural**, using discovery for served
   versions and namespace scope. Even an apparently unique kind may collide with
-  an integration Radar doesn't curate. Examples: `Route`, `Cluster`, `Backup`,
+  an integration KubeAtlas doesn't curate. Examples: `Route`, `Cluster`, `Backup`,
   `Subscription` and `BGPPeer`.
 - [ ] For supported-resource startup watching and fallback discovery, update
   `supportedCRDFallbacks` in [dynamic_cache.go](../internal/k8s/dynamic_cache.go).
   Entries carry group, versions, plural, kind and scope; `WarmupCommonCRDs` consumes
   this registry. Don't add a separate name-only warmup list. Fallback registration
   probes access; an entry is not proof that the API is installed or readable.
-- [ ] Check the [Helm ClusterRole](../deploy/helm/radar/templates/clusterrole.yaml) and
-  [values](../deploy/helm/radar/values.yaml) for the new API group. Follow existing
+- [ ] Check the [Helm ClusterRole](../deploy/helm/kubeatlas/templates/clusterrole.yaml) and
+  [values](../deploy/helm/kubeatlas/values.yaml) for the new API group. Follow existing
   per-group read-access toggles; don't rely on an opt-in wildcard or request write
   permissions for a read-only integration. The chart coverage test checks groups,
   not every resource/verb or rendered toggle combination.
-- [ ] Make an explicit Radar Cloud caller-permission decision in
-  `deploy/helm/radar/files/integration-read-baseline.yaml`: grant, existing, or
+- [ ] Make an explicit legacy upstream Radar Cloud caller-permission decision in
+  `deploy/helm/kubeatlas/files/integration-read-baseline.yaml`: grant, existing, or
   withhold with a reason. Check exact scope and credential-bearing fields; a
   collection grant or renderer is not permission approval. See
   [the default read policy](cloud-rbac-baseline.md). Coverage tests compare the
@@ -233,9 +233,9 @@ unknown, partial and denied values first: every piece here exists to keep them.
     standard detail views.
   - Once a flag has shipped, its responses only grow. A new route or action,
     a newly required parameter, or a newly bound fact on an existing action
-    needs a new flag: an older Radar answers those with 404 or 400, not with
-    "needs a newer Radar".
-  - A record Radar writes onto a cluster object (CNPG's restore-validation
+    needs a new flag: an older KubeAtlas build answers those with 404 or 400, not
+    with "needs a newer KubeAtlas".
+  - A record KubeAtlas writes onto a cluster object (CNPG's restore-validation
     note) carries a format version, and readers skip a version they do not
     know: Radars of other versions read the same object.
   - An action error `code` tells the client the write was refused before it

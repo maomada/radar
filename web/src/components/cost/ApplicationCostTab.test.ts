@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AppWorkload } from '@skyhook-io/k8s-ui'
+import type { AppWorkload } from '@maomada/k8s-ui'
 import { applicationCostWorkloads, getApplicationCostState } from './ApplicationCostTab'
 import {
   ApiError,
@@ -196,7 +196,7 @@ describe('getApplicationCostState', () => {
   })
 
   it('does not report a cross-origin refusal as missing access', () => {
-    const refused = new ApiError('Radar refused this request because it came from http://radar.internal', 403, {
+    const refused = new ApiError('KubeAtlas refused this request because it came from http://radar.internal', 403, {
       error_code: 'cross_origin_refused',
     })
     expect(getApplicationCostState(undefined, undefined, { currentError: refused })).toBe('load_error')
