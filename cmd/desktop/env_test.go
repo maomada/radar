@@ -62,7 +62,7 @@ export UNRELATED=not-captured
 				"PATH":                     "/usr/bin:/bin",
 				"KUBECONFIG":               "/tmp/a:/tmp/b",
 				"AWS_REGION":               "eu-west-1",
-				"KUBEATLAS_HUB_URL":            "https://hub.example.test",
+				"KUBEATLAS_HUB_URL":        "https://hub.example.test",
 				"ANTHROPIC_AUTH_TOKEN":     "fake=token==",
 				"CLAUDE_CODE_USE_BEDROCK":  "1",
 				"ANTHROPIC_CUSTOM_HEADERS": "  first=value\nKUBECONFIG=/tmp/wrong\nANTHROPIC_FAKE_NAME=not-a-variable\nlast=value  \n",

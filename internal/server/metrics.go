@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/maomada/radar/internal/timeline"
 	"github.com/maomada/radar/pkg/perfstats"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // metricsTimelinePingTimeout bounds the database round trip a scrape makes, so a

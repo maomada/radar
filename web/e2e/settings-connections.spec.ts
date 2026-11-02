@@ -16,8 +16,8 @@ for (const [width, height] of [[1280, 800], [1366, 768], [1440, 900], [1920, 108
     const dialog = await openSettings(page, 'Overview')
     await expect(page.getByRole('button', { name: '配置文件', exact: true })).toBeVisible()
     await expect(dialog.getByRole('button', { name: 'Update available', exact: true })).toBeVisible()
-    await expect(dialog.getByText(/Radar v1\.14\.1-test/)).toHaveCount(1)
-    await expect(dialog.getByText(/Radar vv/)).toHaveCount(0)
+    await expect(dialog.getByText(/KubeAtlas v1\.14\.1-test/)).toHaveCount(1)
+    await expect(dialog.getByText(/KubeAtlas vv/)).toHaveCount(0)
     await expect(dialog.getByText(/you're on/)).toHaveCount(0)
     await dialog.evaluate(async el => { await Promise.all(el.getAnimations({ subtree: true }).filter(animation => animation.effect?.getTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => {}))) })
     const layout = await dialog.evaluate(el => {
@@ -1172,7 +1172,7 @@ for (const integration of integrations) {
     await page.keyboard.press('Escape')
     await dialog.getByRole('button', { name: '保存启动设置', exact: true }).click()
     await expect.poll(() => state.file().browser).toBe('Safari')
-    await expect(dialog.getByText('已保存。重启 Radar 后生效。', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('已保存。重启 KubeAtlas 后生效。', { exact: true })).toBeVisible()
     await expect(dialog).toBeVisible()
     const reviewLabel = integration.kind === 'metrics' ? '查看指标' : integration.kind === 'cost' ? '查看成本' : '查看Argo CD'
     await dialog.getByRole('button', { name: reviewLabel, exact: true }).click()
@@ -1735,7 +1735,7 @@ test('a pinned KUBEATLAS_AI_CLI_BIN that works again is picked up from Check aga
     json: fixed ? { ...aiAgents, cliOverride: true } : { agents: [], enabled: true, eligible: true, cliOverride: true, consented: {} },
   }))
   const dialog = await openSettings(page, 'AI investigations')
-  await expect(dialog.getByText('Radar 无法运行 KUBEATLAS_AI_CLI_BIN', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('KubeAtlas 无法运行 KUBEATLAS_AI_CLI_BIN', { exact: true })).toBeVisible()
   await expect(dialog.getByText('未找到受支持的 Agent CLI', { exact: true })).toHaveCount(0)
 
   fixed = true

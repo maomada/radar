@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/maomada/radar/internal/opencost"
 	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestCostInterfaceThroughMCP(t *testing.T) {

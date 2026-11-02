@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/maomada/radar/internal/k8s"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

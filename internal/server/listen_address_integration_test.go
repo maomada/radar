@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/maomada/radar/internal/mcp"
 	"github.com/maomada/radar/internal/server"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestExplicitInterfaceMCPConnection(t *testing.T) {

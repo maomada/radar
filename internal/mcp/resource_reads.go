@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/maomada/radar/internal/k8s"
 	"github.com/maomada/radar/internal/readplan"
 	"github.com/maomada/radar/internal/readscope"
@@ -18,6 +17,7 @@ import (
 	"github.com/maomada/radar/pkg/k8score"
 	"github.com/maomada/radar/pkg/readreason"
 	"github.com/maomada/radar/pkg/resourceapi"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"

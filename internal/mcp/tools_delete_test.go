@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/maomada/radar/internal/k8s"
 	"github.com/maomada/radar/pkg/topology"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
