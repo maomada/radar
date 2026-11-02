@@ -214,6 +214,32 @@ func (d contextDialAdapter) DialContext(ctx context.Context, network, address st
 	return d.d.DialContext(ctx, network, address)
 }
 
+const maxHelmProxyResponseHeaderBytes = 64 << 10
+
+type helmProxyHeaderReader struct {
+	reader    io.Reader
+	remaining int64
+	limited   bool
+}
+
+func (r *helmProxyHeaderReader) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if !r.limited {
+		return r.reader.Read(p)
+	}
+	if r.remaining <= 0 {
+		return 0, fmt.Errorf("proxy CONNECT response headers exceed 64 KiB")
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:int(r.remaining)]
+	}
+	n, err := r.reader.Read(p)
+	r.remaining -= int64(n)
+	return n, err
+}
+
 func connectHelmProxy(ctx context.Context, conn net.Conn, route *url.URL, target string) (net.Conn, error) {
 	done := make(chan struct{})
 	go func() {
@@ -247,7 +273,8 @@ func connectHelmProxy(ctx context.Context, conn net.Conn, route *url.URL, target
 		_ = conn.Close()
 		return nil, err
 	}
-	br := bufio.NewReader(conn)
+	headerReader := &helmProxyHeaderReader{reader: conn, remaining: maxHelmProxyResponseHeaderBytes, limited: true}
+	br := bufio.NewReader(headerReader)
 	resp, err := http.ReadResponse(br, &http.Request{Method: http.MethodConnect})
 	if err != nil || resp.StatusCode != http.StatusOK {
 		_ = conn.Close()
@@ -256,6 +283,7 @@ func connectHelmProxy(ctx context.Context, conn net.Conn, route *url.URL, target
 		}
 		return nil, fmt.Errorf("proxy refused CONNECT: %s", resp.Status)
 	}
+	headerReader.limited = false
 	_ = conn.SetDeadline(time.Time{})
 	if br.Buffered() > 0 {
 		return &helmBufferedConn{Conn: conn, reader: br}, nil

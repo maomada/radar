@@ -222,6 +222,7 @@ func TestHelmRepositoryHTTPProxyCONNECTPinsTargetAndSeparatesCredentials(t *test
 	defer clientConn.Close()
 	defer proxyConn.Close()
 	proxyURL, _ := url.Parse("http://proxy-user:proxy-pass@proxy.test:8080")
+	tunnelPayload := strings.Repeat("x", maxHelmProxyResponseHeaderBytes+1)
 	n := &helmRepositoryNetwork{
 		resolver: helmResolverFunc(func(context.Context, string) ([]net.IPAddr, error) {
 			return []net.IPAddr{{IP: net.ParseIP("10.20.30.40")}}, nil
@@ -258,7 +259,14 @@ func TestHelmRepositoryHTTPProxyCONNECTPinsTargetAndSeparatesCredentials(t *test
 			done <- fmt.Errorf("unexpected tunneled origin credentials: %#v", origin.Header)
 			return
 		}
-		_, _ = io.WriteString(proxyConn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+		if _, err := fmt.Fprintf(proxyConn, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nConnection: close\r\n\r\n", len(tunnelPayload)); err != nil {
+			done <- err
+			return
+		}
+		if _, err := io.WriteString(proxyConn, tunnelPayload); err != nil {
+			done <- err
+			return
+		}
 		done <- nil
 	}()
 	req, _ := http.NewRequest(http.MethodGet, "http://origin.test/resource", nil)
@@ -267,8 +275,84 @@ func TestHelmRepositoryHTTPProxyCONNECTPinsTargetAndSeparatesCredentials(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != tunnelPayload {
+		t.Fatalf("tunnel payload length = %d, want %d", len(body), len(tunnelPayload))
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestHelmRepositoryProxyRejectsOversizedCONNECTHeaders(t *testing.T) {
+	response := "HTTP/1.1 200 Connection Established\r\nX-Proxy-Detail: " +
+		strings.Repeat("x", maxHelmProxyResponseHeaderBytes) + "\r\n\r\n"
+	clientConn, proxyDone := startHelmProxyResponse(t, response)
+	proxyURL, _ := url.Parse("http://proxy.test")
+	conn, err := connectHelmProxy(context.Background(), clientConn, proxyURL, "10.20.30.40:80")
+	if conn != nil {
+		_ = conn.Close()
+		t.Fatal("oversized CONNECT response unexpectedly returned a tunnel")
+	}
+	if err == nil || !strings.Contains(err.Error(), "64 KiB") {
+		t.Fatalf("oversized CONNECT response error = %v", err)
+	}
+	if _, err := clientConn.Write([]byte("x")); err == nil {
+		t.Fatal("connection remained open after oversized CONNECT response")
+	}
+	select {
+	case <-proxyDone:
+	case <-time.After(time.Second):
+		t.Fatal("proxy response writer did not stop after connection close")
+	}
+}
+
+func TestHelmRepositoryProxyRejectsIncompleteCONNECTHeaders(t *testing.T) {
+	response := "HTTP/1.1 200 Connection Established\r\nX-Proxy-Detail: incomplete"
+	clientConn, proxyDone := startHelmProxyResponse(t, response)
+	proxyURL, _ := url.Parse("http://proxy.test")
+	conn, err := connectHelmProxy(context.Background(), clientConn, proxyURL, "10.20.30.40:80")
+	if conn != nil {
+		_ = conn.Close()
+		t.Fatal("incomplete CONNECT response unexpectedly returned a tunnel")
+	}
+	if err == nil {
+		t.Fatal("incomplete CONNECT response unexpectedly succeeded")
+	}
+	select {
+	case <-proxyDone:
+	case <-time.After(time.Second):
+		t.Fatal("proxy response writer did not stop")
+	}
+}
+
+func startHelmProxyResponse(t *testing.T, response string) (net.Conn, <-chan error) {
+	t.Helper()
+	clientConn, proxyConn := net.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		defer proxyConn.Close()
+		request, err := http.ReadRequest(bufio.NewReader(proxyConn))
+		if err != nil {
+			done <- err
+			return
+		}
+		if request.Method != http.MethodConnect {
+			done <- fmt.Errorf("request method = %q, want CONNECT", request.Method)
+			return
+		}
+		_, err = io.WriteString(proxyConn, response)
+		done <- err
+	}()
+	t.Cleanup(func() {
+		_ = clientConn.Close()
+		_ = proxyConn.Close()
+	})
+	return clientConn, done
 }
