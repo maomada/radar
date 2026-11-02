@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -90,5 +91,26 @@ func TestCarettaAppliesHeaders(t *testing.T) {
 	}
 	if got := gotAuth.Load().(string); got != "Bearer caretta-token" {
 		t.Errorf("probe Authorization = %q, want %q", got, "Bearer caretta-token")
+	}
+}
+
+func TestCarettaNamespaceRemainsEncodedQueryParameter(t *testing.T) {
+	var gotPath string
+	var gotValues url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotValues = r.URL.Query()
+		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+	}))
+	defer server.Close()
+	c := &CarettaSource{httpClient: server.Client()}
+	if _, err := c.queryPrometheusForFlows(context.Background(), server.URL, "/metrics/base", FlowOptions{Namespace: "tenant&query=override"}); err != nil {
+		t.Fatalf("queryPrometheusForFlows: %v", err)
+	}
+	if gotPath != "/metrics/base/api/v1/query" {
+		t.Fatalf("request path = %q", gotPath)
+	}
+	if len(gotValues) != 1 || gotValues.Get("query") != `caretta_links_observed{client_namespace="tenant&query=override"} or caretta_links_observed{server_namespace="tenant&query=override"}` {
+		t.Fatalf("query parameters = %#v", gotValues)
 	}
 }

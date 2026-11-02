@@ -144,6 +144,7 @@ spec:
 }
 
 func TestResolvePreparedChartPinsExactArchiveAndDigest(t *testing.T) {
+	withTestHelmHTTPClient(t)
 	chartObject := &chart.Chart{
 		Metadata: &chart.Metadata{APIVersion: "v2", Name: "radar", Version: "1.6.0", Type: "application"},
 		Templates: []*chart.File{{Name: "templates/deployment.yaml", Data: []byte(`apiVersion: apps/v1
@@ -190,7 +191,8 @@ entries:
 	}))
 	defer server.Close()
 
-	loaded, exact, err := (&Client{}).resolvePreparedChart(context.Background(), &InstallRequest{
+	client := &Client{repositoryNetwork: testHelmRepositoryNetwork()}
+	loaded, exact, err := client.resolvePreparedChart(context.Background(), &InstallRequest{
 		ChartName: "radar", Repository: server.URL,
 	}, "1.5.4")
 	if err != nil {
@@ -201,7 +203,7 @@ entries:
 	}
 
 	index = strings.Replace(validIndex, fmt.Sprintf("    digest: %s\n", hex.EncodeToString(digest[:])), "", 1)
-	_, _, err = (&Client{}).resolvePreparedChart(context.Background(), &InstallRequest{
+	_, _, err = client.resolvePreparedChart(context.Background(), &InstallRequest{
 		ChartName: "radar", Repository: server.URL,
 	}, "1.5.4")
 	if err == nil || !strings.Contains(err.Error(), "has no SHA-256 digest") {

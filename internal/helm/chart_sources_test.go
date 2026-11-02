@@ -101,8 +101,9 @@ func chartSourceTestServer(t *testing.T, versions ...string) *httptest.Server {
 
 func newChartSourceTestClient(t *testing.T) *Client {
 	t.Helper()
+	withTestHelmHTTPClient(t)
 	dir := t.TempDir()
-	return &Client{settings: &cli.EnvSettings{RepositoryConfig: filepath.Join(dir, "repositories.yaml"), RepositoryCache: dir}}
+	return &Client{settings: &cli.EnvSettings{RepositoryConfig: filepath.Join(dir, "repositories.yaml"), RepositoryCache: dir}, repositoryNetwork: testHelmRepositoryNetwork()}
 }
 
 func TestEnsureClassicRepositoryDoesNotHoldMutexAcrossNetwork(t *testing.T) {

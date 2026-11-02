@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/skyhook-io/radar/internal/argocd"
+	"github.com/skyhook-io/radar/internal/auth"
 	"github.com/skyhook-io/radar/internal/config"
 	"github.com/skyhook-io/radar/pkg/argoapi"
 )
@@ -111,6 +113,57 @@ func putArgoCD(t *testing.T, s *Server, body string) *httptest.ResponseRecorder 
 	w := httptest.NewRecorder()
 	s.handleApplyArgoCDConfig(w, req)
 	return w
+}
+
+func TestApplyArgoCDConfig_CloudRejectsNonOwnersBeforeReadingBody(t *testing.T) {
+	t.Setenv("RADAR_CLOUD_MODE", "true")
+	for _, group := range []string{"", "radar:system", "radar:viewer", "radar:member"} {
+		t.Run(group, func(t *testing.T) {
+			s := setupArgoCDTest(t)
+			if err := config.Save(config.Config{ArgoCDURL: "https://previous.example"}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(config.Path())
+			if err != nil {
+				t.Fatal(err)
+			}
+			body := strings.NewReader(`{"argoCdUrl":"http://169.254.169.254","argoCdToken":"test-token"}`)
+			bodyLen := body.Len()
+			req := httptest.NewRequest(http.MethodPut, "/api/integrations/argocd", body)
+			req = req.WithContext(auth.ContextWithUser(req.Context(), &auth.User{Username: "test-user", Groups: []string{group}}))
+			w := httptest.NewRecorder()
+			s.handleApplyArgoCDConfig(w, req)
+			if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), auth.ErrCodeCloudRoleInsufficient) {
+				t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+			}
+			if body.Len() != bodyLen {
+				t.Fatal("denied request consumed its configuration body")
+			}
+			after, err := os.ReadFile(config.Path())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) {
+				t.Fatal("denied request changed saved configuration")
+			}
+		})
+	}
+}
+
+func TestApplyArgoCDConfig_CloudOwnerCanConfigureEndpoint(t *testing.T) {
+	t.Setenv("RADAR_CLOUD_MODE", "true")
+	s := setupArgoCDTest(t)
+	srv := fakeArgoCDServer(t)
+	req := httptest.NewRequest(http.MethodPut, "/api/integrations/argocd", strings.NewReader(`{"argoCdUrl":"`+srv.URL+`","argoCdToken":"good-token"}`))
+	req = req.WithContext(auth.ContextWithUser(req.Context(), &auth.User{Username: "test-owner", Groups: []string{"radar:owner"}}))
+	w := httptest.NewRecorder()
+	s.handleApplyArgoCDConfig(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if saved := config.Load(); saved.ArgoCDURL != srv.URL || saved.ArgoCDToken != "good-token" {
+		t.Fatal("owner configuration was not persisted")
+	}
 }
 
 func TestApplyArgoCDConfig_ReplaceToken(t *testing.T) {

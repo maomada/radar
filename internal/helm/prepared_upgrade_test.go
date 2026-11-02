@@ -291,6 +291,7 @@ func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *t
 }
 
 func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T) {
+	withTestHelmHTTPClient(t)
 	cfg := memoryActionConfig(t)
 	currentChart := loadUpstreamRadarTestChart(t)
 	currentChart.Metadata.Version = "1.6.0"
@@ -329,7 +330,8 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 			"auth": map[string]any{"mode": "proxy"},
 		},
 	}
-	prepared, err := (&Client{}).prepareCloudUpgradeWith(context.Background(), cfg, request, "1.5.4")
+	client := &Client{repositoryNetwork: testHelmRepositoryNetwork()}
+	prepared, err := client.prepareCloudUpgradeWith(context.Background(), cfg, request, "1.5.4")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -378,12 +380,13 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 }
 
 func TestResolvePreparedChartSummaryUsesVerifiedArchive(t *testing.T) {
+	withTestHelmHTTPClient(t)
 	loaded := loadUpstreamRadarTestChart(t)
 	loaded.Metadata.Version = "1.7.0"
 	loaded.Metadata.AppVersion = "1.7.2"
 	server := preparedChartServer(t, loaded)
 	defer server.Close()
-	client := &Client{}
+	client := &Client{repositoryNetwork: testHelmRepositoryNetwork()}
 	summary, err := client.ResolvePreparedChartSummary(context.Background(), &InstallRequest{
 		ReleaseName: "radar", Namespace: "radar", ChartName: "radar", Repository: server.URL,
 	}, "1.5.4")
