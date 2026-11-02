@@ -229,7 +229,7 @@ func parseCookieValue(cookieValue, secret, remoteAddr string) *Session {
 
 	// Check expiration
 	if time.Now().Unix() > p.ExpiresAt {
-		log.Printf("[auth] Session cookie expired for user %q — prompting re-auth", p.Username)
+		log.Print("[auth] Session cookie expired — prompting re-auth")
 		return nil
 	}
 
@@ -248,7 +248,7 @@ func parseCookieValue(cookieValue, secret, remoteAddr string) *Session {
 func buildCookieValue(p cookiePayload, secret string) string {
 	data, err := json.Marshal(p)
 	if err != nil {
-		log.Fatalf("[auth] Failed to marshal session cookie payload for user %q: %v", p.Username, err)
+		log.Fatal("[auth] Failed to marshal session cookie payload")
 	}
 	encoded := base64.RawURLEncoding.EncodeToString(data)
 	return encoded + "." + signData(encoded, secret)

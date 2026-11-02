@@ -175,7 +175,7 @@ func Authenticate(cfg Config) func(http.Handler) http.Handler {
 }
 
 func rejectDisallowedIdentity(w http.ResponseWriter, username string, cloud bool) {
-	log.Printf("[auth] rejected identity with disallowed principal (user=%q, cloud=%v)", username, cloud)
+	log.Printf("[auth] rejected identity with disallowed principal (cloud=%v)", cloud)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusForbidden)
 	json.NewEncoder(w).Encode(map[string]string{
