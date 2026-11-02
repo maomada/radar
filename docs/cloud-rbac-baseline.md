@@ -1,5 +1,7 @@
 # Legacy upstream Radar Cloud default integration-read policy
 
+This document retains an upstream compatibility policy for provenance only. KubeAtlas rejects Cloud enablement; following this policy does not enable a supported KubeAtlas Cloud mode.
+
 The legacy upstream Radar Cloud connector collects resources with its service account. A user's
 Kubernetes permissions are separate: the default tiers bind viewer/member/owner
 to `view`/`edit`/`admin`, which do not reliably include operator CRDs. Vendor role

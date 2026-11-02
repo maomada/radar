@@ -237,7 +237,7 @@ The stdio mode is intended only for catalog introspection; normal KubeAtlas sess
 
 ## Setup Instructions
 
-Connect your AI tool to KubeAtlas's MCP server. KubeAtlas must be running first (`kubeatlas` or `kubectl radar`). The examples use the default endpoint `http://localhost:9280/mcp`; if KubeAtlas runs on another port, use the endpoint shown in KubeAtlas's MCP dialog.
+Connect your AI tool to KubeAtlas's MCP server. KubeAtlas must be running first (`kubeatlas` or `kubectl kubeatlas`). The examples use the default endpoint `http://localhost:9280/mcp`; if KubeAtlas runs on another port, use the endpoint shown in KubeAtlas's MCP dialog.
 
 ### Claude Code
 

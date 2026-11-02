@@ -1,6 +1,6 @@
 // Package reachability runs a network reachability probe from INSIDE the cluster
 // by creating a short-lived, restricted, self-destructing Job that runs
-// `radar probe`. It is the only mutating action in the diagnostics surface and is
+// `kubeatlas probe`. It is the only mutating action in the diagnostics surface and is
 // hemmed in: it runs as the CALLER's RBAC (the passed impersonated client), gates
 // on a real capability check BEFORE creating anything, and degrades to a copyable
 // kubectl command where the caller can't create Jobs. The REST handler and the MCP
@@ -29,6 +29,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const probeBinaryPath = "/kubeatlas"
+
 // DefaultImageRef is the container image for the in-cluster probe Job when no
 // override is set. main() overrides the tag with the build version so a released
 // binary defaults to its matching image.
@@ -40,7 +42,7 @@ var DefaultImageRef = "ghcr.io/maomada/kubeatlas:dev"
 // config (the MCP path passes an empty override arg).
 var configuredImage string
 
-// LatestReleaseImage, when set, names the most recent PUBLISHED radar image.
+// LatestReleaseImage, when set, names the most recent PUBLISHED KubeAtlas image.
 // main() installs it only for dev-shaped versions (git-describe tags), whose
 // version-matched image never exists on the registry - without this, every
 // in-cluster test from a locally-built binary ImagePullBackOffs. Released
@@ -58,12 +60,12 @@ func SetConfiguredImage(img string) { configuredImage = img }
 //  1. override - an explicit --reachability-image / config value (the per-call
 //     arg, or the startup-recorded configuredImage). The operator said exactly
 //     this, so it always wins, on every path.
-//  2. self-read - radar's OWN running pod image, read via selfClient (radar's
+//  2. self-read - KubeAtlas's OWN running pod image, read via selfClient (its
 //     service-account client, NOT the caller's impersonated one). This is the
-//     honest in-cluster default: the probe runs the SAME image as radar itself,
+//     honest in-cluster default: the probe runs the SAME image as KubeAtlas,
 //     correct automatically for private registries, mirrors, and digest-pinned
 //     deploys because it reads the live container image.
-//  3. KUBEATLAS_IMAGE env - a no-RBAC fallback (the Helm chart sets it to radar's
+//  3. KUBEATLAS_IMAGE env - a no-RBAC fallback (the Helm chart sets it to KubeAtlas's
 //     deployed image) for when self-read can't run (no get-pods, not a pod).
 //  4. DefaultImageRef - the version-matched published image.
 //
@@ -96,11 +98,12 @@ func DefaultImage() string {
 	return ResolveImage(context.Background(), nil, "")
 }
 
-// selfPodImage reads radar's own pod (named by the MY_POD_NAME / MY_POD_NAMESPACE
-// downward-API env the chart injects) and returns the image of the "radar"
-// container, or the first container. Returns "" when the env is unset, the client
-// is nil, the Get fails (e.g. no get-pods RBAC), or the pod has no containers -
-// every such case falls through to the next image source.
+// selfPodImage reads KubeAtlas's own pod (named by the MY_POD_NAME /
+// MY_POD_NAMESPACE downward-API env the chart injects) and returns the image of
+// its "kubeatlas" container, or the legacy "radar" container. It trusts the
+// first container only when it is the sole container. Returns "" when the env
+// is unset, the client is nil, the Get fails (e.g. no get-pods RBAC), or the pod
+// has no containers - every such case falls through to the next image source.
 func selfPodImage(ctx context.Context, selfClient kubernetes.Interface) string {
 	name, namespace := os.Getenv("MY_POD_NAME"), os.Getenv("MY_POD_NAMESPACE")
 	if name == "" || namespace == "" || selfClient == nil {
@@ -111,14 +114,18 @@ func selfPodImage(ctx context.Context, selfClient kubernetes.Interface) string {
 		return ""
 	}
 	for _, c := range pod.Spec.Containers {
+		if c.Name == "kubeatlas" {
+			return c.Image
+		}
+	}
+	for _, c := range pod.Spec.Containers {
 		if c.Name == "radar" {
 			return c.Image
 		}
 	}
-	// No container named "radar": trust the first image ONLY when it is the SOLE
-	// container. A multi-container pod (injected mesh sidecar, or radar wrapped in
-	// another app) could put a non-radar image first - that image lacks /radar, so
-	// fall through to KUBEATLAS_IMAGE / the version default instead of guessing wrong.
+	// Without a named container, trust the first image ONLY when it is the SOLE
+	// container. A multi-container pod could put an unrelated image first, so
+	// fall through to KUBEATLAS_IMAGE / the version default instead of guessing.
 	if len(pod.Spec.Containers) == 1 {
 		return pod.Spec.Containers[0].Image
 	}
@@ -263,10 +270,10 @@ func canI(ctx context.Context, client kubernetes.Interface, namespace string, c 
 const probeRunLabelKey = "radar.skyhook.io/probe-run"
 
 // buildProbeJob is the security core: a restricted-PSA, self-destructing Job that
-// runs `radar probe` once. Pure (no I/O) so it is unit-tested.
+// runs `kubeatlas probe` once. Pure (no I/O) so it is unit-tested.
 func buildProbeJob(opts RunOptions) *batchv1.Job {
 	id := probeRunID()
-	cmd := []string{"/radar", "probe", "--target", opts.Target, "--json", "--timeout", "3s"}
+	cmd := []string{probeBinaryPath, "probe", "--target", opts.Target, "--json", "--timeout", "3s"}
 	if opts.Scheme != "" {
 		cmd = append(cmd, "--scheme", opts.Scheme)
 	}
@@ -564,7 +571,7 @@ func readProbeResults(ctx context.Context, client kubernetes.Interface, namespac
 	return parseProbeOutput(raw)
 }
 
-// parseProbeOutput parses the `radar probe --json` stdout into probe results and
+// parseProbeOutput parses the `kubeatlas probe --json` stdout into probe results and
 // stamps the in-cluster vantage (these were observed from inside the dataplane).
 func parseProbeOutput(raw string) ([]probe.Result, error) {
 	var results []probe.Result
@@ -634,7 +641,7 @@ func FallbackCommand(opts RunOptions) string {
 		"--image=" + shellQuote(image), "--restart=Never --rm -i",
 		"--override-type=strategic --overrides=" + shellQuote(string(ov)),
 		"--command --",
-		"/radar probe --target " + shellQuote(opts.Target), "--timeout 3s",
+		probeBinaryPath + " probe --target " + shellQuote(opts.Target), "--timeout 3s",
 	}
 	if opts.Scheme != "" {
 		parts = append(parts, "--scheme "+shellQuote(opts.Scheme))

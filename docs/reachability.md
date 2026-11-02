@@ -189,25 +189,25 @@ The general-purpose `diagnose` MCP tool collects a bounded, point-in-time eviden
 
 ## In-cluster probe image
 
-The in-cluster test runs a short-lived Job whose container executes `radar probe`. KubeAtlas resolves which image that Job uses, most-trusted first:
+The in-cluster test runs a short-lived Job whose container executes `kubeatlas probe`. KubeAtlas resolves which image that Job uses, most-trusted first:
 
 1. **Explicit override** - `--reachability-image` flag / `reachabilityImage` config. Always wins.
-2. **Self-read** - radar's OWN running pod image, read from `MY_POD_NAME` / `MY_POD_NAMESPACE` (downward API) using radar's service account. The honest default: the probe runs the *same* image as radar, so it's automatically correct for private registries, mirrors, and digest-pinned deploys.
-3. **`KUBEATLAS_IMAGE` env** - the Helm chart sets this to radar's deployed image; a no-RBAC fallback for when self-read can't run.
+2. **Self-read** - KubeAtlas's own running pod image, read from `MY_POD_NAME` / `MY_POD_NAMESPACE` (downward API) using KubeAtlas's service account. The honest default: the probe runs the *same* image as KubeAtlas, so it's automatically correct for private registries, mirrors, and digest-pinned deploys.
+3. **`KUBEATLAS_IMAGE` env** - the Helm chart sets this to KubeAtlas's deployed image; a no-RBAC fallback for when self-read can't run.
 4. **Version-matched owned image** - `ghcr.io/maomada/kubeatlas:<version>` when that version has been published, where `<version>` is KubeAtlas's own build version.
 
-The image must ship the radar binary at `/radar` (the Job runs `["/radar","probe",...]`) - every official radar image does.
+The image used by the Job must ship `/kubeatlas`; the Job executes `["/kubeatlas","probe",...]`. Any explicit `--reachability-image` must contain that executable and its `probe` subcommand.
 
 By deploy shape:
-- **Standalone (Helm chart):** self-read or the chart's `KUBEATLAS_IMAGE` resolves radar's deployed image. Nothing to configure.
-- **Cloud agent (`--cloud-url`):** radar runs in-cluster as its own image; self-read resolves it. Nothing to configure.
-- **Embedded in another app:** embedding only the *frontend* library (e.g. the upstream Radar Hub compatibility consumer) is unaffected - the backend is still a real radar image. If radar's *backend* is wrapped inside a non-radar image, self-read returns that host image, which only works if it ships `/radar` with the `probe` subcommand; otherwise set `--reachability-image` / `KUBEATLAS_IMAGE` to a published radar image. If neither is valid the probe pod fails honestly (a clear "couldn't start" status + a copyable command), never a wrong result.
+- **Standalone (Helm chart):** self-read or the chart's `KUBEATLAS_IMAGE` resolves KubeAtlas's deployed image. Nothing to configure.
+- **Upstream Cloud mode:** unavailable in KubeAtlas; this legacy upstream deployment mode is not supported.
+- **Embedded in another app:** embedding only the *frontend* library in a generic host application is unaffected - its backend must still be a real KubeAtlas image. If the KubeAtlas backend is wrapped inside a non-KubeAtlas image, self-read returns that host image, which works only if it ships `/kubeatlas` with the `probe` subcommand; otherwise set `--reachability-image` / `KUBEATLAS_IMAGE` to a compatible probe image. If neither is valid the probe pod fails honestly (a clear "couldn't start" status + a copyable command), never a wrong result.
 
 **Local development:** a `-dirty` local build's version isn't a published tag, so the default (#4) won't exist. Build a probe image from your code and load it into kind:
 
 ```
-make kind-load-probe                       # builds radar-probe:dev and kind-loads it
-kubeatlas --reachability-image radar-probe:dev ...
+make kind-load-probe                       # builds kubeatlas-probe:dev and kind-loads it
+kubeatlas --reachability-image kubeatlas-probe:dev ...
 ```
 
 ## Performance
