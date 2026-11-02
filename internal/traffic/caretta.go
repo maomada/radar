@@ -18,12 +18,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/portforward"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/portforward"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 const (

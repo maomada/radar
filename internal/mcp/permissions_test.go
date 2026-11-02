@@ -7,8 +7,8 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/k8s"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // withTestUserPerms primes the MCP perm cache for `username` with `allowed`

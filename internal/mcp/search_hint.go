@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/search"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/search"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // errSearchConnectionChanged rejects a search whose caches were replaced while

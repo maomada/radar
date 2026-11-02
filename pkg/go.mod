@@ -1,4 +1,4 @@
-module github.com/skyhook-io/radar/pkg
+module github.com/maomada/radar/pkg
 
 go 1.26.0
 

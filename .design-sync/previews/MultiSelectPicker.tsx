@@ -1,4 +1,4 @@
-import { MultiSelectPicker } from '@skyhook-io/k8s-ui'
+import { MultiSelectPicker } from '@maomada/k8s-ui'
 import { useState } from 'react'
 
 const panel = { width: 280 } as const

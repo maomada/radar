@@ -9,7 +9,7 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func TestApplyServerDoesNotExposeDelete(t *testing.T) {

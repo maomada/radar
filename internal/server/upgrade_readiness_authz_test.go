@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func TestHTTPUpgradeAuthorizerDecisionMatrix(t *testing.T) {

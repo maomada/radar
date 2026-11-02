@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/timeline"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

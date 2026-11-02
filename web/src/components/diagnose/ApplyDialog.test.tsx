@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ApplyDialog } from "./parts";
 import { AgentSetupNotice } from "./AgentSetupNotice";
-import { evaluateGitOpsWriteGuard } from "@skyhook-io/k8s-ui/utils/gitops-write-guard";
+import { evaluateGitOpsWriteGuard } from "@maomada/k8s-ui/utils/gitops-write-guard";
 
 const target = { kind: "Deployment", group: "apps", namespace: "dev", name: "api" };
 const APPLY_WRITES = [{ scope: "spec" as const }];
@@ -27,7 +27,7 @@ function applyButton(html: string) {
     ?.find((button) => button.includes("Apply fix"));
 }
 
-vi.mock("@skyhook-io/k8s-ui/components/ui/DialogPortal", () => ({
+vi.mock("@maomada/k8s-ui/components/ui/DialogPortal", () => ({
   DialogPortal: ({ open, children }: { open: boolean; children: ReactNode }) =>
     open ? children : null,
 }));
@@ -120,7 +120,7 @@ it("distinguishes local execution from sending resource data to the model provid
     />,
   );
   expect(html).toContain("Your agent runs locally");
-  expect(html).toContain("model provider under your account, not to Radar");
+  expect(html).toContain("model provider under your account, not to KubeAtlas");
   expect(html).not.toContain("never leaves your machine");
 });
 

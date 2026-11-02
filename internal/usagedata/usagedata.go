@@ -5,39 +5,32 @@
 // Radar's own setup, and each connected cluster's minor version, platform,
 // node-count range and known integrations. It carries no install ID and never
 // carries names (resources, namespaces, clusters, hosts) or contents. The
-// pending report lives in ~/.radar/usage-report.json so the user can read
+// pending report lives in ~/.kubeatlas/usage-report.json so the user can read
 // exactly what will be sent.
 package usagedata
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/internal/version"
 )
 
 const (
-	// Endpoint receives usage reports: Skyhook's own receiver, so no analytics
-	// vendor SDK ships in Radar. It has a host of its own so an operator can
-	// block usage reports at the firewall and still get update checks.
-	Endpoint = "https://usage.radarhq.io/report"
-
 	reportInterval = 24 * time.Hour
 	// A cluster's shape is re-read at most this often; it barely moves
 	// within a day and reading it walks the whole Pod cache.
 	clusterSampleInterval = 15 * time.Minute
-	// A machine whose ~/.radar is younger than this counts as a fresh
+	// A machine whose ~/.kubeatlas is younger than this counts as a fresh
 	// install for the one-time prompt. Long enough to survive a first
 	// session that ended before the prompt appeared.
 	freshInstallWindow = 7 * 24 * time.Hour
@@ -89,7 +82,7 @@ type Status struct {
 	// left unanswered long enough ago.
 	Ask bool `json:"ask"`
 	// Shared means several people use this Radar, so its configuration
-	// decides (the Helm value, or RADAR_USAGE_REPORTING) and nobody is asked.
+	// decides (the Helm value, or KUBEATLAS_USAGE_REPORTING) and nobody is asked.
 	Shared bool `json:"shared"`
 }
 
@@ -149,7 +142,7 @@ func doNotTrack(env func(string) string) bool {
 }
 
 // resolve is the whole precedence chain, kept pure for tests: hosted installs
-// (off), then RADAR_USAGE_REPORTING, then the saved answer, then undecided.
+// (off), then KUBEATLAS_USAGE_REPORTING, then the saved answer, then undecided.
 func resolve(env func(string) string, hosted bool, choice *settings.UsageDataChoice) (State, Source) {
 	// Radar Cloud runs its own program; not even an environment variable
 	// turns the OSS reports on under it.
@@ -171,11 +164,11 @@ func resolve(env func(string) string, hosted bool, choice *settings.UsageDataCho
 	return StateOff, SourceUser
 }
 
-// usageReportingEnv reads RADAR_USAGE_REPORTING, which the chart sets from
+// usageReportingEnv reads KUBEATLAS_USAGE_REPORTING, which the chart sets from
 // usageReporting.enabled. Anything unrecognized means off: a typo meant to
 // turn it off must not leave it on.
 func usageReportingEnv(env func(string) string) (set, on, valid bool) {
-	switch strings.ToLower(strings.TrimSpace(env("RADAR_USAGE_REPORTING"))) {
+	switch strings.ToLower(strings.TrimSpace(env("KUBEATLAS_USAGE_REPORTING"))) {
 	case "":
 		return false, false, true
 	case "on", "1", "true", "yes":
@@ -240,17 +233,24 @@ func current() *Collector {
 // Start creates the process-wide collector and runs its daily loop until ctx
 // ends.
 func Start(ctx context.Context, opts Options) *Collector {
+	opts = reportingDisabledOptions(opts)
 	c := newCollector(opts)
 	defaultMu.Lock()
 	defaultC = c
 	defaultMu.Unlock()
 	if _, _, valid := usageReportingEnv(c.env); !valid {
-		log.Printf("[usage] RADAR_USAGE_REPORTING=%q is not on or off; treating it as off", c.env("RADAR_USAGE_REPORTING"))
+		log.Printf("[usage] KUBEATLAS_USAGE_REPORTING=%q is not on or off; treating it as off", c.env("KUBEATLAS_USAGE_REPORTING"))
 	}
 	c.refresh()
 	log.Printf("[usage] Usage data: %s (%s)", c.state, describeSource(c.source))
 	go c.run(ctx)
 	return c
+}
+
+func reportingDisabledOptions(opts Options) Options {
+	opts.Hosted = func() bool { return true }
+	opts.ClusterSample = nil
+	return opts
 }
 
 func newCollector(opts Options) *Collector {
@@ -304,7 +304,7 @@ func pendingPath() string {
 func describeSource(s Source) string {
 	switch s {
 	case SourceEnv:
-		return "set by RADAR_USAGE_REPORTING"
+		return "set by KUBEATLAS_USAGE_REPORTING"
 	case SourceDeployment:
 		return "managed by Radar Cloud"
 	case SourceUser:
@@ -679,33 +679,7 @@ func logReport(r Report, why string) {
 }
 
 func postReport(ctx context.Context, r Report) error {
-	body, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, Endpoint, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// The report's own version: custom build versions are masked there and
-	// must not come back through the header.
-	req.Header.Set("User-Agent", "radar/"+r.Version)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-	switch {
-	case resp.StatusCode >= 200 && resp.StatusCode < 300:
-		return nil
-	case resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusRequestEntityTooLarge:
-		return fmt.Errorf("%w: usage endpoint returned %d", errReportRefused, resp.StatusCode)
-	default:
-		return fmt.Errorf("usage endpoint returned %d", resp.StatusCode)
-	}
+	return errors.New("usage reporting is unavailable in KubeAtlas")
 }
 
 func (c *Collector) readPending() pending {

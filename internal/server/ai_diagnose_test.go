@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestCanonicalDiagnoseTargetWithoutCache(t *testing.T) {
@@ -188,11 +188,11 @@ func TestListAgents_NoneInstalledIsAnEmptyList(t *testing.T) {
 	}
 }
 
-// The UI names RADAR_AI_CLI_BIN only when the server says it is set; an
+// The UI names KUBEATLAS_AI_CLI_BIN only when the server says it is set; an
 // embedding host that never sends the field must not get that explanation.
 func TestListAgents_ReportsTheCLIOverride(t *testing.T) {
 	for _, value := range []string{"", "/opt/typo/claude"} {
-		t.Setenv("RADAR_AI_CLI_BIN", value)
+		t.Setenv("KUBEATLAS_AI_CLI_BIN", value)
 		s := &Server{authConfig: auth.Config{Mode: "proxy"}}
 		rec := httptest.NewRecorder()
 		s.handleListAgents(rec, httptest.NewRequest(http.MethodGet, "/api/agents", nil))
@@ -203,7 +203,7 @@ func TestListAgents_ReportsTheCLIOverride(t *testing.T) {
 			t.Fatalf("decode: %v", err)
 		}
 		if want := value != ""; resp.CLIOverride != want {
-			t.Errorf("RADAR_AI_CLI_BIN=%q: cliOverride = %v, want %v", value, resp.CLIOverride, want)
+			t.Errorf("KUBEATLAS_AI_CLI_BIN=%q: cliOverride = %v, want %v", value, resp.CLIOverride, want)
 		}
 	}
 }

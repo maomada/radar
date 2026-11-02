@@ -10,7 +10,7 @@ vi.mock('../useCNPGSidebarWorkspace', () => ({ useCNPGFleet: () => ({}) }))
 vi.mock('../useCNPGNavigate', () => ({ useCNPGNavigate: () => vi.fn() }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showSuccess: vi.fn() }) }))
 vi.mock('./useCNPGWriteGuard', () => ({ useCNPGWriteGuard: () => ({ node: null, satisfied: true }) }))
-vi.mock('@skyhook-io/k8s-ui', async (original) => ({ ...(await original<typeof import('@skyhook-io/k8s-ui')>()), ActionConfirmDialog: (props: any) => { state.dialog = props; return <div>{props.children}<button disabled={!!props.disabledReason || !!props.incompleteReason} onClick={props.onConfirm}>Confirm</button></div> } }))
+vi.mock('@maomada/k8s-ui', async (original) => ({ ...(await original<typeof import('@maomada/k8s-ui')>()), ActionConfirmDialog: (props: any) => { state.dialog = props; return <div>{props.children}<button disabled={!!props.disabledReason || !!props.incompleteReason} onClick={props.onConfirm}>Confirm</button></div> } }))
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>
 afterEach(() => { act(() => root.unmount()); host.remove(); state.mutate.mockClear() })

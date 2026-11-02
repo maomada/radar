@@ -1,7 +1,7 @@
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import { VeleroBackupRenderer as BaseVeleroBackupRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/VeleroBackupRenderer'
-import { resolveBackupStorageLocation } from '@skyhook-io/k8s-ui/components/resources/resource-utils-velero'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import { VeleroBackupRenderer as BaseVeleroBackupRenderer } from '@maomada/k8s-ui/components/resources/renderers/VeleroBackupRenderer'
+import { resolveBackupStorageLocation } from '@maomada/k8s-ui/components/resources/resource-utils-velero'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useResources } from '../../../api/client'
 import { useVeleroRunMessages } from '../../../api/policy'
 

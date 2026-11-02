@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/argoapi"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/argoapi"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func connectionFixture() ClusterProfiles {

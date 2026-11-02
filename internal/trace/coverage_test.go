@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/probe"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

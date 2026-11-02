@@ -24,7 +24,7 @@ kind get kubeconfig --name radar-kueue-demo > /tmp/radar-kueue-demo.kubeconfig
 ./radar --kubeconfig /tmp/radar-kueue-demo.kubeconfig --port 9331 --no-browser
 
 # In a second terminal, from the repository root:
-RADAR_URL=http://127.0.0.1:9331 ./scripts/kueue-demo.sh verify-radar
+KUBEATLAS_URL=http://127.0.0.1:9331 ./scripts/kueue-demo.sh verify-radar
 
 # When done, stop Radar with Ctrl-C in its terminal, then:
 make kueue-demo-down

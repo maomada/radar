@@ -1,1 +1,1 @@
-export { YamlEditor, YamlDiffEditor } from '@skyhook-io/k8s-ui'
+export { YamlEditor, YamlDiffEditor } from '@maomada/k8s-ui'

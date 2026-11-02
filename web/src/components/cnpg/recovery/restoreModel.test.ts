@@ -253,7 +253,7 @@ describe('PITR evidence', () => {
       const e = recoveryEvidenceFor(inTree, { sourceCluster: inTreeCluster, stores: [], backups, namespace: 'db' })
       expect(e.firstPoint?.at).toBe('2026-09-29T00:00:00Z')
       expect(e.lastBackup?.at).toBe('2026-09-30T09:00:00Z')
-      expect(pitrWarnings('2026-09-30T11:00:00Z', e, now)[0]).toContain('after the newest evidence Radar has (2026-09-30 09:00:00 UTC')
+      expect(pitrWarnings('2026-09-30T11:00:00Z', e, now)[0]).toContain('after the newest evidence KubeAtlas has (2026-09-30 09:00:00 UTC')
       expect(pitrWarnings('2026-09-28T12:00:00Z', e, now)[0]).toContain('before the first recoverability point')
     })
 
@@ -477,7 +477,7 @@ describe('restorePermission', () => {
 })
 
 describe('restoreNextSteps', () => {
-  it('marks done or to do only what Radar can read, never whether applications moved', () => {
+  it('marks done or to do only what KubeAtlas can read, never whether applications moved', () => {
     const fresh = restoreNextSteps({ validationRecorded: false, backup: 'none' })
     expect(fresh.map((s) => [s.id, s.state])).toEqual([
       ['connect', 'unknown'],

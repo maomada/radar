@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	corev1 "k8s.io/api/core/v1"
 
-	pkgtimeline "github.com/skyhook-io/radar/pkg/timeline"
+	pkgtimeline "github.com/maomada/radar/pkg/timeline"
 )
 
 // Re-export types from pkg/timeline so callers don't need to change imports.

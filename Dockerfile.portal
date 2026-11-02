@@ -31,7 +31,7 @@ ARG TARGETARCH
 ARG VERSION=dev
 ARG SOURCE_REVISION=unknown
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags "-s -w" -o /radar-portal ./cmd/radar-portal
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags "-s -w" -o /kubeatlas-portal ./cmd/kubeatlas-portal
 
 FROM gcr.io/distroless/static-debian12:nonroot AS full
 
@@ -44,8 +44,8 @@ LABEL org.opencontainers.image.vendor="maomada"
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 LABEL org.opencontainers.image.version=$VERSION
 
-COPY --from=backend-builder /radar-portal /radar-portal
+COPY --from=backend-builder /kubeatlas-portal /kubeatlas-portal
 
 EXPOSE 9290
 USER nonroot:nonroot
-ENTRYPOINT ["/radar-portal"]
+ENTRYPOINT ["/kubeatlas-portal"]

@@ -26,8 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	k8score "github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // The characterization goldens record what the public topology functions

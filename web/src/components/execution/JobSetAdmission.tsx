@@ -1,4 +1,4 @@
-import { KueueAdmissionSection } from '@skyhook-io/k8s-ui/components/resources/KueueAdmissionSection'
+import { KueueAdmissionSection } from '@maomada/k8s-ui/components/resources/KueueAdmissionSection'
 import { ApiError, useKueueAdmission } from '../../api/client'
 
 export function KueueAdmission({ resource, namespace, name, onNavigate, presentation }: {

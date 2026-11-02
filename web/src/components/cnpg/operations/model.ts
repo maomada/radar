@@ -1,10 +1,10 @@
-import type { CNPGClusterHA } from '@skyhook-io/k8s-ui'
+import type { CNPGClusterHA } from '@maomada/k8s-ui'
 import type { CNPGClusterFacts, CNPGRuntimeResponse } from '../../../api/cnpg'
-import { formatGrant } from '@skyhook-io/k8s-ui'
+import { formatGrant } from '@maomada/k8s-ui'
 
 // Follow-through for CloudNativePG actions. A successful POST only means the
 // write was accepted; the operator acts on it later. A tracked operation is
-// bound to the Radar API base, context, Cluster UID and target it was
+// bound to the KubeAtlas API base, context, Cluster UID and target it was
 // requested for, carries a baseline taken before the write, and is judged by
 // a per-kind observer against what the cluster reports now. Missing telemetry
 // is "unobservable", never "stalled": stalled needs evidence that nothing is
@@ -25,7 +25,7 @@ export interface CNPGTrackedOperation {
   kind: string
   label: string
   /**
-   * The Radar API base the request went to. Every in-cluster Radar reports
+   * The KubeAtlas API base the request went to. Every in-cluster KubeAtlas reports
    * the context "in-cluster", so in Radar Hub this is what tells two
    * clusters apart.
    */
@@ -114,7 +114,7 @@ export function registerCNPGOperationObserver(kind: string, observer: CNPGOperat
 /** No progress for this long, with telemetry present, reads as stalled. */
 export const CNPG_OP_STALL_MS = 10 * 60_000
 
-/** An operation Radar cannot observe is followed this long, then left alone. */
+/** An operation KubeAtlas cannot observe is followed this long, then left alone. */
 export const CNPG_OP_UNOBSERVABLE_MS = 15 * 60_000
 
 /**
@@ -155,7 +155,7 @@ export function advanceCNPGOperation(op: CNPGTrackedOperation, obs: CNPGObservat
     }
   }
   const observer = observers.get(op.kind)
-  if (!observer) return { ...op, state: 'unobservable', detail: 'Radar has no way to follow this operation' }
+  if (!observer) return { ...op, state: 'unobservable', detail: 'KubeAtlas has no way to follow this operation' }
   const res = observer(op, current)
   const moved = res.progressKey !== undefined && res.progressKey !== op.progressKey
   const lastProgressAt = moved ? obs.now : op.lastProgressAt
@@ -278,7 +278,7 @@ function condition(cluster: any, type: string): { status?: string; reason?: stri
 }
 
 /**
- * Completed only when every step is seen done. A step Radar cannot see keeps
+ * Completed only when every step is seen done. A step KubeAtlas cannot see keeps
  * the operation unobservable rather than completed — or stalled.
  */
 export function summarizeSteps(steps: CNPGOpStep[]): CNPGObserverResult['state'] {
@@ -401,7 +401,7 @@ registerCNPGOperationObserver('reload', () => ({
 // CloudNativePG reports no shutdown signal for a fenced instance: /pg/status
 // never carries isFenced, and a masked status error (mightBeUnavailable) also
 // arrives without WAL positions. So the fence being recorded is the last thing
-// Radar can verify; the shutdown itself stays unverified.
+// KubeAtlas can verify; the shutdown itself stays unverified.
 registerCNPGOperationObserver('fence', (op, obs) => {
   const pods = ((op.baseline.instances as string[]) ?? [])
   const f = obs.facts
@@ -464,7 +464,7 @@ function backupObserver(op: CNPGTrackedOperation, obs: CNPGObservation): CNPGObs
   const b = obs.backups.find((x) => x?.metadata?.name === name && x?.metadata?.namespace === op.namespace)
   if (!b) {
     return obs.now - op.startedAt > 60_000
-      ? { state: 'unobservable', detail: `Backup ${name} is not visible (deleted, or outside the backups Radar keeps)`, progressKey: 'absent' }
+      ? { state: 'unobservable', detail: `Backup ${name} is not visible (deleted, or outside the backups KubeAtlas keeps)`, progressKey: 'absent' }
       : { state: 'requested', detail: `Waiting for Backup ${name} to appear`, progressKey: 'absent' }
   }
   const phase: string | undefined = b.status?.phase

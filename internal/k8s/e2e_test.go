@@ -14,8 +14,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // skipIfNoCluster skips the test if no kubeconfig is available or the cluster

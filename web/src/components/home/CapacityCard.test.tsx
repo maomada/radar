@@ -5,7 +5,7 @@ import type {
   CapacityOverviewResponse,
   CapacityResponseMeta,
   CapacitySourceCoverage,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { CapacityCard } from "./CapacityCard";
 
 let mockKarpenterState = "available";

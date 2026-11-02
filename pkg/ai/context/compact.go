@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/prune"
+	"github.com/maomada/radar/pkg/prune"
 )
 
 // minifyCompact aggressively prunes both spec and status for token-constrained RCA prompts.

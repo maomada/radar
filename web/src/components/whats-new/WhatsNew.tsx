@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { clsx } from 'clsx'
 import { ArrowRight, Check, ExternalLink, Megaphone, X } from 'lucide-react'
-import { DialogPortal } from '@skyhook-io/k8s-ui'
+import { DialogPortal } from '@maomada/k8s-ui'
 import { getApiBase } from '../../api/config'
 import { markWhatsNewSeen, useCapabilities, useWhatsNewState, type WhatsNewState } from '../../api/client'
 import { compareVersions } from '../../utils/version'
@@ -62,7 +62,7 @@ function normalize(version: string): string {
   return version.startsWith('v') ? version : `v${version}`
 }
 
-// A local Radar's browser origin changes between launches (Desktop binds a
+// A local KubeAtlas's browser origin changes between launches (Desktop binds a
 // random port), so its record lives server-side; in-cluster, each browser
 // keeps its own. undefined = nothing can be recorded, so don't auto-open.
 function readBrowserLastSeen(): string | null | undefined {
@@ -86,7 +86,7 @@ function hadRadarStateBeforeThisSession(): boolean {
 // Read at module load, before this session's own queries write radar-* keys
 // (the version check records its last run), which would make every fresh
 // install look like an upgrade.
-const HAD_PRIOR_RADAR_STATE = hadRadarStateBeforeThisSession()
+const HAD_PRIOR_KUBEATLAS_STATE = hadRadarStateBeforeThisSession()
 
 function writeBrowserLastSeen(version: string) {
   try { localStorage.setItem(LAST_SEEN_KEY, version) } catch { /* ignore */ }
@@ -148,7 +148,7 @@ interface DialogView {
  */
 export function WhatsNew({ onNavigate, usageData }: WhatsNewProps) {
   const { data: capabilities } = useCapabilities()
-  // Radar Cloud ships its own release communication.
+  // upstream Cloud ships its own release communication.
   const isCloud = capabilities?.deployment?.mode === 'cloud'
   const { data: state } = useWhatsNewState(!!capabilities && !isCloud)
   const queryClient = useQueryClient()
@@ -168,7 +168,7 @@ export function WhatsNew({ onNavigate, usageData }: WhatsNewProps) {
   // One authority per install: the server record for a personal install, this
   // browser's storage for a shared one. undefined = nothing can be recorded.
   const lastSeen = !state ? undefined : state.storage === 'server' ? state.seenVersion ?? null : browserLastSeen
-  const priorInstall = state?.storage === 'server' ? !!state.priorInstall : HAD_PRIOR_RADAR_STATE
+  const priorInstall = state?.storage === 'server' ? !!state.priorInstall : HAD_PRIOR_KUBEATLAS_STATE
 
   // Another tab acknowledging the notes clears this tab's dot too.
   useEffect(() => {
@@ -319,10 +319,10 @@ export function WhatsNewContent({ titleId, notes, since, to: toVersion, onClose,
   const from = isVersion(since) && normalize(since) !== to ? normalize(since) : null
   // Older releases than the dialog covers were left out, so "since" would overpromise.
   const title = !mixed
-    ? <>What's new in Radar <span className="font-mono">{releaseLine(newest)}</span></>
+    ? <>What's new in KubeAtlas <span className="font-mono">{releaseLine(newest)}</span></>
     : from && notes.complete
-      ? <>What's new since Radar <span className="font-mono">{releaseLine(from)}</span></>
-      : <>Recent highlights in Radar</>
+      ? <>What's new since KubeAtlas <span className="font-mono">{releaseLine(from)}</span></>
+      : <>Recent highlights in KubeAtlas</>
   // Only releases older than the newest are tagged: the heading already names it.
   const olderTag = (version: string) => mixed && version !== newest ? releaseLine(version) : null
 

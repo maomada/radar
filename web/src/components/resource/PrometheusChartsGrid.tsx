@@ -1,19 +1,19 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, Wifi, WifiOff } from "lucide-react";
-import { Disclosure } from "@skyhook-io/k8s-ui/components/ui/Disclosure";
+import { Disclosure } from "@maomada/k8s-ui/components/ui/Disclosure";
 import {
   AreaChart,
   SeriesLegend,
   computeSaturation,
   describePodCoverage,
   type ReferenceLine,
-} from "@skyhook-io/k8s-ui/components/charts";
+} from "@maomada/k8s-ui/components/charts";
 import {
   SEVERITY_BADGE,
   SEVERITY_TEXT,
   type Severity,
-} from "@skyhook-io/k8s-ui/utils/badge-colors";
+} from "@maomada/k8s-ui/utils/badge-colors";
 import {
   usePrometheusStatus,
   usePrometheusConnect,

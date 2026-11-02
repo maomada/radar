@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/pkg/helmhistory"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 const helmChangeSource = "helm"

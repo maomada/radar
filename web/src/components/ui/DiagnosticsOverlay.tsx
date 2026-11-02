@@ -5,7 +5,7 @@ import { TRANSITION_BACKDROP, TRANSITION_PANEL, overlayTransitionStyle } from '.
 import { openExternal } from '../../utils/navigation'
 import { useDiagnostics } from '../../api/client'
 import type { DiagnosticsSnapshot, DiagEnvVar, DiagMetricsSourceHealth, DiagDropRecord, DiagErrorEntry, DiagCacheSyncStatus, DiagInformerSyncStatus, DiagSyncPhase, DiagSampleWindow } from '../../api/client'
-import { getK8sUIPerfSnapshot, type K8sUIPerfSnapshot } from '@skyhook-io/k8s-ui'
+import { getK8sUIPerfSnapshot, type K8sUIPerfSnapshot } from '@maomada/k8s-ui'
 
 export type DiagnosticsFocus = 'timeline'
 
@@ -656,7 +656,7 @@ function CopyButton({ label, onClick, copied }: { label: string; onClick: () => 
 
 export function formatForGitHub(data: DiagnosticsSnapshot, frontendPerf?: K8sUIPerfSnapshot, includeRawJson = true): string {
   const lines: string[] = []
-  lines.push(`## Radar Diagnostics`)
+  lines.push(`## KubeAtlas Diagnostics`)
   lines.push(``)
   lines.push(`**Version:** ${data.radarVersion} | **Go:** ${data.goVersion} | **OS:** ${data.goos}/${data.goarch} | **Uptime:** ${data.uptime}`)
   lines.push(``)

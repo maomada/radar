@@ -247,7 +247,7 @@ it('shows elapsed time and overdue response guidance without inventing a complet
   await render()
   await act(async () => { await vi.advanceTimersByTimeAsync(126_000) })
   expect(host.textContent).toContain('Elapsed 2m 6s')
-  expect(host.textContent).toContain("Still waiting for Radar's response")
+  expect(host.textContent).toContain("Still waiting for KubeAtlas's response")
   expect(host.textContent).toContain('Drain in progress')
   expect(host.querySelector('button')).toBeNull()
 })

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
 // Cluster-scoped resources have no namespace. Their per-resource URLs send "_"
-// in its place to survive proxies that merge repeated slashes. Older Radar
+// in its place to survive proxies that merge repeated slashes. Older KubeAtlas
 // versions need the empty segment for edit and audit; read, preview and delete
 // already support the placeholder.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import type { Capabilities } from '@skyhook-io/k8s-ui'
+import type { Capabilities } from '@maomada/k8s-ui'
 import {
   fetchResourceWithRelationships,
   useBulkDeleteResources,
@@ -89,9 +89,9 @@ const refs: Ref[] = [
 ]
 
 describe.each([
-  { radar: 'a Radar that reads "_" as cluster-scoped', capabilities: { features: { clusterScopedPlaceholder: true } }, emptyWriteSegment: '_' },
-  { radar: 'an older Radar without the flag', capabilities: { features: {} }, emptyWriteSegment: '' },
-  { radar: 'a Radar whose capability request failed', capabilities: undefined, emptyWriteSegment: '' },
+  { radar: 'a KubeAtlas that reads "_" as cluster-scoped', capabilities: { features: { clusterScopedPlaceholder: true } }, emptyWriteSegment: '_' },
+  { radar: 'an older KubeAtlas without the flag', capabilities: { features: {} }, emptyWriteSegment: '' },
+  { radar: 'a KubeAtlas whose capability request failed', capabilities: undefined, emptyWriteSegment: '' },
 ])('$radar', ({ capabilities, emptyWriteSegment }) => {
   beforeEach(() => connectedRadar(capabilities))
 

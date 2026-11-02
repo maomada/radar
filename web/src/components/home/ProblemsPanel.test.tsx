@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
-import type { Issue } from '@skyhook-io/k8s-ui'
+import type { Issue } from '@maomada/k8s-ui'
 import { ProblemsPanel } from './HomeView'
 import { uncheckedSourceLines } from '../issues/uncheckedSources'
 import type { IssuesResponse } from '../../api/client'
@@ -33,7 +33,7 @@ function render(props: { issues?: Issue[]; unchecked?: IssuesResponse['unchecked
   ).replaceAll('<!-- -->', '').replace(/&#x27;|&#39;/g, "'")
 }
 
-describe('Home Active Issues when Radar could not read Helm releases', () => {
+describe('Home Active Issues when KubeAtlas could not read Helm releases', () => {
   it('gives no all-clear when nothing else was found', () => {
     const html = render({ unchecked: helm })
     expect(html).toContain('未找到问题')

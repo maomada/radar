@@ -5,15 +5,15 @@ import (
 	"os"
 	"sort"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func (s *Server) configManagement() string {

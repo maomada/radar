@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TrafficFilterSidebar } from '@skyhook-io/k8s-ui'
+import { TrafficFilterSidebar } from '@maomada/k8s-ui'
 
 const frame = { height: 900, display: 'flex' } as const
 

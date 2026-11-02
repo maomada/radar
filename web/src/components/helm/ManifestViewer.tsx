@@ -1,5 +1,5 @@
 import { Copy, Check, Code } from 'lucide-react'
-import { PaneLoader } from '@skyhook-io/k8s-ui'
+import { PaneLoader } from '@maomada/k8s-ui'
 import { CodeViewer } from '../ui/CodeViewer'
 
 interface ManifestViewerProps {

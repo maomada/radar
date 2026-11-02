@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestWorkloadAttributionVictoriaMetrics(t *testing.T) {
-	endpoint := os.Getenv("RADAR_TEST_ATTRIBUTION_VM_URL")
+	endpoint := os.Getenv("KUBEATLAS_TEST_ATTRIBUTION_VM_URL")
 	if endpoint == "" {
-		t.Skip("set RADAR_TEST_ATTRIBUTION_VM_URL to a disposable loopback VictoriaMetrics fixture")
+		t.Skip("set KUBEATLAS_TEST_ATTRIBUTION_VM_URL to a disposable loopback VictoriaMetrics fixture")
 	}
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Hostname() != "127.0.0.1" {

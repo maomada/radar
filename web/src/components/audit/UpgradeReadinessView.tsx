@@ -26,7 +26,7 @@ import {
   radarUpgradeDetail,
   radarUpgradeHeadline,
   SelectMenu,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import {
   ApiError,
   useUpgradeReadiness,
@@ -187,7 +187,7 @@ export function UpgradeReadinessView({ namespaces, onNavigateToResource }: Upgra
       {unsupportedTarget && data.coverage.state !== 'no_access' && (
         <CoverageNotice
           headline={`Coverage ends at Kubernetes ${data.reviewedThrough}`}
-          body={`Known results are shown, but checks added after ${data.reviewedThrough} are not included for ${data.targetVersion}. Update Radar when a release with ${data.targetVersion} coverage is available, then run this scan again.`}
+          body={`Known results are shown, but checks added after ${data.reviewedThrough} are not included for ${data.targetVersion}. Update KubeAtlas when a release with ${data.targetVersion} coverage is available, then run this scan again.`}
         />
       )}
       {data.coverage.state !== 'no_access' && (data.coverage.scopedNamespaces?.length ?? 0) > 0 && (
@@ -199,7 +199,7 @@ export function UpgradeReadinessView({ namespaces, onNavigateToResource }: Upgra
       {namespaces.length > 0 && !data.coverage.scopedNamespaces?.length && scopedKinds.length === 0 && data.coverage.state !== 'no_access' && (
         <CoverageNotice
           headline="Cluster-wide upgrade scan"
-          body="The current namespace browsing filter does not limit upgrade checks. Radar evaluates every namespace your identity can read."
+          body="The current namespace browsing filter does not limit upgrade checks. KubeAtlas evaluates every namespace your identity can read."
         />
       )}
       {data.coverage.state !== 'no_access' && (data.coverage.unavailableKinds?.length ?? 0) > 0 && (
@@ -211,11 +211,11 @@ export function UpgradeReadinessView({ namespaces, onNavigateToResource }: Upgra
       {data.coverage.state !== 'no_access' && scopedKinds.length > 0 && (
         <CoverageNotice
           headline={`${scopedKinds.length} cached ${scopedKinds.length === 1 ? 'resource kind has' : 'resource kinds have'} narrower coverage`}
-          body={`Informer evidence is namespace-limited for ${formatScopedKinds(scopedKinds)}. Radar does not treat absence outside those per-kind scopes as proof.`}
+          body={`Informer evidence is namespace-limited for ${formatScopedKinds(scopedKinds)}. KubeAtlas does not treat absence outside those per-kind scopes as proof.`}
         />
       )}
       {data.coverage.state === 'partial' && !data.coverage.scopedNamespaces?.length && !data.coverage.unavailableKinds?.length && scopedKinds.length === 0 && (
-        <CoverageNotice headline="Some evidence is incomplete" body="Evidence labels on affected rows explain what Radar could not verify." />
+        <CoverageNotice headline="Some evidence is incomplete" body="Evidence labels on affected rows explain what KubeAtlas could not verify." />
       )}
       {data.coverage.state === 'no_access' ? (
         <section className="shrink-0">
@@ -223,7 +223,7 @@ export function UpgradeReadinessView({ namespaces, onNavigateToResource }: Upgra
             tone="neutral"
             icon={FileSearch}
             headline="Upgrade checks need namespace access"
-            body="Radar cannot inspect workload configuration in this cluster for your current identity. Ask a cluster administrator for read access, then refresh this page."
+            body="KubeAtlas cannot inspect workload configuration in this cluster for your current identity. Ask a cluster administrator for read access, then refresh this page."
           />
         </section>
       ) : (
@@ -292,7 +292,7 @@ export function upgradeEvaluationSummary(total: number, summary: UpgradeReadines
 }
 
 export function upgradeUnavailableKindsMessage(unavailableKinds: string[]) {
-  return `Radar could not inspect: ${unavailableKinds.join(', ')}. Affected checks are marked incomplete.`
+  return `KubeAtlas could not inspect: ${unavailableKinds.join(', ')}. Affected checks are marked incomplete.`
 }
 
 export function upgradeEvidenceCoverageLabel(check: Pick<UpgradeReadinessCheck, 'status' | 'inspected' | 'caveat'>) {
@@ -324,7 +324,7 @@ function CoverageMethodology({ data }: { data: UpgradeReadinessResponse }) {
       <Collapse open={open} mountLazily>
         <div id="upgrade-coverage-methodology" className="space-y-2 border-t border-theme-border px-4 py-3 text-xs leading-5 text-theme-text-secondary">
           <p>
-            Radar evaluated the checks relevant to Kubernetes {data.currentVersion} → {data.targetVersion}. Release-specific checks outside this upgrade path are excluded instead of being counted as passed or not applicable.
+            KubeAtlas evaluated the checks relevant to Kubernetes {data.currentVersion} → {data.targetVersion}. Release-specific checks outside this upgrade path are excluded instead of being counted as passed or not applicable.
           </p>
           <p>
             Results use live cluster resources and the row-specific evidence scope shown below. {unavailable.length > 0
@@ -411,7 +411,7 @@ export function summaryMeta(
     body: summary.unknown > 0
       ? `${summary.unknown} ${summary.unknown === 1 ? 'check is' : 'checks are'} incomplete, so this is not a readiness guarantee.`
       : coverageState !== 'complete'
-        ? 'No blocker was found in the evidence Radar could inspect; this is not a cluster-wide readiness guarantee.'
+        ? 'No blocker was found in the evidence KubeAtlas could inspect; this is not a cluster-wide readiness guarantee.'
         : `Checks are reviewed through Kubernetes ${reviewedThrough}, not ${target}.`,
     icon: CircleDashed, iconClass: 'text-theme-text-tertiary', className: 'border-theme-border bg-theme-elevated',
   }

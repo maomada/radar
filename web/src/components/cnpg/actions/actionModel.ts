@@ -1,4 +1,4 @@
-import { cnpgFormatLag } from '@skyhook-io/k8s-ui'
+import { cnpgFormatLag } from '@maomada/k8s-ui'
 import { formatBytes } from '../lsn'
 import type { CNPGBackupMethod } from '../../../api/cnpg'
 import type { ActionCapability } from '../../../api/actions'
@@ -88,7 +88,7 @@ export function switchoverConcerns(
 export function switchoverConcernWarning(pod: string, concerns: SwitchoverConcern[]): string | null {
   if (concerns.length === 0) return null
   const notReceiving = concerns.some((c) => c.code === 'not_receiving')
-  return `${pod}: ${concerns.map((c) => c.text).join(' · ')}. ${notReceiving ? 'It is not receiving WAL from the current primary, so writes since then reach it only if it replays them from the WAL archive, and ' : ''}Radar cannot measure how far behind it is. Check its logs, or pick a streaming standby.`
+  return `${pod}: ${concerns.map((c) => c.text).join(' · ')}. ${notReceiving ? 'It is not receiving WAL from the current primary, so writes since then reach it only if it replays them from the WAL archive, and ' : ''}KubeAtlas cannot measure how far behind it is. Check its logs, or pick a streaming standby.`
 }
 
 /**

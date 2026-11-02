@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Loader2, ArrowRight } from 'lucide-react'
-import { StatusDot } from '@skyhook-io/k8s-ui'
+import { StatusDot } from '@maomada/k8s-ui'
 import type { SyncStatusSnapshot } from '../api/client'
 
 // Shown in place of views that need the full cluster dataset while the

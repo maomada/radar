@@ -1,5 +1,5 @@
-import { ClusterSwitcher } from '@skyhook-io/k8s-ui'
-import type { ClusterSwitcherItem } from '@skyhook-io/k8s-ui'
+import { ClusterSwitcher } from '@maomada/k8s-ui'
+import type { ClusterSwitcherItem } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const items: ClusterSwitcherItem[] = [

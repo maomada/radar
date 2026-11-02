@@ -1,5 +1,5 @@
-import { SeriesLegend } from '@skyhook-io/k8s-ui'
-import type { TimeSeries } from '@skyhook-io/k8s-ui'
+import { SeriesLegend } from '@maomada/k8s-ui'
+import type { TimeSeries } from '@maomada/k8s-ui'
 
 const box = { width: 420, padding: '14px 8px' }
 const points = [{ timestamp: 1720180800, value: 1 }]

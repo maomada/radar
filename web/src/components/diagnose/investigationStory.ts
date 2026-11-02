@@ -1,5 +1,5 @@
 /**
- * The story is the agent's prose with Radar results placed inside it. A
+ * The story is the agent's prose with KubeAtlas results placed inside it. A
  * placement is `[[radar:evidence=N]]` alone on a line, N being the 0-based
  * index into the verdict's `evidence` array; the same marker inside a sentence
  * is a reference back to the placed card. Markers inside fenced code, inline
@@ -21,7 +21,7 @@ const STORY_PLACEMENT_RE =
 // stays literal like one inside a fence.
 const BLOCK_PLACEMENT_RE =
   /^\s{0,3}\[\[radar:evidence(?:=(\d+)|-ref=([A-Za-z0-9_]+))(?:\|(compact))?\]\]\s*$/;
-/** A reference the story cannot resolve renders as a placement Radar cannot identify. */
+/** A reference the story cannot resolve renders as a placement KubeAtlas cannot identify. */
 export const UNRESOLVED_STORY_INDEX = -1;
 export type StoryRefResolver = (ref: string) => number | undefined;
 function markerIndex(
@@ -50,7 +50,7 @@ export type StorySegment =
       index: number;
       /** Header and role only, except logs retain their last two selected lines. */
       compact?: boolean;
-      /** Placed by Radar under the paragraph that first mentioned it inline. */
+      /** Placed by KubeAtlas under the paragraph that first mentioned it inline. */
       auto?: boolean;
     };
 

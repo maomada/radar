@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/gitops"
 )
 
 func TestEnforceArgoSelectiveSyncSafety(t *testing.T) {

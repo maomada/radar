@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/certs"
+	"github.com/maomada/radar/pkg/certs"
 )
 
 func TestProjectCertManagerCert_Issued(t *testing.T) {

@@ -4,11 +4,11 @@ import { coverageEmpty, coverageLabel, incompleteKindsText } from './shared'
 describe('coverage wording', () => {
   it('names every cause the server named, whatever the overall state', () => {
     const mixed = { state: 'uncached' as const, uncachedNamespaces: ['b'], deniedNamespaces: ['c'] }
-    expect(coverageEmpty(mixed, 'Pods')).toBe('No Pods visible: no access in c; Radar does not cache Pods in b.')
-    expect(coverageLabel(mixed)).toBe('no access in c; not cached by Radar in b')
+    expect(coverageEmpty(mixed, 'Pods')).toBe('No Pods visible: no access in c; KubeAtlas does not cache Pods in b.')
+    expect(coverageLabel(mixed)).toBe('no access in c; not cached by KubeAtlas in b')
   })
   it('falls back to the state when no namespace is named', () => {
-    expect(coverageEmpty({ state: 'uncached' }, 'Pods')).toBe('Radar does not cache Pods in this scope.')
+    expect(coverageEmpty({ state: 'uncached' }, 'Pods')).toBe('KubeAtlas does not cache Pods in this scope.')
     expect(coverageEmpty({ state: 'partial' }, 'Pods')).toBe('No Pods visible. Some namespaces were not read.')
     expect(coverageLabel({ state: 'denied' })).toBe('no access')
   })
@@ -18,7 +18,7 @@ describe('coverage wording', () => {
       backups: { state: 'partial' },
       clusterImageCatalogs: { state: 'uncached' },
     })
-    expect(text).toBe('Cluster, Backup (not read in some namespaces); ClusterImageCatalog (not cached by Radar)')
+    expect(text).toBe('Cluster, Backup (not read in some namespaces); ClusterImageCatalog (not cached by KubeAtlas)')
   })
   it("lists Jobs it could not read, since a Cluster's Job Pods are read only where they are", () => {
     expect(incompleteKindsText(['clusters'], { clusters: { state: 'partial' } }, { state: 'denied' })).toBe('Cluster (not read in some namespaces); Job (no access)')

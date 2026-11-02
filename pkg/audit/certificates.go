@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/certs"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/certs"
+	"github.com/maomada/radar/pkg/timeutil"
 	corev1 "k8s.io/api/core/v1"
 )
 

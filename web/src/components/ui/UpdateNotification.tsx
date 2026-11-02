@@ -78,11 +78,11 @@ export function UpdateNotification({ placement = 'floating' }: { placement?: 'fl
       try { localStorage.removeItem(DISMISSED_KEY) } catch { /* ignore */ }
       queryClient.setQueryData(['version-check', getApiBase()], info)
       if (info.updateAvailable) {
-        showToast(`Radar ${info.latestVersion} is available`, { id, type: 'info' })
+        showToast(`KubeAtlas ${info.latestVersion} is available`, { id, type: 'info' })
       } else if (info.buildChannel === 'development') {
-        showToast(`Latest Radar release: ${info.latestVersion}`, { id, type: 'info', detail: 'You are running a development build.' })
+        showToast(`Latest KubeAtlas release: ${info.latestVersion}`, { id, type: 'info', detail: 'You are running a development build.' })
       } else {
-        showToast("You're up to date", { id, type: 'success', detail: `Radar ${info.currentVersion}` })
+        showToast("You're up to date", { id, type: 'success', detail: `KubeAtlas ${info.currentVersion}` })
       }
     }
 
@@ -182,7 +182,7 @@ export function UpdateNotification({ placement = 'floating' }: { placement?: 'fl
             <UpdateTitle state={effectiveState} />
           </h4>
           <p className="text-xs text-theme-text-secondary mt-1">
-            Radar {versionInfo.latestVersion} is available.{' '}
+            KubeAtlas {versionInfo.latestVersion} is available.{' '}
             {!inSettings && <>You're on {versionInfo.currentVersion}.</>}
           </p>
 

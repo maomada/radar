@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/pkg/helmhistory"
 )
 
 const NativeHelmGroup = "helm.sh"

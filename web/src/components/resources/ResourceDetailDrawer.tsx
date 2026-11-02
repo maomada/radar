@@ -1,4 +1,4 @@
-import { ResourceDetailDrawer as BaseResourceDetailDrawer } from '@skyhook-io/k8s-ui'
+import { ResourceDetailDrawer as BaseResourceDetailDrawer } from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { WorkloadView } from '../workload/WorkloadView'
 import { ResourceDrawerNavigation } from '../../integrations/resourceHosts'
@@ -21,8 +21,8 @@ interface ResourceDetailDrawerProps {
   canCollapseToDrawer?: boolean
   /** Navigate to another resource within expanded WorkloadView */
   onNavigateToResource?: (resource: SelectedResource) => void
-  /** Top offset for the drawer (px). Defaults to Radar's 49px header height;
-   *  pass 0 in chromeless embeds where there's no Radar header above it. */
+  /** Top offset for the drawer (px). Defaults to KubeAtlas's 49px header height;
+   *  pass 0 in chromeless embeds where there's no KubeAtlas header above it. */
   headerHeight?: number
   /** Right inset in px so the drawer sits beside a docked side panel (AI), not under it. */
   rightInset?: number

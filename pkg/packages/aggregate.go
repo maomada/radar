@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // Aggregate is the merge function. Given a Sources struct, returns a

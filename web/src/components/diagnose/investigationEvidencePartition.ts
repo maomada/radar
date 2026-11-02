@@ -26,7 +26,7 @@ export function investigationCaseItemKey(item: InvestigationCaseItem): string {
 const EVIDENCE_ROLE_RANK: Readonly<Record<DiagnosisEvidenceRole, number>> = {
   cause: 0,
   symptom: 1,
-  // A ruled-out card keeps Radar's place in the list; the role only labels it.
+  // A ruled-out card keeps KubeAtlas's place in the list; the role only labels it.
   rules_out: 2,
   context: 3,
   benign: 4,
@@ -92,7 +92,7 @@ export function partitionInvestigationEvidence(
   investigationCase?: InvestigationCaseResolution,
   /**
    * Under a story every captured result about the target belongs in the one
-   * inventory the reader opens to see what Radar recorded; nothing about the
+   * inventory the reader opens to see what KubeAtlas recorded; nothing about the
    * target is folded into a second tier. Broader results stay cited-only.
    */
   inventory = false,
@@ -178,7 +178,7 @@ export function partitionInvestigationEvidence(
   }
   // A group takes its strongest role (lowest rank); within one role the
   // agent's own item order decides. Unlabelled and ruled-out groups keep
-  // Radar's order among themselves.
+  // KubeAtlas's order among themselves.
   const roleOrder = (group: InvestigationEvidenceGroup) => {
     let rank: number | undefined;
     let itemIndex = Number.POSITIVE_INFINITY;

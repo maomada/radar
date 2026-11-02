@@ -13,7 +13,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 func cnpgOperatorDeployment() *appsv1.Deployment {

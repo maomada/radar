@@ -126,7 +126,7 @@ export function UserMenu({ variant = 'topbar', pinned = true }: UserMenuProps = 
           </button>
           {authMe.authMode === 'proxy' && !authMe.proxyLogoutConfigured && (
             <p className="px-3 py-1.5 text-[11px] text-theme-text-tertiary border-t border-theme-border">
-              退出登录会清除 Radar 会话。身份验证代理可能会自动重新登录。
+              退出登录会清除 KubeAtlas 会话。身份验证代理可能会自动重新登录。
             </p>
           )}
         </div>

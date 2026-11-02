@@ -1,8 +1,8 @@
 package mcp
 
 import (
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 // errNotConnected explains WHY the cluster is unavailable. MCP callers are

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Play, Loader2, FileText, AlertTriangle } from 'lucide-react'
 import { clsx } from 'clsx'
-import { classifyDiffLine } from '@skyhook-io/k8s-ui'
+import { classifyDiffLine } from '@maomada/k8s-ui'
 import type { ValuesPreviewResponse } from '../../types'
 
 interface ValuesDiffPreviewProps {

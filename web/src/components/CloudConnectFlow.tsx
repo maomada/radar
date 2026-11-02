@@ -2,8 +2,8 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AlertTriangle, ArrowUpRight, Check, Copy, ExternalLink, GitBranch, Info, Loader2, ShieldAlert, X } from 'lucide-react'
 import { type AdminNoteContext, type BlockedExit, composeAdminNote, composeFailureNote, needsAdminHandoff, trimRefusal } from './cloudConnectHandoff'
-import { copyText } from '@skyhook-io/k8s-ui/utils/clipboard'
-import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { copyText } from '@maomada/k8s-ui/utils/clipboard'
+import { Collapse, CollapseChevron } from '@maomada/k8s-ui/components/ui/Collapse'
 import { Tooltip } from './ui/Tooltip'
 import {
   ApiError,
@@ -101,7 +101,7 @@ function BlockedView({
         {icon}
         <div className="min-w-0 space-y-3">
           <div className="text-[13px] font-semibold text-theme-text-primary">{copy.title}</div>
-          <BlockedSection label="What Radar tried">{copy.tried}</BlockedSection>
+          <BlockedSection label="What KubeAtlas tried">{copy.tried}</BlockedSection>
           <BlockedSection label="Why it stopped">
             {copy.why}
             {blocked.blocking && blocked.blocking.length > 0 && <BlockingLines lines={blocked.blocking} />}
@@ -173,7 +173,7 @@ function CopyForAdmin({ note }: { note: string }) {
   }
   useEffect(() => () => window.clearTimeout(closeTimer.current), [])
   const copy = () => {
-    // copyText also serves Radar on a plain-HTTP non-loopback address, where
+    // copyText also serves KubeAtlas on a plain-HTTP non-loopback address, where
     // the async Clipboard API is missing and the legacy command still works.
     void copyText(note).then((ok) => {
       setCopied(ok ? 'done' : 'failed')
@@ -292,10 +292,10 @@ function BlockingLines({ lines }: { lines: string[] }) {
 }
 
 // The blocked card stands in for the plan card the person never saw, so it
-// carries what Radar did first, then why it stopped, then the way forward.
+// carries what KubeAtlas did first, then why it stopped, then the way forward.
 // Three short labeled parts, not one paragraph. Every card ends the same way
-// — an admin with cluster access, in Radar Cloud — and the exit says whether
-// that is a deep-linked install command or Radar Cloud itself.
+// — an admin with cluster access, in upstream Cloud — and the exit says whether
+// that is a deep-linked install command or upstream Cloud itself.
 function blockedCopy(blocked: CloudInstallBlocked, exit: BlockedExit): { title: string; tried: ReactNode; why: ReactNode; next: ReactNode } {
   const a = blocked.attempted
   const release = a && (
@@ -305,65 +305,65 @@ function blockedCopy(blocked: CloudInstallBlocked, exit: BlockedExit): { title: 
     </>
   )
   const operation = a?.mode === 'adopt' ? 'a Helm upgrade of your existing' : 'a fresh Helm install of'
-  // What Radar did is told by the stage it reached, not by the plan it had:
+  // What KubeAtlas did is told by the stage it reached, not by the plan it had:
   // a target can be known from discovery before any chart was rendered or
   // dry-run, and the card must not claim work that did not happen.
   const tried =
     !a ? (
-      <>Radar was looking for an existing Radar install in this cluster, as your kubeconfig identity. Nothing was changed.</>
+      <>KubeAtlas was looking for an existing KubeAtlas install in this cluster, as your kubeconfig identity. Nothing was changed.</>
     ) : a.mode === 'gitops' ? (
-      <>Radar found {release} and traced how it is managed before planning anything. Nothing was changed.</>
+      <>KubeAtlas found {release} and traced how it is managed before planning anything. Nothing was changed.</>
     ) : a.stage === 'inspect' ? (
       a.mode === 'adopt' ? (
         <>
-          Radar found {release} and was reading its Helm state, as your kubeconfig identity, before planning anything.
+          KubeAtlas found {release} and was reading its Helm state, as your kubeconfig identity, before planning anything.
           Nothing was changed.
         </>
       ) : (
         <>
-          Radar found no Radar running anywhere in this cluster and was checking Helm’s release records in namespace{' '}
+          KubeAtlas found no KubeAtlas running anywhere in this cluster and was checking Helm’s release records in namespace{' '}
           <code className="font-mono text-[11px] text-theme-text-primary">{a.namespace}</code>, as your kubeconfig
           identity, before planning anything. Nothing was changed.
         </>
       )
     ) : a.stage === 'prepare' ? (
       <>
-        Radar planned {operation} {release} with the Cloud connection enabled and was preparing the chart, as your
+        KubeAtlas planned {operation} {release} with the Cloud connection enabled and was preparing the chart, as your
         kubeconfig identity. Nothing was changed.
       </>
     ) : (
       <>
-        Radar prepared {operation} {release} with the Cloud connection enabled, and dry-ran it against the cluster as
+        KubeAtlas prepared {operation} {release} with the Cloud connection enabled, and dry-ran it against the cluster as
         your kubeconfig identity. Nothing was changed.
       </>
     )
 
-  // Where the exit is an install command, Radar Cloud confirms the cluster name (prefilled from the context)
+  // Where the exit is an install command, upstream Cloud confirms the cluster name (prefilled from the context)
   // first, then shows the instructions — say so, rather than promising a
   // command on the next screen.
   const installNext = (
     <>
-      Have an admin with cluster access get the install command from Radar Cloud: it confirms the cluster name, then
+      Have an admin with cluster access get the install command from upstream Cloud: it confirms the cluster name, then
       shows the Helm, Argo CD or Flux instructions to review before running.
     </>
   )
   const genericNext = (
     <>
-      Have an admin with cluster access resolve the issue above, then connect — or recover — this cluster from Radar
+      Have an admin with cluster access resolve the issue above, then connect — or recover — this cluster from KubeAtlas
       Cloud.
     </>
   )
   const unknownNext = (
     <>
-      Have an admin with cluster access connect it from Radar Cloud.{' '}
+      Have an admin with cluster access connect it from upstream Cloud.{' '}
       {a?.partialScan ? (
         <>
-          Radar could only check namespace{' '}
+          KubeAtlas could only check namespace{' '}
           <code className="font-mono text-[11px] text-theme-text-primary">{a.namespace}</code> for an existing install,
           so they should check the rest of the cluster first.
         </>
       ) : (
-        <>Radar couldn’t tell whether it is already installed here, so they should check first.</>
+        <>KubeAtlas couldn’t tell whether it is already installed here, so they should check first.</>
       )}
     </>
   )
@@ -375,7 +375,7 @@ function blockedCopy(blocked: CloudInstallBlocked, exit: BlockedExit): { title: 
       why: blocked.message,
       next: exit.install ? (
         <>
-          Have an admin with repo access get the values patch from Radar Cloud: it confirms the cluster name, then shows
+          Have an admin with repo access get the values patch from upstream Cloud: it confirms the cluster name, then shows
           the patch for your controller and the one command that creates the token Secret.
         </>
       ) : (
@@ -384,13 +384,13 @@ function blockedCopy(blocked: CloudInstallBlocked, exit: BlockedExit): { title: 
     }
   }
   if (blocked.reason === 'unsupported') {
-    return { title: 'Radar can’t connect this cluster from here', tried, why: blocked.message, next: genericNext }
+    return { title: 'KubeAtlas can’t connect this cluster from here', tried, why: blocked.message, next: genericNext }
   }
   // Fresh offered on "nothing running" alone: say what was not confirmed.
   const unconfirmedNext = (
     <>
-      An admin with cluster access should confirm nothing is installed — Radar couldn’t read Helm’s release records —
-      then get the install command from Radar Cloud: it confirms the cluster name, then shows the Helm, Argo CD or Flux
+      An admin with cluster access should confirm nothing is installed — KubeAtlas couldn’t read Helm’s release records —
+      then get the install command from upstream Cloud: it confirms the cluster name, then shows the Helm, Argo CD or Flux
       instructions to review before running.
     </>
   )
@@ -405,9 +405,9 @@ function blockedCopy(blocked: CloudInstallBlocked, exit: BlockedExit): { title: 
       }
     case 'verification':
       return {
-        title: 'This version of Radar can’t install this chart version from here',
+        title: 'This version of KubeAtlas can’t install this chart version from here',
         tried,
-        why: 'The chart renders something this Radar build can’t check before applying, so it won’t install it unseen. A limitation of this Radar, not of your cluster or your access.',
+        why: 'The chart renders something this KubeAtlas build can’t check before applying, so it won’t install it unseen. A limitation of this KubeAtlas, not of your cluster or your access.',
         next,
       }
     default:
@@ -417,7 +417,7 @@ function blockedCopy(blocked: CloudInstallBlocked, exit: BlockedExit): { title: 
         why: 'The cluster refused: something already there conflicts with the install, or a policy rejects it. More permission wouldn’t change that.',
         next: exit.install ? (
           <>
-            Once the refusals above are resolved, have an admin with cluster access get the install command from Radar
+            Once the refusals above are resolved, have an admin with cluster access get the install command from KubeAtlas
             Cloud: it confirms the cluster name, then shows the Helm, Argo CD or Flux instructions to review before
             running.
           </>
@@ -516,14 +516,14 @@ function PlanCard({
           </>
         ) : (
           <>
-            <PlanRow label="Action" value="Install a new connected Radar release" />
-            <PlanRow label="Chart" value={`${plan.targetChartVersion} (Radar ${plan.targetAppVersion})`} mono />
+            <PlanRow label="Action" value="Install a new connected KubeAtlas release" />
+            <PlanRow label="Chart" value={`${plan.targetChartVersion} (KubeAtlas ${plan.targetAppVersion})`} mono />
           </>
         )}
         {plan.currentImageTag && (
           <PlanRow
             label="Note"
-            value={`Pinned image.tag "${plan.currentImageTag}" will be cleared so the chart's stable Radar runs`}
+            value={`Pinned image.tag "${plan.currentImageTag}" will be cleared so the chart's stable KubeAtlas runs`}
           />
         )}
         {plan.preservedImageRepository && (
@@ -560,7 +560,7 @@ function PlanCard({
       )}
 
       <label className="mt-3.5 block">
-        <span className="text-[11.5px] font-medium text-theme-text-secondary">Cluster name in Radar</span>
+        <span className="text-[11.5px] font-medium text-theme-text-secondary">Cluster name in KubeAtlas</span>
         <input
           value={clusterName}
           onChange={(e) => setClusterName(e.target.value)}
@@ -571,8 +571,8 @@ function PlanCard({
 
       {plan.sharedListener && (
         <ConsentRow checked={ackShared} onChange={setAckShared} tone="amber">
-          This Radar answers beyond localhost, so anyone who can open this page could connect this cluster to
-          their own Radar organization. Continue anyway.
+          This KubeAtlas answers beyond localhost, so anyone who can open this page could connect this cluster to
+          their own KubeAtlas organization. Continue anyway.
         </ConsentRow>
       )}
 
@@ -583,7 +583,7 @@ function PlanCard({
       )}
       {adopt && (
         <ConsentRow checked={acceptAdoption} onChange={setAcceptAdoption} tone="emerald">
-          Upgrade and connect the existing Radar installation. Sign-in and final approval happen in the
+          Upgrade and connect the existing KubeAtlas installation. Sign-in and final approval happen in the
           browser before anything changes.
         </ConsentRow>
       )}
@@ -616,13 +616,13 @@ function PlanCard({
           Cancel
         </button>
       </div>
-      {/* Radar has no Hub identity here — that is what the device flow is for —
+      {/* KubeAtlas has no Hub identity here — that is what the device flow is for —
        *  so this cannot assert whether an account already exists. Phrased to
        *  read correctly for a returning operator and a first-time one alike. */}
       <p className="mt-2.5 text-[11px] text-theme-text-tertiary">
         Nothing is installed yet. You'll approve this cluster in the browser, creating your account and
         organization first if you don't have one.{' '}
-        {adopt ? 'Then your existing Radar is upgraded and connected.' : 'Then Radar is installed in your cluster.'}
+        {adopt ? 'Then your existing KubeAtlas is upgraded and connected.' : 'Then KubeAtlas is installed in your cluster.'}
       </p>
     </div>
   )
@@ -699,8 +699,8 @@ function ProgressCard({ status, onStatus }: { status: CloudInstallStatus; onStat
   const cancel = useCancelButton(status, onStatus)
   const steps: Array<{ label: string; state: 'done' | 'active' | 'todo' }> = [
     { label: 'Approved in browser', state: 'done' },
-    { label: `Installing Radar (namespace ${status.plan?.namespace ?? 'radar'})`, state: provisioning ? 'active' : 'done' },
-    { label: 'Waiting for Radar to connect to Cloud', state: provisioning ? 'todo' : 'active' },
+    { label: `Installing KubeAtlas (namespace ${status.plan?.namespace ?? 'radar'})`, state: provisioning ? 'active' : 'done' },
+    { label: 'Waiting for KubeAtlas to connect to Cloud', state: provisioning ? 'todo' : 'active' },
   ]
   return (
     <div className="px-8 pt-6 pb-5">
@@ -774,11 +774,11 @@ function ConnectedCard({
           <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         </span>
         <h4 className="text-[15px] font-semibold text-theme-text-primary">
-          {status.clusterName} is connected to Radar Cloud
+          {status.clusterName} is connected to upstream Cloud
         </h4>
       </div>
       <p className="text-[12.5px] leading-relaxed text-theme-text-secondary mb-4">
-        Radar is live in the cluster and connected to Radar Cloud. The Radar you're running keeps working,
+        KubeAtlas is live in the cluster and connected to upstream Cloud. The KubeAtlas you're running keeps working,
         and the cluster is now also reachable for your team at one URL.
       </p>
       <div className="flex items-center gap-4 mb-4">
@@ -788,7 +788,7 @@ function ConnectedCard({
           rel="noopener noreferrer"
           className="px-5 py-2 rounded-[10px] bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-[13px] font-bold transition-all inline-flex items-center gap-1.5"
         >
-          Open in Radar Cloud <ArrowUpRight className="w-3.5 h-3.5" />
+          Open in upstream Cloud <ArrowUpRight className="w-3.5 h-3.5" />
         </a>
         <button onClick={dismiss} className="text-[12.5px] text-theme-text-tertiary hover:text-theme-text-primary transition-colors">
           Done
@@ -906,7 +906,7 @@ function GuidanceBlock({
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-2"
         >
-          Open in Radar Cloud <ExternalLink className="w-3 h-3" />
+          Open in upstream Cloud <ExternalLink className="w-3 h-3" />
         </a>
       )}
     </div>

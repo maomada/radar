@@ -3,7 +3,7 @@ package issues
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // A Node's issues are composed across namespaces. The caller's subject check

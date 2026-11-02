@@ -9,8 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/filter"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/filter"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // Search reads cached objects in place (CacheProvider.ListDynamic returns the

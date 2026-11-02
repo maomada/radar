@@ -1,9 +1,9 @@
 package search
 
 import (
-	"github.com/skyhook-io/radar/internal/filter"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/filter"
+	"github.com/maomada/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 const (

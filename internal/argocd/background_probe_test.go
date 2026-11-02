@@ -29,9 +29,9 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/pkg/argoapi"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/pkg/argoapi"
 )
 
 // mustConnect runs, synchronously, the probe a read would start in the

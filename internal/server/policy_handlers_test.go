@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // Report producers are inconsistent about case across report families, so the

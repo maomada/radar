@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
 )
 
 func TestConfirmDiscoveryUncertaintyDoesNotMislabelAdoptionAsFresh(t *testing.T) {
@@ -19,7 +19,7 @@ func TestConfirmDiscoveryUncertaintyDoesNotMislabelAdoptionAsFresh(t *testing.T)
 	if !strings.Contains(got, `namespace "observability", Helm release "prod"`) || !strings.Contains(got, "Continue with this selected target") {
 		t.Fatalf("selected-target guidance missing:\n%s", got)
 	}
-	if strings.Contains(got, "fresh install") || strings.Contains(got, "no Radar Deployment") {
+	if strings.Contains(got, "fresh install") || strings.Contains(got, "no KubeAtlas Deployment") {
 		t.Fatalf("uncertainty guidance made an unsupported fresh-install claim:\n%s", got)
 	}
 }
@@ -53,13 +53,13 @@ func TestMultipleTargetsErrorGetsCLIFlagHint(t *testing.T) {
 
 func TestGitOpsHandoffGenerationFailureRecoversExistingHubCluster(t *testing.T) {
 	var out bytes.Buffer
-	printGitOpsHandoffFailure(&out, errors.New("render failed"), "clus_pending", "https://app.radarhq.io/c/clus_pending")
+	printGitOpsHandoffFailure(&out, errors.New("render failed"), "clus_pending", "https://app.example.test/c/clus_pending")
 	got := out.String()
 	for _, want := range []string{
 		"render failed", "clus_pending", "no live Kubernetes resource was changed",
 		"no GitOps instructions or token Secret were generated", "Do not rerun",
 		"organization owner", "Resume install", "rotate credentials",
-		"delete it", "https://app.radarhq.io/c/clus_pending",
+		"delete it", "https://app.example.test/c/clus_pending",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("guidance missing %q:\n%s", want, got)
@@ -74,9 +74,9 @@ func TestGitOpsHandoffGenerationFailureRecoversExistingHubCluster(t *testing.T) 
 
 func TestGitOpsUnconfirmedConnectionIsRecoverableFailure(t *testing.T) {
 	var out bytes.Buffer
-	printGitOpsPendingHandoff(&out, cloud.ErrConnectConsumptionTimeout, "clus_pending", "https://app.radarhq.io/c/clus_pending")
+	printGitOpsPendingHandoff(&out, cloud.ErrConnectConsumptionTimeout, "clus_pending", "https://app.example.test/c/clus_pending")
 	got := out.String()
-	for _, want := range []string{"connection was not confirmed", "configuration handoff is ready", "Do not rerun", "clus_pending", "https://app.radarhq.io/c/clus_pending"} {
+	for _, want := range []string{"connection was not confirmed", "configuration handoff is ready", "Do not rerun", "clus_pending", "https://app.example.test/c/clus_pending"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("guidance missing %q:\n%s", want, got)
 		}
@@ -84,7 +84,7 @@ func TestGitOpsUnconfirmedConnectionIsRecoverableFailure(t *testing.T) {
 	if strings.Contains(got, "not an install failure") {
 		t.Errorf("guidance still reports an unconfirmed connection as success:\n%s", got)
 	}
-	if strings.Contains(got, "Radar Cloud") {
+	if strings.Contains(got, "upstream Cloud") {
 		t.Errorf("recovery guidance hard-codes the hosted product name:\n%s", got)
 	}
 }
@@ -94,10 +94,10 @@ func TestGitOpsUnconfirmedConnectionIsRecoverableFailure(t *testing.T) {
 // dangling colon.
 func TestCanceledAfterApprovalPrintsClusterLinkLast(t *testing.T) {
 	var out bytes.Buffer
-	printCanceledAfterApproval(&out, "clus_x", "https://app.radarhq.io/c/clus_x")
+	printCanceledAfterApproval(&out, "clus_x", "https://app.example.test/c/clus_x")
 	got := out.String()
 	colon := strings.Index(got, "delete it later:")
-	link := strings.Index(got, "https://app.radarhq.io/c/clus_x")
+	link := strings.Index(got, "https://app.example.test/c/clus_x")
 	if colon < 0 || link < 0 || link < colon {
 		t.Fatalf("cluster link does not follow the sentence that introduces it:\n%s", got)
 	}

@@ -1,7 +1,7 @@
 import type { DashboardCertificateHealth } from '../../api/client'
 import { Shield, ArrowRight } from 'lucide-react'
 import { clsx } from 'clsx'
-import { StatusDot, type StatusTone } from '@skyhook-io/k8s-ui'
+import { StatusDot, type StatusTone } from '@maomada/k8s-ui'
 
 interface CertificateHealthCardProps {
   data: DashboardCertificateHealth

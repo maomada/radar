@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // AvailabilityStatus is the coarse answer to "can Radar reach Prometheus

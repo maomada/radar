@@ -1,4 +1,4 @@
-import { Disclosure } from '@skyhook-io/k8s-ui'
+import { Disclosure } from '@maomada/k8s-ui'
 
 const box = { width: 440 } as const
 

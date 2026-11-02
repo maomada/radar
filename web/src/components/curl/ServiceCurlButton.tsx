@@ -7,8 +7,8 @@ import { apiFetch } from '../../api/client'
 import { apiUrl } from '../../api/config'
 import { readErrorBody } from '../../api/httpErrors'
 import { Tooltip } from '../ui/Tooltip'
-import { Input } from '@skyhook-io/k8s-ui'
-import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { Input } from '@maomada/k8s-ui'
+import { Collapse, CollapseChevron } from '@maomada/k8s-ui/components/ui/Collapse'
 
 // A port is "curl-able" only if it plausibly speaks HTTP — probing a raw TCP
 // port (Postgres, Redis) with a GET returns noise, so we don't offer it there

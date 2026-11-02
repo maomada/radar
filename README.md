@@ -1,10 +1,10 @@
-# Radar
+# KubeAtlas
 
 **The missing open-source Kubernetes UI.**
 <br>Single binary. No account required. Apache-2.0 licensed.
 
 This repository is independently maintained by maomada and continues the
-Radar project originally created by Skyhook. See [NOTICE](NOTICE) for
+KubeAtlas project originally created by Skyhook. See [NOTICE](NOTICE) for
 preserved attribution and [LICENSE](LICENSE) for the Apache-2.0 terms.
 
 [Source](https://github.com/maomada/radar) · [Documentation](docs/) ·
@@ -21,7 +21,7 @@ Topology, resources, Helm, GitOps, traffic, audit, upgrade impact, and MCP conte
 <details>
 <summary><b>Table of contents</b></summary>
 
-- [Why Radar?](#why-radar)
+- [Why KubeAtlas?](#why-kubeatlas)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Views](#views) — Topology · Resources · Image Filesystem · Timeline · Helm · Compare · TLS · GitOps · Traffic · Cost · Audit · Upgrade impact · RBAC · MCP · Auth
@@ -33,7 +33,7 @@ Topology, resources, Helm, GitOps, traffic, audit, upgrade impact, and MCP conte
 </details>
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Radar Screenshot" width="800">
+  <img src="docs/screenshot.png" alt="KubeAtlas Screenshot" width="800">
 </p>
 
 **Build from this source:**
@@ -42,7 +42,7 @@ git clone https://github.com/maomada/radar.git
 cd radar
 make deps
 make build VERSION=dev
-./radar
+./kubeatlas
 
 # Optional: build the standalone Portal binary
 make portal VERSION=dev
@@ -51,16 +51,16 @@ make portal VERSION=dev
 chart version only after that version has actually been published. See the
 [distribution and release policy](docs/ci-cd.md).
 
-## Why Radar?
+## Why KubeAtlas?
 
 - **Zero install on your cluster** — runs on your laptop, talks to the K8s API directly
 - **Single binary** — no dependencies, no agents, no CRDs
 - **Fast on big clusters** — tested on tens of thousands of pods, with responsive views and live updates under real cluster churn
-- **Private by design** — your cluster data stays on your machine. No account, no agents, no cloud sync. Usage reporting is off unless you opt in, and then sends only anonymous usage counts and coarse cluster facts: Kubernetes version, platform, node-count range, known integrations ([what Radar sends](docs/configuration.md#what-radar-sends))
+- **Private by design** — KubeAtlas does not collect or send usage reports. Your configured Kubernetes, Prometheus, GitOps, AI, and other integrations still use their configured network access ([usage reporting policy](docs/usage-stats.md)).
 - **Airgapped-friendly** — runs as a single binary against the Kubernetes API and works in locked-down environments with outbound egress blocked
 - **Real-time** — watches your cluster via informers, pushes updates to the browser via SSE
 - **Works everywhere** — GKE, EKS, AKS, minikube, kind, k3s, or any conformant cluster
-- **AI-ready** — built-in [MCP server](docs/mcp.md) lets AI agents inspect, investigate, and operate your cluster through Radar
+- **AI-ready** — built-in [MCP server](docs/mcp.md) lets AI agents inspect, investigate, and operate your cluster through KubeAtlas
 - **In-cluster option** — deploy with Helm for shared team access with RBAC-scoped permissions
 
 ---
@@ -84,32 +84,17 @@ published.
 
 ```bash
 # Opens browser automatically
-kubectl radar
+kubectl kubeatlas
 
 # Run the standalone command built from this source tree
-radar
+kubeatlas
 ```
 
-To inspect an installation connected to the external Radar Cloud service
-without changing it:
-
-```bash
-radar cloud status
-radar cloud status --context my-cluster
-radar cloud status --context my-cluster --namespace radar --release radar
-```
-
-The command reports installation ownership, chart and image, agent readiness,
-and Cloud configuration without printing the connection token. Passing both
-`--namespace` and `--release` selects an exact installation. Live tunnel status
-is reported by Radar Cloud using the token in the referenced Kubernetes Secret.
-If the Secret or Hub is unavailable, local installation diagnostics still run.
-Interactive terminals use restrained status colors; set `NO_COLOR` (or pipe the
-output) for plain text. URLs, tokens, and suggested commands remain unstyled.
+Legacy upstream Cloud commands are unavailable in KubeAtlas.
 
 **CLI Flags**
 
-The table below covers common startup flags. See the [Configuration Guide](docs/configuration.md); `radar --help` is authoritative for the installed version.
+The table below covers common startup flags. See the [Configuration Guide](docs/configuration.md); `kubeatlas --help` is authoritative for the installed version.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -120,34 +105,34 @@ The table below covers common startup flags. See the [Configuration Guide](docs/
 | `--namespace-scope` | `false` | Pin namespaced informer caches to a **single** namespace for large clusters (scoping to multiple namespaces is not supported yet). Requires `--namespace`, a kubeconfig context namespace, or a saved local single-namespace pick. Local mode can rebuild the cache when switching namespaces; auth/cloud mode locks the shared cache to the startup namespace. |
 | `--port` | `9280` | Server port |
 | `--listen-address` | `127.0.0.1` | HTTP listen IP address (IPv4 or IPv6), or `localhost`. Bind a specific local IP or use `0.0.0.0` for all interfaces. Non-loopback access needs authentication and network controls. |
-| `--base-path` | | Serve Radar under a URL prefix such as `/radar`. Use when an ingress forwards a subpath without stripping it — everything, including `/api/health`, moves under the prefix. Not supported with `--cloud-url`. |
-| `--allowed-hosts` | | Comma-separated hostnames, besides `localhost`, IP addresses and Kubernetes Service names, that an unauthenticated non-loopback listener answers, e.g. `radar.internal`. Other hostnames are refused so DNS rebinding cannot reach Radar. Exact names, or `*.example.com` for names under a domain (not the domain itself); `*` turns the check off. Env: `RADAR_ALLOWED_HOSTS`. See [HTTP Listener](docs/configuration.md#http-listener) |
-| `--trusted-origins` | | Comma-separated origins, besides the address Radar is opened at, that may use Radar's API, including changes and terminals, e.g. `http://radar.internal`. Set this when a proxy in front of Radar rewrites the `Host` header and changes fail with "Radar refused this request". Exact origins, no wildcards. Does not apply to `/mcp` (see `RADAR_MCP_TRUSTED_ORIGINS`). Env: `RADAR_TRUSTED_ORIGINS` |
+| `--base-path` | | Serve KubeAtlas under a URL prefix such as `/radar`. Use when an ingress forwards a subpath without stripping it — everything, including `/api/health`, moves under the prefix. Not supported with `--cloud-url`. |
+| `--allowed-hosts` | | Comma-separated hostnames, besides `localhost`, IP addresses and Kubernetes Service names, that an unauthenticated non-loopback listener answers, e.g. `radar.internal`. Other hostnames are refused so DNS rebinding cannot reach KubeAtlas. Exact names, or `*.example.com` for names under a domain (not the domain itself); `*` turns the check off. Env: `KUBEATLAS_ALLOWED_HOSTS`. See [HTTP Listener](docs/configuration.md#http-listener) |
+| `--trusted-origins` | | Comma-separated origins, besides the address KubeAtlas is opened at, that may use KubeAtlas's API, including changes and terminals, e.g. `http://radar.internal`. Set this when a proxy in front of KubeAtlas rewrites the `Host` header and changes fail with "KubeAtlas refused this request". Exact origins, no wildcards. Does not apply to `/mcp` (see `KUBEATLAS_MCP_TRUSTED_ORIGINS`). Env: `KUBEATLAS_TRUSTED_ORIGINS` |
 | `--no-browser` | `false` | Don't auto-open browser |
 | `--browser` | | Browser to use when opening the UI, e.g. `firefox`, `google-chrome`, or `Google Chrome` on macOS |
 | `--timeline-storage` | `memory` | Timeline storage backend: `memory`, `sqlite`, or `postgres` |
-| `--timeline-db` | `~/.radar/timeline.db` | Path to SQLite database (when using sqlite storage) |
+| `--timeline-db` | `~/.kubeatlas/timeline.db` | Path to SQLite database (when using sqlite storage) |
 | `--timeline-max-size` | `1Gi` | Maximum SQLite DB + WAL size before pruning oldest events (e.g. `800Mi`, `8Gi`; `0` disables) |
 | `--history-limit` | `10000` | Maximum events to retain in timeline (memory only) |
 | `--disable-exec` | `false` | Disable pod terminal, debug shells and pod file browsing |
 | `--disable-helm-write` | `false` | Disable Helm write operations |
 | `--disable-local-terminal` | `false` | Disable the host local terminal |
-| `--debug-image` | `busybox:latest` | Image for ephemeral debug containers and node debug pods. If built-in restricted PodSecurity rejects the default pod debug container, Radar retries with a restricted-compatible Linux security context using the target/pod non-root UID, or UID `65532` by default; point at a compatible mirror for air-gapped / private-registry clusters. |
+| `--debug-image` | `busybox:latest` | Image for ephemeral debug containers and node debug pods. If built-in restricted PodSecurity rejects the default pod debug container, KubeAtlas retries with a restricted-compatible Linux security context using the target/pod non-root UID, or UID `65532` by default; point at a compatible mirror for air-gapped / private-registry clusters. |
 | `--list-page-size` | `0` (off) | Paginate the initial LIST of high-cardinality kinds (Pods, ReplicaSets) at this size. Helps very large clusters that fail to sync; only used when WatchList streaming is unavailable. Try `2000`. |
-| `--context-switch-timeout` | `30s` | Maximum time a kubeconfig context switch may take. Widen on high-latency control planes — see [Tuning for slow clusters](#tuning-for-slow-or-high-latency-clusters). Env: `RADAR_CONTEXT_SWITCH_TIMEOUT`. |
-| `--first-paint-backstop` | `5m` | Hard upper bound on the initial critical-cache sync wait before Radar falls through to a partial-data render. Env: `RADAR_FIRST_PAINT_BACKSTOP`. |
-| `--namespace-list-timeout` | `5s` | Timeout for the cluster-wide namespace LIST used to decide if the user is RBAC-namespace-restricted. A timeout on a slow control plane is misreported in the UI as "Limited list — RBAC". Env: `RADAR_NAMESPACE_LIST_TIMEOUT`. |
-| `--max-scope-candidates` | `20` | Cap on the namespace-fallback probe fanout (used by accounts that can list namespaces cluster-wide but not list a specific kind cluster-wide). Raise above `20` for clusters with more than 20 namespaces. Env: `RADAR_MAX_SCOPE_CANDIDATES`. |
+| `--context-switch-timeout` | `30s` | Maximum time a kubeconfig context switch may take. Widen on high-latency control planes — see [Tuning for slow clusters](#tuning-for-slow-or-high-latency-clusters). Env: `KUBEATLAS_CONTEXT_SWITCH_TIMEOUT`. |
+| `--first-paint-backstop` | `5m` | Hard upper bound on the initial critical-cache sync wait before KubeAtlas falls through to a partial-data render. Env: `KUBEATLAS_FIRST_PAINT_BACKSTOP`. |
+| `--namespace-list-timeout` | `5s` | Timeout for the cluster-wide namespace LIST used to decide if the user is RBAC-namespace-restricted. A timeout on a slow control plane is misreported in the UI as "Limited list — RBAC". Env: `KUBEATLAS_NAMESPACE_LIST_TIMEOUT`. |
+| `--max-scope-candidates` | `20` | Cap on the namespace-fallback probe fanout (used by accounts that can list namespaces cluster-wide but not list a specific kind cluster-wide). Raise above `20` for clusters with more than 20 namespaces. Env: `KUBEATLAS_MAX_SCOPE_CANDIDATES`. |
 | `--prometheus-url` | (auto-discover) | Manual PromQL-compatible query URL, including Prometheus, VictoriaMetrics, Thanos, or Mimir (skips auto-discovery). In local CLI/Desktop mode, applies only to the launch's initial context and never inherits saved headers. |
 | `--prometheus-single-cluster` | `false` | Declare the backend dedicated to this cluster for workload metrics and PVC usage, replacing automatic identity matching. Other metrics do not use this override. [Scope and lifetime](docs/workload-metrics.md#optional-operator-override). |
 | `--prometheus-cluster-label` | (automatic matching) | Optional workload/PVC metrics override for a shared backend, e.g. `cluster=production` (repeatable, ANDed). Alternative to `--prometheus-single-cluster`; leave both unset for automatic matching. Not persisted. |
 | `--prometheus-header` | | HTTP header sent with every Prometheus request, format `Key=Value` (repeatable). Required for auth-protected backends. In local CLI/Desktop mode, requires `--prometheus-url` in the same launch and applies only to the launch's initial context. |
 | `--prometheus-header-from-env` | | HTTP header sent with every Prometheus request, sourced from an environment variable, format `Key=ENV_VAR` (repeatable). In local CLI/Desktop mode, requires `--prometheus-url` in the same launch and applies only to the launch's initial context. |
 | `--beyla-job-selector` | (empty) | Beyla Live Traffic matcher fragment (empty matches Beyla/Alloy jobs there). Workload charts use it only with an explicit scope override and accept one `job` equality or regex matcher. Automatic workload matching discovers custom jobs without it. [Details](docs/workload-metrics.md#request-sources). |
-| `--opencost-currency` | (auto-detect, then USD) | Override the ISO 4217 currency label for OpenCost values. Radar labels values but does not convert them. |
+| `--opencost-currency` | (auto-detect, then USD) | Override the ISO 4217 currency label for OpenCost values. KubeAtlas labels values but does not convert them. |
 | `--auth-mode` | `none` | Authentication mode: `none`, `proxy`, or `oidc` ([details](docs/authentication.md)) |
 | `--no-mcp` | `false` | Disable all MCP endpoints |
-| `--mcp-read-only` | `false` | Expose only read-only MCP tools; disable `/mcp` (env: `RADAR_MCP_READ_ONLY`) |
+| `--mcp-read-only` | `false` | Expose only read-only MCP tools; disable `/mcp` (env: `KUBEATLAS_MCP_READ_ONLY`) |
 | `--mcp-catalog-stdio` | `false` | Start only the MCP catalog over stdio for registry introspection |
 | `--version` | | Show version and exit |
 
@@ -168,25 +153,25 @@ to API-server throttling, where they surface as one of three symptoms:
   the 20-entry candidate cap
 
 Widen the four flags via CLI or via the matching environment variables
-(`RADAR_CONTEXT_SWITCH_TIMEOUT`, `RADAR_FIRST_PAINT_BACKSTOP`,
-`RADAR_NAMESPACE_LIST_TIMEOUT`, `RADAR_MAX_SCOPE_CANDIDATES`) — env vars
+(`KUBEATLAS_CONTEXT_SWITCH_TIMEOUT`, `KUBEATLAS_FIRST_PAINT_BACKSTOP`,
+`KUBEATLAS_NAMESPACE_LIST_TIMEOUT`, `KUBEATLAS_MAX_SCOPE_CANDIDATES`) — env vars
 keep secrets out of `ps` and let in-cluster deployments source the values
 from a ConfigMap:
 
 ```bash
 # CLI
-kubectl radar \
+kubectl kubeatlas \
   --context-switch-timeout=120s \
   --first-paint-backstop=10m \
   --namespace-list-timeout=30s \
   --max-scope-candidates=200
 
 # Environment (e.g. in a Deployment manifest)
-RADAR_CONTEXT_SWITCH_TIMEOUT=120s \
-RADAR_FIRST_PAINT_BACKSTOP=10m \
-RADAR_NAMESPACE_LIST_TIMEOUT=30s \
-RADAR_MAX_SCOPE_CANDIDATES=200 \
-  kubectl radar
+KUBEATLAS_CONTEXT_SWITCH_TIMEOUT=120s \
+KUBEATLAS_FIRST_PAINT_BACKSTOP=10m \
+KUBEATLAS_NAMESPACE_LIST_TIMEOUT=30s \
+KUBEATLAS_MAX_SCOPE_CANDIDATES=200 \
+  kubectl kubeatlas
 ```
 
 Defaults are preserved when neither the flag nor the env var is set, so
@@ -256,7 +241,7 @@ Unified timeline of Kubernetes events and resource changes.
 
 ### Helm
 
-Manage Helm releases deployed in your cluster — inspect values and rendered manifests, diff revisions, identify failed upgrades and rollback-after-failure patterns, diagnose failed hooks, upgrade, rollback, and uninstall. Radar tracks available chart upgrades (from your configured repos or your own OCI registries) and lets you pick a specific target version. See [Helm Support](docs/helm.md) for the detailed behavior and limits.
+Manage Helm releases deployed in your cluster — inspect values and rendered manifests, diff revisions, identify failed upgrades and rollback-after-failure patterns, diagnose failed hooks, upgrade, rollback, and uninstall. KubeAtlas tracks available chart upgrades (from your configured repos or your own OCI registries) and lets you pick a specific target version. See [Helm Support](docs/helm.md) for the detailed behavior and limits.
 
 <p align="center">
   <img src="docs/screenshots/helm-view.png" alt="Helm View" width="800">
@@ -311,7 +296,7 @@ Monitor, diagnose, and manage FluxCD and ArgoCD resources in one place.
 - Fleet view + per-app detail page (Topology / Changes / Activity tabs) for **ArgoCD** (`Application`, `ApplicationSet`, `AppProject`) and **FluxCD** (`GitRepository`, `OCIRepository`, `HelmRepository`, `Bucket`, `Kustomization`, `HelmRelease`, `Alert`)
 - **Diagnosis pipeline** — field-level drift, recent events per resource, stuck-drift-loop detection, parsed operation-failures, structured one-click remediation
 - **Lifecycle awareness** — `Terminating` chip replaces stale Sync/Health badges; severity ramps with deletion age; mutating ops refuse on zombies
-- **Cross-linked from the rest of Radar** — `Managed by` chip in resource drawers, GitOps routing from Topology + Timeline + Helm view, `Consumed by` panel on Flux source CRs
+- **Cross-linked from the rest of KubeAtlas** — `Managed by` chip in resource drawers, GitOps routing from Topology + Timeline + Helm view, `Consumed by` panel on Flux source CRs
 - **MCP integration** — `manage_gitops` exposes sync / suspend / resume / reconcile / rollback with lifecycle-aware refusal
 
 See the [GitOps guide](docs/gitops.md) for the full feature matrix, RBAC requirements, demo cluster, and single-cluster scope notes.
@@ -327,7 +312,7 @@ Visualize live network traffic between services using Hubble, Caretta, Istio, or
 
 - Auto-detects Hubble (Cilium), Istio, Caretta, or Grafana Beyla as traffic data sources
 - Beyla (standalone or via Grafana Alloy) provides eBPF L4 + HTTP visibility with no service mesh, read from Prometheus
-- Beyla needs its `network` feature enabled, and per-port edges additionally need `dst.port` and `transport` named in `attributes.select` — both are off by default, and Radar says so in the Traffic view rather than showing partial edges silently
+- Beyla needs its `network` feature enabled, and per-port edges additionally need `dst.port` and `transport` named in `attributes.select` — both are off by default, and KubeAtlas says so in the Traffic view rather than showing partial edges silently
 - Animated flow graph showing requests per second between services
 - Filter by namespace, protocol, or status code
 - Built for large clusters: hidden traffic is filtered at the source, each refresh keeps a bounded number of the newest flows and says how much of the window it covers, and the flow list fetches the records behind a selected node or edge
@@ -338,7 +323,7 @@ Visualize live network traffic between services using Hubble, Caretta, Istio, or
 ### Workload Metrics
 
 Open a Deployment, StatefulSet or DaemonSet's **Metrics** tab to investigate
-request rate, HTTP errors, latency, CPU, memory and throttling. Radar reads an
+request rate, HTTP errors, latency, CPU, memory and throttling. KubeAtlas reads an
 existing Prometheus-compatible backend; resource charts do not require HTTP
 instrumentation, and request charts use supported Beyla or Istio observations.
 
@@ -366,10 +351,10 @@ See [docs/capacity.md](docs/capacity.md) for the full reference.
 
 Track Kubernetes spending from OpenCost metrics in a PromQL-compatible backend or a Kubecost 3 Aggregator.
 Auto mode keeps working Prometheus cost metrics, then discovers a local Kubecost Aggregator; a
-federated agent-only cluster can use its central Aggregator URL in Settings, config, or Helm. Radar
+federated agent-only cluster can use its central Aggregator URL in Settings, config, or Helm. KubeAtlas
 reads the configured currency from a running OpenCost or Kubecost workload when available and
 otherwise uses USD. Source changes are tested and applied separately from the display-currency
-preference, which can be saved even when a source is unavailable. Radar labels values but does not
+preference, which can be saved even when a source is unavailable. KubeAtlas labels values but does not
 convert them.
 
 - Allocated workload cost with namespace scope called out separately from cluster-wide node capacity cost
@@ -396,16 +381,16 @@ Proactive best-practices scanner with 44 checks across security, reliability, an
 
 Hop-ordered diagnosis for Service, Ingress, HTTPRoute, GRPCRoute, and Gateway - answering "if traffic is sent toward this resource, does it reach a healthy process, and if not which hop breaks first?"
 
-- Composes the detections Radar already runs (missing backend Service, port mismatches, no-ready-endpoints, route not Accepted by parent Gateway, readiness probe targeting the wrong port) into a path shape ordered along the traffic flow
+- Composes the detections KubeAtlas already runs (missing backend Service, port mismatches, no-ready-endpoints, route not Accepted by parent Gateway, readiness probe targeting the wrong port) into a path shape ordered along the traffic flow
 - Upstreams (Ingresses / Routes pointing at a Service) are judged independently - one broken Ingress doesn't condemn the other delivery paths
 - First critical hop is named explicitly so the operator can localize the break without reading the whole list; each finding ships a kubectl reproducer
-- **Optional one-shot reachability test** runs DNS / TCP / TLS / HTTP probes against the declared path - direct TCP when Radar is in-cluster, K8s API server proxy when running from a laptop - so the same button works regardless of where Radar runs. Probes never override the static verdict; they add evidence.
+- **Optional one-shot reachability test** runs DNS / TCP / TLS / HTTP probes against the declared path - direct TCP when KubeAtlas is in-cluster, K8s API server proxy when running from a laptop - so the same button works regardless of where KubeAtlas runs. Probes never override the static verdict; they add evidence.
 - NetworkPolicies that select the subject's pods are statically evaluated for their caller-independent ingress rules: a "would block" **WARNING prediction** when no rule admits the path's port, a source-restricted advisory, or an outbound egress note. It's a prediction, never a verdict - the CNI is the only enforcement authority, so the live in-cluster probe confirms or downgrades it
 - Static trace is pure functions over the in-memory informer cache. Active probing from a laptop uses the cluster's normal RBAC (`get services/proxy`, `get pods/proxy`); in-cluster mode goes directly to the data path.
 - Exposed via the **Reachability** tab in the resource detail view (and via the network branch of the MCP `diagnose` tool for AI consumers) - see [docs/reachability.md](docs/reachability.md)
 ### Kubernetes Upgrade Impact
 
-Open **Checks → Upgrade impact** before upgrading the control plane. Radar compares the current cluster with a target Kubernetes minor and orders evidenced compatibility, health, admission, drain, runtime, and configuration checks by required action. Release-specific checks appear only when their Kubernetes minor lies in the selected upgrade path; the current catalog is reviewed through Kubernetes 1.37.
+Open **Checks → Upgrade impact** before upgrading the control plane. KubeAtlas compares the current cluster with a target Kubernetes minor and orders evidenced compatibility, health, admission, drain, runtime, and configuration checks by required action. Release-specific checks appear only when their Kubernetes minor lies in the selected upgrade path; the current catalog is reviewed through Kubernetes 1.37.
 
 - Finds blockers such as skipped minor versions, APIs removed in the target release, unsupported kubelet or kube-proxy skew, overlapping PodDisruptionBudgets, the `gitRepo` volume driver disabled in Kubernetes 1.36, and removed or locked Kubernetes 1.37 feature gates or `scheduling.k8s.io/v1alpha2` objects
 - Flags likely operational impact such as FlexVolume exposure and renamed control-plane metrics as warnings, while intent-dependent configuration such as deprecated Service `externalIPs` remains review
@@ -433,7 +418,7 @@ Read-only visibility ships first; possible follow-ups include RBAC audit checks,
 
 ### AI Integration (MCP)
 
-Radar includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents — Claude Code, Codex, Cursor, GitHub Copilot (VS Code and CLI), OpenCode, Google Antigravity, and any other MCP client — inspect, investigate, and operate your cluster through Radar.
+KubeAtlas includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents — Claude Code, Codex, Cursor, GitHub Copilot (VS Code and CLI), OpenCode, Google Antigravity, and any other MCP client — inspect, investigate, and operate your cluster through KubeAtlas.
 
 Instead of raw `kubectl` output (verbose YAML that burns through LLM context windows), your AI gets pre-processed, token-optimized data: topology graphs, health assessments, deduplicated events, and filtered logs. Diagnosis is read-only by default; optional in-cluster route probing uses short-lived, self-deleting probe pods. Write operations such as restart, scale, apply, and rollback are identified for client confirmation and enforced through Kubernetes RBAC.
 
@@ -444,7 +429,7 @@ This setting does not restrict UI or REST API writes. See the
 
 ### Authentication
 
-For shared in-cluster deployments, Radar supports optional user authentication with per-user Kubernetes RBAC.
+For shared in-cluster deployments, KubeAtlas supports optional user authentication with per-user Kubernetes RBAC.
 
 - **Proxy mode** — works with oauth2-proxy, Pomerium, Cloudflare Access, or any auth proxy that sets forwarded headers
 - **OIDC mode** — built-in login via Google, Okta, Dex, Keycloak, or any OIDC provider
@@ -457,11 +442,11 @@ No auth by default (local use). See the **[Authentication Guide](docs/authentica
 
 ## Supported Resources
 
-Radar auto-discovers any CRD in your cluster. Popular tools get [dedicated integrations](docs/integrations.md) with topology edges, detail views, and AI summaries.
+KubeAtlas auto-discovers any CRD in your cluster. Popular tools get [dedicated integrations](docs/integrations.md) with topology edges, detail views, and AI summaries.
 
-**Default chart RBAC** covers the built-in Kubernetes kinds listed below — Workloads, Networking (including NetworkPolicies and PodDisruptionBudgets), Configuration, Storage (PersistentVolumes, PersistentVolumeClaims, StorageClasses), HorizontalPodAutoscalers, ServiceAccounts, LimitRanges, ResourceQuotas, Nodes, Namespaces, and Events. On Kubernetes 1.37, Radar also surfaces the Workload, PodGroup, CompositePodGroup, PodCertificateRequest, and ClusterTrustBundle APIs when the API server advertises them; the scheduling APIs are feature-gated, while the certificate APIs are stable and enabled by default. These use the generic resource browser rather than dedicated renderers. RBAC objects (Roles, ClusterRoles, RoleBindings, ClusterRoleBindings) are opt-in via `rbac.viewRBAC=true`. **CRD-based integrations** (Gateway API, VerticalPodAutoscaler, Calico, ArgoCD, FluxCD, cert-manager, etc.) need both the CRD installed in your cluster *and* read access granted — most groups are default-on under `rbac.crdGroups.<name>` (e.g. `gatewayApi`, `verticalPodAutoscaler`, `calico`); check `values.yaml` or add custom rules via `rbac.additionalRules`.
+**Default chart RBAC** covers the built-in Kubernetes kinds listed below — Workloads, Networking (including NetworkPolicies and PodDisruptionBudgets), Configuration, Storage (PersistentVolumes, PersistentVolumeClaims, StorageClasses), HorizontalPodAutoscalers, ServiceAccounts, LimitRanges, ResourceQuotas, Nodes, Namespaces, and Events. On Kubernetes 1.37, KubeAtlas also surfaces the Workload, PodGroup, CompositePodGroup, PodCertificateRequest, and ClusterTrustBundle APIs when the API server advertises them; the scheduling APIs are feature-gated, while the certificate APIs are stable and enabled by default. These use the generic resource browser rather than dedicated renderers. RBAC objects (Roles, ClusterRoles, RoleBindings, ClusterRoleBindings) are opt-in via `rbac.viewRBAC=true`. **CRD-based integrations** (Gateway API, VerticalPodAutoscaler, Calico, ArgoCD, FluxCD, cert-manager, etc.) need both the CRD installed in your cluster *and* read access granted — most groups are default-on under `rbac.crdGroups.<name>` (e.g. `gatewayApi`, `verticalPodAutoscaler`, `calico`); check `values.yaml` or add custom rules via `rbac.additionalRules`.
 
-Upgrade impact also gets list-only access to CSIStorageCapacities, FlowSchemas, PriorityLevelConfigurations, and PodSecurityPolicies on clusters where those kinds are served. These reads inspect source-manifest evidence and do not add the kinds to Radar's resource browser.
+Upgrade impact also gets list-only access to CSIStorageCapacities, FlowSchemas, PriorityLevelConfigurations, and PodSecurityPolicies on clusters where those kinds are served. These reads inspect source-manifest evidence and do not add the kinds to KubeAtlas's resource browser.
 
 | Category | Resources |
 |----------|-----------|
@@ -538,7 +523,7 @@ Upgrade impact also gets list-only access to CSIStorageCapacities, FlowSchemas, 
 
 ## Security
 
-Radar reads your cluster through your own credentials and keeps cluster data local. It does not upload manifests, logs, events, metrics, or resource data. Optional, opt-in usage reports are separate; see [Usage Stats](docs/usage-stats.md) for their contents and destination. Radar does not require an account, agent, or cloud backend. Report vulnerabilities privately through this repository's [Security Advisories](https://github.com/maomada/radar/security/advisories/new); see [SECURITY.md](SECURITY.md).
+KubeAtlas reads cluster data through your configured credentials. It does not collect or send usage reports; configured integrations still access their configured services. KubeAtlas does not require an account or an upstream Cloud connection. Report vulnerabilities privately through this repository's [Security Advisories](https://github.com/maomada/radar/security/advisories/new); see [SECURITY.md](SECURITY.md).
 
 ---
 

@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { fetchJSON, createWorkloadLogStream } from '../../api/client'
-import { WorkloadLogsViewer as SharedWorkloadLogsViewer } from '@skyhook-io/k8s-ui'
-import type { WorkloadLogsFetchParams, WorkloadLogsResult } from '@skyhook-io/k8s-ui'
+import { WorkloadLogsViewer as SharedWorkloadLogsViewer } from '@maomada/k8s-ui'
+import type { WorkloadLogsFetchParams, WorkloadLogsResult } from '@maomada/k8s-ui'
 import { useDesktopDownload } from '../../hooks/useDesktopDownload'
 import { useTheme } from '../../context/ThemeContext'
 

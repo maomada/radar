@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import { renderCNPGSummary } from './CNPGSummaryHost'
 
 const state = vi.hoisted(() => ({ framed: undefined as boolean | undefined, row: {} as any, runtime: {} as any }))
-vi.mock('@skyhook-io/k8s-ui', async (original) => ({ ...await original<typeof import('@skyhook-io/k8s-ui')>(), CNPGClusterSummary: ({ framed, operationalFacts }: { framed?: boolean; operationalFacts?: ReactNode }) => { state.framed = framed; return <div>{operationalFacts}</div> } }))
+vi.mock('@maomada/k8s-ui', async (original) => ({ ...await original<typeof import('@maomada/k8s-ui')>(), CNPGClusterSummary: ({ framed, operationalFacts }: { framed?: boolean; operationalFacts?: ReactNode }) => { state.framed = framed; return <div>{operationalFacts}</div> } }))
 vi.mock('./useCNPGClusterAssessment', () => ({ useCNPGClusterAssessment: () => ({ query: {}, runtime: state.runtime, ha: {}, dimensions: [], row: state.row }) }))
 vi.mock('../../context/ConnectionContext', () => ({ useConnection: () => ({ connection: { context: 'test' } }) }))
 vi.mock('../../context/NavCustomization', () => ({ useNavCustomization: () => ({}) }))

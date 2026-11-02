@@ -165,7 +165,7 @@ func TestRefreshPicksUpACLIInstalledLater(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "")
-	t.Setenv("RADAR_AI_CLI_BIN", "")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
 
 	d := newDiagnoser(nil, nil)
 	for _, name := range d.Refresh(context.Background()) {
@@ -187,7 +187,7 @@ func TestRefreshPicksUpACLIInstalledLater(t *testing.T) {
 	}
 }
 
-// RADAR_AI_CLI_BIN pins the backend set: detection must not widen it, but the
+// KUBEATLAS_AI_CLI_BIN pins the backend set: detection must not widen it, but the
 // pinned file is still checked, so a deleted one stops reading as ready and a
 // restored one comes back.
 func TestRefreshKeepsAnOverridePinned(t *testing.T) {
@@ -195,7 +195,7 @@ func TestRefreshKeepsAnOverridePinned(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "")
 	pinned := writeExecutable(t, filepath.Join(home, "bin"), "claude")
-	t.Setenv("RADAR_AI_CLI_BIN", pinned)
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", pinned)
 	writeExecutable(t, filepath.Join(home, ".local", "bin"), "codex")
 
 	d, err := NewDetected(context.Background(), nil)
@@ -203,7 +203,7 @@ func TestRefreshKeepsAnOverridePinned(t *testing.T) {
 		t.Fatal(err)
 	}
 	if changed := d.Refresh(context.Background()); len(changed) != 0 {
-		t.Errorf("Refresh = %v with RADAR_AI_CLI_BIN set, want nothing", changed)
+		t.Errorf("Refresh = %v with KUBEATLAS_AI_CLI_BIN set, want nothing", changed)
 	}
 	if d.resolveTurnAgent("codex") != nil {
 		t.Error("detection widened a pinned backend set")
@@ -300,7 +300,7 @@ func TestProbeVersionRunsAnAgentFoundOffPATH(t *testing.T) {
 func TestRefreshFollowsACLIThatMoved(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("RADAR_AI_CLI_BIN", "")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
 	oldDir := t.TempDir()
 	t.Setenv("PATH", oldDir)
 	old := writeExecutable(t, oldDir, "claude")
@@ -325,7 +325,7 @@ func TestRefreshFollowsACLIThatMoved(t *testing.T) {
 // A CLI uninstalled while Radar runs must stop being offered.
 func TestRefreshDropsACLIThatWasRemoved(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("RADAR_AI_CLI_BIN", "")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
 	dir := t.TempDir()
 	t.Setenv("PATH", dir)
 	gone := writeExecutable(t, dir, "codex")

@@ -10,10 +10,10 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // GET /api/vitals — a cluster's vital signs: a compact scale + capacity

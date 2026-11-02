@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/readscope"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/readscope"
 )
 
 // handleCNPGWorkspace serves GET /api/cnpg/workspace: every CloudNativePG kind

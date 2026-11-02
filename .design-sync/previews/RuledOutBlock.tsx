@@ -1,4 +1,4 @@
-import { RuledOutBlock } from '@skyhook-io/k8s-ui'
+import { RuledOutBlock } from '@maomada/k8s-ui'
 
 const wrap = { width: 560, padding: 8 }
 const noop = () => {}

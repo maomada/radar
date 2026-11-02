@@ -1,5 +1,5 @@
-import { Badge, EmptyState, FetchResult } from '@skyhook-io/k8s-ui'
-import { formatCPUNanocores, formatMemoryBytes } from '@skyhook-io/k8s-ui/utils/format'
+import { Badge, EmptyState, FetchResult } from '@maomada/k8s-ui'
+import { formatCPUNanocores, formatMemoryBytes } from '@maomada/k8s-ui/utils/format'
 import type { JobSetResources, JobSetUsage, WorkloadRun } from '../../api/client'
 
 interface Props {

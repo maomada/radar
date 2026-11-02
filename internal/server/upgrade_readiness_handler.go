@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/upgrade"
-	"github.com/skyhook-io/radar/pkg/upgradereadiness"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/upgrade"
+	"github.com/maomada/radar/pkg/upgradereadiness"
 )
 
 // upgradeReadinessResponse wraps the scan with serving-layer freshness fields:

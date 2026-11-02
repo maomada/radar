@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // TestSearch_SummaryBuilderAttached pins the wiring: when Options.SummaryBuilder

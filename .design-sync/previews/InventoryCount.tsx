@@ -1,4 +1,4 @@
-import { InventoryCount } from '@skyhook-io/k8s-ui'
+import { InventoryCount } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const table: CSSProperties = { width: 320, padding: 8, fontSize: 13 }

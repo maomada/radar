@@ -9,7 +9,7 @@ import {
   rbacResourceNameBadgeClass,
   rbacNonResourceUrlBadgeClass,
   type RBACWhoamiResponse,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useNamespaces, useAuthMe, fetchJSON } from '../../api/client'
 import { useRBACWhoami } from '../../api/rbac'
 
@@ -191,10 +191,10 @@ function displayKind(countKey: string): string {
   return i === -1 ? countKey : countKey.slice(i + 1)
 }
 
-// RestrictedResources surfaces the kinds Radar isn't showing the user (the
+// RestrictedResources surfaces the kinds KubeAtlas isn't showing the user (the
 // resource-counts `forbidden` set) — the "what's hidden from me" half of access,
 // alongside the SelfSubjectRulesReview rules above. Each forbidden kind carries
-// a reason, so only the caller's own RBAC denials are listed. A Radar that
+// a reason, so only the caller's own RBAC denials are listed. A KubeAtlas that
 // predates reasons mixes those with not-installed/not-watched kinds, so its
 // copy says "usually RBAC" rather than asserting a cause. Both link to the docs
 // that carry the unblock RBAC.
@@ -218,7 +218,7 @@ function RestrictedResources({ enabled }: { enabled: boolean }) {
       <p className="text-xs text-theme-text-tertiary mb-2">
         {reasons
           ? '这些资源类型因你的权限而隐藏。'
-          : 'Radar 未显示这些资源类型——通常是因为你的 RBAC 不允许列出它们，有时是因为该类型未在此集群中安装或监视。无论哪种情况，都不代表集群为空。'}
+          : 'KubeAtlas 未显示这些资源类型——通常是因为你的 RBAC 不允许列出它们，有时是因为该类型未在此集群中安装或监视。无论哪种情况，都不代表集群为空。'}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {forbidden.map((k) => (
@@ -231,7 +231,7 @@ function RestrictedResources({ enabled }: { enabled: boolean }) {
         ))}
       </div>
       <a
-        href="https://radarhq.io/docs/cloud/rbac"
+        href="https://github.com/maomada/radar/blob/main/docs/cloud-rbac-baseline.md"
         target="_blank"
         rel="noreferrer"
         className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline mt-2"

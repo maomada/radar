@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	bpaudit "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/checks"
+	bpaudit "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/checks"
 )
 
 func TestSummarizeFindingsUsesCanonicalPostureSeverity(t *testing.T) {

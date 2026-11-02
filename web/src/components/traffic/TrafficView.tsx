@@ -13,10 +13,10 @@ import { TrafficSourcePill } from './TrafficSourcePill'
 import { TrafficGraphTooLarge } from './TrafficGraphTooLarge'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDock } from '../dock'
-import { AlertBanner, EmptyState, PaneLoader, FreshnessControl } from '@skyhook-io/k8s-ui'
+import { AlertBanner, EmptyState, PaneLoader, FreshnessControl } from '@maomada/k8s-ui'
 import { useConnection } from '../../context/ConnectionContext'
 import { Tooltip } from '../ui/Tooltip'
-import { SEVERITY_TEXT } from '@skyhook-io/k8s-ui/utils/badge-colors'
+import { SEVERITY_TEXT } from '@maomada/k8s-ui/utils/badge-colors'
 import { matchesStatusRanges, bucketsFromCounts, bucketsFromStatus, isRateBasedSource, keepAvailable, effectiveThreshold, volumeUnit, type VolumeUnit, isExternalKind, mergeFlowVolume, coverageLabel, type GraphFlow, endpointPair, graphEndpoint, graphEndpointId, mergeRawPairs, mergedEdgePort, selectedEdgeMatcher, selectionRawPairs, selectionMatch, graphSize, GRAPH_DRAW_BUDGET, GRAPH_DRAW_CEILING, parseFocus, focusParam, focusId, focusNeighborhood, touchesFocus, endpointSummaries, namespaceSummaries, verdictChoices, type TrafficFocus } from './trafficFilters'
 
 // Consecutive 2s retries of an empty result that came with a transient warning.
@@ -349,16 +349,16 @@ const isExternal = isExternalKind
 
 
 // Why the map covers less than the chosen window. Two limits can cut it: each
-// node returns at most nodeFlowLimit flows, and on a large cluster Radar keeps
+// node returns at most nodeFlowLimit flows, and on a large cluster KubeAtlas keeps
 // at most flowLimit in total. Narrowing what is fetched is the way to see more.
 function coverageExplanation(data: { nodeFlowLimit?: number; flowLimit?: number } | undefined, timeRange: string, hideSystem: boolean): string {
   const narrow = hideSystem
     ? 'Selecting fewer namespaces fetches less traffic, so the map covers more of the window.'
     : 'Hiding system traffic or selecting fewer namespaces fetches less traffic, so the map covers more of the window.'
   if (data?.flowLimit) {
-    return `This cluster produced more flows in the last ${timeRange} than Radar keeps per refresh (${data.flowLimit.toLocaleString()}), so the map shows the newest ones. ${narrow}`
+    return `This cluster produced more flows in the last ${timeRange} than KubeAtlas keeps per refresh (${data.flowLimit.toLocaleString()}), so the map shows the newest ones. ${narrow}`
   }
-  return `Radar reads at most ${(data?.nodeFlowLimit ?? 0).toLocaleString()} of the newest flows from each node. At least one node reached that limit before the start of the ${timeRange} window, so its earlier traffic is not included. Other nodes may still show older flows. ${narrow}`
+  return `KubeAtlas reads at most ${(data?.nodeFlowLimit ?? 0).toLocaleString()} of the newest flows from each node. At least one node reached that limit before the start of the ${timeRange} window, so its earlier traffic is not included. Other nodes may still show older flows. ${narrow}`
 }
 
 function flowStatsExplanation(stats: { shown: number; total: number; hidden: number; outsideFocus: number; aggregated: number }): string {
@@ -1662,7 +1662,7 @@ export function TrafficView({ namespaces, onSetNamespaces }: TrafficViewProps) {
                   icon={AlertTriangle}
                   headline={
                     warningIsPermanent
-                      ? 'No traffic Radar can place on the map'
+                      ? 'No traffic KubeAtlas can place on the map'
                       : warningIsIncomplete
                         ? 'No traffic seen, but some may be missing'
                         : 'Unable to fetch traffic data'
@@ -1694,7 +1694,7 @@ export function TrafficView({ namespaces, onSetNamespaces }: TrafficViewProps) {
 
 /**
  * A focus with nothing to show. Says which of the reasons it is, since only
- * one of them means the workload is quiet: Radar may have hidden its traffic,
+ * one of them means the workload is quiet: KubeAtlas may have hidden its traffic,
  * or never fetched it.
  */
 function FocusNotFound({ focus, hiddenByFilters, systemHidden, hideSystem, outsideNamespaces, window, onShowAll, onShowSystem, onSwitchNamespace, warning, onLeave }: {
@@ -1725,12 +1725,12 @@ function FocusNotFound({ focus, hiddenByFilters, systemHidden, hideSystem, outsi
     body = `${focus.namespace} is outside the namespaces in view, so only its traffic with them was fetched, and there was none.`
     if (onSwitchNamespace) action = { label: `Switch to ${focus.namespace}`, onClick: onSwitchNamespace }
   } else if (warning) {
-    body = `Radar found none in the ${window}, but some traffic may be missing.`
+    body = `KubeAtlas found none in the ${window}, but some traffic may be missing.`
   } else if (hideSystem) {
-    body = `Radar saw no traffic to or from it in the ${window}, other than any with system namespaces, which Hide System keeps from being fetched.`
+    body = `KubeAtlas saw no traffic to or from it in the ${window}, other than any with system namespaces, which Hide System keeps from being fetched.`
     action = { label: 'Show system traffic', onClick: onShowSystem }
   } else {
-    body = `Radar saw no traffic to or from it in the ${window}.`
+    body = `KubeAtlas saw no traffic to or from it in the ${window}.`
   }
   // Whatever else applies, a fetch that reported trouble is not proof of quiet.
   if (warning) body += ` ${warning}`

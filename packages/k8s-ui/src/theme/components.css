@@ -1,8 +1,8 @@
 /* ============================================
-   SHARED COMPONENT CLASSES (@skyhook-io/k8s-ui)
+   SHARED COMPONENT CLASSES (@maomada/k8s-ui)
    All in @layer components so Tailwind utilities can override them.
-   Import: @skyhook-io/k8s-ui/theme/components.css
-   Requires: @skyhook-io/k8s-ui/theme/variables.css imported first.
+   Import: @maomada/k8s-ui/theme/components.css
+   Requires: @maomada/k8s-ui/theme/variables.css imported first.
    ============================================ */
 
 @layer components {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowUpRight, BookOpen, Check, Copy, ExternalLink, Globe, Layers, LogOut, Plug, Radar, RefreshCw, Search, Server, ShieldCheck } from 'lucide-react'
-import { Badge } from '@skyhook-io/k8s-ui/components/ui/Badge'
+import { Activity, ArrowUpRight, BookOpen, Check, Copy, ExternalLink, Globe, Layers, LogOut, Plug, RefreshCw, Search, Server, ShieldCheck } from 'lucide-react'
+import { Badge } from '@maomada/k8s-ui/components/ui/Badge'
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../api/config'
 import { filterClusters, mcpClientConfig, safeExternalURL } from './model'
 import type { PortalCluster, PortalDirectory } from './model'
@@ -65,47 +65,47 @@ function ClusterCard({ cluster, outdated }: { cluster: PortalCluster; outdated: 
       </div>
       <p className="min-h-10 break-words text-sm leading-relaxed text-theme-text-secondary">{cluster.description || '未提供集群描述'}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Badge tone="structural">{cluster.runtimeMode === 'local' ? '本地 Radar' : cluster.runtimeMode === 'in-cluster' ? '集群内 Radar' : '运行模式未上报'}</Badge>
+        <Badge tone="structural">{cluster.runtimeMode === 'local' ? '本地 KubeAtlas' : cluster.runtimeMode === 'in-cluster' ? '集群内 KubeAtlas' : '运行模式未上报'}</Badge>
         {cluster.environment && <Badge tone="accent2">{cluster.environment}</Badge>}
         {cluster.region && <Badge tone="structural"><Globe size={12} className="mr-1" />{cluster.region}</Badge>}
       </div>
       <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-theme-border pt-4 text-xs">
-        <div><dt className="text-theme-text-tertiary">Radar 版本</dt><dd className="portal-mono mt-1 break-all">{cluster.radarVersion || '未上报'}</dd></div>
+        <div><dt className="text-theme-text-tertiary">KubeAtlas 版本</dt><dd className="portal-mono mt-1 break-all">{cluster.radarVersion || '未上报'}</dd></div>
         <div><dt className="text-theme-text-tertiary">Kubernetes 连接 · 上次上报</dt><dd className="mt-1">{connectionLabels[cluster.connectionState] || '未知'}</dd></div>
         {cluster.runtimeMode === 'local' && <div className="col-span-2"><dt className="text-theme-text-tertiary">上下文（Context）· 上次上报，不锁定跳转目标</dt><dd className="portal-mono mt-1 break-all">{cluster.kubeContext || '尚未确认'}</dd></div>}
         {cluster.clusterName && <div className="col-span-2"><dt className="text-theme-text-tertiary">Kubernetes 集群 · 上次上报</dt><dd className="portal-mono mt-1 break-all">{cluster.clusterName}</dd></div>}
-        <div className="col-span-2"><dt className="text-theme-text-tertiary">Radar 访问地址</dt><dd className="portal-mono mt-1 break-all">{cluster.radarUrl}</dd></div>
+        <div className="col-span-2"><dt className="text-theme-text-tertiary">KubeAtlas 访问地址</dt><dd className="portal-mono mt-1 break-all">{cluster.radarUrl}</dd></div>
       </dl>
       <div className="mt-5 border-t border-theme-border pt-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 text-sm font-medium"><Plug size={16} className="text-accent-text" />Radar MCP 服务</h3>
+          <h3 className="flex items-center gap-2 text-sm font-medium"><Plug size={16} className="text-accent-text" />KubeAtlas MCP 服务</h3>
           <span className="text-xs text-theme-text-tertiary">{cluster.mcp.mode === 'disabled' ? '未启用' : 'Streamable HTTP'}</span>
         </div>
         <div className="space-y-2">
           {cluster.mcp.mode !== 'disabled' && cluster.mcp.readOnlyUrl && <Endpoint id={cluster.id} url={cluster.mcp.readOnlyUrl} readOnly />}
           {cluster.mcp.mode === 'full' && cluster.mcp.url && <Endpoint id={cluster.id} url={cluster.mcp.url} readOnly={false} />}
-          {cluster.mcp.mode === 'disabled' && <p className="rounded-lg bg-theme-base p-3 text-xs leading-relaxed text-theme-text-tertiary">此 Radar 已关闭 MCP。启用后，接口信息将随下次心跳自动更新。</p>}
+          {cluster.mcp.mode === 'disabled' && <p className="rounded-lg bg-theme-base p-3 text-xs leading-relaxed text-theme-text-tertiary">此 KubeAtlas 已关闭 MCP。启用后，接口信息将随下次心跳自动更新。</p>}
         </div>
-        <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-theme-text-tertiary"><ShieldCheck size={14} className="mt-0.5 shrink-0" />{authLabels[cluster.authMode] || '认证方式未知'} · 连接目标 Radar 时需使用其自身的访问权限。</p>
+        <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-theme-text-tertiary"><ShieldCheck size={14} className="mt-0.5 shrink-0" />{authLabels[cluster.authMode] || '认证方式未知'} · 连接目标 KubeAtlas 时需使用其自身的访问权限。</p>
       </div>
     </div>
     <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-theme-border bg-theme-base px-5 py-3">
       <div className="text-xs leading-relaxed text-theme-text-tertiary"><span className="block">最近心跳</span><time dateTime={cluster.lastSeen}>{timestamp(cluster.lastSeen)}</time></div>
-      {radarURL ? <a href={radarURL} target="_blank" rel="noopener noreferrer" className="btn-brand inline-flex items-center gap-2 px-3 py-2 text-sm">打开 Radar <ArrowUpRight size={16} /></a> : <span className="text-xs text-theme-text-secondary">Radar 地址无效</span>}
+      {radarURL ? <a href={radarURL} target="_blank" rel="noopener noreferrer" className="btn-brand inline-flex items-center gap-2 px-3 py-2 text-sm">打开 KubeAtlas <ArrowUpRight size={16} /></a> : <span className="text-xs text-theme-text-secondary">KubeAtlas 地址无效</span>}
     </footer>
   </article>
 }
 
 function Onboarding() {
   return <section id="onboarding" className="portal-card mt-10 scroll-mt-6 p-6" aria-labelledby="onboarding-title">
-    <div className="flex flex-wrap items-center gap-2"><BookOpen size={19} className="text-accent-text" /><h2 id="onboarding-title" className="font-semibold">接入一个新的 Radar</h2><Badge tone="note">本地 / 集群内模式</Badge></div>
+    <div className="flex flex-wrap items-center gap-2"><BookOpen size={19} className="text-accent-text" /><h2 id="onboarding-title" className="font-semibold">接入一个新的 KubeAtlas</h2><Badge tone="note">本地 / 集群内模式</Badge></div>
     <div className="mt-5 grid gap-6 lg:grid-cols-3">
-      <div><p className="mb-2 text-sm font-medium"><span className="mr-2 text-accent-text">01</span>在门户授权实例标识</p><p className="text-sm leading-relaxed text-theme-text-secondary">为每个 Radar 实例分配唯一 ID 和独立注册令牌，通过门户 Secret 中的 tokens 映射授权，然后重启门户。令牌只允许该实例更新自己的记录。</p></div>
-      <div><p className="mb-2 text-sm font-medium"><span className="mr-2 text-accent-text">02</span>配置 Radar 注册</p><p className="text-sm leading-relaxed text-theme-text-secondary">集群内通过 Helm 的 portalRegistration 和 existingSecret 配置。本地通过 RADAR_PORTAL_* 环境变量配置门户地址、实例 ID、名称、可访问地址和令牌。两种模式默认均不注册。</p></div>
-      <div><p className="mb-2 text-sm font-medium"><span className="mr-2 text-accent-text">03</span>等待自动注册与心跳</p><p className="text-sm leading-relaxed text-theme-text-secondary">Radar 启动后主动注册，每 30 秒更新。门户无需连接 Kubernetes；浏览器和 MCP 客户端必须能直接访问目标 Radar。删除授权并重启门户可取消纳管。</p></div>
+      <div><p className="mb-2 text-sm font-medium"><span className="mr-2 text-accent-text">01</span>在门户授权实例标识</p><p className="text-sm leading-relaxed text-theme-text-secondary">为每个 KubeAtlas 实例分配唯一 ID 和独立注册令牌，通过门户 Secret 中的 tokens 映射授权，然后重启门户。令牌只允许该实例更新自己的记录。</p></div>
+      <div><p className="mb-2 text-sm font-medium"><span className="mr-2 text-accent-text">02</span>配置 KubeAtlas 注册</p><p className="text-sm leading-relaxed text-theme-text-secondary">集群内通过 Helm 的 portalRegistration 和 existingSecret 配置。本地通过 KUBEATLAS_PORTAL_* 环境变量配置门户地址、实例 ID、名称、可访问地址和令牌。两种模式默认均不注册。</p></div>
+      <div><p className="mb-2 text-sm font-medium"><span className="mr-2 text-accent-text">03</span>等待自动注册与心跳</p><p className="text-sm leading-relaxed text-theme-text-secondary">KubeAtlas 启动后主动注册，每 30 秒更新。门户无需连接 Kubernetes；浏览器和 MCP 客户端必须能直接访问目标 KubeAtlas。删除授权并重启门户可取消纳管。</p></div>
     </div>
-    <p className="mt-5 text-sm leading-relaxed text-theme-text-secondary">本地 Radar 以实例纳管，不会枚举 kubeconfig 中的所有集群；切换 context 后，下次心跳更新该实例的上下文信息。跳转及 MCP 操作针对 Radar 当时选中的集群，请先确认目标。localhost 只指向访问者自己的电脑，跨机器访问需配置可达地址、网络和 Radar 认证；门户不会自动开放本地监听。</p>
-    <div className="mt-5 flex items-start gap-2 border-t border-theme-border pt-4 text-xs leading-relaxed text-theme-text-tertiary"><ShieldCheck size={16} className="shrink-0" /><p>注册令牌不是 MCP 凭据。门户不转发登录信息、不代理 Kubernetes 操作。MCP 配置使用支持 HTTP 远程连接的 mcpServers 格式；请按客户端要求另行配置目标认证。生产环境请为门户及 Radar 启用 HTTPS。</p></div>
+    <p className="mt-5 text-sm leading-relaxed text-theme-text-secondary">本地 KubeAtlas 以实例纳管，不会枚举 kubeconfig 中的所有集群；切换 context 后，下次心跳更新该实例的上下文信息。跳转及 MCP 操作针对 KubeAtlas 当时选中的集群，请先确认目标。localhost 只指向访问者自己的电脑，跨机器访问需配置可达地址、网络和 KubeAtlas 认证；门户不会自动开放本地监听。</p>
+    <div className="mt-5 flex items-start gap-2 border-t border-theme-border pt-4 text-xs leading-relaxed text-theme-text-tertiary"><ShieldCheck size={16} className="shrink-0" /><p>注册令牌不是 MCP 凭据。门户不转发登录信息、不代理 Kubernetes 操作。MCP 配置使用支持 HTTP 远程连接的 mcpServers 格式；请按客户端要求另行配置目标认证。生产环境请为门户及 KubeAtlas 启用 HTTPS。</p></div>
   </section>
 }
 
@@ -172,19 +172,19 @@ export function Portal() {
     { label: '已纳管集群', value: clusters.length, icon: Layers, detail: '持久化集群目录' },
     { label: '心跳在线', value: online, icon: Activity, detail: '注册通道正常，非健康检查' },
     { label: '心跳过期', value: clusters.length - online, icon: RefreshCw, detail: `超过 ${directory?.staleAfterSeconds ?? 90} 秒未收到上报` },
-    { label: 'MCP 已启用', value: mcp, icon: Plug, detail: '由各 Radar 上报的接口配置' },
+    { label: 'MCP 已启用', value: mcp, icon: Plug, detail: '由各 KubeAtlas 上报的接口配置' },
   ]
 
   return <div className="min-h-screen">
     <header className="border-b border-theme-border bg-theme-surface">
       <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-4 lg:px-10">
-        <a href="/" className="flex items-center gap-3" aria-label="Radar 集群门户首页"><Radar size={29} className="text-accent-text" /><span className="text-xl font-semibold">Radar</span><span className="border-l border-theme-border pl-3 text-sm text-theme-text-secondary">集群门户</span></a>
+        <a href="/" className="flex items-center gap-3" aria-label="KubeAtlas 集群门户首页"><Globe size={29} className="text-accent-text" /><span className="text-xl font-semibold">KubeAtlas</span><span className="border-l border-theme-border pl-3 text-sm text-theme-text-secondary">集群门户</span></a>
         <div className="flex items-center gap-3"><span className="hidden items-center gap-1.5 text-xs text-theme-text-tertiary sm:flex"><ShieldCheck size={14} />独立部署 · 凭据隔离</span><ThemeToggle /><button type="button" className="portal-control inline-flex items-center gap-2" onClick={logout} disabled={loggingOut}><LogOut size={16} />{loggingOut ? '正在退出…' : '退出登录'}</button></div>
       </div>
     </header>
     <main className="mx-auto max-w-[1800px] px-5 py-8 lg:px-10">
       <div className="flex flex-wrap items-end justify-between gap-5">
-        <div><p className="portal-mono mb-2 text-xs text-accent-text">集群目录</p><h1 className="text-3xl font-semibold">集群总览</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-theme-text-secondary">一个入口，连接所有 Radar。查看集群上报信息，进入独立控制台，或接入 MCP 工具。</p></div>
+        <div><p className="portal-mono mb-2 text-xs text-accent-text">集群目录</p><h1 className="text-3xl font-semibold">集群总览</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-theme-text-secondary">一个入口，连接所有 KubeAtlas。查看集群上报信息，进入独立控制台，或接入 MCP 工具。</p></div>
         <a href="#onboarding" className="portal-control inline-flex items-center gap-2"><BookOpen size={16} />集群接入指南 <ExternalLink size={14} /></a>
       </div>
       <section aria-label="目录摘要" className="my-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -201,11 +201,11 @@ export function Portal() {
         {error && <div role="alert" className="portal-card mb-5 border-warning p-4 text-sm"><p className="font-medium">{error}</p><p className="mt-1 text-theme-text-secondary">{directory ? '以下为上次成功读取的记录，不能代表当前状态。' : '尚未读取到目录，无法确认纳管数量。'} 点击刷新重试。</p></div>}
         {!directory && loading && <div role="status" className="portal-card p-14 text-center text-sm text-theme-text-secondary">正在加载集群目录…</div>}
         {directory && filtered.length > 0 && <div className="grid items-start gap-5 xl:grid-cols-2 2xl:grid-cols-3">{filtered.map(cluster => <ClusterCard key={cluster.id} cluster={cluster} outdated={Boolean(error)} />)}</div>}
-        {directory && filtered.length === 0 && <div className="portal-card px-6 py-14 text-center"><Server size={32} className="mx-auto mb-4 text-accent-text" /><h2 className="font-semibold">{clusters.length ? '没有匹配的集群' : '等待第一个 Radar 接入'}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-theme-text-secondary">{clusters.length ? '尝试其他关键词，或清除环境和心跳筛选。' : '完成集群授权和 Radar 注册配置后，集群会自动出现在这里。无需向门户提供 kubeconfig。'}</p>{clusters.length ? <button className="portal-control mt-5" onClick={() => { setQuery(''); setEnvironment(''); setStatus('') }}>清除筛选</button> : <a href="#onboarding" className="mt-5 inline-block text-sm text-accent-text">查看接入步骤 →</a>}</div>}
+        {directory && filtered.length === 0 && <div className="portal-card px-6 py-14 text-center"><Server size={32} className="mx-auto mb-4 text-accent-text" /><h2 className="font-semibold">{clusters.length ? '没有匹配的集群' : '等待第一个 KubeAtlas 接入'}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-theme-text-secondary">{clusters.length ? '尝试其他关键词，或清除环境和心跳筛选。' : '完成集群授权和 KubeAtlas 注册配置后，集群会自动出现在这里。无需向门户提供 kubeconfig。'}</p>{clusters.length ? <button className="portal-control mt-5" onClick={() => { setQuery(''); setEnvironment(''); setStatus('') }}>清除筛选</button> : <a href="#onboarding" className="mt-5 inline-block text-sm text-accent-text">查看接入步骤 →</a>}</div>}
       </section>
-      <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-theme-text-tertiary"><Activity size={15} className="mt-0.5 shrink-0" />心跳仅表示 Radar 最近向门户报到，不代表集群健康，也不保证 Radar 页面或 MCP 接口可从你的网络访问。</p>
+      <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-theme-text-tertiary"><Activity size={15} className="mt-0.5 shrink-0" />心跳仅表示 KubeAtlas 最近向门户报到，不代表集群健康，也不保证 KubeAtlas 页面或 MCP 接口可从你的网络访问。</p>
       <Onboarding />
-      <footer className="mt-8 flex flex-wrap justify-between gap-3 text-xs text-theme-text-tertiary"><span>Radar 集群门户 · 集中展示，独立访问</span><span>本地与集群内 Radar 均可选择注册</span></footer>
+      <footer className="mt-8 flex flex-wrap justify-between gap-3 text-xs text-theme-text-tertiary"><span>KubeAtlas 集群门户 · 集中展示，独立访问</span><span>本地与集群内 KubeAtlas 均可选择注册</span></footer>
     </main>
   </div>
 }

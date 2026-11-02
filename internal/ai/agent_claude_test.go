@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func TestClaudeExecutionProfiles(t *testing.T) {

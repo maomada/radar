@@ -30,7 +30,7 @@ import (
 // Practical reach: since EKS/GKE/AKS omit cluster-info, URL correlation
 // is dormant on the cloud-K8s majority and only fires for kubeadm-style
 // installs (kind, k3d, on-prem, kubeadm). Closing this gap is a chart-
-// level escape hatch (helm value -> RADAR_API_SERVER_URL env var fed in
+// level escape hatch (helm value -> KUBEATLAS_API_SERVER_URL env var fed in
 // at install time from the operator's kubeconfig), not an in-cluster
 // discovery problem — pods can't see the external API server URL
 // without external input. Tracked as a follow-up; not blocking.

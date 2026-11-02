@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, expect, it, vi } from 'vitest'
-import { cnpgPortForwardCommand } from '@skyhook-io/k8s-ui'
+import { cnpgPortForwardCommand } from '@maomada/k8s-ui'
 import { useCNPGKubectlContext } from './useCNPGKubectlContext'
 const state = vi.hoisted(() => ({ context: 'kind-orders', mode: 'local' as string | undefined, embedded: false, contexts: [{ name: 'kind-orders', source: 'orders' }] as { name: string; originalName?: string; source?: string }[] | undefined }))
 vi.mock('../../api/client', () => ({

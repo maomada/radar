@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom/promtest"
+	"github.com/maomada/radar/pkg/prom/promtest"
 )
 
 func TestWorkloadHistoryScope(t *testing.T) {
@@ -39,9 +39,9 @@ func TestWorkloadHistoryScope(t *testing.T) {
 }
 
 func TestWorkloadHistoryPromQL(t *testing.T) {
-	image := os.Getenv("RADAR_TEST_PROMTOOL_IMAGE")
+	image := os.Getenv("KUBEATLAS_TEST_PROMTOOL_IMAGE")
 	if image == "" {
-		t.Skip("set RADAR_TEST_PROMTOOL_IMAGE to evaluate historical queries with Docker")
+		t.Skip("set KUBEATLAS_TEST_PROMTOOL_IMAGE to evaluate historical queries with Docker")
 	}
 	input := []map[string]string{}
 	add := func(metric, labels, values string) {

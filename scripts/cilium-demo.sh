@@ -25,7 +25,7 @@
 #                  Radar must probe the cert and retry — the AKS-shaped path.
 #   plaintext      Switch the relay back to plaintext.
 #   install-radar  Build the CURRENT code into a linux image, load it into the
-#                  cluster, install deploy/helm/radar with DEFAULT RBAC.
+#                  cluster, install deploy/helm/kubeatlas with DEFAULT RBAC.
 #                  Proves pods/portforward stays unneeded for Hubble traffic.
 #   help           Show this message.
 #
@@ -64,7 +64,7 @@ CLIENT_IMAGE="${CLIENT_IMAGE:-curlimages/curl:8.10.1}"
 
 DEMO_NS="demo"
 RELAY_NS="kube-system"
-RADAR_NS="radar"
+KUBEATLAS_NS="radar"
 NETPOL_NAME="radar-demo-restrict-relay"
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -271,28 +271,28 @@ cmd_install_radar() {
   trap "rm -rf '${tmp}'" EXIT
 
   step "Building radar for linux/${arch} from the current tree"
-  (cd "${repo_root}" && GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 go build -o "${tmp}/radar" ./cmd/explorer)
+  (cd "${repo_root}" && GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 go build -o "${tmp}/kubeatlas" ./cmd/explorer)
 
   step "Building and loading image radar-cilium-demo:dev"
   cat > "${tmp}/Dockerfile" <<'EOF'
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
-COPY radar /radar
-ENTRYPOINT ["/radar"]
+COPY kubeatlas /kubeatlas
+ENTRYPOINT ["/kubeatlas"]
 EOF
   docker build -q -t radar-cilium-demo:dev "${tmp}" >/dev/null
   kind load docker-image radar-cilium-demo:dev --name "${CLUSTER_NAME}" >/dev/null
   ok "Image loaded"
 
-  step "Installing deploy/helm/radar with DEFAULT RBAC (rbac.portForward stays false)"
-  helm --kube-context "${KUBECTL_CTX}" upgrade --install radar "${repo_root}/deploy/helm/radar" \
-    --namespace "${RADAR_NS}" --create-namespace \
+  step "Installing deploy/helm/kubeatlas with DEFAULT RBAC (rbac.portForward stays false)"
+  helm --kube-context "${KUBECTL_CTX}" upgrade --install radar "${repo_root}/deploy/helm/kubeatlas" \
+    --namespace "${KUBEATLAS_NS}" --create-namespace \
     --set image.repository=radar-cilium-demo --set image.tag=dev --set image.pullPolicy=Never \
     --wait --timeout 120s >/dev/null
   # On a rerun the tag is unchanged, so helm alone leaves the old pod (and its
   # old binary) running — restart to pick up the freshly loaded image.
-  kctl -n "${RADAR_NS}" rollout restart deploy/radar >/dev/null
-  kctl -n "${RADAR_NS}" rollout status deploy/radar --timeout=120s >/dev/null
+  kctl -n "${KUBEATLAS_NS}" rollout restart deploy/radar >/dev/null
+  kctl -n "${KUBEATLAS_NS}" rollout status deploy/radar --timeout=120s >/dev/null
   ok "Radar running in-cluster (current build)"
 
   echo
@@ -300,13 +300,13 @@ EOF
   # would poison a pipeline — capture the answer text instead.
   local can_pf
   can_pf="$(kctl auth can-i create pods/portforward -n "${RELAY_NS}" \
-    --as "system:serviceaccount:${RADAR_NS}:radar" 2>/dev/null || true)"
+    --as "system:serviceaccount:${KUBEATLAS_NS}:radar" 2>/dev/null || true)"
   if [ "${can_pf}" = "no" ]; then
     ok "SA cannot create pods/portforward — Hubble traffic must work without it"
   else
     warn "SA unexpectedly HAS pods/portforward (answer: ${can_pf:-<none>}); the direct-lane proof is void"
   fi
-  note "kubectl --context ${KUBECTL_CTX} -n ${RADAR_NS} port-forward deploy/radar 9280:9280"
+  note "kubectl --context ${KUBECTL_CTX} -n ${KUBEATLAS_NS} port-forward deploy/radar 9280:9280"
   note "then open http://localhost:9280 -> Traffic, or:"
   note "curl -s -X POST localhost:9280/api/traffic/connect   # expect a ClusterIP address"
 }
@@ -324,9 +324,9 @@ cmd_status() {
   kctl -n "${RELAY_NS}" get svc hubble-relay -o wide 2>/dev/null || warn "relay service missing"
   step "Workloads"
   kctl -n "${DEMO_NS}" get pods 2>/dev/null || warn "demo namespace missing"
-  if kctl -n "${RADAR_NS}" get deploy radar >/dev/null 2>&1; then
+  if kctl -n "${KUBEATLAS_NS}" get deploy radar >/dev/null 2>&1; then
     step "In-cluster Radar"
-    kctl -n "${RADAR_NS}" get pods
+    kctl -n "${KUBEATLAS_NS}" get pods
   fi
 }
 

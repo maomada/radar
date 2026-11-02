@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

@@ -1,4 +1,4 @@
-import type { HealthLevel } from '@skyhook-io/k8s-ui'
+import type { HealthLevel } from '@maomada/k8s-ui'
 import type { CNPGOpState, CNPGTrackedOperation } from './model'
 
 export const CNPG_OP_STATE_TEXT: Record<CNPGOpState, string> = {

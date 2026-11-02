@@ -13,8 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/rbac"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/rbac"
 )
 
 // rbacGroup is the API group for RBAC resources; passed to s.canRead for

@@ -13,7 +13,7 @@ export const USAGE_DATA_COPY = {
   declined: '不会发送任何内容。你可以随时在“设置”>“隐私”中更改。',
 } as const
 
-// One wording for every place Radar asks, so the question can't drift.
+// One wording for every place KubeAtlas asks, so the question can't drift.
 export function UsageDataBlurb({ onReadMore }: { onReadMore: () => void }) {
   return (
     <>
@@ -47,7 +47,7 @@ export function UsageDataAnswered({ answer }: { answer: boolean }) {
 
 // The usage-data question, asked inside What's New when the server says to:
 // someone who closed it without answering is asked again only months later,
-// and a "no" is never asked again. A shared Radar, or one set by its
+// and a "no" is never asked again. A shared KubeAtlas, or one set by its
 // configuration, never asks.
 export function UsageDataAsk({ usageData, onReadMore }: {
   usageData: UsageDataStatus | undefined

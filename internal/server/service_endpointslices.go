@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 const (

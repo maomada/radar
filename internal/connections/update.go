@@ -8,12 +8,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/argoapi"
-	"github.com/skyhook-io/radar/pkg/opencost"
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/argoapi"
+	"github.com/maomada/radar/pkg/opencost"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 type SecretEdit struct {

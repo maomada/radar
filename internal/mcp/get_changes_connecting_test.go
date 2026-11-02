@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 // The timeline is empty until the cluster has connected, so get_changes must

@@ -16,8 +16,8 @@ import (
 
 	_ "modernc.org/sqlite" // Pure Go SQLite driver
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	pkgtimeline "github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/resourceid"
+	pkgtimeline "github.com/maomada/radar/pkg/timeline"
 )
 
 // sqliteTimeLayout is the storage format for timestamp columns compared

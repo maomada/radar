@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cliui"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/internal/config"
+	"github.com/maomada/radar/internal/cliui"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/config"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -51,7 +51,7 @@ func cloudStatus(args []string, out, errOut io.Writer) int {
 	fs.SetOutput(&flagOutput)
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "Usage: radar cloud status [--context NAME] [--namespace NS --release NAME]")
-		fmt.Fprintln(fs.Output(), "Without both --namespace and --release, Radar discovers installations across visible namespaces.")
+		fmt.Fprintln(fs.Output(), "Without both --namespace and --release, KubeAtlas discovers installations across visible namespaces.")
 		fs.PrintDefaults()
 	}
 	namespace := fs.String("namespace", cloudinstall.DefaultInstallNamespace, "Exact namespace (requires --release)")
@@ -93,7 +93,7 @@ func cloudStatus(args []string, out, errOut io.Writer) int {
 	kubeconfigSelection, err := selectCloudCommandKubeconfig(fileCfg)
 	if err != nil {
 		fmt.Fprintf(errOut, "cloud status: %v\n", err)
-		fmt.Fprintln(errOut, "Set the Kubeconfig field in Radar Settings (or config.json's `kubeconfig`) to select the primary cluster.")
+		fmt.Fprintln(errOut, "Set the Kubeconfig field in KubeAtlas Settings (or config.json's `kubeconfig`) to select the primary cluster.")
 		return 1
 	}
 	ctxName, err := resolveCloudInstallContext(kubeconfigSelection.path, strings.TrimSpace(*contextName))
@@ -119,7 +119,7 @@ func cloudStatus(args []string, out, errOut io.Writer) int {
 		Namespace: normalizedNamespace, ReleaseName: normalizedRelease, ClusterWide: !exactTarget,
 	})
 	if err != nil {
-		fmt.Fprintln(errOut, "cloud status: could not inspect Radar in this Kubernetes context")
+		fmt.Fprintln(errOut, "cloud status: could not inspect KubeAtlas in this Kubernetes context")
 		fmt.Fprintf(errOut, "Details: %v\n", err)
 		if apierrors.IsForbidden(err) {
 			if exactTarget {
@@ -158,18 +158,18 @@ func cloudStatus(args []string, out, errOut io.Writer) int {
 func printCloudDiscoveryStatus(out, errOut io.Writer, targets []cloudinstall.RadarTarget, clusterWideErr error, exactTarget bool, namespace, release string) int {
 	if clusterWideErr != nil {
 		style := cliui.New(errOut)
-		fmt.Fprintf(errOut, "%s Radar could not inspect all visible namespaces: %v\n", style.Tone(cliui.Attention, "Warning:"), clusterWideErr)
+		fmt.Fprintf(errOut, "%s KubeAtlas could not inspect all visible namespaces: %v\n", style.Tone(cliui.Attention, "Warning:"), clusterWideErr)
 	}
 	switch len(targets) {
 	case 0:
 		if exactTarget {
-			fmt.Fprintln(out, "Radar installation: not found")
-			fmt.Fprintf(out, "Checked for a Radar Deployment with release label %q in namespace %q.\n", release, namespace)
+			fmt.Fprintln(out, "KubeAtlas installation: not found")
+			fmt.Fprintf(out, "Checked for a KubeAtlas Deployment with release label %q in namespace %q.\n", release, namespace)
 		} else if clusterWideErr != nil {
-			fmt.Fprintln(out, "Radar installation: none found in namespaces this account can inspect")
+			fmt.Fprintln(out, "KubeAtlas installation: none found in namespaces this account can inspect")
 			fmt.Fprintln(out, "Other installations could not be ruled out. Pass --namespace and --release to inspect one directly.")
 		} else {
-			fmt.Fprintln(out, "Radar installation: not found")
+			fmt.Fprintln(out, "KubeAtlas installation: not found")
 			fmt.Fprintln(out, "Run `radar cloud install` to connect this cluster.")
 		}
 		return 1
@@ -177,7 +177,7 @@ func printCloudDiscoveryStatus(out, errOut io.Writer, targets []cloudinstall.Rad
 		healthy := printCloudStatus(out, targets[0])
 		if clusterWideErr != nil {
 			style := cliui.New(out)
-			fmt.Fprintf(out, "Discovery: %s incomplete; other Radar installations could not be ruled out\n", style.Marker(cliui.Attention))
+			fmt.Fprintf(out, "Discovery: %s incomplete; other KubeAtlas installations could not be ruled out\n", style.Marker(cliui.Attention))
 			fmt.Fprintln(out, "Pass --namespace and --release to make the target explicit.")
 			return 1
 		}
@@ -186,7 +186,7 @@ func printCloudDiscoveryStatus(out, errOut io.Writer, targets []cloudinstall.Rad
 		}
 		return 1
 	default:
-		fmt.Fprintf(errOut, "cloud status: found multiple Radar installations; choose one explicitly with --namespace and --release:\n%s\n", cloudinstall.FormatTargets(targets))
+		fmt.Fprintf(errOut, "cloud status: found multiple KubeAtlas installations; choose one explicitly with --namespace and --release:\n%s\n", cloudinstall.FormatTargets(targets))
 		return 1
 	}
 }
@@ -197,7 +197,7 @@ func printCloudStatus(out io.Writer, target cloudinstall.RadarTarget) bool {
 
 func printCloudStatusWithStyle(out io.Writer, target cloudinstall.RadarTarget, style cliui.Styler) bool {
 	runtime := target.Runtime
-	fmt.Fprintf(out, "Radar installation: %s/%s\n", target.Namespace, target.DeploymentName)
+	fmt.Fprintf(out, "KubeAtlas installation: %s/%s\n", target.Namespace, target.DeploymentName)
 	fmt.Fprintf(out, "Managed by: %s\n", cloudOwnershipLabel(target))
 	if target.Chart != "" {
 		fmt.Fprintf(out, "Chart: %s\n", target.Chart)
@@ -306,9 +306,9 @@ func cloudStatusHeadline(targets []cloudinstall.RadarTarget, clusterWideErr erro
 	switch len(targets) {
 	case 0:
 		if clusterWideErr != nil {
-			return "Radar installation status is inconclusive; some namespaces could not be inspected."
+			return "KubeAtlas installation status is inconclusive; some namespaces could not be inspected."
 		}
-		return "Radar is not installed in this cluster."
+		return "KubeAtlas is not installed in this cluster."
 	case 1:
 		headline := cloudTargetStatusHeadline(targets[0], tunnel)
 		if clusterWideErr != nil {
@@ -316,7 +316,7 @@ func cloudStatusHeadline(targets []cloudinstall.RadarTarget, clusterWideErr erro
 		}
 		return headline
 	default:
-		return "Multiple Radar installations were found; choose one explicitly."
+		return "Multiple KubeAtlas installations were found; choose one explicitly."
 	}
 }
 
@@ -360,23 +360,23 @@ func cloudTargetStatusHeadline(target cloudinstall.RadarTarget, tunnel hubTunnel
 	agentHealthy := cloudAgentHealthy(runtime)
 	if !runtime.AlreadyCloud {
 		if agentHealthy {
-			return "Radar is healthy, but not configured for Cloud."
+			return "KubeAtlas is healthy, but not configured for Cloud."
 		}
-		return "Radar needs attention: its agent is not healthy, and Cloud is not configured."
+		return "KubeAtlas needs attention: its agent is not healthy, and Cloud is not configured."
 	}
 	if len(missingCloudConfiguration(runtime)) > 0 {
 		if agentHealthy {
-			return "Radar is running, but its Cloud configuration is incomplete."
+			return "KubeAtlas is running, but its Cloud configuration is incomplete."
 		}
-		return "Radar needs attention: its agent is not healthy, and its Cloud configuration is incomplete."
+		return "KubeAtlas needs attention: its agent is not healthy, and its Cloud configuration is incomplete."
 	}
 
 	switch tunnel.verdict {
 	case hubTunnelHealthy:
 		if agentHealthy {
-			return "Radar is healthy and connected to the Hub."
+			return "KubeAtlas is healthy and connected to the Hub."
 		}
-		return "Radar is connected to the Hub, but its agent is not healthy."
+		return "KubeAtlas is connected to the Hub, but its agent is not healthy."
 	case hubTunnelUnhealthy:
 		connection := "its Cloud connection failed"
 		switch tunnel.summary {
@@ -394,14 +394,14 @@ func cloudTargetStatusHeadline(target cloudinstall.RadarTarget, tunnel hubTunnel
 			connection = "its configured Hub URL is invalid"
 		}
 		if agentHealthy {
-			return "Radar is installed, but " + connection + "."
+			return "KubeAtlas is installed, but " + connection + "."
 		}
-		return "Radar needs attention: its agent is not healthy, and " + connection + "."
+		return "KubeAtlas needs attention: its agent is not healthy, and " + connection + "."
 	default:
 		if agentHealthy {
-			return "Radar is healthy; live Cloud connection status could not be verified."
+			return "KubeAtlas is healthy; live Cloud connection status could not be verified."
 		}
-		return "Radar needs attention: its agent is not healthy, and live Cloud connection status could not be verified."
+		return "KubeAtlas needs attention: its agent is not healthy, and live Cloud connection status could not be verified."
 	}
 }
 
@@ -463,10 +463,10 @@ func checkHubTunnelStatus(ctx context.Context, kc kubernetes.Interface, target c
 		}
 	}
 	if runtime.UsesEnrollment() {
-		// Radar holds the token it got by joining in memory only, so there
+		// KubeAtlas holds the token it got by joining in memory only, so there
 		// is nothing here to ask the Hub with.
 		return hubTunnelResult{
-			summary: "not checked - this Radar joins the Hub with an enrollment key",
+			summary: "not checked - this KubeAtlas joins the Hub with an enrollment key",
 			next:    fmt.Sprintf("check its log, which says whether it joined and, if not, why: kubectl -n %s logs deploy/%s", target.Namespace, target.DeploymentName),
 		}
 	}
@@ -500,7 +500,7 @@ func addHubFrontendLinks(result hubTunnelResult, frontendURL string) hubTunnelRe
 		result.openURL = cloudClusterURL(frontendURL, result.hubClusterID)
 	}
 	if result.reinstall {
-		result.next = "in the Clusters page above, choose the matching cluster, select Reinstall, ensure “Already running Radar” is selected, and run the generated command in this Kubernetes context. Then rerun this status command."
+		result.next = "in the Clusters page above, choose the matching cluster, select Reinstall, ensure “Already running KubeAtlas” is selected, and run the generated command in this Kubernetes context. Then rerun this status command."
 	}
 	return result
 }
@@ -527,7 +527,7 @@ func checkHubTunnelStatusWithClient(ctx context.Context, kc kubernetes.Interface
 			verdict:      hubTunnelUnhealthy,
 			summary:      "failed — the connection Secret was not found",
 			detail:       fmt.Sprintf("Secret %q", secretRef),
-			next:         "ask a Radar organization owner to generate a Reinstall command for this cluster, run it in this Kubernetes context, then rerun this status command.",
+			next:         "ask a KubeAtlas organization owner to generate a Reinstall command for this cluster, run it in this Kubernetes context, then rerun this status command.",
 			reinstall:    true,
 			openClusters: true,
 		}
@@ -545,7 +545,7 @@ func checkHubTunnelStatusWithClient(ctx context.Context, kc kubernetes.Interface
 			verdict:      hubTunnelUnhealthy,
 			summary:      "failed — the connection Secret has no usable token",
 			detail:       fmt.Sprintf("Secret %q, key %q", secretRef, runtime.CloudTokenSecretKey),
-			next:         "ask a Radar organization owner to generate a Reinstall command for this cluster, run it in this Kubernetes context, then rerun this status command.",
+			next:         "ask a KubeAtlas organization owner to generate a Reinstall command for this cluster, run it in this Kubernetes context, then rerun this status command.",
 			reinstall:    true,
 			openClusters: true,
 		}
@@ -554,7 +554,7 @@ func checkHubTunnelStatusWithClient(ctx context.Context, kc kubernetes.Interface
 	result := evaluateHubTunnelStatus(status, err)
 	if errors.Is(err, cloud.ErrAgentStatusUnauthorized) {
 		result.detail = fmt.Sprintf("Kubernetes Secret %q, key %q", secretRef, runtime.CloudTokenSecretKey)
-		result.next = "ask a Radar organization owner to generate a Reinstall command for this cluster, run it in this Kubernetes context, then rerun this status command."
+		result.next = "ask a KubeAtlas organization owner to generate a Reinstall command for this cluster, run it in this Kubernetes context, then rerun this status command."
 		result.reinstall = true
 		result.openClusters = true
 	}
@@ -569,7 +569,7 @@ func evaluateHubTunnelStatus(status *cloud.AgentStatusResponse, err error) hubTu
 		return hubTunnelResult{
 			summary: "not checked — the Hub status endpoint was not found",
 			detail:  "GET /api/agent/status returned HTTP 404",
-			next:    "if this is a Radar Cloud Self-Managed control plane, upgrade it to a version that supports live connection status.",
+			next:    "if this is a upstream Cloud Self-Managed control plane, upgrade it to a version that supports live connection status.",
 		}
 	}
 	if err != nil {
@@ -587,12 +587,12 @@ func evaluateHubTunnelStatus(status *cloud.AgentStatusResponse, err error) hubTu
 	case "disconnected":
 		return hubTunnelResult{
 			verdict: hubTunnelUnhealthy, summary: "disconnected", hubClusterID: status.ClusterID, lastConnectedAt: status.LastConnectedAt,
-			next: "check the Radar agent state above and its Cloud connection logs.", openClusters: true,
+			next: "check the KubeAtlas agent state above and its Cloud connection logs.", openClusters: true,
 		}
 	case "never_connected":
 		return hubTunnelResult{
 			verdict: hubTunnelUnhealthy, summary: hubTunnelNeverConnectedSummary, hubClusterID: status.ClusterID,
-			next: "check the Radar agent state above and its Cloud connection logs.", openClusters: true,
+			next: "check the KubeAtlas agent state above and its Cloud connection logs.", openClusters: true,
 		}
 	default:
 		return hubTunnelResult{

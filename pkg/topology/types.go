@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/hpadiag"
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/hpadiag"
+	k8score "github.com/maomada/radar/pkg/k8score"
 )
 
 // NodeKind represents the type of a topology node

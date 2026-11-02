@@ -8,9 +8,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/argoapi"
-	"github.com/skyhook-io/radar/pkg/opencost"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/argoapi"
+	"github.com/maomada/radar/pkg/opencost"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 type Integration string

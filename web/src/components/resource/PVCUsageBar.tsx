@@ -1,4 +1,4 @@
-import { formatMemoryBytes } from '@skyhook-io/k8s-ui/utils/format'
+import { formatMemoryBytes } from '@maomada/k8s-ui/utils/format'
 import { isForbiddenError, useAutoPromConnect, useCloudRole, usePrometheusPVCUsage, usePrometheusStatus } from '../../api/client'
 import { useNavCustomization } from '../../context/NavCustomization'
 import { previousSettingsNote, usePreviousIntegrationSettings } from '../../hooks/usePreviousIntegrationSettings'
@@ -34,9 +34,9 @@ export function PVCUsageBar({ namespace, name }: { namespace: string; name: stri
   } else if (usage.status === 'no_series') {
     unavailable = 'No usage measurements reported for this volume.'
   } else if (usage.status === 'ambiguous_scope') {
-    unavailable = 'Prometheus has volume stats with this name from more than one cluster. Radar cannot tell which belong to this cluster. Used space is unknown.'
+    unavailable = 'Prometheus has volume stats with this name from more than one cluster. KubeAtlas cannot tell which belong to this cluster. Used space is unknown.'
   } else if (usage.status === 'scope_mismatch') {
-    unavailable = 'Radar could not match this volume’s stats to this cluster. Used space is unknown.'
+    unavailable = 'KubeAtlas could not match this volume’s stats to this cluster. Used space is unknown.'
   } else if (usage.status === 'invalid_data') {
     unavailable = 'Volume usage measurements are invalid. Used space is unknown.'
   } else if (!usage.hasData) {

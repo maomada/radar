@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
 )
 
 // cloudFunnelRolloutPercent stages the Cloud funnel's exposure. It is compiled
@@ -25,7 +25,7 @@ import (
 const cloudFunnelRolloutPercent = 100
 
 // cloudFunnelInCohort decides whether this installation sees the Cloud
-// funnel during the staged rollout. RADAR_CLOUD_FUNNEL=on|off overrides in
+// funnel during the staged rollout. KUBEATLAS_CLOUD_FUNNEL=on|off overrides in
 // either direction (support, demos, opting a friendly cluster in early, or
 // opting out permanently).
 //
@@ -33,7 +33,7 @@ const cloudFunnelRolloutPercent = 100
 // never transmitted. Local and in-cluster installs are both bucketed; they
 // differ only in where the key comes from.
 func cloudFunnelInCohort() bool {
-	switch strings.ToLower(os.Getenv("RADAR_CLOUD_FUNNEL")) {
+	switch strings.ToLower(os.Getenv("KUBEATLAS_CLOUD_FUNNEL")) {
 	case "on", "1", "true":
 		return true
 	case "off", "0", "false":
@@ -51,12 +51,12 @@ var cloudFunnelBucketVerdict = sync.OnceValue(func() bool {
 })
 
 // bucketKey is the value the rollout hashes on. In-cluster it prefers the Radar
-// Deployment's creation time over ~/.radar: that directory sits on an emptyDir
+// Deployment's creation time over ~/.kubeatlas: that directory sits on an emptyDir
 // that dies with the pod, so bucketing on it re-rolls the verdict on every
 // restart and rollout — and disagrees between replicas — making the funnel
 // flicker in and out.
 //
-// It still falls back to ~/.radar when the Deployment is unreadable (chart too
+// It still falls back to ~/.kubeatlas when the Deployment is unreadable (chart too
 // old to set the downward-API env vars, no cluster access, RBAC without
 // deployments). A flickering verdict is recoverable; returning nothing is not —
 // cloudFunnelBucketed pins an empty key out of every partial rollout, so those

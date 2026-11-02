@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Loader2, TrendingUp } from 'lucide-react'
-import { formatCompactAge } from '@skyhook-io/k8s-ui/utils/format'
+import { formatCompactAge } from '@maomada/k8s-ui/utils/format'
 import {
   useOpenCostTrend,
   type CostTimeRange,
@@ -508,9 +508,9 @@ export function kubecostTrendUnavailableMessage(
       if (namespaceScoped) return 'The current namespace scope does not have enough allocation history to draw this range.'
       return 'Kubecost needs at least two retained samples to draw this range.'
     case 'authentication_error':
-      return 'Kubecost rejected Radar’s API key. Check Settings → Cost.'
+      return 'Kubecost rejected KubeAtlas’s API key. Check Settings → Cost.'
     case 'source_unavailable':
-      return 'Radar could not reach Kubecost. Check Settings → Cost.'
+      return 'KubeAtlas could not reach Kubecost. Check Settings → Cost.'
     case 'configuration_mismatch':
       return 'Kubecost returned data for a different cluster. Check the cluster ID in Settings → Cost.'
     case 'cost_settings_error':

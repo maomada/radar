@@ -3,8 +3,8 @@ package issues
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 // ScopeForKind + IssueID determinism/keying now live in (and are tested by)

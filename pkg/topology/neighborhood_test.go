@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // makeNode is a tiny helper for the BFS tests. It assembles a Node with a

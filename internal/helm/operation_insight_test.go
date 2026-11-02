@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/helmhistory"
 )
 
 func TestBuildOperationInsightActiveUpgradePicksWorkloadAndCompare(t *testing.T) {

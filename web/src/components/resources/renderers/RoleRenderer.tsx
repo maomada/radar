@@ -1,5 +1,5 @@
-import { RoleRenderer as BaseRoleRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/RoleRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { RoleRenderer as BaseRoleRenderer } from '@maomada/k8s-ui/components/resources/renderers/RoleRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useRBACRole } from '../../../api/rbac'
 
 interface RoleRendererProps {

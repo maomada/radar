@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/argoapi"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/argoapi"
 )
 
 func TestCandidateDoesNotReplaceActiveArgoConnection(t *testing.T) {

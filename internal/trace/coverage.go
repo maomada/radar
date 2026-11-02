@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 // Coverage-honest projection of a trace. This is a server-authoritative VIEW

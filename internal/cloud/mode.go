@@ -15,7 +15,7 @@ import (
 // mode is a settings-leak liability (theme/pinnedKinds get persisted
 // to the shared in-cluster Radar's settings.json instead of Cloud's
 // per-user store).
-const cloudModeEnvVar = "RADAR_CLOUD_MODE"
+const cloudModeEnvVar = "KUBEATLAS_CLOUD_MODE"
 
 // warnedUnparseable rate-limits the unparseable-value warning to one
 // emission per process so a malformed env var doesn't spam logs on

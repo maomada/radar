@@ -1,9 +1,9 @@
-import { englishPlural, isEnglishPlural } from '@skyhook-io/k8s-ui'
-import type { SearchCoverage } from '@skyhook-io/k8s-ui/types/read-coverage'
+import { englishPlural, isEnglishPlural } from '@maomada/k8s-ui'
+import type { SearchCoverage } from '@maomada/k8s-ui/types/read-coverage'
 import type { OmnibarNote, OmnibarNotePart } from './Omnibar'
 
 // While a search reports kinds still loading, the open omnibar re-queries every
-// PENDING_RETRY_MS for at most PENDING_RETRY_BUDGET_MS. Radar reports a kind
+// PENDING_RETRY_MS for at most PENDING_RETRY_BUDGET_MS. KubeAtlas reports a kind
 // failed 30 s after its watch starts, and on a collector-limited install a
 // watch can start 20 s or more into warm-up, so the budget outlasts both and
 // the note ends on the outcome rather than "still loading".
@@ -110,7 +110,7 @@ function failedKinds(entries: SearchCoverageEntry[], label: (e: SearchCoverageEn
   return { text: `${shown.join(', ')} and ${more} more ${more === 1 ? 'kind' : 'kinds'}`, one: false }
 }
 
-// Radar's ⌘K note for one search: what happened to the kinds and namespaces
+// KubeAtlas's ⌘K note for one search: what happened to the kinds and namespaces
 // the query named, whether results are still loading, and which kinds failed
 // to read. Broad searches keep access exclusions quiet; namespace collection
 // is always explained, kind collection only for an empty result. Missing
@@ -119,13 +119,13 @@ export function searchCoverageNote(coverage: SearchCoverage | undefined, opts: S
   const unsearched = searchCoverageEntries(coverage)
   if (!unsearched.length) {
     if (coverage?.gaps.length === 0) {
-      // Collection limits come from how Radar is installed, and nothing else
+      // Collection limits come from how KubeAtlas is installed, and nothing else
       // in the omnibar shows them, so they are said with hits too.
       if (coverage.narrowedBy?.includes('namespace_collection')) {
-        return { text: "Radar collects some kinds only in some namespaces; matches for them elsewhere won't show." }
+        return { text: "KubeAtlas collects some kinds only in some namespaces; matches for them elsewhere won't show." }
       }
       if (coverage.narrowedBy?.includes('kind_collection') && !opts.hits?.length) {
-        return { text: "Radar doesn't watch every kind; search kind:<name> to include one." }
+        return { text: "KubeAtlas doesn't watch every kind; search kind:<name> to include one." }
       }
     }
     return undefined
@@ -170,7 +170,7 @@ export function searchCoverageNote(coverage: SearchCoverage | undefined, opts: S
     const noun = `No ${unknown.length === 1 ? 'kind' : 'kinds'} named ${names(unknown, 'or', false)}`
     say(groupsUnread ? `${noun} found, but some API groups couldn't be read.` : `${noun} here — not installed, or misspelled?`)
   }
-  // Kinds Radar reads directly instead of watching: their list works.
+  // Kinds KubeAtlas reads directly instead of watching: their list works.
   const unsupported = unsearched.filter((e) => e.kind !== '*' && e.reason === 'kind_not_searchable')
   if (unsupported.length) {
     const first = unsupported[0]
@@ -182,7 +182,7 @@ export function searchCoverageNote(coverage: SearchCoverage | undefined, opts: S
       : { text: `${what} can't be searched. ${pointer}` })
   }
   const unwatchable = named('kind_not_watchable')
-  if (unwatchable.length) say(`Radar can't collect ${names(unwatchable, 'or')}: the API doesn't support list and watch.`)
+  if (unwatchable.length) say(`KubeAtlas can't collect ${names(unwatchable, 'or')}: the API doesn't support list and watch.`)
   // Namespace entries name the namespaces an ns: term asked for that weren't
   // searched; their reason says why.
   const namespaces = (reasons: string[]) => [...new Set(unsearched.filter((e) => reasons.includes(e.reason)).flatMap((e) => e.namespaces ?? []))].sort()
@@ -193,22 +193,22 @@ export function searchCoverageNote(coverage: SearchCoverage | undefined, opts: S
   const unseen = namespaces(['user_namespace_not_visible'])
   if (unseen.length) namespaceSentence(unseen, "wasn't found in what you can see", "weren't found in what you can see")
   const pinned = namespaces(['outside_namespace_pin'])
-  if (pinned.length) namespaceSentence(pinned, "wasn't searched: Radar is pinned to another namespace", "weren't searched: Radar is pinned to another namespace")
+  if (pinned.length) namespaceSentence(pinned, "wasn't searched: KubeAtlas is pinned to another namespace", "weren't searched: KubeAtlas is pinned to another namespace")
   const uncollected = namespaces(['radar_namespace_not_collected'])
   const someKindsUncollected = unsearched.some((e) => e.reason === 'radar_namespace_not_collected' && e.someKinds)
-  if (uncollected.length && someKindsUncollected) say(`Some kinds weren't searched in ${uncollected.length === 1 ? 'namespace' : 'namespaces'} ${quoted(uncollected)}: Radar here watches only some namespaces.`)
-  else if (uncollected.length) namespaceSentence(uncollected, "wasn't searched: Radar here watches only some namespaces", "weren't searched: Radar here watches only some namespaces")
+  if (uncollected.length && someKindsUncollected) say(`Some kinds weren't searched in ${uncollected.length === 1 ? 'namespace' : 'namespaces'} ${quoted(uncollected)}: KubeAtlas here watches only some namespaces.`)
+  else if (uncollected.length) namespaceSentence(uncollected, "wasn't searched: KubeAtlas here watches only some namespaces", "weren't searched: KubeAtlas here watches only some namespaces")
   const findings = named('findings_scan_incomplete')
-  if (findings.length) say(`Radar ran out of time searching the findings of ${names(findings, 'and')}, so a CVE or package missing here may be in a report it left out.`)
+  if (findings.length) say(`KubeAtlas ran out of time searching the findings of ${names(findings, 'and')}, so a CVE or package missing here may be in a report it left out.`)
   const denied = named('user_forbidden')
   if (denied.length) {
     const suggestion = denied.some((e) => e.wholeNamespaceScope) ? ' Try narrowing with ns:<namespace>.' : ''
     say(`Your access doesn't include all ${names(denied, 'or')}.${suggestion}`)
   }
   const collector = named('radar_forbidden')
-  if (collector.length) say(`Radar isn't allowed to read ${names(collector, 'or')} on this cluster.`)
+  if (collector.length) say(`KubeAtlas isn't allowed to read ${names(collector, 'or')} on this cluster.`)
   const unwatched = named('radar_kind_not_collected')
-  if (unwatched.length) say(`Radar doesn't watch ${names(unwatched, 'or')} on this cluster, so they weren't searched.`)
+  if (unwatched.length) say(`KubeAtlas doesn't watch ${names(unwatched, 'or')} on this cluster, so they weren't searched.`)
 
   if (!sentences.length) return undefined
   const shown = sentences.slice(0, MAX_SENTENCES)

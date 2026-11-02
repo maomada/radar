@@ -3,7 +3,7 @@ package integration
 import (
 	"errors"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 // ReadSource is the outcome of one read a response depends on. auth.Grant names

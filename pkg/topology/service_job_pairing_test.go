@@ -128,11 +128,11 @@ func pairingProvider(services, namespaces, completedJobs int) *mockProvider {
 // an opt-in check rather than a test that fails randomly in CI, which only
 // teaches people to re-run red.
 //
-// Run with: RADAR_TIMING_TESTS=1 go test ./pkg/topology/ -run Scales
+// Run with: KUBEATLAS_TIMING_TESTS=1 go test ./pkg/topology/ -run Scales
 func requireTimingTestsEnabled(t *testing.T) {
 	t.Helper()
-	if os.Getenv("RADAR_TIMING_TESTS") == "" {
-		t.Skip("timing-sensitive; set RADAR_TIMING_TESTS=1 to run")
+	if os.Getenv("KUBEATLAS_TIMING_TESTS") == "" {
+		t.Skip("timing-sensitive; set KUBEATLAS_TIMING_TESTS=1 to run")
 	}
 }
 

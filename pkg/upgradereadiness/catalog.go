@@ -13,7 +13,7 @@ var (
 	}}
 	cloudMetricsPermissionReference = Reference{
 		Title: "Radar Cloud metrics permission",
-		URL:   "https://github.com/skyhook-io/radar/blob/main/docs/authentication.md#cloud-mode-helm-bindings",
+		URL:   "https://github.com/maomada/radar/blob/main/docs/authentication.md#cloud-mode-helm-bindings",
 	}
 	gitRepoReferences = []Reference{
 		{Title: "Kubernetes volumes: gitRepo", URL: "https://kubernetes.io/docs/concepts/storage/volumes/#gitrepo"},

@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 // validateStartupPrometheusURL deliberately accepts userinfo and query
@@ -30,7 +30,7 @@ func ValidatePrometheusHeaderDestination(savedURL, launchURL string, inheritsHea
 	if savedOK && launchOK && saved == launch {
 		return nil
 	}
-	return errors.New("refusing to send headers from ~/.radar/config.json to a different --prometheus-url; update the saved URL and headers together before launching")
+	return errors.New("refusing to send headers from ~/.kubeatlas/config.json to a different --prometheus-url; update the saved URL and headers together before launching")
 }
 
 func ResolvePrometheusHeaders(headers, headersFromEnv map[string]string) (map[string]string, error) {

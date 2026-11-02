@@ -1,1 +1,1 @@
-export { useAnimatedUnmount } from '@skyhook-io/k8s-ui/hooks/useAnimatedUnmount'
+export { useAnimatedUnmount } from '@maomada/k8s-ui/hooks/useAnimatedUnmount'

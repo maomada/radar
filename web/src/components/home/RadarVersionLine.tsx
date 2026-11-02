@@ -1,5 +1,5 @@
 import { ArrowUpCircle, Megaphone } from 'lucide-react'
-import { gitOpsRouteForResource } from '@skyhook-io/k8s-ui'
+import { gitOpsRouteForResource } from '@maomada/k8s-ui'
 import type { CloudConnectSelf, VersionInfo } from '../../api/client'
 import {
   getVersionUpdateStatus,
@@ -53,7 +53,7 @@ export function RadarVersionLine({
   if (!showUpgrade) {
     return (
       <span className="inline-flex flex-wrap items-center gap-x-1">
-        <span>Radar <span className="font-mono">{displayVersion(version.currentVersion)}</span></span>
+        <span>KubeAtlas <span className="font-mono">{displayVersion(version.currentVersion)}</span></span>
         {whatsNew}
       </span>
     )
@@ -125,7 +125,7 @@ export function RadarVersionLine({
 
   return (
     <span className="inline-flex flex-wrap items-center gap-x-1">
-      <span>Radar <span className="font-mono">{displayVersion(version.currentVersion)}</span></span>
+      <span>KubeAtlas <span className="font-mono">{displayVersion(version.currentVersion)}</span></span>
       <span className="inline-flex items-center gap-1">
         <span aria-hidden>·</span>
         <Tooltip
@@ -147,7 +147,7 @@ function upgradeActionClassName(tier: VersionUpdateTier): string {
 }
 
 function updateAgeDetail(status: ReturnType<typeof getVersionUpdateStatus>): string | undefined {
-  if (status.majorVersionBehind) return '有可用的 Radar 主版本升级。'
+  if (status.majorVersionBehind) return '有可用的 KubeAtlas 主版本升级。'
   if (status.tier !== 'stale' || !status.minorVersionsBehind) return undefined
   return `此安装落后 ${status.minorVersionsBehind} 个次版本。`
 }

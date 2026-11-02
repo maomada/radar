@@ -1,9 +1,9 @@
 import { Boxes } from 'lucide-react'
-import { CNPGImageCatalogRenderer as BaseImageCatalog } from '@skyhook-io/k8s-ui/components/resources/renderers/CNPGDeclarativeRenderer'
-import { Section, RelationshipGroup } from '@skyhook-io/k8s-ui'
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
+import { CNPGImageCatalogRenderer as BaseImageCatalog } from '@maomada/k8s-ui/components/resources/renderers/CNPGDeclarativeRenderer'
+import { Section, RelationshipGroup } from '@maomada/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
 import { getCNPGImageCatalogEntries } from '../resource-utils-cnpg'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useCNPGCatalogUsers } from '../../../api/policy'
 
 const CNPG_GROUP = 'postgresql.cnpg.io'

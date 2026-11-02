@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   authEnabled: false as boolean | undefined,
 }))
 
-vi.mock('@skyhook-io/k8s-ui', () => ({
+vi.mock('@maomada/k8s-ui', () => ({
   NamespacePicker: ({ limitedListHelp }: { limitedListHelp?: ReactNode }) => <div>{limitedListHelp ?? 'no-help'}</div>,
 }))
 vi.mock('../api/client', () => ({
@@ -25,7 +25,7 @@ describe('NamespaceSwitcher namespace help', () => {
     state.authEnabled = false
   })
 
-  it('links to the namespace docs in local Radar without auth', () => {
+  it('links to the namespace docs in local KubeAtlas without auth', () => {
     const html = renderToStaticMarkup(<NamespaceSwitcher />)
     expect(html).toContain('如何添加命名空间')
     expect(html).toContain('#namespaces-missing-from-the-picker')
@@ -34,9 +34,9 @@ describe('NamespaceSwitcher namespace help', () => {
   // --namespaces and config.json belong to whoever runs the server; on a shared
   // install the viewer can't use them.
   it.each([
-    ['in-cluster Radar', 'in-cluster', false],
-    ['Radar Cloud', 'cloud', true],
-    ['auth-enabled local Radar', 'local', true],
+    ['in-cluster KubeAtlas', 'in-cluster', false],
+    ['upstream Cloud', 'cloud', true],
+    ['auth-enabled local KubeAtlas', 'local', true],
     ['capabilities still loading', undefined, false],
     ['auth state still loading', 'local', undefined],
   ] as const)('offers no help for %s', (_label, mode, authEnabled) => {

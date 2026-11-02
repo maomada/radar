@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
+	"github.com/maomada/radar/pkg/gitops"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

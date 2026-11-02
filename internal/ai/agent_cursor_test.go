@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // writeCursorShim writes a fake cursor-agent that mimics a Cursor release where

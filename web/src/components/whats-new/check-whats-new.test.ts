@@ -35,7 +35,7 @@ describe('check-whats-new.sh', () => {
   })
 
   it('accepts a real entry, wherever version sits in it', () => {
-    const entry = `  {\n    releaseUrl: 'https://github.com/skyhook-io/radar/releases/tag/v1.15.0', version: 'v1.15.0',\n    highlights: [],\n  },`
+    const entry = `  {\n    releaseUrl: 'https://github.com/maomada/radar/releases/tag/v1.15.0', version: 'v1.15.0',\n    highlights: [],\n  },`
     expect(check('v1.15.0', withEntry(entry))).toBe(0)
     expect(check('1.15.0+build.1', withEntry(entry))).toBe(0)
   })

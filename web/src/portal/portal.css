@@ -2,9 +2,9 @@
 @source './';
 @source '../../../packages/k8s-ui/src/components/ui/Badge.tsx';
 @variant dark (&:where(.dark, .dark *));
-@import '@skyhook-io/k8s-ui/theme/variables.css';
-@import '@skyhook-io/k8s-ui/theme/tailwind-theme.css';
-@import '@skyhook-io/k8s-ui/theme/components.css';
+@import '@maomada/k8s-ui/theme/variables.css';
+@import '@maomada/k8s-ui/theme/tailwind-theme.css';
+@import '@maomada/k8s-ui/theme/components.css';
 @import '@fontsource-variable/dm-sans';
 @import '@fontsource/dm-mono';
 

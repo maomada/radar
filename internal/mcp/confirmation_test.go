@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func TestMutationConfirmationBinding(t *testing.T) {

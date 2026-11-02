@@ -1,4 +1,4 @@
-import type { SelectMenuOption } from '@skyhook-io/k8s-ui'
+import type { SelectMenuOption } from '@maomada/k8s-ui'
 
 const currencyNames = new Intl.DisplayNames(['en'], { type: 'currency' })
 const currentISO4217CurrenciesAddedSinceCLDR32: Record<string, string> = {

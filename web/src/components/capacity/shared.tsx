@@ -49,12 +49,12 @@ import {
   type CapacityUsageObservation,
   type Issue,
   type StatusTone,
-} from "@skyhook-io/k8s-ui";
-import { Badge } from "@skyhook-io/k8s-ui/components/ui/Badge";
+} from "@maomada/k8s-ui";
+import { Badge } from "@maomada/k8s-ui/components/ui/Badge";
 import {
   formatCPUString,
   formatMemoryString,
-} from "@skyhook-io/k8s-ui/utils/format";
+} from "@maomada/k8s-ui/utils/format";
 import {
   isCapacityCursorInvalidError,
   isForbiddenError,
@@ -543,7 +543,7 @@ export function NodeReadyBadge({
     return <Badge severity={healthToSeverity(lifecycle.level)} size="sm">{lifecycle.label}</Badge>;
   }
   return (
-    <WithTooltip tip="Kubernetes readiness only; removal status is unavailable from this Radar.">
+    <WithTooltip tip="Kubernetes readiness only; removal status is unavailable from this KubeAtlas.">
       <Badge severity={ready === false ? "error" : ready === undefined ? "neutral" : cordoned ? "warning" : "success"} size="sm">
         {ready === false ? "NotReady (condition)" : ready === undefined ? "Readiness unknown" : cordoned ? "Cordoned" : "Ready (condition)"}
       </Badge>
@@ -618,7 +618,7 @@ const ACTIVITY_STATE_SEVERITY: Record<
   open: "info",
   completed: "success",
   // `ended` is deliberately toneless. The episode terminated with no evidence
-  // either way, so green would claim a success and red a failure that Radar
+  // either way, so green would claim a success and red a failure that KubeAtlas
   // never observed. An unrecognized future state lands on the same default.
   ended: "neutral",
   observed: "neutral",
@@ -643,7 +643,7 @@ function activityStateTip(
   state: CapacityActivityEpisode["state"],
 ): string | undefined {
   if (state === "ended")
-    return "Ended without a recorded cause — the subject went away before reaching its goal. Radar does not claim this failed or succeeded.";
+    return "Ended without a recorded cause — the subject went away before reaching its goal. KubeAtlas does not claim this failed or succeeded.";
   return undefined;
 }
 
@@ -1408,7 +1408,7 @@ export function integrationBlock(
   if (!response && error) {
     if (isForbiddenError(error))
       return <DeniedCapacityState detail={errorMessage(error)} />;
-    // Only reachable behind a version-skewed host (Radar Cloud): the OSS
+    // Only reachable behind a version-skewed host (upstream Cloud): the OSS
     // binary always serves the routes its own frontend calls.
     const upgrade = getRadarUpgradeRequirement(error);
     if (upgrade)

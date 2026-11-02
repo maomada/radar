@@ -1,1 +1,1 @@
-export { Tooltip, WithTooltip } from '@skyhook-io/k8s-ui/components/ui/Tooltip'
+export { Tooltip, WithTooltip } from '@maomada/k8s-ui/components/ui/Tooltip'

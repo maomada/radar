@@ -22,7 +22,7 @@ const desktop: NonNullable<DiagnosticsSnapshot['desktop']> = {
     { key: 'WEBKIT_DISABLE_DMABUF_RENDERER', value: '1', set: true },
     { key: 'WEBKIT_DISABLE_COMPOSITING_MODE', value: '', set: true },
   ],
-  sandbox: [{ key: 'SNAP', value: '/snap/radar-desktop/42', set: true }],
+  sandbox: [{ key: 'SNAP', value: '/snap/kubeatlas-desktop/42', set: true }],
   webkitLibrary: 'libwebkit2gtk-4.1.so.0.13.6',
   gpuPolicy: 'on-demand',
 }
@@ -79,7 +79,7 @@ describe('formatForGitHub desktop section', () => {
     expect(md).toContain('Desktop: `ubuntu:GNOME`')
     expect(md).toContain('Webview Library: `libwebkit2gtk-4.1.so.0.13.6`')
     expect(md).toContain('Webview GPU Policy: `on-demand`')
-    expect(md).toContain('Sandbox: `SNAP=/snap/radar-desktop/42`')
+    expect(md).toContain('Sandbox: `SNAP=/snap/kubeatlas-desktop/42`')
   })
 
   it('renders each override state distinguishably', () => {

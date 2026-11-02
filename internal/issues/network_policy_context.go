@@ -1,8 +1,8 @@
 package issues
 
 import (
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // factNetworkPolicyIsolates links a NetworkPolicy issue to the Services,

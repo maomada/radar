@@ -15,9 +15,9 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/investigation"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 func TestDetectDiagnoseHealthPreservesCrossplanePause(t *testing.T) {

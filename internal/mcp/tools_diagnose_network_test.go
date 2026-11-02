@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/trace"
+	"github.com/maomada/radar/internal/trace"
 )
 
 // buildNetworkDiagnoseResponse must project a finalized Trace into the coverage-

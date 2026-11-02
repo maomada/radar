@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 // handleArgoCDStatus reports the live Argo CD integration state for the Settings
@@ -94,7 +94,7 @@ func (s *Server) handleApplyArgoCDConfig(w http.ResponseWriter, r *http.Request)
 	// env-managed effectively read-only.
 	if argocd.IsEnvManaged() {
 		s.writeError(w, http.StatusConflict,
-			"Argo CD is configured from the environment (RADAR_ARGOCD_TOKEN) — edit the deployment to change it.")
+			"Argo CD is configured from the environment (KUBEATLAS_ARGOCD_TOKEN) — edit the deployment to change it.")
 		return
 	}
 	var body struct {

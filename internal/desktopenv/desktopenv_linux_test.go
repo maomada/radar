@@ -25,7 +25,7 @@ func TestWebKitLibrary(t *testing.T) {
 	}{
 		{
 			name: "finds the mapped webkit library",
-			maps: `55a1b2c00000-55a1b2c21000 r--p 00000000 08:01 1000  /usr/bin/radar-desktop
+			maps: `55a1b2c00000-55a1b2c21000 r--p 00000000 08:01 1000  /usr/bin/kubeatlas-desktop
 7f8c1c000000-7f8c1c021000 rw-p 00000000 00:00 0  [heap]
 7f8c1d000000-7f8c1f000000 r--p 00000000 08:01 2000  /usr/lib/x86_64-linux-gnu/libwebkit2gtk-4.1.so.0.13.6
 7f8c20000000-7f8c20100000 r--p 00000000 08:01 3000  /usr/lib/x86_64-linux-gnu/libgtk-3.so.0.2405.32

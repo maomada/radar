@@ -8,14 +8,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/opencost"
-	"github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/traffic"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/opencost"
+	"github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/traffic"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 type Runtime struct {

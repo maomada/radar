@@ -3,7 +3,7 @@ package topology
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // collisionKindToK8sKind maps the disambiguated NodeKind labels Radar uses for

@@ -1,0 +1,602 @@
+{{- if and .Values.persistence.enabled (eq .Values.timeline.storage "sqlite") (gt (int .Values.replicaCount) 1) }}
+{{- fail "replicaCount must be 1 when persistence.enabled=true and timeline.storage=sqlite: a single PVC cannot be safely shared across pods (RWO volumes won't attach to a second pod, RWX volumes risk SQLite corruption)" }}
+{{- end }}
+{{- if .Values.cloud.enabled }}
+{{- fail "cloud.enabled is unavailable in KubeAtlas; use the independent Portal registration feature" }}
+{{- end }}
+{{- if eq (dig "enabled" nil (.Values.usageReporting | default dict)) true }}
+{{- fail "usageReporting.enabled=true is unavailable in KubeAtlas" }}
+{{- end }}
+{{- if and (eq .Values.timeline.storage "postgres") (not .Values.timeline.postgres.existingSecret) }}
+{{- fail "timeline.postgres.existingSecret is required when timeline.storage=postgres" }}
+{{- end }}
+{{- $portal := .Values.portalRegistration -}}
+{{- if $portal.enabled }}
+{{- if .Values.cloud.enabled }}
+{{- fail "portalRegistration.enabled cannot be combined with cloud.enabled" }}
+{{- end }}
+{{- range $key := list "url" "clusterId" "clusterName" "radarUrl" "existingSecret" "tokenKey" }}
+{{- if empty (get $portal $key) }}
+{{- fail (printf "portalRegistration.%s is required when portalRegistration.enabled=true" $key) }}
+{{- end }}
+{{- end }}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9-]{0,62}$" (toString $portal.clusterId)) }}
+{{- fail "portalRegistration.clusterId must match [a-z0-9][a-z0-9-]{0,62}" }}
+{{- end }}
+{{- range $key := list "url" "radarUrl" }}
+{{- $rawURL := toString (get $portal $key) }}
+{{- $url := urlParse $rawURL }}
+{{- if or (not (has $url.scheme (list "http" "https"))) (not $url.host) $url.userinfo $url.query $url.fragment (contains "?" $rawURL) (contains "#" $rawURL) }}
+{{- fail (printf "portalRegistration.%s must be an absolute HTTP(S) URL without credentials, query, or fragment" $key) }}
+{{- end }}
+{{- if and (eq $key "url") (not (has $url.path (list "" "/"))) }}
+{{- fail "portalRegistration.url must be root-hosted; Portal subpath hosting is unsupported" }}
+{{- end }}
+{{- if and (eq $key "url") (eq $url.scheme "http") (not $portal.allowHTTP) }}
+{{- fail "portalRegistration.url must use HTTPS unless portalRegistration.allowHTTP=true" }}
+{{- end }}
+{{- end }}
+{{- if $portal.mcpBaseUrl }}
+{{- $rawMCPBaseURL := toString $portal.mcpBaseUrl }}
+{{- $mcpBaseURL := urlParse $rawMCPBaseURL }}
+{{- if or (not (has $mcpBaseURL.scheme (list "http" "https"))) (not $mcpBaseURL.host) $mcpBaseURL.userinfo $mcpBaseURL.query $mcpBaseURL.fragment (contains "?" $rawMCPBaseURL) (contains "#" $rawMCPBaseURL) }}
+{{- fail "portalRegistration.mcpBaseUrl must be an absolute HTTP(S) URL without credentials, query, or fragment" }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $basePath := include "radar.basePath" . -}}
+{{- $enroll := include "radar.cloudEnrollmentMode" . | eq "true" -}}
+{{- $cloudCA := and $enroll (not (empty .Values.cloud.caBundle)) -}}
+{{- if $enroll }}
+{{- $e := .Values.cloud.enrollment }}
+{{- /* The same rules Radar applies to --cloud-hub-url at startup, so a bad
+       address fails here instead of crash looping the pod. */}}
+{{- $hub := urlParse (toString .Values.cloud.hubURL) }}
+{{- $hubHost := regexReplaceAll ":[0-9]*$" $hub.host "" | trimPrefix "[" | trimSuffix "]" | lower }}
+{{- if or (not (has $hub.scheme (list "http" "https"))) (not $hubHost) }}
+{{- fail "cloud.hubURL must be the Hub's address, like https://hub.example.com" }}
+{{- end }}
+{{- if $hub.userinfo }}
+{{- fail "cloud.hubURL must not include credentials" }}
+{{- end }}
+{{- if not (has $hub.path (list "" "/")) }}
+{{- fail "cloud.hubURL must not include a path: use the Hub's address only, like https://hub.example.com" }}
+{{- end }}
+{{- if or $hub.query $hub.fragment (contains "#" (toString .Values.cloud.hubURL)) }}
+{{- fail "cloud.hubURL must not include a query string or fragment" }}
+{{- end }}
+{{- if and (eq $hub.scheme "http") (not (or (eq $hubHost "localhost") (hasPrefix "127." $hubHost) (eq $hubHost "::1"))) }}
+{{- fail "cloud.hubURL must use https:// unless the host is localhost or a loopback address" }}
+{{- end }}
+{{- if and $e.key $e.existingSecret }}
+{{- fail "cloud.enrollment.key and cloud.enrollment.existingSecret are mutually exclusive: set only one (prefer existingSecret so the key stays out of the Helm release)" }}
+{{- end }}
+{{- if and $e.key (not (hasPrefix "rhe_" (toString $e.key))) }}
+{{- fail "cloud.enrollment.key must be a Radar Hub enrollment key, which starts with rhe_. An owner creates one in Radar Hub under Settings > Enrollment keys. On a self-hosted Hub, the install key from the Hub's config works too." }}
+{{- end }}
+{{- if ne (int .Values.replicaCount) 1 }}
+{{- fail "replicaCount must be 1 when Radar joins with cloud.enrollment: the Hub keeps one connection per cluster, so any other replica would only wait for it" }}
+{{- end }}
+{{- if .Values.cloud.insecureSkipVerify }}
+{{- fail "cloud.insecureSkipVerify cannot be used with cloud.enrollment: the enrollment key would be sent to an unverified server. Give the Hub's CA with cloud.caBundle instead" }}
+{{- end }}
+{{- end }}
+{{- /* Older images don't know the enrollment flags and refuse to start.
+       Only release-style tags are checked; others can't be compared. */}}
+{{- if $enroll }}
+{{- $tag := toString .Values.image.tag }}
+{{- if and (regexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+" $tag) (semverCompare "<1.18.2-0" $tag) }}
+{{- fail (printf "cloud.enrollment requires Radar 1.18.2 or later, but image.tag pins %s. Unset image.tag to use the chart's version, or pin 1.18.2 or later." $tag) }}
+{{- end }}
+{{- end }}
+{{- if and $basePath .Values.cloud.enabled }}
+{{- fail "basePath is not supported with cloud.enabled=true: the legacy Cloud mode owns the URL path, and the binary refuses the combination at startup — unset one of them" }}
+{{- end }}
+{{- /* URLs registered at the IdP have to carry the prefix: Radar's OIDC routes
+       move under it, and an unprefixed URI is not routed here, so login fails
+       after the callback rather than at install time. */}}
+{{- if $basePath }}
+{{- range $key := list "redirectURL" "postLogoutRedirectURL" }}
+{{- $val := get $.Values.auth.oidc $key }}
+{{- /* Match on whole path segments of the URL's path. Comparing the whole URL
+       string lets the authority satisfy the prefix (basePath /radar against
+       https://radar.example.com/auth/callback), and a bare string prefix on the
+       path lets a different segment satisfy it (/radartools/auth/callback). Same
+       rule the server applies when routing: equal, or followed by a slash. */}}
+{{- $p := (urlParse $val).path }}
+{{- if and $val (not (or (eq $p $basePath) (hasPrefix (printf "%s/" $basePath) $p))) }}
+{{- fail (printf "auth.oidc.%s (%s) must be under basePath %q — Radar serves /auth/* below the prefix, so the IdP would send the browser to a path that is not routed to Radar" $key $val $basePath) }}
+{{- end }}
+{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radar.fullname" . }}
+  labels:
+    {{- include "radar.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- /* Enrollment: the Hub keeps one connection per cluster. In a rolling
+         update the new pod would wait until the old one is gone and the Hub
+         sees its connection drop. */}}
+  {{- if or $enroll (and .Values.persistence.enabled (eq .Values.timeline.storage "sqlite")) }}
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "radar.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- /* Radar decides what it can watch at startup and keeps serving its
+               cache after a grant is revoked, so a grant change needs a new pod.
+               auth.mode and cloud.enabled also shape the ClusterRole, but they
+               already change the container args. */}}
+        checksum/rbac: {{ toJson .Values.rbac | sha256sum }}
+        {{- if not .Values.cloud.enabled }}
+        checksum/operator-settings: {{ include "radar.operatorSettings" . | sha256sum }}
+        {{- end }}
+        {{- if $cloudCA }}
+        {{- /* Radar reads the CA bundle once at startup. */}}
+        checksum/cloud-ca: {{ .Values.cloud.caBundle | sha256sum }}
+        {{- end }}
+      labels:
+        {{- include "radar.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "radar.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --port={{ .Values.service.port }}
+            - --listen-address=0.0.0.0
+            - --no-browser
+            {{- if $basePath }}
+            - {{ printf "--base-path=%s" $basePath | quote }}
+            {{- end }}
+            {{- with .Values.trustedOrigins }}
+            - {{ printf "--trusted-origins=%s" (join "," .) | quote }}
+            {{- end }}
+            {{- $allowedHosts := list (printf "%s.%s" (include "radar.fullname" .) .Release.Namespace) }}
+            {{- range .Values.allowedHosts }}{{ $allowedHosts = append $allowedHosts . }}{{ end }}
+            {{- if .Values.ingress.enabled }}
+            {{- range .Values.ingress.hosts }}{{ with .host }}{{ $allowedHosts = append $allowedHosts . }}{{ end }}{{ end }}
+            {{- end }}
+            {{- if .Values.httpRoute.enabled }}
+            {{- range .Values.httpRoute.hostnames }}{{ $allowedHosts = append $allowedHosts . }}{{ end }}
+            {{- end }}
+            {{- with $allowedHosts | uniq }}
+            - {{ printf "--allowed-hosts=%s" (join "," .) | quote }}
+            {{- end }}
+            - --timeline-storage={{ .Values.timeline.storage }}
+            {{- if eq .Values.timeline.storage "sqlite" }}
+            - --timeline-db={{ .Values.timeline.dbPath }}
+            {{- if .Values.timeline.retention }}
+            - --timeline-retention={{ .Values.timeline.retention }}
+            {{- end }}
+            {{- if .Values.timeline.maxSize }}
+            - --timeline-max-size={{ .Values.timeline.maxSize }}
+            {{- end }}
+            {{- end }}
+            {{- if eq .Values.timeline.storage "postgres" }}
+            {{- if .Values.timeline.retention }}
+            - --timeline-retention={{ .Values.timeline.retention }}
+            {{- end }}
+            {{- end }}
+            - --history-limit={{ .Values.timeline.historyLimit }}
+            {{- if .Values.traffic.prometheusUrl }}
+            - --prometheus-url={{ .Values.traffic.prometheusUrl }}
+            {{- end }}
+            {{- if .Values.traffic.prometheusSingleCluster }}
+            - --prometheus-single-cluster
+            {{- end }}
+            {{- range $k, $v := .Values.traffic.prometheusClusterLabels }}
+            - {{ printf "--prometheus-cluster-label=%s=%s" $k $v | quote }}
+            {{- end }}
+            {{- if .Values.traffic.beylaJobSelector }}
+            - {{ printf "--beyla-job-selector=%s" .Values.traffic.beylaJobSelector | quote }}
+            {{- end }}
+            {{- if .Values.cost.currency }}
+            - --opencost-currency={{ .Values.cost.currency }}
+            {{- end }}
+            {{- range $k, $v := .Values.traffic.prometheusHeaders }}
+            - {{ printf "--prometheus-header=%s=%s" $k $v | quote }}
+            {{- end }}
+            {{- range $k, $v := .Values.traffic.prometheusHeadersFromEnv }}
+            - {{ printf "--prometheus-header-from-env=%s=%s" $k $v | quote }}
+            {{- end }}
+            {{- if .Values.mcp.execTools }}
+            - --mcp-exec-tools
+            {{- end }}
+            {{- if not .Values.mcp.enabled }}
+            - --no-mcp
+            {{- end }}
+            {{- if .Values.debug.image }}
+            - --debug-image={{ .Values.debug.image }}
+            {{- end }}
+            {{- if .Values.listPageSize }}
+            - --list-page-size={{ .Values.listPageSize }}
+            {{- end }}
+            {{- if ne .Values.auth.mode "none" }}
+            - {{ printf "--auth-mode=%s" .Values.auth.mode | quote }}
+            - {{ printf "--auth-cookie-ttl=%s" .Values.auth.cookieTTL | quote }}
+            {{- if .Values.auth.proxy.userHeader }}
+            - {{ printf "--auth-user-header=%s" .Values.auth.proxy.userHeader | quote }}
+            {{- end }}
+            {{- if .Values.auth.proxy.groupsHeader }}
+            - {{ printf "--auth-groups-header=%s" .Values.auth.proxy.groupsHeader | quote }}
+            {{- end }}
+            {{- if .Values.auth.proxy.logoutURL }}
+            - {{ printf "--auth-proxy-logout-url=%s" .Values.auth.proxy.logoutURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.issuerURL }}
+            - {{ printf "--auth-oidc-issuer=%s" .Values.auth.oidc.issuerURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.internalIssuerURL }}
+            - {{ printf "--auth-oidc-internal-issuer=%s" .Values.auth.oidc.internalIssuerURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.authorizationURL }}
+            - {{ printf "--auth-oidc-authorization-url=%s" .Values.auth.oidc.authorizationURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.tokenURL }}
+            - {{ printf "--auth-oidc-token-url=%s" .Values.auth.oidc.tokenURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.userInfoURL }}
+            - {{ printf "--auth-oidc-userinfo-url=%s" .Values.auth.oidc.userInfoURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.jwksURL }}
+            - {{ printf "--auth-oidc-jwks-url=%s" .Values.auth.oidc.jwksURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.clientID }}
+            - {{ printf "--auth-oidc-client-id=%s" .Values.auth.oidc.clientID | quote }}
+            {{- end }}
+            {{- /* clientSecret is injected via KUBEATLAS_OIDC_CLIENT_SECRET env var below */}}
+            {{- if .Values.auth.oidc.redirectURL }}
+            - {{ printf "--auth-oidc-redirect-url=%s" .Values.auth.oidc.redirectURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.usernameClaim }}
+            - {{ printf "--auth-oidc-username-claim=%s" .Values.auth.oidc.usernameClaim | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.groupsClaim }}
+            - {{ printf "--auth-oidc-groups-claim=%s" .Values.auth.oidc.groupsClaim | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.scopes }}
+            - {{ printf "--auth-oidc-scopes=%s" (join "," .Values.auth.oidc.scopes) | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.postLogoutRedirectURL }}
+            - {{ printf "--auth-oidc-post-logout-redirect-url=%s" .Values.auth.oidc.postLogoutRedirectURL | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.usernamePrefix }}
+            - {{ printf "--auth-oidc-username-prefix=%s" .Values.auth.oidc.usernamePrefix | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.groupsPrefix }}
+            - {{ printf "--auth-oidc-groups-prefix=%s" .Values.auth.oidc.groupsPrefix | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.caCert }}
+            - {{ printf "--auth-oidc-ca-cert=%s" .Values.auth.oidc.caCert | quote }}
+            {{- end }}
+            {{- if .Values.auth.oidc.insecureSkipVerify }}
+            - --auth-oidc-insecure-skip-verify
+            {{- end }}
+            {{- if .Values.auth.oidc.backchannelLogout }}
+            - --auth-oidc-backchannel-logout
+            {{- end }}
+            {{- if .Values.auth.oidc.enablePKCE }}
+            - --auth-oidc-enable-pkce
+            {{- end }}
+            {{- end }}
+            {{- if $enroll }}
+            - {{ printf "--cloud-hub-url=%s" .Values.cloud.hubURL | quote }}
+            - --cloud-enrollment-key-file=/etc/radar/cloud-enrollment/key
+            {{- with .Values.cloud.clusterName }}
+            - {{ printf "--cluster-name=%s" . | quote }}
+            {{- end }}
+            {{- with .Values.cloud.clusterNamePrefix }}
+            - {{ printf "--cluster-name-prefix=%s" . | quote }}
+            {{- end }}
+            {{- with .Values.cloud.clusterNameSuffix }}
+            - {{ printf "--cluster-name-suffix=%s" . | quote }}
+            {{- end }}
+            {{- else if .Values.cloud.enabled }}
+            {{- if not (or .Values.cloud.token .Values.cloud.existingSecret) }}
+            {{- fail "cloud.token or cloud.existingSecret must be set when cloud.enabled=true, or cloud.hubURL with cloud.enrollment.key or cloud.enrollment.existingSecret to join with an enrollment key" }}
+            {{- end }}
+            - --cloud-url={{ required "cloud.url is required when cloud.enabled=true" .Values.cloud.url }}
+            - --cluster-name={{ required "cloud.clusterName is required when cloud.enabled=true" .Values.cloud.clusterName }}
+            {{- if .Values.cloud.insecureSkipVerify }}
+            - --cloud-insecure-skip-verify
+            {{- end }}
+            {{- /* cloud.token is injected via KUBEATLAS_CLOUD_TOKEN env var below, not the command line */}}
+            {{- end }}
+            {{- if $cloudCA }}
+            - --cloud-ca-file=/etc/radar/cloud-ca/ca.crt
+            {{- end }}
+            {{- /* extraArgs come last: a repeated scalar flag wins, a repeatable one is appended */}}
+            {{- range .Values.extraArgs }}
+            - {{ tpl . $ | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            {{- if not .Values.cloud.enabled }}
+            - name: KUBEATLAS_OPERATOR_SETTINGS_FILE
+              value: /etc/radar/operator/settings.json
+            {{- end }}
+            {{- if .Values.cost.source }}
+            - name: KUBEATLAS_COST_SOURCE
+              value: {{ .Values.cost.source | quote }}
+            {{- end }}
+            {{- if .Values.cost.kubecost.url }}
+            - name: KUBEATLAS_KUBECOST_URL
+              value: {{ .Values.cost.kubecost.url | quote }}
+            {{- end }}
+            {{- if .Values.cost.kubecost.clusterId }}
+            - name: KUBEATLAS_KUBECOST_CLUSTER_ID
+              value: {{ .Values.cost.kubecost.clusterId | quote }}
+            {{- end }}
+            {{- if .Values.cost.kubecost.existingSecret }}
+            - name: KUBEATLAS_KUBECOST_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cost.kubecost.existingSecret }}
+                  key: {{ .Values.cost.kubecost.existingSecretKey }}
+            {{- end }}
+            {{- if and (ne .Values.auth.mode "none") (or .Values.auth.secret .Values.auth.existingSecret) }}
+            - name: KUBEATLAS_AUTH_SECRET
+              {{- if .Values.auth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret }}
+                  key: {{ .Values.auth.existingSecretKey }}
+              {{- else }}
+              value: {{ .Values.auth.secret | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if and (eq .Values.auth.mode "oidc") (or .Values.auth.oidc.clientSecret .Values.auth.oidc.existingSecret) }}
+            - name: KUBEATLAS_OIDC_CLIENT_SECRET
+              {{- if .Values.auth.oidc.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.oidc.existingSecret }}
+                  key: {{ .Values.auth.oidc.clientSecretKey }}
+              {{- else }}
+              value: {{ .Values.auth.oidc.clientSecret | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if $portal.enabled }}
+            - name: KUBEATLAS_PORTAL_URL
+              value: {{ $portal.url | quote }}
+            - name: KUBEATLAS_PORTAL_CLUSTER_ID
+              value: {{ $portal.clusterId | quote }}
+            - name: KUBEATLAS_PORTAL_CLUSTER_NAME
+              value: {{ $portal.clusterName | quote }}
+            - name: KUBEATLAS_PORTAL_DESCRIPTION
+              value: {{ $portal.description | quote }}
+            - name: KUBEATLAS_PORTAL_ENVIRONMENT
+              value: {{ $portal.environment | quote }}
+            - name: KUBEATLAS_PORTAL_REGION
+              value: {{ $portal.region | quote }}
+            - name: KUBEATLAS_PORTAL_RADAR_URL
+              value: {{ $portal.radarUrl | quote }}
+            {{- if $portal.mcpBaseUrl }}
+            - name: KUBEATLAS_PORTAL_MCP_BASE_URL
+              value: {{ $portal.mcpBaseUrl | quote }}
+            {{- end }}
+            {{- if $portal.allowHTTP }}
+            - name: KUBEATLAS_PORTAL_ALLOW_HTTP
+              value: "true"
+            {{- end }}
+            - name: KUBEATLAS_PORTAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $portal.existingSecret }}
+                  key: {{ $portal.tokenKey }}
+            {{- end }}
+            - name: HELM_CACHE_HOME
+              value: "/tmp/helm/cache"
+            - name: HELM_CONFIG_HOME
+              value: "/tmp/helm/config"
+            - name: HELM_DATA_HOME
+              value: "/tmp/helm/data"
+            {{- if .Values.cloud.enabled }}
+            # Signals cloud-mode to the Radar binary: forces --auth-mode=proxy,
+            # accepts forwarded identity headers from the tunnel, disables
+            # startup-config fields that don't apply under hosted Radar Cloud.
+            - name: KUBEATLAS_CLOUD_MODE
+              value: "true"
+            {{- if include "radar.userTokenMode" . | eq "true" }}
+            - name: KUBEATLAS_AUTH_K8S_CREDENTIALS
+              value: "user-token"
+            {{- end }}
+            {{- if or .Values.cloud.token .Values.cloud.existingSecret }}
+            - name: KUBEATLAS_CLOUD_TOKEN
+              {{- if .Values.cloud.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cloud.existingSecret }}
+                  key: {{ .Values.cloud.existingSecretKey }}
+              {{- else }}
+              value: {{ .Values.cloud.token | quote }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- /* Argo CD deep-diff: env-provisioned token (independent of cloud
+                   mode — works for plain in-cluster too). URL/TLS ride along only
+                   when a token is set; a URL without a token can't authenticate. */}}
+            {{- if and .Values.argocd.token .Values.argocd.existingSecret }}
+            {{- fail "argocd.token and argocd.existingSecret are mutually exclusive: set only one (prefer existingSecret so the token stays out of the Helm release)" }}
+            {{- end }}
+            {{- if or .Values.argocd.token .Values.argocd.existingSecret }}
+            - name: KUBEATLAS_ARGOCD_TOKEN
+              {{- if .Values.argocd.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.argocd.existingSecret }}
+                  key: {{ .Values.argocd.existingSecretKey }}
+              {{- else }}
+              value: {{ .Values.argocd.token | quote }}
+              {{- end }}
+            {{- if .Values.argocd.url }}
+            - name: KUBEATLAS_ARGOCD_URL
+              value: {{ .Values.argocd.url | quote }}
+            {{- end }}
+            {{- if .Values.argocd.insecureTls }}
+            - name: KUBEATLAS_ARGOCD_INSECURE_TLS
+              value: "true"
+            {{- end }}
+            {{- end }}
+            {{- if eq .Values.timeline.storage "postgres" }}
+            - name: KUBEATLAS_TIMELINE_POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.timeline.postgres.existingSecret }}
+                  key: {{ .Values.timeline.postgres.secretKey }}
+            {{- end }}
+            # Downward-API identity. Always emitted: Radar needs to know which
+            # object it is for read-only self-description (Cloud connect
+            # handoff), which carries no RBAC implication. Whether it may
+            # actually patch itself is decided by the apiserver against
+            # rbac.selfUpgrade's Role — never by an env marker, which a
+            # Hub image-only self-upgrade would leave stale.
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # Pin the in-cluster reachability probe to radar's own deployed image.
+            # This is the no-RBAC fallback for when the runtime self-read of radar's
+            # pod can't run; an explicit --reachability-image / config still wins,
+            # and the self-read (radar's live pod image) is preferred when available.
+            - name: KUBEATLAS_IMAGE
+              value: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            - name: MY_DEPLOYMENT_NAME
+              value: {{ include "radar.fullname" . }}
+            # The Helm release name, reported to Radar Cloud on connect so the
+            # dashboard's token-rotation command targets this release instead
+            # of assuming `radar`. Read-only self-description, like the two above.
+            - name: KUBEATLAS_HELM_RELEASE
+              value: {{ .Release.Name | quote }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ printf "%s/api/health" $basePath | quote }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ printf "%s/api/health" $basePath | quote }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if not .Values.cloud.enabled }}
+            - name: operator-settings
+              mountPath: /etc/radar/operator
+              readOnly: true
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+            - name: home
+              mountPath: /home/nonroot
+            {{- if and .Values.persistence.enabled (eq .Values.timeline.storage "sqlite") }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+            {{- if $enroll }}
+            - name: cloud-enrollment-key
+              mountPath: /etc/radar/cloud-enrollment
+              readOnly: true
+            {{- end }}
+            {{- if $cloudCA }}
+            - name: cloud-ca
+              mountPath: /etc/radar/cloud-ca
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- if not .Values.cloud.enabled }}
+        - name: operator-settings
+          configMap:
+            name: {{ include "radar.fullname" . }}-operator-settings
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+        - name: home
+          emptyDir: {}
+        {{- if and .Values.persistence.enabled (eq .Values.timeline.storage "sqlite") }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "radar.fullname" . }}
+        {{- end }}
+        {{- if $enroll }}
+        - name: cloud-enrollment-key
+          secret:
+            secretName: {{ include "radar.cloudEnrollmentKeySecretName" . }}
+            items:
+              - key: {{ ternary (.Values.cloud.enrollment.existingSecretKey | default "key") "key" (not (empty .Values.cloud.enrollment.existingSecret)) }}
+                path: key
+        {{- end }}
+        {{- if $cloudCA }}
+        - name: cloud-ca
+          configMap:
+            name: {{ include "radar.fullname" . }}-cloud-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

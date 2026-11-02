@@ -1,5 +1,5 @@
-import { RoleBindingRenderer as BaseRoleBindingRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/RoleBindingRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { RoleBindingRenderer as BaseRoleBindingRenderer } from '@maomada/k8s-ui/components/resources/renderers/RoleBindingRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useResource } from '../../../api/client'
 
 interface RoleBindingRendererProps {

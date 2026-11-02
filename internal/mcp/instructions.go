@@ -1,6 +1,6 @@
 package mcp
 
-import "github.com/skyhook-io/radar/pkg/investigation"
+import "github.com/maomada/radar/pkg/investigation"
 
 // serverInstructions is the text a server registering the given tool set sends
 // when a client connects, in the initialize result or, on protocol 2026-07-28,

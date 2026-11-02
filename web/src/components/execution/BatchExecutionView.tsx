@@ -14,11 +14,11 @@ import {
   podStatusClass,
   podStatusLabel,
   workloadPodDetail,
-} from '@skyhook-io/k8s-ui'
-import { buildWorkflowExecutionModel, flattenWorkflowExecution, type WorkflowExecutionActivity, type WorkflowExecutionModel, type WorkflowExecutionNode, type WorkflowExecutionRow, type WorkflowTemplateReference } from '@skyhook-io/k8s-ui/utils/workflow-execution'
-import { midTruncate } from '@skyhook-io/k8s-ui/utils/format'
-import { isJobSetV1Alpha2 } from '@skyhook-io/k8s-ui/components/resources/resource-utils-jobset-lws'
-import { JobSetRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/JobSetRenderer'
+} from '@maomada/k8s-ui'
+import { buildWorkflowExecutionModel, flattenWorkflowExecution, type WorkflowExecutionActivity, type WorkflowExecutionModel, type WorkflowExecutionNode, type WorkflowExecutionRow, type WorkflowTemplateReference } from '@maomada/k8s-ui/utils/workflow-execution'
+import { midTruncate } from '@maomada/k8s-ui/utils/format'
+import { isJobSetV1Alpha2 } from '@maomada/k8s-ui/components/resources/resource-utils-jobset-lws'
+import { JobSetRenderer } from '@maomada/k8s-ui/components/resources/renderers/JobSetRenderer'
 import { useResource, useWorkloadPods, useWorkloadRuns, useJobSetResources, type WorkloadRun } from '../../api/client'
 import type { ResourceNavigationTarget } from '../../utils/navigation'
 import { JobSetMemberComparison } from './JobSetMemberComparison'
@@ -251,8 +251,8 @@ export function BatchExecutionFullscreen({ leadContent, kind, apiKind, namespace
   const runsErrorMessage = runsQuery.error instanceof Error
     ? runsQuery.error.message
     : memberShell
-      ? 'Radar could not load this JobSet’s child Jobs.'
-      : 'Radar could not load retained runs.'
+      ? 'KubeAtlas could not load this JobSet’s child Jobs.'
+      : 'KubeAtlas could not load retained runs.'
 
   if (runsQuery.isLoading && !jobSetRoot) {
     return (
@@ -374,8 +374,8 @@ export function BatchExecutionFullscreen({ leadContent, kind, apiKind, namespace
                 selectedResourceQuery.error instanceof Error
                   ? selectedResourceQuery.error.message
                   : memberCollection
-                    ? 'Radar could not load this child Job.'
-                    : 'Radar could not load this retained run.'
+                    ? 'KubeAtlas could not load this child Job.'
+                    : 'KubeAtlas could not load this retained run.'
               }
             />
           )}
@@ -685,7 +685,7 @@ function SourceFacts({ source, namespace, definitionLoading = false, definitionE
       {definitionLoading ? (
         <div className="border-t border-theme-border pt-3"><FetchResult loading /></div>
       ) : definitionError ? (
-        <EmptyState tone="neutral" variant="card" headline="Referenced definition unavailable" body={definitionError instanceof Error ? definitionError.message : 'Radar could not load the referenced workflow definition.'} />
+        <EmptyState tone="neutral" variant="card" headline="Referenced definition unavailable" body={definitionError instanceof Error ? definitionError.message : 'KubeAtlas could not load the referenced workflow definition.'} />
       ) : source.definition ? (
         <ExecutionDefinitionDetails summary={source.definition} namespace={namespace} />
       ) : null}
@@ -1171,7 +1171,7 @@ function JobSetMemberPods({
           tone="neutral"
           variant="card"
           headline="Pods unavailable"
-          body={error instanceof Error ? error.message : 'Radar could not load Pods for this Job.'}
+          body={error instanceof Error ? error.message : 'KubeAtlas could not load Pods for this Job.'}
         />
       ) : pods.length === 0 ? (
         <EmptyState

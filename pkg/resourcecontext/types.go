@@ -19,7 +19,7 @@ package resourcecontext
 import (
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // ResourceContext is the top-level enrichment block attached to a resource

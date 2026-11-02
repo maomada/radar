@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiUrl } from './config'
 import { useReviewedActionMutation } from './reviewedActionMutation'
-import type { CNPGSchedulePreview } from '@skyhook-io/k8s-ui'
+import type { CNPGSchedulePreview } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 import type { ActionRequest } from './actions'
 import { cnpgPath, type CNPGActionResult } from './cnpg'

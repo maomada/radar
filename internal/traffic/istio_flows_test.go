@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 	"k8s.io/client-go/kubernetes/fake"
 )
 

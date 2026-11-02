@@ -13,8 +13,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	gitopsinsights "github.com/skyhook-io/radar/pkg/gitops/insights"
+	"github.com/maomada/radar/internal/argocd"
+	gitopsinsights "github.com/maomada/radar/pkg/gitops/insights"
 )
 
 // Retrying is process-wide: one app whose read gets no answer sets it for

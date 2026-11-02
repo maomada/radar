@@ -10,11 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 
-	"github.com/skyhook-io/radar/internal/imageutil"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/packages"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/imageutil"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/packages"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // resourceLister is the slice of the resource cache the app identity resolver

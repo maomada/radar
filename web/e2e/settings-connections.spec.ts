@@ -1046,7 +1046,7 @@ test('invalid previous settings stay visible with their error but cannot be copi
   const dialog = await openSettings(page, 'Cost')
   await dialog.getByRole('button', { name: '复制设置自…', exact: true }).click()
   const option = dialog.getByRole('option', { name: /之前的全局设置/ })
-  await expect(option).toContainText('Fix it in ~/.radar/config.json')
+  await expect(option).toContainText('Fix it in ~/.kubeatlas/config.json')
   await expect(option).toHaveAttribute('aria-disabled', 'true')
   await page.keyboard.press('Enter')
   await expect(dialog.getByText(/已从 .* 复制/)).toHaveCount(0)
@@ -1704,7 +1704,7 @@ test('an agent CLI installed while Settings is open is picked up without a resta
   const dialog = await openSettings(page, 'AI investigations')
   await expect(dialog.getByText('未找到受支持的 Agent CLI', { exact: true })).toBeVisible()
   await expect(dialog.getByText(/then restart Radar/)).toHaveCount(0)
-  await expect(dialog.getByText(/RADAR_AI_CLI_BIN/)).toHaveCount(0)
+  await expect(dialog.getByText(/KUBEATLAS_AI_CLI_BIN/)).toHaveCount(0)
 
   await dialog.getByRole('button', { name: '重新检查', exact: true }).click()
   await expect(dialog.getByText(/仍未找到。/)).toBeVisible()
@@ -1728,14 +1728,14 @@ test('a failed agent check says so and can be retried', async ({ page }) => {
   await expect(dialog.getByRole('button', { name: 'Your Claude Code setup', exact: true })).toBeVisible()
 })
 
-test('a pinned RADAR_AI_CLI_BIN that works again is picked up from Check again', async ({ page }) => {
+test('a pinned KUBEATLAS_AI_CLI_BIN that works again is picked up from Check again', async ({ page }) => {
   await fixture(page)
   let fixed = false
   await page.route('**/api/agents', route => route.fulfill({
     json: fixed ? { ...aiAgents, cliOverride: true } : { agents: [], enabled: true, eligible: true, cliOverride: true, consented: {} },
   }))
   const dialog = await openSettings(page, 'AI investigations')
-  await expect(dialog.getByText('Radar 无法运行 RADAR_AI_CLI_BIN', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Radar 无法运行 KUBEATLAS_AI_CLI_BIN', { exact: true })).toBeVisible()
   await expect(dialog.getByText('未找到受支持的 Agent CLI', { exact: true })).toHaveCount(0)
 
   fixed = true

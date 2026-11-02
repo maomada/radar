@@ -10,7 +10,7 @@ const useContextsMock = vi.hoisted(() => vi.fn(
 ))
 const capabilitiesMock = vi.hoisted(() => ({ localTerminal: true }))
 
-vi.mock('@skyhook-io/k8s-ui', () => ({
+vi.mock('@maomada/k8s-ui', () => ({
   ClusterName: ({ name }: { name: string }) => <span>{name}</span>,
 }))
 vi.mock('./dock/DockContext', () => ({

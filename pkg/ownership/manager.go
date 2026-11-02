@@ -5,8 +5,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // ManagerState sums up what the evidence says manages an object. It never

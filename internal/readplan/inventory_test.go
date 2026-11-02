@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 func TestForInventory(t *testing.T) {

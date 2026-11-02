@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // GitOpsMembersIndex indexes Argo CD Applications and Flux Kustomizations and

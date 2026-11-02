@@ -7,7 +7,7 @@ import {
   Info,
   SearchCheck,
 } from "lucide-react";
-import { Collapse, CollapseChevron } from "@skyhook-io/k8s-ui";
+import { Collapse, CollapseChevron } from "@maomada/k8s-ui";
 import type { EvidenceCoverageGroup } from "./investigationEvidencePresentation";
 import {
   investigationEvidenceSourceDomId,
@@ -25,7 +25,7 @@ import { investigationEvidenceFullRowFlags } from "./investigationEvidencePartit
 import { EvidenceCard } from "./EvidenceCard";
 
 /**
- * Hypotheses the agent dropped, each pointing at the Radar observation whose
+ * Hypotheses the agent dropped, each pointing at the KubeAtlas observation whose
  * result contradicted it. Entries whose item could not be placed on an
  * observation are filtered out by the resolver and never rendered here.
  */
@@ -98,12 +98,12 @@ export function AssessmentEvidenceQualification({
         <p className="text-xs font-medium text-theme-text-primary">
           {resolution.status === "invalid"
             ? "Assessment references could not be matched"
-            : "Assessment does not cite specific Radar evidence"}
+            : "Assessment does not cite specific KubeAtlas evidence"}
         </p>
         <p className="mt-0.5 text-xs leading-relaxed text-theme-text-tertiary">
           {resolution.status === "invalid"
-            ? "Radar could not match the assessment’s references to this investigation. Review Activity before acting."
-            : "Review Activity and the Radar evidence below before acting on the agent’s conclusion."}
+            ? "KubeAtlas could not match the assessment’s references to this investigation. Review Activity before acting."
+            : "Review Activity and the KubeAtlas evidence below before acting on the agent’s conclusion."}
         </p>
       </div>
       <button

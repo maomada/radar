@@ -1,8 +1,8 @@
 import { ArrowLeft, ArrowUpRight } from 'lucide-react'
 import { SELF_HOSTED_DOCS_URL, signupUrlFor } from './cloudConnectHandoff'
 
-// What the Cloud dialog shows after "Run Radar Cloud yourself…". Running your
-// own control plane starts with a Radar Cloud account, because the Hub signs
+// What the Cloud dialog shows after "Run upstream Cloud yourself…". Running your
+// own control plane starts with a upstream Cloud account, because the Hub signs
 // the Self-Managed license, so this view names that as step 1 of 3 before the
 // click instead of letting a sign-up page surprise someone who came to host
 // it themselves. The link carries intent=self-hosting: the Hub's sign-in page
@@ -12,7 +12,7 @@ export function SelfManagedStart({ appUrl, onBack }: { appUrl: string; onBack: (
   const signupUrl = `${signupUrlFor(appUrl, 'self-managed-signup')}&intent=self-hosting`
   const steps = [
     {
-      title: 'Create your Radar Cloud account',
+      title: 'Create your upstream Cloud account',
       body: 'Your license is issued from it. An existing account works too.',
     },
     {
@@ -29,10 +29,10 @@ export function SelfManagedStart({ appUrl, onBack }: { appUrl: string; onBack: (
       <div className="min-h-0 overflow-y-auto">
         <div className="px-8 pb-5">
           <h3 className="text-[20px] font-semibold leading-tight tracking-tight text-theme-text-primary mb-1.5">
-            Run Radar Cloud yourself
+            Run upstream Cloud yourself
           </h3>
           <p className="text-[13px] leading-relaxed text-theme-text-secondary mb-5">
-            Run the Radar Cloud control plane in your own infrastructure: the same fleet view, alerts, history
+            Run the upstream Cloud control plane in your own infrastructure: the same fleet view, alerts, history
             and team access, and your cluster data never leaves your network.
           </p>
           <ol className="space-y-3.5">
@@ -78,7 +78,7 @@ export function SelfManagedStart({ appUrl, onBack }: { appUrl: string; onBack: (
           className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-theme-text-secondary hover:text-theme-text-primary transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Radar Cloud
+          Back to upstream Cloud
         </button>
         <a
           href={signupUrl}
@@ -86,7 +86,7 @@ export function SelfManagedStart({ appUrl, onBack }: { appUrl: string; onBack: (
           rel="noopener noreferrer"
           className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap px-5 py-2 rounded-[10px] bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-[13.5px] font-bold shadow-[0_0_22px_rgba(16,185,129,0.35)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all"
         >
-          Create your Radar Cloud account
+          Create your upstream Cloud account
           <ArrowUpRight className="w-4 h-4" />
         </a>
       </div>

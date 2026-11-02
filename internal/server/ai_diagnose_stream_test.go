@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/ai"
+	"github.com/maomada/radar/internal/ai"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func TestDiagnoseReplayCompleteFrameIsUnsequenced(t *testing.T) {

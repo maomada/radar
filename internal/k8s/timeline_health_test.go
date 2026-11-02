@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 func TestClassifyTimelineHealthPod(t *testing.T) {

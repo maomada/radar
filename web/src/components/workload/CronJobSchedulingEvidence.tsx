@@ -1,5 +1,5 @@
 import { Clock, Info } from 'lucide-react'
-import { AlertBanner, CardSection, Disclosure, TimeValue } from '@skyhook-io/k8s-ui'
+import { AlertBanner, CardSection, Disclosure, TimeValue } from '@maomada/k8s-ui'
 import type { CronJobSchedulingEvidence } from '../../api/client'
 
 type EvidenceProps = { evidence: CronJobSchedulingEvidence; onViewTimeline: () => void }

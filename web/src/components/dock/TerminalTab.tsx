@@ -1,4 +1,4 @@
-import { TerminalTab as SharedTerminalTab } from '@skyhook-io/k8s-ui'
+import { TerminalTab as SharedTerminalTab } from '@maomada/k8s-ui'
 import { apiUrl, getWsUrl } from '../../api/config'
 import { readErrorBody } from '../../api/httpErrors'
 

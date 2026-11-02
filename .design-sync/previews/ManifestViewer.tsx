@@ -1,4 +1,4 @@
-import { ManifestViewer } from '@skyhook-io/k8s-ui'
+import { ManifestViewer } from '@maomada/k8s-ui'
 
 const frame = { width: 760 } as const
 const noop = () => {}

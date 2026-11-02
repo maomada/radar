@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import type { TrafficSourcesResponse, TrafficWizardState } from '../../types'
 import { CheckCircle2, XCircle, AlertTriangle, Copy, ExternalLink, ArrowRight, ArrowLeft, Package } from 'lucide-react'
-import { AlertBanner, assetUrl, PaneLoader } from '@skyhook-io/k8s-ui'
-import radarLoadingIcon from '@skyhook-io/k8s-ui/assets/radar/radar-icon-loading.svg'
+import { AlertBanner, assetUrl, PaneLoader } from '@maomada/k8s-ui'
+import radarLoadingIcon from '@maomada/k8s-ui/assets/radar/radar-icon-loading.svg'
 import { InstallWizard } from '../helm/InstallWizard'
 
 const radarLoadingIconUrl = assetUrl(radarLoadingIcon)

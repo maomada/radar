@@ -12,7 +12,7 @@ import {
   type ScrubberPreset,
   type ScrubberRange,
   type TimelineLiveState,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import {
   RETAINED_CLOCK_SKEW_SLACK_MS,
   type TimelineSource,

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestFormatStartupLogSummaryLoopback(t *testing.T) {
@@ -228,7 +228,7 @@ func TestStartupAIStatusExplainsWhyItIsOff(t *testing.T) {
 				mcpEnabled:    true,
 				aiCLIOverride: "/opt/typo/claude",
 			},
-			want: "can't run RADAR_AI_CLI_BIN=/opt/typo/claude",
+			want: "can't run KUBEATLAS_AI_CLI_BIN=/opt/typo/claude",
 		},
 		{
 			name: "in-cluster does not tell a container to install a CLI",

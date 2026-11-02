@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deltaFetchCursor, maxEventSeq, mergeDeltaEvents, type ChangesDeltaMeta } from './client'
-import type { TimelineEvent } from '@skyhook-io/k8s-ui'
+import type { TimelineEvent } from '@maomada/k8s-ui'
 
 const mk = (id: string, seq: number, tsOffsetMs: number): TimelineEvent => ({
   id,

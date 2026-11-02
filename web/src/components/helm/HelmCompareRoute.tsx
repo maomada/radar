@@ -17,7 +17,7 @@ import {
   Package,
   Settings,
 } from 'lucide-react'
-import { PaneLoader, DiffLine, hasDiffBodyChange } from '@skyhook-io/k8s-ui'
+import { PaneLoader, DiffLine, hasDiffBodyChange } from '@maomada/k8s-ui'
 import {
   useHelmHooksDiff,
   useHelmManifestDiff,
@@ -147,7 +147,7 @@ export function HelmCompareRoute() {
         <AlertTriangle className="h-8 w-8 text-red-500" />
         <div className="text-sm font-medium text-theme-text-primary">Release not found</div>
         <div className="max-w-lg text-xs text-theme-text-secondary">
-          {releaseQuery.error instanceof Error ? releaseQuery.error.message : 'Radar could not load this Helm release.'}
+          {releaseQuery.error instanceof Error ? releaseQuery.error.message : 'KubeAtlas could not load this Helm release.'}
         </div>
         <button onClick={backToRelease} className="rounded-lg border border-theme-border bg-theme-elevated px-3 py-1.5 text-xs font-medium text-theme-text-primary hover:bg-theme-hover">
           Back to release
@@ -926,7 +926,7 @@ function ResourceInventoryDiffSection({
                 <div>
                   <div className="font-medium text-theme-text-primary">Rendered resource list may be incomplete.</div>
                   <div className="mt-1">
-                    Radar could not parse {diff.parseErrorCount} rendered manifest document{diff.parseErrorCount === 1 ? '' : 's'} for
+                    KubeAtlas could not parse {diff.parseErrorCount} rendered manifest document{diff.parseErrorCount === 1 ? '' : 's'} for
                     resource grouping. Use the rendered manifest diff above as the source of truth.
                   </div>
                 </div>
@@ -1083,7 +1083,7 @@ function LowPairingConfidenceNotice({
         <div className="min-w-0">
           <div className="font-medium text-theme-text-primary">Resource identities do not overlap.</div>
           <div className="mt-1">
-            The chart changed and Radar cannot pair old and new resources by name. Use the manifest diff above for the cause; the rows below are
+            The chart changed and KubeAtlas cannot pair old and new resources by name. Use the manifest diff above for the cause; the rows below are
             identity context.
           </div>
           <div className="mt-2 grid grid-cols-1 gap-2 text-xs md:grid-cols-2">

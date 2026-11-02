@@ -2,7 +2,7 @@ import {
   Badge,
   TerminalBlock,
   formatRelativeAgeTime,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import {
   AreaChart,
   SERIES_COLORS,
@@ -11,7 +11,7 @@ import {
   seriesDisplayLabels,
   seriesFill,
   type TimeSeries,
-} from "@skyhook-io/k8s-ui/components/charts";
+} from "@maomada/k8s-ui/components/charts";
 import {
   metricsDomain,
   type MetricsChangeCoverage,
@@ -217,10 +217,10 @@ export function MetricsBody({
             ? "1 change recorded in this window is marked on the chart."
             : annotations?.length
               ? `${annotations.length} changes recorded in this window are marked on the chart.`
-              : // Only that the changes Radar read miss this window — not that
+              : // Only that the changes KubeAtlas read miss this window — not that
                 // the window was fully covered. The change lookup has its own
                 // window, which need not span the chart's.
-                "None of the changes Radar read fall in this window."}
+                "None of the changes KubeAtlas read fall in this window."}
         </p>
       ) : null}
       {axisTruncated ? (

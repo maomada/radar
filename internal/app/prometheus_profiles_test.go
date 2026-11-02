@@ -8,15 +8,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/pkg/argoapi"
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/pkg/argoapi"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/timeline"
 	"k8s.io/client-go/rest"
 )
 
@@ -92,8 +92,8 @@ func TestLaunchOverridesWithoutContextDoNotStopStartup(t *testing.T) {
 	t.Cleanup(func() { k8s.SetTestConfig(old) })
 	t.Setenv(settings.OperatorFileEnv, "")
 	t.Cleanup(func() { settings.SetOperatorConfig(nil) })
-	t.Setenv("RADAR_ARGOCD_TOKEN", "launch-token")
-	t.Setenv("RADAR_KUBECOST_API_KEY", "launch-key")
+	t.Setenv("KUBEATLAS_ARGOCD_TOKEN", "launch-token")
+	t.Setenv("KUBEATLAS_KUBECOST_API_KEY", "launch-key")
 	got, err := preparePrometheusConfiguration(AppConfig{PrometheusURL: "https://launch", PrometheusURLFlag: true})
 	if err != nil {
 		t.Fatalf("startup must continue so the kubeconfig error is visible: %v", err)
@@ -104,7 +104,7 @@ func TestLaunchOverridesWithoutContextDoNotStopStartup(t *testing.T) {
 }
 
 func TestUnusableProfileDoesNotPreventStartupWithScope(t *testing.T) {
-	if scenario := os.Getenv("RADAR_PROFILE_STARTUP_CASE"); scenario != "" {
+	if scenario := os.Getenv("KUBEATLAS_PROFILE_STARTUP_CASE"); scenario != "" {
 		useTempHome(t)
 		t.Cleanup(k8s.SetTestLocalMode())
 		t.Cleanup(k8s.SetTestProfileSource("/test/local", "dev", "developer"))
@@ -151,7 +151,7 @@ func TestUnusableProfileDoesNotPreventStartupWithScope(t *testing.T) {
 	for _, scenario := range []string{"malformed", "target", "environment"} {
 		t.Run(scenario, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestUnusableProfileDoesNotPreventStartupWithScope$")
-			cmd.Env = append(os.Environ(), "RADAR_PROFILE_STARTUP_CASE="+scenario)
+			cmd.Env = append(os.Environ(), "KUBEATLAS_PROFILE_STARTUP_CASE="+scenario)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("startup failed: %v\n%s", err, out)
 			}
@@ -160,9 +160,9 @@ func TestUnusableProfileDoesNotPreventStartupWithScope(t *testing.T) {
 }
 
 func TestFirstConnectionActivatesSavedIntegrations(t *testing.T) {
-	if os.Getenv("RADAR_PROFILE_CONNECT_CASE") == "" {
+	if os.Getenv("KUBEATLAS_PROFILE_CONNECT_CASE") == "" {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestFirstConnectionActivatesSavedIntegrations$")
-		cmd.Env = append(os.Environ(), "RADAR_PROFILE_CONNECT_CASE=1")
+		cmd.Env = append(os.Environ(), "KUBEATLAS_PROFILE_CONNECT_CASE=1")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("startup failed: %v\n%s", err, out)
 		}
@@ -207,13 +207,13 @@ func TestPrepareSharedPrometheusKeepsExistingConfiguration(t *testing.T) {
 	useTempHome(t)
 	t.Cleanup(k8s.SetTestLocalMode())
 	t.Setenv(settings.OperatorFileEnv, "")
-	t.Setenv("RADAR_PROFILE_TEST_TOKEN", "shared-secret")
+	t.Setenv("KUBEATLAS_PROFILE_TEST_TOKEN", "shared-secret")
 	t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
 	t.Cleanup(func() { settings.SetOperatorConfig(nil) })
 	for _, cfg := range []AppConfig{{ListenAddress: "0.0.0.0"}, {CloudTunnelConfigured: true}, {AuthConfig: auth.Config{Mode: "proxy"}}} {
 		cfg.PrometheusURL = "https://shared"
 		cfg.PrometheusSavedURL = cfg.PrometheusURL
-		cfg.PrometheusHeadersFromEnv = map[string]string{"Authorization": "RADAR_PROFILE_TEST_TOKEN"}
+		cfg.PrometheusHeadersFromEnv = map[string]string{"Authorization": "KUBEATLAS_PROFILE_TEST_TOKEN"}
 		got, err := preparePrometheusConfiguration(cfg)
 		if err != nil || got.LocalConnections != nil || got.PrometheusHeaders["Authorization"] != "shared-secret" {
 			t.Fatalf("shared configuration changed: %v", err)

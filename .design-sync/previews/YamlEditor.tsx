@@ -1,4 +1,4 @@
-import { YamlEditor } from '@skyhook-io/k8s-ui'
+import { YamlEditor } from '@maomada/k8s-ui'
 
 const noop = () => {}
 const frame = { width: 640, maxWidth: '100%', height: 320 }

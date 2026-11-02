@@ -1,4 +1,4 @@
-import { SectionHeading, formatAge, formatGrant, toneTextClass } from '@skyhook-io/k8s-ui'
+import { SectionHeading, formatAge, formatGrant, toneTextClass } from '@maomada/k8s-ui'
 import { useCNPGParameters } from '../../api/cnpg-inspect'
 import { cnpgParametersView, type CNPGParameterRow } from './inspectModel'
 import { RefreshFailedNotice } from '../workspace/layout'
@@ -63,7 +63,7 @@ export function CNPGParametersInEffect({ namespace, name, declared, scope }: { n
       </div>
       )}
       {d && view.read.length > 0 && <p className="mt-2 text-[11.5px] text-theme-text-tertiary">
-        Read {d.sampledAt ? `${formatAge(d.sampledAt)} ago` : 'just now'} from a new Radar session on each of {view.read.map((i) => i.pod).join(', ')}. A role, database or
+        Read {d.sampledAt ? `${formatAge(d.sampledAt)} ago` : 'just now'} from a new KubeAtlas session on each of {view.read.map((i) => i.pod).join(', ')}. A role, database or
         client can set its own value for a parameter a session can change. PostgreSQL normalizes units and boolean spellings (such as false to off), so different text alone does not mean a different value.
       </p>}
       {d?.skipped && d.skipped.length > 0 && <p className="mt-1 text-xs text-theme-text-tertiary">Not read (not a parameter name): {d.skipped.join(', ')}.</p>}

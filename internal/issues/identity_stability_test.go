@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // The Radar Hub alert worker keys an issue's open/resolved lifecycle on

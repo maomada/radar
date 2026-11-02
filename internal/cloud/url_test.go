@@ -31,7 +31,7 @@ func TestIsLoopbackHostname(t *testing.T) {
 
 func TestValidateWebSocketURLTransportPolicy(t *testing.T) {
 	for _, raw := range []string{
-		"wss://api.radarhq.io/agent",
+		"wss://api.example.test/agent",
 		"ws://localhost:9091/agent",
 		"ws://127.0.0.2:9091/agent",
 		"ws://[::1]:9091/agent",
@@ -47,12 +47,12 @@ func TestValidateWebSocketURLTransportPolicy(t *testing.T) {
 		"ws://api.radarhq.io/agent",
 		"ws://10.0.0.1/agent",
 		"ws://localhost.example/agent",
-		"https://api.radarhq.io/agent",
+		"https://api.example.test/agent",
 		"wss://user:password@api.radarhq.io/agent",
-		"wss://api.radarhq.io/agent#fragment",
-		"wss://api.radarhq.io:0/agent",
-		"wss://api.radarhq.io:65536/agent",
-		" wss://api.radarhq.io/agent",
+		"wss://api.example.test/agent#fragment",
+		"wss://api.example.test:0/agent",
+		"wss://api.example.test:65536/agent",
+		" wss://api.example.test/agent",
 	} {
 		t.Run("invalid_"+raw, func(t *testing.T) {
 			if err := ValidateWebSocketURL(raw); err == nil {
@@ -64,8 +64,8 @@ func TestValidateWebSocketURLTransportPolicy(t *testing.T) {
 
 func TestValidateHubOriginTransportPolicy(t *testing.T) {
 	for _, raw := range []string{
-		"https://api.radarhq.io",
-		"https://api.radarhq.io/",
+		"https://api.example.test",
+		"https://api.example.test/",
 		"http://localhost:9091",
 		"http://127.0.0.2:9091",
 		"http://[::1]:9091",
@@ -81,10 +81,10 @@ func TestValidateHubOriginTransportPolicy(t *testing.T) {
 		"http://api.radarhq.io",
 		"http://10.0.0.1",
 		"http://localhost.example",
-		"https://api.radarhq.io/api",
-		"https://api.radarhq.io?org=test",
-		"https://api.radarhq.io:0",
-		"https://api.radarhq.io:65536",
+		"https://api.example.test/api",
+		"https://api.example.test?org=test",
+		"https://api.example.test:0",
+		"https://api.example.test:65536",
 	} {
 		t.Run("invalid_"+raw, func(t *testing.T) {
 			if err := ValidateHubOrigin(raw); err == nil {
@@ -99,8 +99,8 @@ func TestNormalizeHubOrigin(t *testing.T) {
 		raw  string
 		want string
 	}{
-		{"https://api.radarhq.io", "https://api.radarhq.io"},
-		{"https://api.radarhq.io/", "https://api.radarhq.io"},
+		{"https://api.example.test", "https://api.example.test"},
+		{"https://api.example.test/", "https://api.example.test"},
 		{"http://localhost:9091/", "http://localhost:9091"},
 	} {
 		t.Run(tc.raw, func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestNormalizeHubOrigin(t *testing.T) {
 		})
 	}
 
-	if _, err := NormalizeHubOrigin("https://api.radarhq.io/api"); err == nil {
+	if _, err := NormalizeHubOrigin("https://api.example.test/api"); err == nil {
 		t.Fatal("NormalizeHubOrigin with a path unexpectedly succeeded")
 	}
 }
@@ -124,7 +124,7 @@ func TestHubOriginFromWebSocketURL(t *testing.T) {
 		raw  string
 		want string
 	}{
-		{raw: "wss://api.radarhq.io/agent", want: "https://api.radarhq.io"},
+		{raw: "wss://api.example.test/agent", want: "https://api.example.test"},
 		{raw: "wss://hub.example:8443/agent?transport=websocket", want: "https://hub.example:8443"},
 		{raw: "ws://localhost:9091/agent", want: "http://localhost:9091"},
 		{raw: "ws://[::1]:9091/agent", want: "http://[::1]:9091"},

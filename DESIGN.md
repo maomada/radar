@@ -106,7 +106,7 @@ Standard Tailwind type scale. No custom sizes or tracking. Use Tailwind utilitie
 Hover/disabled states are built into the classes. For non-brand buttons, use shadcn/ui `<Button>` variants.
 
 ### Badges
-Use the `<Badge>` component from `@skyhook-io/k8s-ui` — **never hand-write badge
+Use the `<Badge>` component from `@maomada/k8s-ui` — **never hand-write badge
 color strings** (`bg-<color>-NN/NN text-<color>-NN …`). Those bypass the theme
 (they're dark-tuned and wash out in light mode) and, worse, *overload hues across
 intents* — a green `bg-green-500/20` "HTTPS" chip becomes indistinguishable from a
@@ -148,7 +148,7 @@ For programmatic color lookup (e.g., dynamic table cells):
 - `getHealthBadgeColor(health)` — maps health states to badge classes
 - `getHelmStatusColor(status)` — maps Helm release statuses to badge classes
 
-All from `@skyhook-io/k8s-ui/utils/badge-colors`.
+All from `@maomada/k8s-ui/utils/badge-colors`.
 
 ### Status Badges in Tables
 Use CSS classes from `components.css` for status cells in table rows:

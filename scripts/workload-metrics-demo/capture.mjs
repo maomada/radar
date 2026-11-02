@@ -3,10 +3,10 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 const [address, ...workloads] = process.argv.slice(2);
-if (!address || workloads.length === 0) throw Error('Usage: node capture.mjs RADAR_URL Kind/namespace/name [...]');
+if (!address || workloads.length === 0) throw Error('Usage: node capture.mjs KUBEATLAS_URL Kind/namespace/name [...]');
 const base = new URL(address);
-if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) throw Error('Use a plain Radar URL; supply auth only through RADAR_CAPTURE_AUTHORIZATION.');
-const headers = process.env.RADAR_CAPTURE_AUTHORIZATION ? {Authorization: process.env.RADAR_CAPTURE_AUTHORIZATION} : {};
+if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) throw Error('Use a plain Radar URL; supply auth only through KUBEATLAS_CAPTURE_AUTHORIZATION.');
+const headers = process.env.KUBEATLAS_CAPTURE_AUTHORIZATION ? {Authorization: process.env.KUBEATLAS_CAPTURE_AUTHORIZATION} : {};
 const dir = await mkdtemp(join(tmpdir(), 'radar-metrics-capture-'));
 const result = {checkedAt: new Date().toISOString(), workloads: []};
 async function get(path) {
@@ -23,7 +23,7 @@ async function get(path) {
     chunks.push(value);
   }
   const body = JSON.parse(Buffer.concat(chunks).toString());
-  if (body.truncated) throw Error('Radar summarized the raw series. Use a dedicated test instance with RADAR_MCP_PROM_MAX_RESPONSE_BYTES=8388608; do not claim complete evidence.');
+  if (body.truncated) throw Error('Radar summarized the raw series. Use a dedicated test instance with KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES=8388608; do not claim complete evidence.');
   return body;
 }
 try {

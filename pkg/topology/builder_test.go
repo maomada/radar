@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
+	k8score "github.com/maomada/radar/pkg/k8score"
 )
 
 // mockProvider implements ResourceProvider with configurable slices.

@@ -1,4 +1,4 @@
-import { HealthRing } from '@skyhook-io/k8s-ui'
+import { HealthRing } from '@maomada/k8s-ui'
 
 const wrap = { display: 'flex', gap: 24, alignItems: 'center', padding: 8 }
 

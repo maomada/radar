@@ -11,13 +11,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/meaningfulchanges"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/internal/timeline"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/meaningfulchanges"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/internal/timeline"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/issuesapi"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
 )
 
 // mcpChangeAuthorizer returns the per-kind authorizer for the ctx user, for the

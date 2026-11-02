@@ -165,7 +165,7 @@ func createMenu(desktopApp *DesktopApp, version, goos string) *menu.Menu {
 					if (!el.dispatchEvent(ev)) return;
 				} catch(e) { /* ClipboardEvent dispatch failed, fall back to insertText */ }
 				document.execCommand('insertText', false, text);
-			}).catch(function(err) { console.warn('[Radar] Paste failed:', err); });
+			}).catch(function(err) { console.warn('[KubeAtlas] Paste failed:', err); });
 		`)
 	})
 	editMenu.AddText("Select All", keys.CmdOrCtrl("a"), func(_ *menu.CallbackData) {
@@ -209,11 +209,11 @@ func createMenu(desktopApp *DesktopApp, version, goos string) *menu.Menu {
 	helpMenu.AddSeparator()
 	// The macOS application menu already carries About, drawn from mac.AboutInfo.
 	if !mac {
-		helpMenu.AddText("About Radar", nil, func(_ *menu.CallbackData) {
+		helpMenu.AddText("About KubeAtlas", nil, func(_ *menu.CallbackData) {
 			runtime.MessageDialog(desktopApp.ctx, runtime.MessageDialogOptions{
 				Type:    runtime.InfoDialog,
-				Title:   "About Radar",
-				Message: "Radar — Kubernetes Visibility Tool\nIndependently maintained by maomada\nOriginally created by Skyhook; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
+				Title:   "About KubeAtlas",
+				Message: "KubeAtlas — Kubernetes Visibility Tool\nIndependently maintained by maomada\nOriginally created by Skyhook; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
 			})
 		})
 	}

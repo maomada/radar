@@ -1,4 +1,4 @@
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 
 const field = 'w-full px-3 py-1.5 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500 disabled:opacity-60 disabled:cursor-not-allowed'
 const box = { width: 400 } as const
@@ -36,7 +36,7 @@ export function Filled() {
 export function Disabled() {
   return (
     <div style={box}>
-      <Field id="prom-url" label="Prometheus URL" help="Set by RADAR_PROMETHEUS_URL — edit the Helm values to change it.">
+      <Field id="prom-url" label="Prometheus URL" help="Set by KUBEATLAS_PROMETHEUS_URL — edit the Helm values to change it.">
         <Input id="prom-url" className={field} defaultValue="http://prometheus-server.monitoring.svc:80" disabled />
       </Field>
     </div>

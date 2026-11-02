@@ -103,7 +103,7 @@ func readStarJSON() *githubStarState {
 	if err != nil {
 		return &githubStarState{}
 	}
-	data, err := os.ReadFile(filepath.Join(homeDir, ".radar", "star.json"))
+	data, err := os.ReadFile(filepath.Join(homeDir, ".kubeatlas", "star.json"))
 	if err != nil {
 		return &githubStarState{}
 	}
@@ -119,7 +119,7 @@ func writeStarJSON(state *githubStarState) {
 	if err != nil {
 		return
 	}
-	path := filepath.Join(homeDir, ".radar", "star.json")
+	path := filepath.Join(homeDir, ".kubeatlas", "star.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return
 	}

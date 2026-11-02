@@ -49,7 +49,7 @@ export interface UsageDataStatus {
   firstRunPrompt: boolean
   // What's New may ask: never asked, or asked and left unanswered long enough ago.
   ask: boolean
-  // Several people use this Radar, so its configuration decides and nobody is asked.
+  // Several people use this KubeAtlas, so its configuration decides and nobody is asked.
   shared: boolean
 }
 

@@ -4,7 +4,7 @@ import {
   CompositeRenderer as BaseCompositeRenderer,
   type ComposedRefStatus,
   type BoundXRStatus,
-} from '@skyhook-io/k8s-ui/components/resources/renderers/CompositeRenderer'
+} from '@maomada/k8s-ui/components/resources/renderers/CompositeRenderer'
 import {
   getCrossplaneResourceRefs,
   getBoundXRRef,
@@ -13,9 +13,9 @@ import {
   isComposite,
   isClaim,
   type CrossplaneResourceRef,
-} from '@skyhook-io/k8s-ui/components/resources/resource-utils-crossplane'
-import { getResourceStatus } from '@skyhook-io/k8s-ui'
-import { kindToPluralWithGroup } from '@skyhook-io/k8s-ui/utils/navigation'
+} from '@maomada/k8s-ui/components/resources/resource-utils-crossplane'
+import { getResourceStatus } from '@maomada/k8s-ui'
+import { kindToPluralWithGroup } from '@maomada/k8s-ui/utils/navigation'
 import type { ResourceRef as NavRef } from '../../types'
 import { fetchJSON, ApiError } from '../../api/client'
 

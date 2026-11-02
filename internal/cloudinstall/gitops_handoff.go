@@ -7,9 +7,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/yaml"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 type GitOpsTool string
@@ -88,7 +88,7 @@ func BuildGitOpsHandoff(cfg GitOpsHandoffConfig) (GitOpsHandoff, error) {
 	}
 	valuesFragment := string(valuesYAML)
 	secretCommand := fmt.Sprintf(
-		`kubectl --namespace=%s create secret generic %s --from-literal=token="${RADAR_CLOUD_TOKEN:?set RADAR_CLOUD_TOKEN}" --dry-run=client --output=yaml`,
+		`kubectl --namespace=%s create secret generic %s --from-literal=token="${KUBEATLAS_CLOUD_TOKEN:?set KUBEATLAS_CLOUD_TOKEN}" --dry-run=client --output=yaml`,
 		cfg.Target.Namespace,
 		CloudTokenSecretName,
 	)
@@ -215,7 +215,7 @@ rbac.selfUpgrade is forced off because an in-cluster image patch would drift fro
 Generate the token Secret manifest separately:
 %s
 
-The command requires RADAR_CLOUD_TOKEN in the shell and only renders YAML; it does not apply anything. Feed the result through the installation's existing SOPS, Sealed Secrets, External Secrets, or equivalent workflow, and do not commit a plaintext token.`,
+The command requires KUBEATLAS_CLOUD_TOKEN in the shell and only renders YAML; it does not apply anything. Feed the result through the installation's existing SOPS, Sealed Secrets, External Secrets, or equivalent workflow, and do not commit a plaintext token.`,
 		handoff.Tool,
 		handoff.Controller.Namespace,
 		handoff.Controller.Name,

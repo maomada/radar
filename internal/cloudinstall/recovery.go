@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/helm"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/helm"
 )
 
 // CommandTarget keeps copy-paste follow-up commands on the same cluster the

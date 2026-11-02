@@ -86,7 +86,7 @@ type PollResponse struct {
 
 // ConnectClient talks to a hub's connect endpoints.
 type ConnectClient struct {
-	// HubBase is the hub API origin, e.g. https://api.radarhq.io (no trailing /).
+	// HubBase is the hub API origin, e.g. https://api.example.test (no trailing /).
 	HubBase                 string
 	HTTP                    *http.Client
 	pollRetryInitialBackoff time.Duration

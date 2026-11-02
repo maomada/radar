@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/traffic"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/traffic"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // A policy's name is a read of that policy: the plugin's attribution of a

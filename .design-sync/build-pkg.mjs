@@ -1,4 +1,4 @@
-// Builds the package the design-sync converter consumes. @skyhook-io/k8s-ui
+// Builds the package the design-sync converter consumes. @maomada/k8s-ui
 // ships source only, so this stands in for its missing `build`: a minified ESM
 // dist, emitted .d.ts, and compiled Tailwind CSS under a sync-only package dir.
 // Run from the repo root (cfg.buildCmd). Output is gitignored.

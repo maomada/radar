@@ -14,7 +14,7 @@ port-forward when it can't — this demo makes each lane reachable on demand.
 | Plaintext relay (default) | `up` | Direct dial, plaintext gRPC — the common self-managed Cilium configuration. Off-cluster (local Radar) the ClusterIP doesn't route, so the same mode also exercises the port-forward fallback + the background reachability probe. |
 | TLS relay | `tls` | Direct dial, TLS lane **with SAN discovery**: the relay server cert's SAN is `*.hubble-relay.cilium.io`, not the k8s service DNS name, so Radar's first TLS attempt fails verification and it must probe the cert for the real name and retry. This is the AKS-shaped path. `plaintext` switches back. |
 | Blocked direct path | `netpol` | Port-forward fallback *from in-cluster*, and the both-lanes-failed error contract: with the chart's default RBAC the connect error must name `rbac.portForward=true` **and** the network remediation. `netpol-off` removes the policy. |
-| In-cluster Radar, default RBAC | `install-radar` | Builds the **current tree** into an image, loads it, installs `deploy/helm/radar` with default values, and verifies the SA cannot `create pods/portforward` — proving Hubble traffic needs no extra grant. |
+| In-cluster Radar, default RBAC | `install-radar` | Builds the **current tree** into an image, loads it, installs `deploy/helm/kubeatlas` with default values, and verifies the SA cannot `create pods/portforward` — proving Hubble traffic needs no extra grant. |
 
 ## Typical flows
 

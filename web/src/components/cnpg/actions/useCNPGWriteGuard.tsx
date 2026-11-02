@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { GitOpsWriteWarning, canConfirmGitOpsWrite, gitOpsRouteForOwner, type GitOpsWrite } from '@skyhook-io/k8s-ui'
+import { GitOpsWriteWarning, canConfirmGitOpsWrite, gitOpsRouteForOwner, type GitOpsWrite } from '@maomada/k8s-ui'
 import { useGitOpsWriteGuard } from '../../../hooks/useGitOpsWriteGuard'
 import { useCNPGNavigate } from '../useCNPGNavigate'
 

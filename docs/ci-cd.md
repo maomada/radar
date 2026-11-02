@@ -27,21 +27,21 @@ visibility was configured by this change.
 
 Images:
 
-- `ghcr.io/maomada/radar:<version>`
-- `ghcr.io/maomada/radar-portal:<version>`
+- `ghcr.io/maomada/kubeatlas:<version>`
+- `ghcr.io/maomada/kubeatlas-portal:<version>`
 
 Helm OCI charts:
 
-- `oci://ghcr.io/maomada/charts/radar --version <version>`
-- `oci://ghcr.io/maomada/charts/radar-portal --version <version>`
+- `oci://ghcr.io/maomada/charts/kubeatlas --version <version>`
+- `oci://ghcr.io/maomada/charts/kubeatlas-portal --version <version>`
 
 For example, after a version is actually published:
 
 ```sh
-helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas \
   --version "$VERSION" --namespace radar --create-namespace
-helm upgrade --install radar-portal oci://ghcr.io/maomada/charts/radar-portal \
-  --version "$VERSION" --namespace radar-portal --create-namespace \
+helm upgrade --install kubeatlas-portal oci://ghcr.io/maomada/charts/kubeatlas-portal \
+  --version "$VERSION" --namespace kubeatlas-portal --create-namespace \
   --set existingSecret=portal-auth
 ```
 

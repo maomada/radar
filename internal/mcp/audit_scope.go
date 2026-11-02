@@ -3,8 +3,8 @@ package mcp
 import (
 	"context"
 
-	"github.com/skyhook-io/radar/internal/audit"
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/audit"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func auditOptions(ctx context.Context) *audit.RunOptions {

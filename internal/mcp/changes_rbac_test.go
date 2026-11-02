@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // filterRecentChangesRBAC must not become a side channel around per-kind RBAC:

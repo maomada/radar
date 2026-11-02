@@ -85,7 +85,7 @@ If the binary is already built and you just want to relaunch:
 The script outputs the URL, PID, screenshot dir, and writes state to `.playwright-mcp/visual-test-state.env`. Source it to get the variables:
 ```bash
 source .playwright-mcp/visual-test-state.env
-# Now $RADAR_URL, $SCREENSHOT_DIR, $RADAR_PID, $RADAR_LOG are set
+# Now $KUBEATLAS_URL, $SCREENSHOT_DIR, $KUBEATLAS_PID, $KUBEATLAS_LOG are set
 ```
 
 **When to use `--dev` mode instead:** For rapid CSS/layout iteration, you can skip the helper and run the Vite dev server + Go backend separately (Vite on port+1 proxies /api to the backend). But for testing actual renderer changes, the full `make build` + binary is the right approach — it tests the real embedded frontend.
@@ -115,7 +115,7 @@ Two real bugs that 1200px screenshots missed and 2000px+ caught:
 
 ### Step 6b: Navigate and screenshot
 
-Navigate to `$RADAR_URL` and systematically test the changed areas.
+Navigate to `$KUBEATLAS_URL` and systematically test the changed areas.
 
 ### Screenshot Strategy
 
@@ -131,7 +131,7 @@ Navigate to `$RADAR_URL` and systematically test the changed areas.
 
 For each changed renderer/component:
 
-1. **Navigate to the resource list**: Navigate directly to `$RADAR_URL/resources/<plural-kind>`
+1. **Navigate to the resource list**: Navigate directly to `$KUBEATLAS_URL/resources/<plural-kind>`
 2. **Screenshot the list view** (if table columns changed)
 3. **Click into a resource** to open the detail drawer
 4. **Use `browser_snapshot`** to find elements in the drawer — don't rely on keyboard scrolling. Drawers have their own scroll container, so `End`/`PageDown` keys scroll the page, not the drawer.

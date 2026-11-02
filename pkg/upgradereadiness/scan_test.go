@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 
-	bp "github.com/skyhook-io/radar/pkg/audit"
+	bp "github.com/maomada/radar/pkg/audit"
 )
 
 func completeInput() *Input {

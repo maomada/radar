@@ -19,10 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 
-	"github.com/skyhook-io/radar/pkg/configrefs"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/rolloutdiag"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/configrefs"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/rolloutdiag"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 // RunChecks runs all best-practice checks against the provided resources

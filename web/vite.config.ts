@@ -9,7 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@skyhook-io/k8s-ui': path.resolve(__dirname, '../packages/k8s-ui/src'),
+      '@maomada/k8s-ui': path.resolve(__dirname, '../packages/k8s-ui/src'),
       // monaco-yaml's worker (via monaco-worker-manager) imports Monaco's worker entry
       // at esm/vs/editor/editor.worker.js, a path monaco-editor's exports map does not serve.
       'monaco-editor/esm/vs/editor/editor.worker.js': 'monaco-editor/editor/editor.worker.js',
@@ -19,7 +19,7 @@ export default defineConfig({
     port: 9273,
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.RADAR_PORT || '9280'}`,
+        target: `http://localhost:${process.env.KUBEATLAS_PORT || '9280'}`,
         changeOrigin: true,
         ws: true, // WebSocket/SSE support
       },

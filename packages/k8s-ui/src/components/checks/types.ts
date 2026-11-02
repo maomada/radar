@@ -59,7 +59,7 @@ export interface CheckResourceRef {
 }
 
 /** Built-in (Radar-detected) finding source. The only V1 source. */
-export const SOURCE_RADAR_BUILTIN = 'radar_builtin';
+export const SOURCE_KUBEATLAS_BUILTIN = 'radar_builtin';
 
 // Preserve the Checks import path while sharing exact resource identity.
 export { resourceKey, resourceRefKey } from '../../utils/resource-refs';

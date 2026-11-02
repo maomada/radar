@@ -10,7 +10,7 @@ import (
 
 	"k8s.io/client-go/openapi"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func TestYAMLSchemaCachePrincipalSeparatesUsersAndGroups(t *testing.T) {

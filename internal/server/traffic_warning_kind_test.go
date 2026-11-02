@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/traffic"
+	"github.com/maomada/radar/pkg/traffic"
 )
 
 // The flows handler hand-builds its JSON payload, so a field the source sets can

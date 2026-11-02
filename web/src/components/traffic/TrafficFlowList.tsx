@@ -4,9 +4,9 @@ import type { TrafficFlow, TrafficEndpoint } from '../../types'
 import { clsx } from 'clsx'
 import { dedupeHTTPPairs } from './trafficFilters'
 import { ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
-import { SEVERITY_BADGE, SEVERITY_TEXT } from '@skyhook-io/k8s-ui/utils/badge-colors'
-import { pluralize, StatusDot } from '@skyhook-io/k8s-ui'
-import type { StatusTone } from '@skyhook-io/k8s-ui'
+import { SEVERITY_BADGE, SEVERITY_TEXT } from '@maomada/k8s-ui/utils/badge-colors'
+import { pluralize, StatusDot } from '@maomada/k8s-ui'
+import type { StatusTone } from '@maomada/k8s-ui'
 import { useFlowSearch } from './TrafficFlowListContext'
 import { isPolicyDropReason } from './trafficFilters'
 import { useQuery } from '@tanstack/react-query'
@@ -454,8 +454,8 @@ function PolicyCorrelation({ flow }: { flow: TrafficFlow }) {
     return (
       <div className="pt-1 border-t border-theme-border/50 text-[10px] text-theme-text-tertiary">
         {flow.dropReasonDesc
-          ? `Radar checks NetworkPolicies only for drops the plugin reports as policy drops; this one was reported as ${flow.dropReasonDesc}`
-          : "The plugin did not report why this flow was dropped, so Radar can't tell whether a policy was involved"}
+          ? `KubeAtlas checks NetworkPolicies only for drops the plugin reports as policy drops; this one was reported as ${flow.dropReasonDesc}`
+          : "The plugin did not report why this flow was dropped, so KubeAtlas can't tell whether a policy was involved"}
       </div>
     )
   }
@@ -510,7 +510,7 @@ function PolicyCorrelation({ flow }: { flow: TrafficFlow }) {
                   : `No Kubernetes NetworkPolicy selects ${evaluatedRef} — but another policy kind applies and was not evaluated`,
               tone: 'unknown' as StatusTone, note: '' }
           : v === 'undecidable'
-            ? { text: "Radar can't complete the current NetworkPolicy check", tone: 'unknown' as StatusTone, note: '' }
+            ? { text: "KubeAtlas can't complete the current NetworkPolicy check", tone: 'unknown' as StatusTone, note: '' }
             : null
   const peerNote = data?.evaluated?.peer && data.evaluated.peer.includes('(') ? `Peer: ${data.evaluated.peer}.` : ''
   const currentNote = [current?.note, data?.reason, peerNote].filter(Boolean).join(' ')

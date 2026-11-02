@@ -1,4 +1,4 @@
-# @skyhook-io/k8s-ui
+# @maomada/k8s-ui
 
 Shared, source-distributed Kubernetes UI components used by Radar.
 

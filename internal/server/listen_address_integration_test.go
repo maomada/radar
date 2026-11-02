@@ -9,8 +9,8 @@ import (
 	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/skyhook-io/radar/internal/mcp"
-	"github.com/skyhook-io/radar/internal/server"
+	"github.com/maomada/radar/internal/mcp"
+	"github.com/maomada/radar/internal/server"
 )
 
 func TestExplicitInterfaceMCPConnection(t *testing.T) {

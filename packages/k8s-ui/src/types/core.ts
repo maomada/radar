@@ -134,7 +134,7 @@ export interface Capabilities {
   // must treat absence as "unknown" and fall back to discovery signals.
   karpenter?: IntegrationCapability
   // How / where this Radar binary is running. Optional on the wire so a
-  // newer frontend (e.g. radar-hub-web bundling a fresher @skyhook-io/radar-app)
+  // newer frontend (e.g. radar-hub-web bundling a fresher @maomada/kubeatlas-app)
   // doesn't crash against an older backend that hasn't shipped the field yet —
   // consumers should default to { mode: 'local' } when absent.
   deployment?: Deployment

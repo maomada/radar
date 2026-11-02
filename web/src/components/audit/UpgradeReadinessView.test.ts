@@ -8,8 +8,8 @@ describe('UpgradeReadinessError', () => {
   it('maps an unsupported-feature error to the v1.9 upgrade message', () => {
     const html = renderToStaticMarkup(UpgradeReadinessError({ error: new RadarFeatureUnsupportedError('upgradeReadiness', {}) }))
 
-    expect(html).toContain('此集群需要更新版本的 Radar 才能使用Upgrade impact')
-    expect(html).toContain('Radar v1.9 起提供此功能。')
+    expect(html).toContain('此集群需要更新版本的 KubeAtlas 才能使用Upgrade impact')
+    expect(html).toContain('KubeAtlas v1.9 起提供此功能。')
     expect(html).not.toContain('Unable to analyze upgrade impact')
   })
 
@@ -18,7 +18,7 @@ describe('UpgradeReadinessError', () => {
     const html = renderToStaticMarkup(UpgradeReadinessError({ error: new ApiError('HTTP 404 (Not Found)', 404) }))
 
     expect(html).toContain('Unable to analyze upgrade impact')
-    expect(html).not.toContain('needs a newer Radar')
+    expect(html).not.toContain('needs a newer KubeAtlas')
   })
 
   it('keeps a real resource 404 on the generic error state', () => {
@@ -26,7 +26,7 @@ describe('UpgradeReadinessError', () => {
 
     expect(html).toContain('Unable to analyze upgrade impact')
     expect(html).toContain('Cluster not found')
-    expect(html).not.toContain('needs a newer Radar')
+    expect(html).not.toContain('needs a newer KubeAtlas')
   })
 
   it('keeps ordinary failures on the generic error state', () => {
@@ -34,7 +34,7 @@ describe('UpgradeReadinessError', () => {
 
     expect(html).toContain('Unable to analyze upgrade impact')
     expect(html).toContain('boom')
-    expect(html).not.toContain('needs a newer Radar')
+    expect(html).not.toContain('needs a newer KubeAtlas')
   })
 })
 

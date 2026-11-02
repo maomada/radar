@@ -1,5 +1,5 @@
-import { SearchPillInput } from '@skyhook-io/k8s-ui'
-import type { SearchModifier } from '@skyhook-io/k8s-ui'
+import { SearchPillInput } from '@maomada/k8s-ui'
+import type { SearchModifier } from '@maomada/k8s-ui'
 import { Search } from 'lucide-react'
 
 const noop = () => {}

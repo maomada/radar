@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ActivityFilterKey, PinnedLaneRef, TimelineGrouping, TimelineSort } from '@skyhook-io/k8s-ui'
+import type { ActivityFilterKey, PinnedLaneRef, TimelineGrouping, TimelineSort } from '@maomada/k8s-ui'
 import {
   parseTimeMode,
   resolveApplicationTimelineScope,

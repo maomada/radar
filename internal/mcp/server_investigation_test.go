@@ -11,9 +11,9 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/investigationrefs"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func TestAnnotateInvestigationEvidenceReferencePreservesProducerPayload(t *testing.T) {

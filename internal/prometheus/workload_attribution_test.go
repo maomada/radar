@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestAttributionChurnRetainsOnlyUnchangedPairs(t *testing.T) {

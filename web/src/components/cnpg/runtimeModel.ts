@@ -1,4 +1,4 @@
-import { cnpgLagTone, worseTone, type HealthLevel } from '@skyhook-io/k8s-ui'
+import { cnpgLagTone, worseTone, type HealthLevel } from '@maomada/k8s-ui'
 import type { CNPGRuntimeInstance, CNPGRuntimeReplication } from '../../api/cnpg'
 import type { CNPGSessionsResponse } from '../../api/cnpg-sessions'
 import { cnpgConnectionFigure } from './blocking'

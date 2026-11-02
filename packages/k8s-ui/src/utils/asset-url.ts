@@ -25,8 +25,8 @@ export function assetUrl(asset: AssetImport): string {
 function getRuntimeAssetBase(): string {
   if (typeof globalThis === 'undefined') return ''
   const runtime = (globalThis as typeof globalThis & {
-    __RADAR_RUNTIME_CONFIG__?: { assetBase?: string }
-  }).__RADAR_RUNTIME_CONFIG__
+    __KUBEATLAS_RUNTIME_CONFIG__?: { assetBase?: string }
+  }).__KUBEATLAS_RUNTIME_CONFIG__
   const configured = runtime?.assetBase?.replace(/\/+$/, '')
   if (configured) return configured
 

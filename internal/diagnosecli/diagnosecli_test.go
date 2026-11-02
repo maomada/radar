@@ -12,14 +12,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/app"
-	"github.com/skyhook-io/radar/internal/config"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/app"
+	"github.com/maomada/radar/internal/config"
 )
 
 func TestStandaloneRejectsDisabledMCPBeforeBoot(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("RADAR_MCP_READ_ONLY", "")
+	t.Setenv("KUBEATLAS_MCP_READ_ONLY", "")
 	disabled := false
 	if err := config.Save(config.Config{MCP: &disabled}); err != nil {
 		t.Fatal(err)
@@ -283,7 +283,7 @@ func TestStandaloneEffectiveAgentHonorsCLIOverride(t *testing.T) {
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("RADAR_AI_CLI_BIN", bin)
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", bin)
 
 	if got := standaloneEffectiveAgent(context.Background(), ""); got != "cursor-agent" {
 		t.Fatalf("standaloneEffectiveAgent() = %q, want cursor-agent", got)
@@ -313,10 +313,10 @@ func TestResolveServerReadsBasePathFromDiscoveryFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			home := t.TempDir()
 			t.Setenv("HOME", home)
-			if err := os.MkdirAll(filepath.Join(home, ".radar"), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Join(home, ".kubeatlas"), 0o755); err != nil {
 				t.Fatalf("mkdir: %v", err)
 			}
-			if err := os.WriteFile(filepath.Join(home, ".radar", "mcp-port"), []byte(tc.contents), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(home, ".kubeatlas", "mcp-port"), []byte(tc.contents), 0o644); err != nil {
 				t.Fatalf("write port file: %v", err)
 			}
 			got, err := resolveServer("")
@@ -337,7 +337,7 @@ func TestDiscoveryFileRoundTrip(t *testing.T) {
 				t.Setenv("HOME", t.TempDir())
 				app.WriteMCPPortFile(address, basePath)
 				if address == "localhost:9280" && basePath == "" {
-					data, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".radar", "mcp-port"))
+					data, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".kubeatlas", "mcp-port"))
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -395,13 +395,13 @@ func TestProbeListeningIgnoresBasePathSuffix(t *testing.T) {
 	}
 }
 
-// With RADAR_AI_CLI_BIN set, detection is off, so "install one" can't help.
+// With KUBEATLAS_AI_CLI_BIN set, detection is off, so "install one" can't help.
 func TestLocalNoAgentHintNamesABrokenOverride(t *testing.T) {
-	t.Setenv("RADAR_AI_CLI_BIN", "")
-	if got := localNoAgentHint(); !strings.Contains(got, "Install Claude Code") || strings.Contains(got, "RADAR_AI_CLI_BIN") {
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
+	if got := localNoAgentHint(); !strings.Contains(got, "Install Claude Code") || strings.Contains(got, "KUBEATLAS_AI_CLI_BIN") {
 		t.Errorf("without the override, hint = %q, want install advice and no mention of the override", got)
 	}
-	t.Setenv("RADAR_AI_CLI_BIN", "/opt/typo/claude")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "/opt/typo/claude")
 	got := localNoAgentHint()
 	if !strings.Contains(got, "/opt/typo/claude") || strings.Contains(got, "Install") {
 		t.Errorf("with a broken override, hint = %q, want it to name the path and not suggest an install", got)

@@ -1,6 +1,6 @@
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { CNPG_KIND_BY_KEY } from '@skyhook-io/k8s-ui'
+import { CNPG_KIND_BY_KEY } from '@maomada/k8s-ui'
 import type { SelectedResource } from '../../types'
 import { decodeDrawerTrail, encodeDrawerTrail, sameSelectedResource } from '../../utils/drawer-trail'
 

@@ -337,7 +337,7 @@ describe("workload logs adapter", () => {
       "couldn't summarize this investigation step",
     );
     expect(malformed.limitations[2].message).toContain(
-      "Radar found 3 pods but got no logs from them",
+      "KubeAtlas found 3 pods but got no logs from them",
     );
   });
 });

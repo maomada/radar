@@ -35,7 +35,7 @@ it.each([true, false])('shows private-image guidance for authEnabled=%s', async 
   const text = document.body.textContent || ''
   expect(text).toContain('Authentication Required')
   if (authEnabled) {
-    expect(text).toContain("Private images need exec access to the Pod, or read access to its imagePullSecrets. Exec access also lets Radar use its own registry credentials.")
+    expect(text).toContain("Private images need exec access to the Pod, or read access to its imagePullSecrets. Exec access also lets KubeAtlas use its own registry credentials.")
     expect(text).not.toContain('~/.docker/config.json')
     expect(text).not.toContain('Run this command to authenticate')
     expect(text).not.toContain('gcloud')

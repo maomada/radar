@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { X } from 'lucide-react'
-import { Tooltip, formatGrant, toneTextClass } from '@skyhook-io/k8s-ui'
-import { AreaChart, SeriesLegend, type ChartTimeRange, type ReferenceLine, type TimeSeries } from '@skyhook-io/k8s-ui/components/charts'
+import { Tooltip, formatGrant, toneTextClass } from '@maomada/k8s-ui'
+import { AreaChart, SeriesLegend, type ChartTimeRange, type ReferenceLine, type TimeSeries } from '@maomada/k8s-ui/components/charts'
 import type { CNPGRuntimeResponse } from '../../api/cnpg'
 import {
   CNPG_HISTORY_RANGES,
@@ -324,7 +324,7 @@ function BufferCharts({
   })
   const approximate = recent.some((s) => s.approximate)
   const rateNote = approximate
-    ? 'approximate: the exporter publishes no cnpg_last_update_timestamp, so rates use the time Radar fetched each reading'
+    ? 'approximate: the exporter publishes no cnpg_last_update_timestamp, so rates use the time KubeAtlas fetched each reading'
     : 'rates between the exporter\'s query runs (cnpg_last_update_timestamp); a change of primary or a counter reset is a gap'
   const sessionsOf = instance ?? instances[0]
   const dbCapped = recent.some((s) => Object.keys(s.dbSizes ?? {}).length >= 200)
@@ -495,7 +495,7 @@ function DatabasePicker({ all, shown, pick, onPick }: { all: string[]; shown: st
 }
 
 /**
- * Performance › History: Prometheus range queries when Radar has
+ * Performance › History: Prometheus range queries when KubeAtlas has
  * Prometheus, otherwise the samples this page took since it opened. Selecting
  * a time range on any chart carries both bounds to Logs and Activity.
  */
@@ -564,7 +564,7 @@ export function CNPGTrends({
       {fromPrometheus && data.reason && <Notice>{data.reason}</Notice>}
       {data?.source === 'none' && (
         <Notice>
-          History needs Prometheus. {data.reason ?? 'Radar is not connected to one'}.{' '}
+          History needs Prometheus. {data.reason ?? 'KubeAtlas is not connected to one'}.{' '}
           {samplingDenied ? fallback : 'These trends cover only the time since this page opened.'}
         </Notice>
       )}

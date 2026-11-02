@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Clock, X } from 'lucide-react'
-import { AlertBanner } from '@skyhook-io/k8s-ui'
+import { AlertBanner } from '@maomada/k8s-ui'
 import { useNodeDrainActivity } from '../../api/client'
 
 function duration(milliseconds: number): string {
@@ -27,7 +27,7 @@ export function NodeDrainStatus({ name, nodeUID }: { name: string; nodeUID: stri
           <p>Requesting evictions and waiting for pod deletion.</p>
           <p className="mt-1">Elapsed {duration(elapsed)}. Shared eviction and deletion deadline: {duration(activity.timeoutSeconds * 1000)}. A final verification check can take up to 5 seconds more.</p>
           {elapsed > (activity.timeoutSeconds + 5) * 1000 && (
-            <p className="mt-1">Still waiting for Radar's response. Check the connection and the node's pods before retrying or taking it down.</p>
+            <p className="mt-1">Still waiting for KubeAtlas's response. Check the connection and the node's pods before retrying or taking it down.</p>
           )}
           <p className="mt-1">You can leave this page and return while this tab stays open.</p>
         </AlertBanner>

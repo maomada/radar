@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // TestResolveUserPerms_GroupChangeNotServedStaleCeiling pins the caller-layer

@@ -14,11 +14,11 @@ function Fail([string]$Message) {
 if ($Scenario) {
     $InstallDir = Join-Path $env:LOCALAPPDATA "radar"
     $Filename = "radar_v0.0.0_windows_amd64.zip"
-    $Archive = Join-Path $env:RADAR_FIXTURE_ROOT $Filename
-    $Checksum = Join-Path $env:RADAR_FIXTURE_ROOT "checksums.txt"
+    $Archive = Join-Path $env:KUBEATLAS_FIXTURE_ROOT $Filename
+    $Checksum = Join-Path $env:KUBEATLAS_FIXTURE_ROOT "checksums.txt"
     $Latest = "https://github.com/maomada/radar/releases/latest"
     $Tag = if ($Scenario -eq "upstream") {
-        "https://github.com/skyhook-io/radar/releases/tag/v0.0.0"
+        "https://github.com/maomada/radar/releases/tag/v0.0.0"
     } elseif ($Scenario -eq "unknown") {
         "https://example.com/releases/tag/v0.0.0"
     } else {
@@ -61,7 +61,7 @@ if ($Scenario) {
     $InstallerExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     if ($Scenario -eq "success") {
         if ($InstallerExitCode -ne 0) { Fail "Windows success fixture returned exit code $InstallerExitCode" }
-        $Binary = Join-Path $InstallDir "kubectl-radar.exe"
+        $Binary = Join-Path $InstallDir "kubectl-kubeatlas.exe"
         $Alias = Join-Path $InstallDir "radar.exe"
         if (-not (Test-Path -LiteralPath $Binary)) { Fail "missing Windows fixture binary" }
         if (-not (Test-Path -LiteralPath $Alias)) { Fail "missing Windows fixture alias" }
@@ -78,7 +78,7 @@ if ($Scenario) {
 }
 
 New-Item -ItemType Directory -Path $FixtureRoot -Force | Out-Null
-$Payload = Join-Path $FixtureRoot "kubectl-radar.exe"
+$Payload = Join-Path $FixtureRoot "kubectl-kubeatlas.exe"
 $Archive = Join-Path $FixtureRoot "radar_v0.0.0_windows_amd64.zip"
 $Checksum = Join-Path $FixtureRoot "checksums.txt"
 Set-Content -LiteralPath $Payload -Value "radar fixture payload" -NoNewline
@@ -100,7 +100,7 @@ try {
         New-Item -ItemType Directory -Path $CaseRoot -Force | Out-Null
         $env:LOCALAPPDATA = Join-Path $CaseRoot "localappdata"
         $env:TEMP = Join-Path $CaseRoot "temp"
-        $env:RADAR_FIXTURE_ROOT = $FixtureRoot
+        $env:KUBEATLAS_FIXTURE_ROOT = $FixtureRoot
         New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:TEMP -Force | Out-Null
         if ($Case -eq "mismatch") {
             Set-Content -LiteralPath $Checksum -Value ("0" * 64 + "  radar_v0.0.0_windows_amd64.zip")

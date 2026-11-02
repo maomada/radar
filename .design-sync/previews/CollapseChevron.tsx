@@ -1,4 +1,4 @@
-import { CollapseChevron } from '@skyhook-io/k8s-ui'
+import { CollapseChevron } from '@maomada/k8s-ui'
 
 const row = { display: 'flex', gap: 24, alignItems: 'center' } as const
 const label = { display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 } as const

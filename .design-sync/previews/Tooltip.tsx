@@ -1,4 +1,4 @@
-import { Tooltip } from '@skyhook-io/k8s-ui'
+import { Tooltip } from '@maomada/k8s-ui'
 import { RefreshCw, Terminal } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 

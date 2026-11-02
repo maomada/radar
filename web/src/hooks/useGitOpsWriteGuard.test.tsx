@@ -2,7 +2,7 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { SetImageDialog, canConfirmGitOpsWrite, setImageSelectionKey, type WorkloadImageInventory } from '@skyhook-io/k8s-ui'
+import { SetImageDialog, canConfirmGitOpsWrite, setImageSelectionKey, type WorkloadImageInventory } from '@maomada/k8s-ui'
 import { afterEach, expect, it, vi } from 'vitest'
 import { useGitOpsWriteGuard, type GitOpsWriteGuardState } from './useGitOpsWriteGuard'
 import { findInheritedGitOpsLookupRef } from './useResolvedGitOpsOwner'
@@ -218,7 +218,7 @@ it('does not keep an exemption after a refetch fails', async () => {
   }
 })
 
-it('asks for an acknowledgment, not a block, on a Radar without write evidence', async () => {
+it('asks for an acknowledgment, not a block, on a KubeAtlas without write evidence', async () => {
   mocks.evidenceUnsupported = true
   const h = await renderGuard({
     target: deployment,
@@ -231,7 +231,7 @@ it('asks for an acknowledgment, not a block, on a Radar without write evidence',
     expect(mocks.evidence).not.toHaveBeenCalled()
     const guard = h.ref.state!.guard
     expect(guard?.level).toBe('may-revert')
-    expect(guard?.perWrite[0].reason).toContain('need a newer Radar')
+    expect(guard?.perWrite[0].reason).toContain('need a newer KubeAtlas')
     expect(canConfirmGitOpsWrite(guard, false)).toBe(false)
     expect(canConfirmGitOpsWrite(guard, true)).toBe(true)
   } finally {
@@ -467,7 +467,7 @@ it("doesn't hold Update for a host that reports the selection without judging it
 })
 
 const managerApp = { kind: 'Application', group: 'argoproj.io', namespace: 'argocd', name: 'server-app' }
-const managerAnswer: import('@skyhook-io/k8s-ui').ManagerAnswer = { state: 'listed', lead: managerApp, direct: { object: deployment, recorders: [managerApp] } }
+const managerAnswer: import('@maomada/k8s-ui').ManagerAnswer = { state: 'listed', lead: managerApp, direct: { object: deployment, recorders: [managerApp] } }
 
 it.each(['disagree', 'shared', 'claimed'] as const)('fetches evidence for %s without a lead', async state => {
   const manager = { ...managerAnswer, state, lead: undefined, direct: { object: deployment, recorders: state === 'claimed' ? [] : state === 'shared' ? [managerApp, { ...managerApp, name: 'second-recorder' }] : [managerApp], claims: [{ manager: { ...managerApp, name: 'claim' }, source: 'argo-instance-label' as const, check: 'omitted' as const }, ...(state === 'claimed' ? [{ manager: managerApp, source: 'argo-instance-label' as const, check: 'omitted' as const }] : [])] } }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { DialogPortal, ResourcesSidebar, type SelectedKindInfo } from '@skyhook-io/k8s-ui'
+import { DialogPortal, ResourcesSidebar, type SelectedKindInfo } from '@maomada/k8s-ui'
 import { PanelLeft, X } from 'lucide-react'
 import type { SelectedResource } from '../../types'
 import { useAPIResources } from '../../api/apiResources'

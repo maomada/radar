@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/helmhistory"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/helmhistory"
+	"github.com/maomada/radar/pkg/issuesapi"
 
 	"helm.sh/helm/v3/pkg/release"
 	helmtime "helm.sh/helm/v3/pkg/time"

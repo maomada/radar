@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	pkgtraffic "github.com/skyhook-io/radar/pkg/traffic"
+	"github.com/maomada/radar/internal/auth"
+	pkgtraffic "github.com/maomada/radar/pkg/traffic"
 )
 
 // flowVisibleForNamespaces is the per-flow filter that backs both the

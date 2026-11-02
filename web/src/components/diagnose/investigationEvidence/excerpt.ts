@@ -4,7 +4,7 @@ import type {
   DiagnosisEvidenceSubject,
 } from "../../../api/diagnose";
 import { namedInventoryRows } from "./bodies/inventory";
-import { stripAnsi } from "@skyhook-io/k8s-ui";
+import { stripAnsi } from "@maomada/k8s-ui";
 import type {
   InvestigationEvidenceObservation,
   InvestigationPostureFinding,
@@ -17,10 +17,10 @@ export const VISIBLE_LOG_EVIDENCE_LINES = 12;
 
 /**
  * What a card placed in the story shows inline, under its header, before the
- * fold. The citation decides it: the lines Radar selected, the row a subject
+ * fold. The citation decides it: the lines KubeAtlas selected, the row a subject
  * names, the workload's own row in a ranking, the findings on it, or the
  * chart when the card is the cause or the symptom. Nothing here is the
- * agent's text; every excerpt is a slice of Radar's record.
+ * agent's text; every excerpt is a slice of KubeAtlas's record.
  */
 export type StoryExcerpt =
   | { kind: "lines"; head: string[]; rest: string[] }

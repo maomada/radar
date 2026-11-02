@@ -477,7 +477,7 @@ func HTTP(ctx context.Context, url, host string, vantage Vantage) Result {
 	if host != "" {
 		req.Host = host
 	}
-	req.Header.Set("User-Agent", "radar-trace-probe/1 (https://github.com/skyhook-io/radar)")
+	req.Header.Set("User-Agent", "radar-trace-probe/1 (https://github.com/maomada/radar)")
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if host != "" {
 		tlsCfg.ServerName = host

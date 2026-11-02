@@ -1,13 +1,13 @@
 import { createListRefetchInterval, normalizeResourceList, type ResourceListBody, type ResourceListResult } from './resourceLists'
-import type { CascadeDetail } from '@skyhook-io/k8s-ui/components/ui/ForceDeleteConfirmDialog'
-import { canonicalResourceGroup } from '@skyhook-io/k8s-ui/utils/api-resources'
-import { pluralize } from '@skyhook-io/k8s-ui/utils/pluralize'
-import { knownKindForPluralWithGroup, pluralToKind } from '@skyhook-io/k8s-ui/utils/navigation'
+import type { CascadeDetail } from '@maomada/k8s-ui/components/ui/ForceDeleteConfirmDialog'
+import { canonicalResourceGroup } from '@maomada/k8s-ui/utils/api-resources'
+import { pluralize } from '@maomada/k8s-ui/utils/pluralize'
+import { knownKindForPluralWithGroup, pluralToKind } from '@maomada/k8s-ui/utils/navigation'
 import { useEffect, useRef, useCallback, useMemo } from 'react'
-import type { KueueAdmissionResponse } from '@skyhook-io/k8s-ui/types/scheduling'
-import { canonicalReadCode, readActionFor } from '@skyhook-io/k8s-ui/utils/read-actions'
-import type { SearchCoverage } from '@skyhook-io/k8s-ui/types/read-coverage'
-import type { GitOpsWriteEvidence } from '@skyhook-io/k8s-ui/utils/gitops-write-guard'
+import type { KueueAdmissionResponse } from '@maomada/k8s-ui/types/scheduling'
+import { canonicalReadCode, readActionFor } from '@maomada/k8s-ui/utils/read-actions'
+import type { SearchCoverage } from '@maomada/k8s-ui/types/read-coverage'
+import type { GitOpsWriteEvidence } from '@maomada/k8s-ui/utils/gitops-write-guard'
 import type {
   AppHistory,
   AppRow,
@@ -25,7 +25,7 @@ import type {
   WorkloadImageUpdate,
   YamlDocumentIdentity,
   YamlSchemaLoadResult,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useQuery, useMutation, useQueryClient, skipToken, type QueryClient } from '@tanstack/react-query'
 import { showApiError, showApiSuccess, showApiNotice } from '../components/ui/Toast'
 import { useIsAuthEnabled, useNamespacedCapabilities } from '../contexts/CapabilitiesContext'
@@ -295,7 +295,7 @@ export function isStillLoadingError(error: unknown): boolean {
   return isKindSyncPending(error) || isClusterConnecting(error);
 }
 
-// isKindSyncFailed matches a kind that missed its sync deadline. Radar keeps
+// isKindSyncFailed matches a kind that missed its sync deadline. KubeAtlas keeps
 // loading it, so a later reload may succeed, but retrying at once won't —
 // show the error. Older Radars spelled the code kind_sync_failed.
 export function isKindSyncFailed(error: unknown): boolean {
@@ -307,7 +307,7 @@ export function isKindSyncFailed(error: unknown): boolean {
 }
 
 // timelineDatabaseError returns the driver's error when a timeline read failed
-// because Radar can't connect to its PostgreSQL database, and null for any other
+// because KubeAtlas can't connect to its PostgreSQL database, and null for any other
 // failure. The server redacts the password before it sends the error.
 export function timelineDatabaseError(error: unknown): string | null {
   if (
@@ -542,13 +542,13 @@ import type {
   Check,
   Issue,
   IssueRecentChange,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 export type DashboardAudit = AuditCardData;
 export type { AuditFinding, ResourceGroup, CheckMeta, Check };
 
 export interface AuditResponse {
   missingInputs?: string[];
-  // Absent on a Radar that predates the per-resource opt-out.
+  // Absent on a KubeAtlas that predates the per-resource opt-out.
   ignoreChecksAnnotation?: string;
   // checkID → namespace → resources whose findings the annotation hid.
   annotationIgnoredByNamespace?: Record<string, Record<string, number>>;
@@ -762,7 +762,7 @@ export interface IssuesResponse {
   recent_changes_reason?: string
   recent_changes_guidance?: string
   recent_changes_truncated?: boolean
-  // Present when the recent-changes window starts before the history Radar
+  // Present when the recent-changes window starts before the history KubeAtlas
   // holds; complete_since is sent only to callers who can read every namespace.
   recent_changes_history_coverage?: {
     incomplete: boolean
@@ -773,8 +773,8 @@ export interface IssuesResponse {
   // state 'degraded' means core workload reads are denied, so an empty list may
   // mean "can't see" rather than "nothing broken" — the UI must say so.
   visibility?: { state?: string; impact?: string };
-  // Issue sources Radar couldn't check, so their issues may be missing: an
-  // empty list is not an all-clear. A newer Radar may send sources and
+  // Issue sources KubeAtlas couldn't check, so their issues may be missing: an
+  // empty list is not an all-clear. A newer KubeAtlas may send sources and
   // reasons this version doesn't know. Absent when every source was checked,
   // and from older Radars.
   unchecked_sources?: UncheckedSource[];
@@ -784,7 +784,7 @@ export interface UncheckedSource {
   source: string;
   reason: string;
   // The kinds within the source that went unchecked; absent means the whole
-  // source, or that Radar couldn't tell which kinds.
+  // source, or that KubeAtlas couldn't tell which kinds.
   kinds?: { group?: string; kind: string }[];
   // The namespaces whose read failed while the others were read; absent
   // means the gap isn't limited to particular namespaces.
@@ -841,7 +841,7 @@ export function useResourceIssues(
   if (group) params.set("group", group);
   const path = `/issues/resource/${encodeURIComponent(kind)}/${pathNs}/${encodeURIComponent(name)}`;
   const qs = params.toString();
-  // An older Radar without the endpoint settles as unsupported, so the
+  // An older KubeAtlas without the endpoint settles as unsupported, so the
   // renderers fall back to their own status-derived problem banners.
   const { guard, gatedKey } = useRadarFeature("resourceIssues");
   return useQuery<Issue[]>({
@@ -856,7 +856,7 @@ export function useResourceIssues(
 }
 
 // The Issues page narrowed to one subject: the same per-resource lookup with
-// ?coverage=1, which also says whether Radar reads the subject's kind and what
+// ?coverage=1, which also says whether KubeAtlas reads the subject's kind and what
 // the caller's RBAC withheld. Polls like the page list.
 export interface CronJobSchedulingEvidence {
   uid: string;
@@ -899,7 +899,7 @@ export function useSubjectIssues(
   });
 }
 
-import type { Trace as NetworkTrace, InClusterCapability, DrainPlan, DrainPlanPod } from '@skyhook-io/k8s-ui'
+import type { Trace as NetworkTrace, InClusterCapability, DrainPlan, DrainPlanPod } from '@maomada/k8s-ui'
 
 // useTrace polls the static path-shaped diagnosis for one network entry
 // kind. 5s refetch + 15s staleTime keeps the drawer feeling live without
@@ -1872,8 +1872,8 @@ export function useVersionCheck() {
 }
 
 /**
- * Guards a fetch for an endpoint the connected Radar may predate (see
- * radarFeatures.ts). A Radar known to be too old is never asked; one whose
+ * Guards a fetch for an endpoint the connected KubeAtlas may predate (see
+ * radarFeatures.ts). A KubeAtlas known to be too old is never asked; one whose
  * version is unknown is asked, and chi's unknown-route 404 is read as the same
  * answer. Either way the caller gets a RadarFeatureUnsupportedError, which the
  * sections render as an upgrade note instead of an error.
@@ -2001,7 +2001,7 @@ export interface SearchHit {
   matched?: SearchMatchedField[];
   summaryContext?: SearchSummaryContext;
   /** Embedder (Radar Hub) only: the cluster this hit belongs to, for
-   *  cross-cluster fleet search. Standalone Radar (single-cluster) leaves these
+   *  cross-cluster fleet search. Standalone KubeAtlas (single-cluster) leaves these
    *  unset — the omnibar keys + displays the cluster only when present. */
   cluster?: string;
   clusterName?: string;
@@ -2128,7 +2128,7 @@ export interface CloudInstallFailure {
   retrySafe: boolean
 }
 
-// What Radar did before it stopped: the operation it planned, how far it got,
+// What KubeAtlas did before it stopped: the operation it planned, how far it got,
 // and what it could establish about the cluster. Evidence for the card, and
 // the input to the exit it offers — the two are decided separately.
 export interface CloudInstallAttempted {
@@ -2137,9 +2137,9 @@ export interface CloudInstallAttempted {
   release: string
   stage: 'inspect' | 'prepare' | 'preflight'
   // Discovery saw only the default namespace; a fresh plan is not proof that
-  // no Radar exists elsewhere.
+  // no KubeAtlas exists elsewhere.
   partialScan?: boolean
-  // A complete scan found no Radar running, but Helm's release records could
+  // A complete scan found no KubeAtlas running, but Helm's release records could
   // not be read, so a leftover release cannot be ruled out.
   releaseUnread?: boolean
   // GitOps only: the Hub install-page tab of the verified owning controller.
@@ -2153,7 +2153,7 @@ export interface CloudInstallBlocked {
   identity?: string
   // Preflight only: what would unblock it, and the Helm operation that was
   // dry-run — the plan card never renders when preflight blocks, so the
-  // blocked card states what Radar tried itself.
+  // blocked card states what KubeAtlas tried itself.
   cause?: 'permissions' | 'cluster' | 'verification'
   attempted?: CloudInstallAttempted
   message: string
@@ -2195,15 +2195,15 @@ export const cloudInstallActive = (state: CloudInstallState | undefined): boolea
 // itself is server-owned, so this hook merely observes (and re-attaches after
 // a page reload). gcTime 0: never cache connect-flow payloads.
 // What the Hub says about connecting to it. Fetched from the Hub itself, not
-// from Radar's API, so the dialog states current terms instead of whatever was
+// from KubeAtlas's API, so the dialog states current terms instead of whatever was
 // compiled into this binary months ago — a stale free-tier claim is a promise
-// Radar can't keep. Every field is optional and falls back per-field, so a Hub
+// KubeAtlas can't keep. Every field is optional and falls back per-field, so a Hub
 // that doesn't serve this (self-hosted, older, offline) renders exactly what
-// Radar renders today.
+// KubeAtlas renders today.
 export interface CloudConnectInfo {
   assurances?: string[]
   notice?: string
-  // Free-tier terms as a prose fragment completing "Radar Cloud is ___."
+  // Free-tier terms as a prose fragment completing "upstream Cloud is ___."
   // (e.g. "free for 3 clusters"). Separate from assurances: chip copy and
   // sentence copy have different grammar, and reusing one as the other breaks
   // whenever either is reworded.
@@ -2256,7 +2256,7 @@ export function useCloudInstallStatus(enabled: boolean) {
   }
 }
 
-// In-cluster Radar describing its own installation, so the modal can route to
+// In-cluster KubeAtlas describing its own installation, so the modal can route to
 // the right handoff instead of a generic signup link.
 export interface CloudConnectSelf {
   ownership: 'helm' | 'gitops' | 'ambiguous' | 'unknown'
@@ -2290,9 +2290,9 @@ export interface CloudInstallConnectedRadar {
   namespace: string
   deployment: string
   release?: string
-  // The Hub the Deployment names, when it is not the one this Radar uses.
+  // The Hub the Deployment names, when it is not the one this KubeAtlas uses.
   hubHost?: string
-  // The cluster's page in Radar Cloud, when its Hub is ours and its id is known.
+  // The cluster's page in upstream Cloud, when its Hub is ours and its id is known.
   clusterUrl?: string
 }
 
@@ -2375,7 +2375,7 @@ export interface AuthMe {
    *  Absent when not running under Cloud (OSS, OIDC, no role group). */
   cloudRole?: CloudRole;
   /** Proxy mode only: whether an upstream sign-out URL is configured.
-   *  When false, logout clears Radar's cookie but the proxy may re-auth
+   *  When false, logout clears KubeAtlas's cookie but the proxy may re-auth
    *  the same user on the next request. */
   proxyLogoutConfigured?: boolean;
   /** Connected and the user's access is known: true when their RBAC allows
@@ -2425,7 +2425,7 @@ const CLOUD_ROLE_RANK: Record<string, number> = {
  * present (OSS, OIDC, no role group, OR auth/me is still loading),
  * `canAtLeast` returns true — the gate is strictly additive for
  * Cloud-attributed users, mirroring the backend's `requireCloudRole`
- * semantics. It gates Radar's own features (settings, integrations), never
+ * semantics. It gates KubeAtlas's own features (settings, integrations), never
  * operations that run as the user, which Kubernetes RBAC decides.
  *
  * Why optimistic during load: a gated empty state rendered briefly to
@@ -2451,7 +2451,7 @@ export function useCloudRole() {
  * `namespace`. With auth on, Helm runs as the signed-in user, so the check is
  * the user's own Kubernetes RBAC in that namespace (Helm writes each release as
  * a Secret there); the Cloud role says nothing about cluster access when IdP
- * groups grant it. Without auth, Helm runs as Radar's ServiceAccount, which
+ * groups grant it. Without auth, Helm runs as KubeAtlas's ServiceAccount, which
  * needs the chart's rbac.helm=true.
  */
 export function useCanHelmAct(namespace?: string): { allowed: boolean; reason?: string } {
@@ -2474,7 +2474,7 @@ export function useCanHelmAct(namespace?: string): { allowed: boolean; reason?: 
   }
   return {
     allowed: false,
-    reason: "Helm write permissions required. Set rbac.helm=true in the Radar Helm chart values.",
+    reason: "Helm write permissions required. Set rbac.helm=true in the KubeAtlas Helm chart values.",
   };
 }
 
@@ -2539,7 +2539,7 @@ export function useApplications(
     staleTime: 30_000,
     retry: shouldRetryRadarQuery,
     // Only poll while a consumer needs the index; gated off it must not keep the
-    // background refetch alive. A Radar that predates the endpoint never will.
+    // background refetch alive. A KubeAtlas that predates the endpoint never will.
     enabled,
     refetchInterval: (query) =>
       enabled && !(query.state.error instanceof RadarFeatureUnsupportedError)
@@ -2569,13 +2569,13 @@ export function useApplicationHistory(
   });
 }
 
-// How often a page asks again while Radar is still connecting to argocd-server,
-// and while it retries after a failure. Radar re-checks a failed connection at
+// How often a page asks again while KubeAtlas is still connecting to argocd-server,
+// and while it retries after a failure. KubeAtlas re-checks a failed connection at
 // most every 30s, so asking more often while retrying adds requests without
 // making the server reconnect sooner.
 // A page whose last fetch failed and was waiting on something keeps asking at
-// the slow rate, so a Radar or proxy outage doesn't strand it. It stops when
-// Radar answered that the object is gone or the caller can't read it, since
+// the slow rate, so a KubeAtlas or proxy outage doesn't strand it. It stops when
+// KubeAtlas answered that the object is gone or the caller can't read it, since
 // asking again won't change that answer.
 const ARGO_CONNECTING_POLL_MS = 2000;
 const ARGO_RETRYING_POLL_MS = 30_000;
@@ -2624,7 +2624,7 @@ export function useGitOpsTree(
       ),
     enabled: Boolean(kind && name) && (options?.enabled ?? true),
     staleTime: 5000,
-    // Radar answers at once while it connects to argocd-server; ask again
+    // KubeAtlas answers at once while it connects to argocd-server; ask again
     // until Argo's per-resource health is in.
     refetchInterval: gitopsTreeRefetchInterval,
   });
@@ -2684,7 +2684,7 @@ export function useGitOpsInsights(
 
 // Field-level evidence behind the GitOps write guard: whether each path is in
 // the object's last client-side apply or owned by its GitOps controller, plus
-// the owner's sync policy. Read server-side because Radar's caches strip both.
+// the owner's sync policy. Read server-side because KubeAtlas's caches strip both.
 export function fetchGitOpsWriteEvidence(body: {
   kind: string;
   group: string;
@@ -2772,7 +2772,7 @@ export function useArgoRevisionMetadata(
 }
 
 // A cluster-scoped resource sends "_" as its namespace segment: proxies in
-// front of Radar (Radar Cloud's among them) merge "//", which drops the
+// front of KubeAtlas (upstream Cloud's among them) merge "//", which drops the
 // segment and leaves a path no route matches.
 function resourcePathSegments(
   kind: string,
@@ -2783,9 +2783,9 @@ function resourcePathSegments(
   return `${kind}/${namespace || emptyNamespaceSegment}/${name}`;
 }
 
-// A Radar without the clusterScopedPlaceholder flag reads "_" on the update and
+// A KubeAtlas without the clusterScopedPlaceholder flag reads "_" on the update and
 // audit routes as a real namespace, so until the flag is confirmed these
-// routes keep the empty segment every Radar accepts when reached directly.
+// routes keep the empty segment every KubeAtlas accepts when reached directly.
 function useEmptyNamespaceSegment() {
   const { data: capabilities, isPending } = useCapabilities();
   return {
@@ -2887,10 +2887,10 @@ export async function fetchResourceAvailability(
   name: string,
 ): Promise<"present" | "missing" | "unchecked"> {
   const response = await apiFetch(`${getApiBase()}/resources/${encodeURIComponent(kind)}/${encodeURIComponent(namespace || "_")}/${encodeURIComponent(name)}`, { method: "HEAD" });
-  const resourceLookup = response.headers.get("X-Radar-Resource-Read") === "true";
+  const resourceLookup = response.headers.get("X-KubeAtlas-Resource-Read") === "true";
   if (resourceLookup && response.ok) return "present";
   if (resourceLookup && response.status === 404) return "missing";
-  // Older Radar versions do not serve HEAD lookups. Keep their existing
+  // Older KubeAtlas versions do not serve HEAD lookups. Keep their existing
   // navigation without claiming that availability was verified.
   if (response.status === 405 || response.ok) return "unchecked";
   throw new ApiError(httpStatusMessage(response.status, response.statusText), response.status);
@@ -2945,14 +2945,14 @@ export async function fetchResourceList<T>(kind: string, options: ResourceListOp
   if (options.group) params.set('group', options.group)
   if (options.table) params.set('table', '1')
   if (options.summary) params.set('include', 'summary')
-  // A Radar that predates the list budget ignores the parameter.
+  // A KubeAtlas that predates the list budget ignores the parameter.
   params.set('maxItems', options.summary ? '50000' : '25000')
   const body = await fetchJSON<ResourceListBody<T>>(`/resources/${encodeURIComponent(kind)}?${params}`, options.signal)
   return normalizeResourceList<T>(body)
 }
 
 // A read failure no retry can answer: the request, the caller's access or
-// Radar's collection has to change first (too large, outside the collector, a
+// KubeAtlas's collection has to change first (too large, outside the collector, a
 // denial), so it is shown at once.
 export function isUnretryableReadError(error: unknown): boolean {
   return error instanceof ApiError && !['retry', undefined].includes(readActionFor(error.data?.error_code))
@@ -3066,10 +3066,10 @@ async function fetchChangesPage(
   // (Rows dropped by content filters inside the store query do not; see the
   // known limitation on the server's handleChanges.)
   const maxSeq =
-    Number(response.headers.get("X-Radar-Timeline-Max-Seq") ?? "0") || 0;
+    Number(response.headers.get("X-KubeAtlas-Timeline-Max-Seq") ?? "0") || 0;
   return {
     events,
-    epoch: response.headers.get("X-Radar-Timeline-Epoch") ?? "",
+    epoch: response.headers.get("X-KubeAtlas-Timeline-Epoch") ?? "",
     maxSeq,
   };
 }
@@ -3264,7 +3264,7 @@ function workloadHistoryPath(kind: string, namespace: string, name: string, grou
 // The newest page of one workload's history: the workload, what it owns, K8s
 // Events about those, and the resources attached to it. Keyed under
 // "changes" so the live-update invalidation refreshes it.
-// A Radar that predates the scoped history endpoint settles as unsupported;
+// A KubeAtlas that predates the scoped history endpoint settles as unsupported;
 // WorkloadView then falls back to the namespace's changes.
 export function useWorkloadHistory(kind: string, namespace: string, name: string, group?: string, enabled = true) {
   const { guard, gatedKey, support } = useRadarFeature("workloadHistory");
@@ -3278,7 +3278,7 @@ export function useWorkloadHistory(kind: string, namespace: string, name: string
       query.state.error instanceof RadarFeatureUnsupportedError ? false : CHANGES_REFRESH_INTERVAL_MS,
     enabled,
   });
-  // A probe answered by an older Radar settles as unsupported and stops
+  // A probe answered by an older KubeAtlas settles as unsupported and stops
   // polling; once /capabilities confirms the feature (the agent was upgraded),
   // ask again rather than staying on the fallback.
   const { error, refetch } = query;
@@ -3295,7 +3295,7 @@ export interface ServiceEndpointSlicesResult {
 }
 
 // The EndpointSlices published for one Service, selected server-side by the
-// kubernetes.io/service-name label. A Radar that predates the endpoint settles
+// kubernetes.io/service-name label. A KubeAtlas that predates the endpoint settles
 // as unsupported; ServiceRenderer then falls back to the namespace list.
 export function useServiceEndpointSlices(namespace: string, name: string, enabled = true) {
   const { guard, gatedKey, support } = useRadarFeature("serviceEndpointSlices");
@@ -3739,7 +3739,7 @@ export interface PrometheusStatus {
   error?: string;
 }
 
-// Time-series sample types live in @skyhook-io/k8s-ui (shared with library
+// Time-series sample types live in @maomada/k8s-ui (shared with library
 // consumers). Re-export here so radar-app callers keep their existing import
 // paths; the Prom-prefixed names are deprecated aliases.
 export type {
@@ -3747,9 +3747,9 @@ export type {
   TimeSeries,
   PrometheusDataPoint,
   PrometheusSeries,
-} from "@skyhook-io/k8s-ui/components/charts";
+} from "@maomada/k8s-ui/components/charts";
 
-import type { TimeSeries as ChartTimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+import type { TimeSeries as ChartTimeSeries } from "@maomada/k8s-ui/components/charts";
 
 export interface PrometheusQueryResult {
   resultType: string;
@@ -3945,7 +3945,7 @@ export function useArgoStatus(enabled = true) {
     // Cheap to ask (it never waits on Argo CD): reopening Settings asks
     // afresh, so "Connecting…" shows only while it's true.
     staleTime: 0,
-    // While Radar connects, ask again soon so "Connecting…" doesn't linger.
+    // While KubeAtlas connects, ask again soon so "Connecting…" doesn't linger.
     refetchInterval: (query) =>
       query.state.data?.connecting ? ARGO_CONNECTING_POLL_MS : 60000,
   });
@@ -4473,7 +4473,7 @@ export function useUpdateResource() {
     },
     onSuccess: (updated: any, variables) => {
       // The PUT goes straight to the apiserver and returns the authoritative
-      // object, but the GET behind this query reads Radar's informer cache,
+      // object, but the GET behind this query reads KubeAtlas's informer cache,
       // which lags a write by one watch round-trip. Seed the detail cache with
       // the PUT response so the edit shows immediately. Invalidating here
       // instead would trigger a refetch that races the seed and re-reads the
@@ -5737,7 +5737,7 @@ export function drainPlanBody(options: DrainPlanRequestOptions): string {
 // Read-only drain plan: what a drain with these options would do to each pod on the node.
 // Modelled as a mutation because it is a POST with a body and is fetched on demand
 // while the drain dialog is open; it performs no cluster mutation.
-// An older Radar without the endpoint fails with RadarFeatureUnsupportedError,
+// An older KubeAtlas without the endpoint fails with RadarFeatureUnsupportedError,
 // which hosts (Radar Hub) use to fall back to the plan-less drain dialog
 // instead of leaving Drain permanently disabled.
 export function useDrainPlan() {
@@ -7323,7 +7323,7 @@ export interface NamespaceScope {
    */
   mode: "cluster-wide" | "namespace" | "restricted";
   accessibleNamespaces: string[];
-  /** Namespaces where Radar cannot list pods or deployments. */
+  /** Namespaces where KubeAtlas cannot list pods or deployments. */
   deniedNamespaces: string[];
   /** false when accessibleNamespaces is a best-effort short list (no list perm). */
   authoritative: boolean;

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 func TestDedupePodSchedulingOverProblem(t *testing.T) {

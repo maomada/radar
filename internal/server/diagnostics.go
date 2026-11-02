@@ -9,15 +9,15 @@ import (
 	"sort"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/desktopenv"
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/k8s"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/internal/traffic"
-	"github.com/skyhook-io/radar/internal/version"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/perfstats"
+	"github.com/maomada/radar/internal/desktopenv"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/k8s"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/internal/traffic"
+	"github.com/maomada/radar/internal/version"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/perfstats"
 )
 
 // diagTimelinePingTimeout bounds the reachability check so a database that

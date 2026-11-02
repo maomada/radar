@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
 )
 
 func TestCNPGOperatorStatusNamespaceParameters(t *testing.T) {

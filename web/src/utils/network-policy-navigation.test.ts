@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Topology, TopologyNode } from '@skyhook-io/k8s-ui/types/core'
+import type { Topology, TopologyNode } from '@maomada/k8s-ui/types/core'
 import { getNetworkPolicyResourceTarget } from './navigation'
 
 function node(kind: string, apiVersion?: string): TopologyNode {

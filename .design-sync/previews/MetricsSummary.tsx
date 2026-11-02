@@ -1,5 +1,5 @@
-import { MetricsSummary } from '@skyhook-io/k8s-ui'
-import type { TimeSeries } from '@skyhook-io/k8s-ui'
+import { MetricsSummary } from '@maomada/k8s-ui'
+import type { TimeSeries } from '@maomada/k8s-ui'
 
 const box = { width: 480, padding: '14px 8px' }
 const BASE = 1720180800

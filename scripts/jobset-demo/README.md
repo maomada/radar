@@ -23,7 +23,7 @@ make build
 kind get kubeconfig --name radar-jobset-demo > /tmp/radar-jobset-demo.kubeconfig
 ./radar --kubeconfig /tmp/radar-jobset-demo.kubeconfig --port 9332 --no-browser
 # In a second terminal
-RADAR_URL=http://127.0.0.1:9332 ./scripts/jobset-demo.sh verify-radar
+KUBEATLAS_URL=http://127.0.0.1:9332 ./scripts/jobset-demo.sh verify-radar
 
 # When done, stop Radar with Ctrl-C in its terminal, then:
 rm /tmp/radar-jobset-demo.kubeconfig
@@ -108,7 +108,7 @@ and its inventory assertions remain unchanged. No status is patched.
 ```bash
 ./scripts/jobset-demo.sh up-admission
 ./scripts/jobset-demo.sh verify-admission
-RADAR_URL=http://127.0.0.1:9332 ./scripts/jobset-demo.sh verify-admission-radar
+KUBEATLAS_URL=http://127.0.0.1:9332 ./scripts/jobset-demo.sh verify-admission-radar
 ```
 
 The combined verifier checks exact JobSet controller ownership on every

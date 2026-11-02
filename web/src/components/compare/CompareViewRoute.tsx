@@ -10,7 +10,7 @@ import {
   type CompareResourceRef,
   type CompareSide,
   type CompareSideError,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useResource } from '../../api/client'
 import { useTheme } from '../../context/ThemeContext'
 import { useCompareCandidates } from './useCompareCandidates'
@@ -21,7 +21,7 @@ export function CompareViewRoute() {
   const { theme } = useTheme()
 
   const kind = (searchParams.get('kind') ?? '').toLowerCase()
-  // Matches Radar's repo-wide URL convention. The bare `group` param is
+  // Matches KubeAtlas's repo-wide URL convention. The bare `group` param is
   // reserved for topology grouping mode and gets stripped by App.tsx's URL
   // sync on every non-topology view.
   const group = searchParams.get('apiGroup') ?? undefined

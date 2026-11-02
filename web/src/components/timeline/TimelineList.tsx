@@ -8,7 +8,7 @@ import {
   type AppMembershipIndex,
   type TimeRange,
   type Topology,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import type { TimelineEvent } from '../../types'
 import { useTimelineSource } from '../../context/TimelineSource'
 import { isManagedTimelineEvent } from '../../api/timelineSource'

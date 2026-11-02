@@ -1,6 +1,6 @@
 import { useRadarFeature } from '../../../api/client'
 import type { ReactNode } from 'react'
-import { CNPG_BARMAN_OBJECTSTORE_GROUP, isApiGroup, type NavigateToResource } from '@skyhook-io/k8s-ui'
+import { CNPG_BARMAN_OBJECTSTORE_GROUP, isApiGroup, type NavigateToResource } from '@maomada/k8s-ui'
 import { CNPGClusterActions } from './CNPGClusterActions'
 import { CNPGConnectButton } from './CNPGConnectButton'
 import { CNPGScheduleActions } from './CNPGScheduleActions'

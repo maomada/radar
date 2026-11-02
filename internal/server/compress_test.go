@@ -33,7 +33,7 @@ func TestResolveCompressLevel(t *testing.T) {
 }
 
 func TestCompressMiddleware(t *testing.T) {
-	t.Setenv("RADAR_COMPRESS_LEVEL", "1")
+	t.Setenv("KUBEATLAS_COMPRESS_LEVEL", "1")
 	cm := compressMiddleware()
 	if cm == nil {
 		t.Fatal("expected middleware at level 1, got nil")
@@ -89,9 +89,9 @@ func TestCompressMiddleware(t *testing.T) {
 }
 
 func TestCompressMiddlewareDisabled(t *testing.T) {
-	t.Setenv("RADAR_COMPRESS_LEVEL", "0")
+	t.Setenv("KUBEATLAS_COMPRESS_LEVEL", "0")
 	if cm := compressMiddleware(); cm != nil {
-		t.Fatal("expected nil middleware when RADAR_COMPRESS_LEVEL=0")
+		t.Fatal("expected nil middleware when KUBEATLAS_COMPRESS_LEVEL=0")
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 // reqAsGroups builds a request whose context carries an authenticated user with

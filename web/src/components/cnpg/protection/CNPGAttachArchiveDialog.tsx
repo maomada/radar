@@ -6,7 +6,7 @@ import {
   Input,
   RadarUpgradeNote,
   getRadarUpgradeRequirement,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGArchivingPreview, useCNPGProtectionAction } from '../../../api/cnpg-protection'
 import { useConnection } from '../../../context/ConnectionContext'
 import { actionDialogResult } from '../../../api/actions'

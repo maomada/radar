@@ -8,14 +8,14 @@ import {
   displayKind,
   HPADiagnosisSummary,
   ResourceLink,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import type {
   DiagnosisResourceContext,
   DiagnosisResourceRef,
   DiagnosisScalerRef,
 } from "../../diagnoseEvidenceTypes";
-import { getCrossplanePauseState, isManagedResource, isComposite } from "@skyhook-io/k8s-ui/components/resources/resource-utils-crossplane";
-import { CrossplanePauseChip, CrossplanePauseNotice } from "@skyhook-io/k8s-ui/components/resources/renderers/CrossplanePauseContext";
+import { getCrossplanePauseState, isManagedResource, isComposite } from "@maomada/k8s-ui/components/resources/resource-utils-crossplane";
+import { CrossplanePauseChip, CrossplanePauseNotice } from "@maomada/k8s-ui/components/resources/renderers/CrossplanePauseContext";
 import { InvestigationResourceEvidence } from "../../InvestigationResourceEvidence";
 import { EvidenceNavigationContext } from "../navigation";
 import {
@@ -240,7 +240,7 @@ function ScaledBySection({
   allScalers: DiagnosisScalerRef[];
 }) {
   const { onOpenResource } = useContext(EvidenceNavigationContext);
-  // The ScaledObject is only a link when Radar listed it as a scaler too; a
+  // The ScaledObject is only a link when KubeAtlas listed it as a scaler too; a
   // name read off the HPA's owner reference alone is not a resource we hold.
   const listedScaler = (ref: DiagnosisResourceRef) =>
     allScalers.some(

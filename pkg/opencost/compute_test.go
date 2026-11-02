@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // scriptedProm returns a prom.Client backed by a httptest server that

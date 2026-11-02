@@ -1,9 +1,9 @@
 /**
- * Structural contracts emitted by Radar evidence tools and consumed by the
+ * Structural contracts emitted by KubeAtlas evidence tools and consumed by the
  * investigation projection. These deliberately exclude any presentation or
  * transport envelope so the live Diagnose UI is not coupled to another route.
  */
-import type { HPADiagnosisView } from "@skyhook-io/k8s-ui";
+import type { HPADiagnosisView } from "@maomada/k8s-ui";
 
 export interface DiagnosisFilteredLogs {
   lines: string[] | null;
@@ -55,7 +55,7 @@ export interface DiagnosisResourceRef {
   name: string;
 }
 
-/** The HPA diagnosis Radar computes for the scaler itself, attached to the workload it scales. */
+/** The HPA diagnosis KubeAtlas computes for the scaler itself, attached to the workload it scales. */
 export interface DiagnosisHPASummary extends HPADiagnosisView {
   target?: DiagnosisResourceRef;
   metrics?: Array<{

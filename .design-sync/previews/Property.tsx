@@ -1,4 +1,4 @@
-import { Badge, Property, PropertyList } from '@skyhook-io/k8s-ui'
+import { Badge, Property, PropertyList } from '@maomada/k8s-ui'
 
 const card = {
   width: 460,

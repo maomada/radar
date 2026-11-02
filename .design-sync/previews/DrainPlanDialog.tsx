@@ -1,4 +1,4 @@
-import { DrainPlanDialog, type DrainPlan, type DrainPlanPod } from '@skyhook-io/k8s-ui'
+import { DrainPlanDialog, type DrainPlan, type DrainPlanPod } from '@maomada/k8s-ui'
 
 const NODE = 'ip-10-0-42-17.ec2.internal'
 const noop = () => {}

@@ -1,4 +1,4 @@
-import { AllClearCard } from '@skyhook-io/k8s-ui'
+import { AllClearCard } from '@maomada/k8s-ui'
 
 const wrap = { width: 540, padding: 8 }
 const noop = () => {}

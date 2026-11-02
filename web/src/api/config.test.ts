@@ -62,7 +62,7 @@ describe('stripBasename', () => {
     expect(stripBasename('/c/abcdef/resources')).toBe('/c/abcdef/resources')
   })
 
-  // Standalone Radar sets a basename too once --base-path is configured, so the
+  // Standalone KubeAtlas sets a basename too once --base-path is configured, so the
   // session-expiry return path round-trips through this in a new shape. Store
   // strips once (client.ts) and restore strips again defensively (App.tsx) before
   // navigate() re-applies the basename — the net effect must be the original

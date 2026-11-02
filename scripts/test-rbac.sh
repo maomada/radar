@@ -28,7 +28,7 @@ PORT="${PORT:-9389}"
 AUTH_SECRET="rbac-test-secret-do-not-use-in-prod-1234567890"
 NS_ALICE="${NS_ALICE:-radar-rbac-alice}"
 NS_BOB="${NS_BOB:-radar-rbac-bob}"
-RADAR_BIN="${RADAR_BIN:-./radar}"
+KUBEATLAS_BIN="${KUBEATLAS_BIN:-./radar}"
 SKIP_BUILD=false
 ASSUME_YES=false
 
@@ -50,15 +50,15 @@ info() { echo -e "${B}→${N} $1"; }
 warn() { echo -e "${Y}⚠${N} $1"; }
 
 FAILS=0
-RADAR_PID=""
+KUBEATLAS_PID=""
 
 # --- Cleanup trap ---
 cleanup() {
   set +e
-  if [[ -n "$RADAR_PID" ]]; then
-    info "stopping radar (pid $RADAR_PID)"
-    kill "$RADAR_PID" 2>/dev/null
-    wait "$RADAR_PID" 2>/dev/null
+  if [[ -n "$KUBEATLAS_PID" ]]; then
+    info "stopping radar (pid $KUBEATLAS_PID)"
+    kill "$KUBEATLAS_PID" 2>/dev/null
+    wait "$KUBEATLAS_PID" 2>/dev/null
   fi
   info "removing test RBAC + namespaces + CRD"
   kubectl delete clusterrolebinding "radar-rbac-test-impersonator" "radar-rbac-test-carol" "radar-rbac-test-erin" --ignore-not-found >/dev/null 2>&1
@@ -91,7 +91,7 @@ if [[ "$SKIP_BUILD" != "true" ]]; then
   info "building radar (run with --skip-build to skip)"
   make build >/dev/null
 fi
-[[ -x "$RADAR_BIN" ]] || { echo "radar binary not found at $RADAR_BIN — run make build"; exit 1; }
+[[ -x "$KUBEATLAS_BIN" ]] || { echo "radar binary not found at $KUBEATLAS_BIN — run make build"; exit 1; }
 
 # --- Set up test fixtures ---
 info "creating test namespaces and pods"
@@ -314,16 +314,16 @@ EOF
 
 # --- Boot Radar ---
 info "starting radar on port $PORT (auth-mode=proxy)"
-nohup "$RADAR_BIN" --port "$PORT" --auth-mode=proxy --auth-secret="$AUTH_SECRET" --no-browser \
+nohup "$KUBEATLAS_BIN" --port "$PORT" --auth-mode=proxy --auth-secret="$AUTH_SECRET" --no-browser \
   > "/tmp/radar-rbac-test-$PORT.log" 2>&1 &
-RADAR_PID=$!
+KUBEATLAS_PID=$!
 
 # Wait for ready (up to 30s)
 for i in $(seq 1 30); do
   if curl -sf "http://localhost:$PORT/api/health" >/dev/null 2>&1; then
     break
   fi
-  if ! kill -0 "$RADAR_PID" 2>/dev/null; then
+  if ! kill -0 "$KUBEATLAS_PID" 2>/dev/null; then
     echo "radar exited early — see /tmp/radar-rbac-test-$PORT.log"
     exit 1
   fi

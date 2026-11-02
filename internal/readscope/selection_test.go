@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 func TestResolveNamespacesExplicitMatrix(t *testing.T) {

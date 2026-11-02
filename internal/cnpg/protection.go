@@ -19,9 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/skyhook-io/radar/internal/integration"
-	declarations "github.com/skyhook-io/radar/pkg/cnpg"
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/internal/integration"
+	declarations "github.com/maomada/radar/pkg/cnpg"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 type ArchivingParams struct {

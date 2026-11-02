@@ -1,8 +1,8 @@
 import { Database } from 'lucide-react'
-import { CNPGObjectStoreRenderer as BaseCNPGObjectStoreRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/CNPGObjectStoreRenderer'
-import { Section, RelationshipGroup, CNPG_BARMAN_PLUGIN_NAME } from '@skyhook-io/k8s-ui'
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { CNPGObjectStoreRenderer as BaseCNPGObjectStoreRenderer } from '@maomada/k8s-ui/components/resources/renderers/CNPGObjectStoreRenderer'
+import { Section, RelationshipGroup, CNPG_BARMAN_PLUGIN_NAME } from '@maomada/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useResources } from '../../../api/client'
 
 /**

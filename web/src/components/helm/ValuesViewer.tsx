@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Copy, Check, Settings, Pencil, X, Eye, Play, Loader2 } from 'lucide-react'
-import { PaneLoader } from '@skyhook-io/k8s-ui'
+import { PaneLoader } from '@maomada/k8s-ui'
 import { clsx } from 'clsx'
 import yaml from 'yaml'
 import type { HelmValues, ValuesPreviewResponse } from '../../types'
@@ -54,7 +54,7 @@ export function ValuesViewer({
   const isHistoricalRevision = typeof revision === 'number' && typeof currentRevision === 'number' && revision !== currentRevision
 
   // Edits replace every stored override on apply, so they start from, and wait for, a fresh
-  // overrides-only read. An older Radar's all=true response can carry empty overrides after a
+  // overrides-only read. An older KubeAtlas's all=true response can carry empty overrides after a
   // failed second read, and a cached copy can predate the last apply.
   const overridesQuery = useHelmValues(namespace ?? '', name ?? '', false, Boolean(namespace && name), revision)
   const overridesData = overridesQuery.data

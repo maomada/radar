@@ -1,4 +1,4 @@
-import type { TimelineEvent } from '@skyhook-io/k8s-ui'
+import type { TimelineEvent } from '@maomada/k8s-ui'
 import type { WorkloadRun } from '../../api/client'
 
 export function workloadRunTimelineEvents(runs: WorkloadRun[]): TimelineEvent[] {

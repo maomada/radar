@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	"github.com/maomada/radar/internal/k8s"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 )
 
 func warningEvent(name, reason, message string, count int32, last time.Time, objKind, objNS, objName string) *corev1.Event {

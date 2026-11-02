@@ -1,7 +1,7 @@
 import { createElement, useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, File, Link2, ChevronRight, ArrowLeft, AlertTriangle, Loader2, Search, Download, FolderOpen } from 'lucide-react'
-import { PaneLoader, Input } from '@skyhook-io/k8s-ui'
+import { PaneLoader, Input } from '@maomada/k8s-ui'
 import { clsx } from 'clsx'
 import type { FileNode } from '../../types'
 import { formatBytes } from '../../utils/format'

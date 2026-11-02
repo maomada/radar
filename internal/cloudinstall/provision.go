@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/helm"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/helm"
 )
 
 // Provision installs the Radar chart into a cluster with Cloud mode enabled, so
@@ -57,7 +57,7 @@ const (
 type ProvisionConfig struct {
 	Namespace    string
 	ReleaseName  string
-	CloudURL     string // wss://api.radarhq.io/agent — the hub agent endpoint
+	CloudURL     string // wss://api.example.test/agent — the hub agent endpoint
 	ClusterID    string // hub-assigned cluster id (→ cloud.clusterName)
 	Token        string // rhc_ cluster token minted by the device-flow approve
 	ChartVersion string // "" / "latest" → newest published

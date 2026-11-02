@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/readreason"
 )
 
 type CoverageStatus string

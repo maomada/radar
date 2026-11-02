@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestOpenCostRouteScopeIgnoresSavedPick(t *testing.T) {

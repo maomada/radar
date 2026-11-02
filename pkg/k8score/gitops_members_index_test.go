@@ -13,7 +13,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/gitops"
 )
 
 // argoApplication lists entries in status.resources, compared at the

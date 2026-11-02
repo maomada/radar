@@ -102,7 +102,7 @@ func Relaunch() error {
 
 func findExtractedBinary(dir string) (string, error) {
 	return findInExtracted(dir, func(e os.DirEntry) bool {
-		return !e.IsDir() && strings.Contains(e.Name(), "radar-desktop")
+		return !e.IsDir() && strings.Contains(e.Name(), "kubeatlas-desktop")
 	})
 }
 

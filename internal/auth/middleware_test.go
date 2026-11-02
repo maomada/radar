@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloud"
 )
 
 // echoUser is a handler that returns the authenticated user as JSON, or 204 if no user.
@@ -264,7 +264,7 @@ func TestMiddleware_SessionCookie_TakesPrecedence(t *testing.T) {
 }
 
 func TestMiddleware_CloudProxyHeadersOverrideSessionWithoutSettingCookie(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	cfg := proxyConfig()
 	handler := cloud.AuthenticatedTunnelHandler(Authenticate(cfg)(http.HandlerFunc(echoUser)))
 
@@ -299,7 +299,7 @@ func TestMiddleware_CloudProxyHeadersOverrideSessionWithoutSettingCookie(t *test
 }
 
 func TestMiddleware_CloudProxyRequiresHeadersEvenWithSessionCookie(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	cfg := proxyConfig()
 	handler := cloud.AuthenticatedTunnelHandler(Authenticate(cfg)(http.HandlerFunc(echoUser)))
 
@@ -319,7 +319,7 @@ func TestMiddleware_CloudProxyRequiresHeadersEvenWithSessionCookie(t *testing.T)
 }
 
 func TestMiddleware_CloudProxyRejectsSpoofedHeadersOutsideTunnel(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	cfg := proxyConfig()
 	handler := Authenticate(cfg)(http.HandlerFunc(echoUser))
 
@@ -478,7 +478,7 @@ func TestIsExemptPath(t *testing.T) {
 // the exact kubelet health path. Cloud owns authentication, so Radar's local
 // /auth/* endpoints and static assets must not bypass the tunnel identity.
 func TestIsExemptPath_CloudMode(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 
 	tests := []struct {
 		path string

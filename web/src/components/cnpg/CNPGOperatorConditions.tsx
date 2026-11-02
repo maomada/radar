@@ -1,4 +1,4 @@
-import { Badge, FactGrid, FactRow, FoldSection, Tooltip, formatAge } from '@skyhook-io/k8s-ui'
+import { Badge, FactGrid, FactRow, FoldSection, Tooltip, formatAge } from '@maomada/k8s-ui'
 
 export function CNPGOperatorConditions({ conditions }: { conditions: { type: string; status: string; reason?: string; message?: string; lastTransitionTime?: string }[] }) {
   return (

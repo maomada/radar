@@ -1,4 +1,4 @@
-import { getCrossplanePauseState, isManagedResource, isComposite } from "@skyhook-io/k8s-ui/components/resources/resource-utils-crossplane";
+import { getCrossplanePauseState, isManagedResource, isComposite } from "@maomada/k8s-ui/components/resources/resource-utils-crossplane";
 import type { MetricsChangeCoverage } from "../../investigationMetrics";
 import type {
   InvestigationEvidenceData,

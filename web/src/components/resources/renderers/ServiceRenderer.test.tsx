@@ -60,7 +60,7 @@ it('does not query slices for ExternalName Services', () => {
   expect(html).not.toContain('EndpointSlices')
 })
 
-it('falls back to the label-filtered namespace list for selector-less Services on an older Radar', () => {
+it('falls back to the label-filtered namespace list for selector-less Services on an older KubeAtlas', () => {
   mock.serviceQuery = { error: unsupported() }
   mock.namespaceQuery = { data: [
     slice('manual-abc', { 'kubernetes.io/service-name': 'web' }),
@@ -73,7 +73,7 @@ it('falls back to the label-filtered namespace list for selector-less Services o
   expect(html).not.toContain('EndpointSlice inventory unavailable')
 })
 
-it('keeps selector Services free of slice lookups on an older Radar', () => {
+it('keeps selector Services free of slice lookups on an older KubeAtlas', () => {
   mock.serviceQuery = { error: unsupported() }
   const html = render()
   expect(mock.namespaceReads[0][3].enabled).toBe(false)

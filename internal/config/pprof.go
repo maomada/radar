@@ -8,10 +8,10 @@ import (
 
 // A nil override preserves the listener/authentication-based server default.
 func PprofOverrideFromEnv() (*bool, error) {
-	if raw := os.Getenv("RADAR_PPROF"); raw != "" {
+	if raw := os.Getenv("KUBEATLAS_PPROF"); raw != "" {
 		enabled, err := strconv.ParseBool(raw)
 		if err != nil {
-			return nil, fmt.Errorf("RADAR_PPROF must be a boolean: %w", err)
+			return nil, fmt.Errorf("KUBEATLAS_PPROF must be a boolean: %w", err)
 		}
 		return &enabled, nil
 	}

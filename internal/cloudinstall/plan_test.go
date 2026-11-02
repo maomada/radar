@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 type fakeReleaseInspector struct {

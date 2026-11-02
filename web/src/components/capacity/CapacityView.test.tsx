@@ -24,7 +24,7 @@ import type {
   CapacityQuantityObservation,
   CapacityResponseMeta,
   CapacitySourceCoverage,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { CapacityView } from "./CapacityView";
 import { updateDemandSearchParam } from "./CapacityDemand";
 import { integrationBlock, NodeReadyBadge } from "./shared";
@@ -1344,7 +1344,7 @@ describe("Capacity scale-down observations", () => {
   const noCandidatesExplanation =
     "The autoscaler found no node it can remove. Usually every node is above its utilization threshold, or pods on emptier nodes can't move (PodDisruptionBudgets, local storage, kube-system pods, safe-to-evict annotations). A node's drain plan shows what would block it.";
   const candidateExplanation =
-    "Scale-down candidates are observations, not guaranteed removals. PodDisruptionBudgets, local storage, kube-system pods, or safe-to-evict annotations can block removal. Radar can't tell which nodes the autoscaler picked, but a node's drain plan shows what would block removing it.";
+    "Scale-down candidates are observations, not guaranteed removals. PodDisruptionBudgets, local storage, kube-system pods, or safe-to-evict annotations can block removal. KubeAtlas can't tell which nodes the autoscaler picked, but a node's drain plan shows what would block removing it.";
 
   function renderScaleDown(child: CapacityAutoscalerChildObservation) {
     return renderCapacity("/capacity", (client) =>
@@ -1626,7 +1626,7 @@ describe("Capacity scale-down observations", () => {
     expect(html).toMatch(/tabindex="0" role="note" aria-label="3 scale-down candidates\. [^"]*PodDisruptionBudgets/);
     expect(html).toContain(candidateExplanation.replaceAll("'", "&#x27;"));
     expect(html).not.toContain("scale-down delay");
-    expect(html).not.toContain("Radar can&#x27;t see those blockers");
+    expect(html).not.toContain("KubeAtlas can&#x27;t see those blockers");
     expect(html).toContain('aria-expanded="false"');
   });
 
@@ -2617,8 +2617,8 @@ describe("integrationBlock version skew", () => {
     const html = renderToString(
       <>{integrationBlock(undefined, new RadarFeatureUnsupportedError("capacity", { currentVersion: "v1.7.2" }), false, "Loading")}</>,
     );
-    expect(html).toContain("此集群需要更新版本的 Radar 才能使用容量");
-    expect(html).toContain("Radar v1.9 起提供此功能。此集群当前运行 v1.7.2。");
+    expect(html).toContain("此集群需要更新版本的 KubeAtlas 才能使用容量");
+    expect(html).toContain("KubeAtlas v1.9 起提供此功能。此集群当前运行 v1.7.2。");
     expect(html).not.toContain("Capacity unavailable");
   });
 
@@ -2627,7 +2627,7 @@ describe("integrationBlock version skew", () => {
       <>{integrationBlock(undefined, new ApiError("nodepool not found", 404, { error: "nodepool not found" }), false, "Loading")}</>,
     );
     expect(html).toContain("Capacity unavailable");
-    expect(html).not.toContain("此集群需要更新版本的 Radar");
+    expect(html).not.toContain("此集群需要更新版本的 KubeAtlas");
   });
 
   it("keeps ordinary failures on the generic error state", () => {
@@ -2635,7 +2635,7 @@ describe("integrationBlock version skew", () => {
       <>{integrationBlock(undefined, new ApiError("boom", 500), false, "Loading")}</>,
     );
     expect(html).toContain("Capacity unavailable");
-    expect(html).not.toContain("此集群需要更新版本的 Radar");
+    expect(html).not.toContain("此集群需要更新版本的 KubeAtlas");
   });
 });
 

@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from "react";
 import {
   DURATION_DISCLOSURE,
   prefersReducedMotion as sharedPrefersReducedMotion,
-} from "@skyhook-io/k8s-ui/utils/animation";
+} from "@maomada/k8s-ui/utils/animation";
 
 // Shared Collapse runs DURATION_DISCLOSURE. Keep a small paint margin before
 // moving focus so the destination is stationary; derived from the token so a

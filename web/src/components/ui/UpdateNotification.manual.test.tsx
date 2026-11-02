@@ -63,7 +63,7 @@ describe('manual Desktop version checks', () => {
     act(() => { window.dispatchEvent(new CustomEvent('radar:update-check-result', { detail: current })) })
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1)
     expect(container.textContent).toContain("You're up to date")
-    expect(container.textContent).toContain('Radar 1.2.3')
+    expect(container.textContent).toContain('KubeAtlas 1.2.3')
   })
 
   it('publishes a fresh available update and clears its dismissal', () => {
@@ -72,7 +72,7 @@ describe('manual Desktop version checks', () => {
     act(() => { window.dispatchEvent(new CustomEvent('radar:update-check-result', { detail: info })) })
     expect(client.getQueryData(['version-check', '/desktop/api'])).toEqual(info)
     expect(localStorage.getItem('radar-update-dismissed')).toBeNull()
-    expect(container.textContent).toContain('Radar 1.3.0 is available')
+    expect(container.textContent).toContain('KubeAtlas 1.3.0 is available')
   })
 
   it('reports failure without replacing known version data', () => {
@@ -86,7 +86,7 @@ describe('manual Desktop version checks', () => {
   it('does not claim a development build is up to date', () => {
     act(() => { window.dispatchEvent(new CustomEvent('radar:update-check-result', { detail: { ...current, currentVersion: '1.3.0-37-g8b325b372', buildChannel: 'development', latestVersion: '1.3.0' } })) })
     expect(container.textContent).not.toContain("You're up to date")
-    expect(container.textContent).toContain('Latest Radar release: 1.3.0')
+    expect(container.textContent).toContain('Latest KubeAtlas release: 1.3.0')
     expect(container.textContent).toContain('You are running a development build.')
   })
 

@@ -6,8 +6,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/readscope"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/readscope"
 )
 
 // trivyCountAccess decides where the caller may list a Trivy report kind, for

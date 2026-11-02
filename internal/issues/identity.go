@@ -1,9 +1,9 @@
 package issues
 
 import (
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 // resourceKey is the canonical group|kind|namespace|name key, shared with

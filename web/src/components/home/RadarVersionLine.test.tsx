@@ -16,7 +16,7 @@ describe('RadarVersionLine', () => {
     const html = renderToString(
       <RadarVersionLine version={{ ...version, latestVersion: '1.2.3', updateAvailable: false }} />,
     )
-    expect(html).toContain('Radar')
+    expect(html).toContain('KubeAtlas')
     expect(html).toContain('v1.2.3')
     expect(html).not.toContain('可用版本')
   })
@@ -50,7 +50,7 @@ describe('RadarVersionLine', () => {
       <RadarVersionLine version={{ ...version, currentVersion: '0.12.0', latestVersion: '1.3.0' }} />,
     )
     expect(html).toContain('font-medium text-warning-text hover:opacity-80')
-    expect(html).toContain('有可用的 Radar 主版本升级。')
+    expect(html).toContain('有可用的 KubeAtlas 主版本升级。')
   })
 
   it('does not claim manager discovery has failed while it is loading', () => {

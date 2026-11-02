@@ -3,7 +3,7 @@ package search
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // Site scoring weights. Tuned by intuition; revisit when telemetry exists.

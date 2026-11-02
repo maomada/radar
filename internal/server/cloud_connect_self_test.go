@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 func TestWizardInstallURLCarriesTheRealTarget(t *testing.T) {

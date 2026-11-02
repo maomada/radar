@@ -3,7 +3,7 @@ import { X, Copy, Check, Radio, Terminal, MessageSquare, Code2, Pin } from 'luci
 import { apiUrl, getAuthHeaders, getCredentialsMode } from '../../api/config'
 import { MCP_TOOL_CATALOG } from './mcpToolCatalog'
 import { Tooltip } from '../ui/Tooltip'
-import { Disclosure } from '@skyhook-io/k8s-ui/components/ui/Disclosure'
+import { Disclosure } from '@maomada/k8s-ui/components/ui/Disclosure'
 
 interface MCPSetupDialogProps {
   open: boolean
@@ -214,17 +214,17 @@ export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false, execTo
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-theme-text-primary">让 AI 连接你的集群</h4>
             <p className="text-sm text-theme-text-secondary leading-relaxed">
-              Radar 提供{' '}
+              KubeAtlas 提供{' '}
               <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2">
                 Model Context Protocol
               </a>{' '}
-              （MCP）服务，让 AI 代理可以通过 Radar{readOnly ? '查看并诊断' : '查看、诊断并操作'}你的集群。
-              与直接使用 kubectl 不同，Radar 为 AI 提供预处理后的增强数据——
+              （MCP）服务，让 AI 代理可以通过 KubeAtlas{readOnly ? '查看并诊断' : '查看、诊断并操作'}你的集群。
+              与直接使用 kubectl 不同，KubeAtlas 为 AI 提供预处理后的增强数据——
               拓扑图、健康评估、去重事件和过滤后的日志——帮助它快速理解集群状态，
               无需在冗长的 YAML 输出上消耗上下文。
             </p>
             <p className="text-sm text-theme-text-secondary leading-relaxed">
-              {readOnly ? '只读模式会阻止写入工具以及会创建临时 Kubernetes 资源的诊断选项，但不会限制 Radar UI 或 REST API。' : <>大多数读取工具不会改变集群状态。明确请求集群内路由探测时，最多会创建
+              {readOnly ? '只读模式会阻止写入工具以及会创建临时 Kubernetes 资源的诊断选项，但不会限制 KubeAtlas UI 或 REST API。' : <>大多数读取工具不会改变集群状态。明确请求集群内路由探测时，最多会创建
               5 个自动删除的探测 Pod。写入工具（重启、调整副本数、同步、应用、节点驱逐）会标记为破坏性操作，
               让 AI 客户端在运行前提示并确认。</>}
             </p>
@@ -329,7 +329,7 @@ export function MCPSetupDialog({ open, onClose, mcpUrl, readOnly = false, execTo
             </div>
             {!readOnly && execTools === false && (
               <p className="text-xs text-theme-text-tertiary">
-                <code className="inline-code">exec_pod</code> 已禁用。Radar 运维人员可通过使用 <code className="inline-code">--mcp-exec-tools</code>{' '}
+                <code className="inline-code">exec_pod</code> 已禁用。KubeAtlas 运维人员可通过使用 <code className="inline-code">--mcp-exec-tools</code>{' '}
                 且不使用 <code className="inline-code">--disable-exec</code> 重启来启用容器命令。请参阅{' '}
                 <a href="https://github.com/maomada/radar/blob/main/docs/mcp.md#exec_pod"
                   target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Grant } from '@skyhook-io/k8s-ui'
+import type { Grant } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 import type { CNPGRuntimeSourceState } from './cnpg'
 
@@ -48,7 +48,7 @@ export interface CNPGRestoreChecksResponse extends CNPGInspectSource {
   contentsSource?: CNPGInspectSource
 }
 
-// /api/cnpg/clusters/{ns}/{name}/restore-checks — what Radar reads in a
+// /api/cnpg/clusters/{ns}/{name}/restore-checks — what KubeAtlas reads in a
 // restored cluster's primary over the caller's pods/exec. Denied is a state.
 export function useCNPGRestoreChecks(namespace: string, name: string, enabled = true) {
   const { guard, gatedKey } = useRadarFeature('cnpgWorkspace')

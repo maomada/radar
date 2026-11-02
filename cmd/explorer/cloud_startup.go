@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/k8s"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -61,7 +61,7 @@ func resolveCloudStartup(f cloudStartupFlags) (cloudStartup, error) {
 			if f.EnrollmentKeyFile == "" {
 				return out, nil
 			}
-			return out, errors.New("--cloud-token needs --cloud-url. To join with the enrollment key instead, unset --cloud-token (RADAR_CLOUD_TOKEN)")
+			return out, errors.New("--cloud-token needs --cloud-url. To join with the enrollment key instead, unset --cloud-token (KUBEATLAS_CLOUD_TOKEN)")
 		}
 		if f.ClusterName == "" {
 			return out, errors.New("--cloud-url requires --cloud-token and --cluster-name")
@@ -79,7 +79,7 @@ func resolveCloudStartup(f cloudStartupFlags) (cloudStartup, error) {
 			return out, errors.New("--cloud-insecure-skip-verify cannot be used with an enrollment key: the key would be sent to an unverified server. Pass the Hub's CA with --cloud-ca-file instead")
 		}
 		if f.PodNamespace == "" || f.HelmRelease == "" {
-			return out, errors.New("joining with an enrollment key needs MY_POD_NAMESPACE and RADAR_HELM_RELEASE, which the Radar Helm chart sets")
+			return out, errors.New("joining with an enrollment key needs MY_POD_NAMESPACE and KUBEATLAS_HELM_RELEASE, which the KubeAtlas Helm chart sets")
 		}
 		out.names = cloud.NameOptions{Exact: f.ClusterName, Prefix: f.NamePrefix, Suffix: f.NameSuffix}
 		if err := out.names.Validate(); err != nil {

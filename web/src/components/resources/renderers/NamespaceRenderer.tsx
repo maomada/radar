@@ -1,5 +1,5 @@
-import { NamespaceRenderer as BaseNamespaceRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/NamespaceRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { NamespaceRenderer as BaseNamespaceRenderer } from '@maomada/k8s-ui/components/resources/renderers/NamespaceRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useRBACNamespace } from '../../../api/rbac'
 import { useNamespaceLimitRanges, useNamespaceQuotas } from '../../../api/quotas'
 import { isForbiddenError } from '../../../api/client'

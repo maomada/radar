@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LocalTimelineScrubber } from '@skyhook-io/k8s-ui'
+import { LocalTimelineScrubber } from '@maomada/k8s-ui'
 
 const MIN = 60_000
 const HOUR = 60 * MIN

@@ -100,9 +100,9 @@ export function InvestigationEvidencePane({
   ) => void;
   /** Opens the Activity record when no exact result can be identified. */
   onViewActivity: () => void;
-  /** Opens an evidence subject in Radar when the producer identified it exactly. */
+  /** Opens an evidence subject in KubeAtlas when the producer identified it exactly. */
   onOpenResource?: (ref: DiagnosisResourceRef) => void;
-  /** Opens Radar's Timeline filtered to the resource a changes card is about. */
+  /** Opens KubeAtlas's Timeline filtered to the resource a changes card is about. */
   onOpenTimeline?: (scope: InvestigationTimelineScope) => void;
   /** Next steps. Under a story they precede the inventory of captured results; otherwise they follow the evidence section. */
   afterEvidence?: ReactNode;
@@ -293,9 +293,9 @@ export function InvestigationEvidencePane({
     )
     .join(" · ");
   // Resolves a story placement to the agent item it names, or says why it
-  // cannot: an index Radar does not know, an item the server could not bind,
+  // cannot: an index KubeAtlas does not know, an item the server could not bind,
   // or a bound item that matches no single observation. Only the last two
-  // distinguish "the agent was wrong" from "Radar could not tell".
+  // distinguish "the agent was wrong" from "KubeAtlas could not tell".
   const resolveStoryItem = useCallback(
     (index: number): StoryPlacementTarget | StoryPlacementLoss => {
       const evidence = story?.evidence ?? [];

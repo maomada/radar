@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // claudeAgent drives Claude Code. In safeguarded mode, --tools "" disables all

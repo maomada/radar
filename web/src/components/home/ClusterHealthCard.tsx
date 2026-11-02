@@ -10,7 +10,7 @@ import { clsx } from 'clsx'
 import { formatCPUMillicores, formatMemoryMiB } from '../../utils/format'
 import { useCapabilitiesContext } from '../../contexts/CapabilitiesContext'
 import { MCPSetupDialog } from './MCPSetupDialog'
-import { assetUrl, pluralize, parseContextName } from '@skyhook-io/k8s-ui'
+import { assetUrl, pluralize, parseContextName } from '@maomada/k8s-ui'
 import { Tooltip } from '../ui/Tooltip'
 import { mcpEndpointUrl } from '../../api/config'
 import { parseMajorMinor } from '../../utils/version'
@@ -151,7 +151,7 @@ export function ClusterHealthCard({
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
   const caps = useCapabilitiesContext()
   // Default to local mode when the backend doesn't ship a `deployment`
-  // field (older Radar binaries pre-0.2.2). Local rendering is the safe
+  // field (older KubeAtlas binaries pre-0.2.2). Local rendering is the safe
   // OSS-shape default — wrong-direction defaults would briefly suppress
   // chrome OSS users expect to see.
   const deployment = caps.deployment ?? { mode: 'local' as const }
@@ -159,7 +159,8 @@ export function ClusterHealthCard({
   const isCloud = deployment.mode === 'cloud'
   const isInCluster = deployment.mode === 'in-cluster' || deployment.mode === 'cloud'
   const mcpUrl = mcpEndpointUrl(caps.mcpReadOnly)
-  // In Cloud, MCP is org-wide and PAT-authed (api.radarhq.io/mcp). The OSS
+  // Legacy Cloud clients used an org-wide, PAT-authenticated MCP endpoint.
+  // KubeAtlas does not connect to that service.
   // "this binary is your local MCP server" framing is wrong there — Cloud
   // surfaces MCP from the hub Home dashboard instead.
   const showLocalMcpCard = mcpEnabled && !isCloud
@@ -573,7 +574,7 @@ function KubernetesVersionLine({
     <Tooltip
       content={
         behind > 0
-          ? `Radar's upgrade checks cover Kubernetes through ${reviewedThrough}. Click to assess the next minor upgrade.`
+          ? `KubeAtlas's upgrade checks cover Kubernetes through ${reviewedThrough}. Click to assess the next minor upgrade.`
           : 'Assess the next minor Kubernetes upgrade.'
       }
       wrapperClassName="w-fit"

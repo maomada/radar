@@ -9,8 +9,8 @@ import {
   pluralize,
   ResourceLink,
   stripAnsi,
-} from "@skyhook-io/k8s-ui";
-import { builtinGroupForKind } from "@skyhook-io/k8s-ui/utils/api-resources";
+} from "@maomada/k8s-ui";
+import { builtinGroupForKind } from "@maomada/k8s-ui/utils/api-resources";
 import { apiVersionToGroup } from "../../../../utils/navigation";
 import { Tooltip } from "../../../ui/Tooltip";
 import { EvidenceNavigationContext } from "../navigation";

@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/pkg/traffic"
+	"github.com/maomada/radar/pkg/traffic"
 )
 
 // stubSource is a TrafficSource whose detection outcome the test dictates.

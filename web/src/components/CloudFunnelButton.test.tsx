@@ -75,8 +75,8 @@ function button(text: string) {
 
 async function openDialog() {
   await render()
-  await until(() => expect(document.querySelector('[aria-label="Radar Cloud"]')).not.toBeNull())
-  await act(async () => { (document.querySelector('[aria-label="Radar Cloud"]') as HTMLButtonElement).click() })
+  await until(() => expect(document.querySelector('[aria-label="upstream Cloud"]')).not.toBeNull())
+  await act(async () => { (document.querySelector('[aria-label="upstream Cloud"]') as HTMLButtonElement).click() })
 }
 
 describe('Cloud dialog connection availability', () => {
@@ -84,14 +84,14 @@ describe('Cloud dialog connection availability', () => {
     connection.state = state
     await openDialog()
     await until(() => expect(requests).toContain('/api/connect/info?lane=wizard&mode=local'))
-    const link = Array.from(document.querySelectorAll('a')).find(element => element.textContent === 'Continue in Radar Cloud')!
+    const link = Array.from(document.querySelectorAll('a')).find(element => element.textContent === 'Continue in upstream Cloud')!
     expect(link.href).toBe('https://cloud.example/signup?utm_source=radar-oss&utm_medium=app&utm_campaign=cloud-modal&utm_content=driver-footer-browser-link')
     expect(button('Connect this cluster…')).toBeUndefined()
     expect(button('Try again')).toBeUndefined()
     expect(requests).not.toContain('/api/cloud/install/discover')
     expect(requests).not.toContain('/api/cloud/install/prepare')
     await act(async () => { button('How it works and what it costs')!.click() })
-    expect(document.body.textContent).toContain('Radar runs in your cluster and tunnels outward to Radar Cloud')
+    expect(document.body.textContent).toContain('KubeAtlas runs in your cluster and tunnels outward to upstream Cloud')
     expect(document.body.textContent).not.toContain('Setup runs here in the app')
     expect(document.body.textContent).not.toContain('see what gets installed')
   })
@@ -106,7 +106,7 @@ describe('Cloud dialog connection availability', () => {
     connection.state = 'disconnected'
     await render()
     expect(button('Connect this cluster…')).toBeUndefined()
-    expect(document.body.textContent).toContain('Continue in Radar Cloud')
+    expect(document.body.textContent).toContain('Continue in upstream Cloud')
     connection.state = 'connected'
     await render()
     await until(() => expect(button('Connect this cluster…')?.disabled).toBe(false))
@@ -117,13 +117,13 @@ describe('Cloud dialog connection availability', () => {
     connection.state = 'connected'
     discovery.connected = [{ namespace: 'radar', deployment: 'radar', clusterUrl: 'https://cloud.example/clusters/one' }]
     await openDialog()
-    await until(() => expect(document.body.textContent).toContain('This cluster is already connected to Radar Cloud.'))
-    expect(document.querySelector('a[href="https://cloud.example/clusters/one"]')?.textContent).toBe('Open in Radar Cloud')
+    await until(() => expect(document.body.textContent).toContain('This cluster is already connected to upstream Cloud.'))
+    expect(document.querySelector('a[href="https://cloud.example/clusters/one"]')?.textContent).toBe('Open in upstream Cloud')
     expect(button('Connect this cluster…')).toBeUndefined()
     connection.state = 'disconnected'
     await render()
-    expect(document.body.textContent).not.toContain('This cluster is already connected to Radar Cloud.')
-    expect(document.body.textContent).toContain('Continue in Radar Cloud')
+    expect(document.body.textContent).not.toContain('This cluster is already connected to upstream Cloud.')
+    expect(document.body.textContent).toContain('Continue in upstream Cloud')
   })
 
   it('still allows inspection after discovery fails and preserves 503 handoff attribution', async () => {
@@ -141,7 +141,7 @@ describe('Cloud dialog connection availability', () => {
     lane = 'wizard'
     await openDialog()
     expect(document.querySelector('a[href*="wizard-signup-button"]')?.textContent).toBe('Try Cloud free')
-    expect(document.body.textContent).not.toContain('Continue in Radar Cloud')
+    expect(document.body.textContent).not.toContain('Continue in upstream Cloud')
     expect(requests).not.toContain('/api/cloud/install/discover')
   })
 
@@ -150,6 +150,6 @@ describe('Cloud dialog connection availability', () => {
     flowState = 'awaiting_approval'
     await openDialog()
     await until(() => expect(document.body.textContent).toContain('Install flow'))
-    expect(document.body.textContent).not.toContain('Continue in Radar Cloud')
+    expect(document.body.textContent).not.toContain('Continue in upstream Cloud')
   })
 })

@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { RADAR_HEALTH_NOTE, radarHealthNote } from './health-provenance'
+import { KUBEATLAS_HEALTH_NOTE, radarHealthNote } from './health-provenance'
 import { APP_TREE_API_ERROR_NOTICE, APP_TREE_HEALTH_NOTICE, APP_TREE_NO_FINDINGS_NOTICE, APP_TREE_PERSIST_REMEDY, REMOTE_DESTINATION_NOTICE, REMOTE_FLUX_TARGET_NOTICE, hasRadarFinding, healthSourceNoticeKind } from './GitOpsHealthSourceNotice'
 
 describe('radarHealthNote', () => {
   test('marks only Radar-sourced problems', () => {
-    expect(radarHealthNote({ health: 'Degraded', healthSource: 'radar' })).toBe(RADAR_HEALTH_NOTE)
-    expect(radarHealthNote({ health: 'Missing', healthSource: 'radar', healthMessage: 'not in cluster' })).toBe(`${RADAR_HEALTH_NOTE} not in cluster`)
+    expect(radarHealthNote({ health: 'Degraded', healthSource: 'radar' })).toBe(KUBEATLAS_HEALTH_NOTE)
+    expect(radarHealthNote({ health: 'Missing', healthSource: 'radar', healthMessage: 'not in cluster' })).toBe(`${KUBEATLAS_HEALTH_NOTE} not in cluster`)
   })
   test('is silent for the controller, for healthy values, and for unknown sources', () => {
     expect(radarHealthNote({ health: 'Degraded', healthSource: 'controller' })).toBe('')
@@ -16,7 +16,7 @@ describe('radarHealthNote', () => {
     expect(radarHealthNote({ health: 'Degraded', healthSource: 'something-newer' })).toBe('')
   })
   test('copy stays in plain words', () => {
-    for (const copy of [RADAR_HEALTH_NOTE, APP_TREE_HEALTH_NOTICE, REMOTE_DESTINATION_NOTICE, REMOTE_FLUX_TARGET_NOTICE]) {
+    for (const copy of [KUBEATLAS_HEALTH_NOTE, APP_TREE_HEALTH_NOTICE, REMOTE_DESTINATION_NOTICE, REMOTE_FLUX_TARGET_NOTICE]) {
       expect(copy).not.toMatch(/appTree|resourceHealthSource|persist|Tier|overlay/i)
     }
     // The remedy deliberately names the one Argo knob the user can turn;

@@ -127,7 +127,7 @@ type Step struct {
 }
 
 // Verdict is the agent's final answer as the page renders it. The JSON names
-// are the wire contract with @skyhook-io/radar-app (web/src/api/diagnose.ts);
+// are the wire contract with @maomada/kubeatlas-app (web/src/api/diagnose.ts);
 // a product embeds it in its own terminal event alongside transport state
 // such as session, cost and turn count.
 type Verdict struct {

@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/server"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/server"
 )
 
 func TestInvestigationWorksWithoutFullMCP(t *testing.T) {

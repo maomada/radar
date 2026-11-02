@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { toneTextClass, Tooltip, type HealthLevel } from '@skyhook-io/k8s-ui'
+import { toneTextClass, Tooltip, type HealthLevel } from '@maomada/k8s-ui'
 import {
   describeSource,
   formatLocal,

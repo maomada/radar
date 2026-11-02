@@ -17,7 +17,7 @@ import type {
   InvestigationRefusal,
 } from "../../api/diagnose";
 import { InvestigationRefusalAction } from "./InvestigationRefusalAction";
-import { Collapse, CollapseChevron } from "@skyhook-io/k8s-ui";
+import { Collapse, CollapseChevron } from "@maomada/k8s-ui";
 import { Tooltip } from "../ui/Tooltip";
 import type {
   InvestigationRootCauseEvidenceResolution,
@@ -29,7 +29,7 @@ import type {
 } from "./investigationCase";
 import { AgentClaimNote } from "./AgentCase";
 import type { InvestigationHealthSignal } from "./investigationState";
-import { Badge } from "@skyhook-io/k8s-ui";
+import { Badge } from "@maomada/k8s-ui";
 import { diagnosisHasStoryShape, storyPlainText } from "./investigationStory";
 import { useDisclosureReveal } from "./useDisclosureReveal";
 import { FollowupAnswer } from "./ActivityTurn";
@@ -86,7 +86,7 @@ export function ResultCard({
   readOnlyAssessment?: boolean;
   /** The question that produced this revised assessment, when it replaced an earlier one. */
   revisedAfter?: string;
-  /** Reads Radar could not complete for this assessment; listed under Still open. */
+  /** Reads KubeAtlas could not complete for this assessment; listed under Still open. */
   assessmentLimits?: string[];
   assessmentCopy?: Pick<AssessmentCopyRadar, "context" | "receipts">;
   healthSignals?: InvestigationHealthSignal[];
@@ -239,16 +239,16 @@ export function ResultCard({
   );
 }
 
-// The word is the agent's; the clause says what kind of Radar evidence sits
+// The word is the agent's; the clause says what kind of KubeAtlas evidence sits
 // behind it, so a reader knows what the word licenses them to do.
 const CERTAINTY_DEFINITION: Record<
   NonNullable<Diagnosis["certainty"]>,
   string
 > = {
   established:
-    "The agent's word. It found the cause stated outright in Radar's results — a log line, an event, a condition — not just consistent with them.",
+    "The agent's word. It found the cause stated outright in KubeAtlas's results — a log line, an event, a condition — not just consistent with them.",
   likely:
-    "The agent's word. Radar's results fit this explanation, but none of them states the cause outright.",
+    "The agent's word. KubeAtlas's results fit this explanation, but none of them states the cause outright.",
   suspected:
     "The agent's word. A plausible reading on thin or indirect evidence; treat it as a lead, not a finding.",
 };
@@ -258,9 +258,9 @@ const HEALTHY_DEFINITION: Record<
   string
 > = {
   established:
-    "The agent found no live problem, and Radar's results show that directly — the pod state, logs and events it read.",
+    "The agent found no live problem, and KubeAtlas's results show that directly — the pod state, logs and events it read.",
   likely:
-    "The agent found no live problem; Radar's results fit that reading but do not show it outright.",
+    "The agent found no live problem; KubeAtlas's results fit that reading but do not show it outright.",
   suspected:
     "The agent leans healthy on thin or indirect evidence; treat it as a lead, not a finding.",
 };
@@ -284,11 +284,11 @@ function AssessmentHeadline({
   diagnosis: Diagnosis;
   tone: "cause" | "healthy" | "inconclusive";
   revisedAfter?: string;
-  /** Reads Radar could not complete for this assessment, one line each. */
+  /** Reads KubeAtlas could not complete for this assessment, one line each. */
   limits?: string[];
-  /** Adverse Radar cards the agent explained, with its position; first in Still open. */
+  /** Adverse KubeAtlas cards the agent explained, with its position; first in Still open. */
   signals?: { text: string; onReveal?: () => void }[];
-  /** Adverse Radar cards nothing explains; shown above a healthy verdict, copied with it. */
+  /** Adverse KubeAtlas cards nothing explains; shown above a healthy verdict, copied with it. */
   flags?: string[];
   /** Context and receipts for the channel copy. */
   copy?: Pick<AssessmentCopyRadar, "context" | "receipts">;
@@ -296,7 +296,7 @@ function AssessmentHeadline({
   const summary = diagnosis.summary?.trim();
   if (!summary) return null;
   // One block for everything that qualifies the answer: what the agent left
-  // open and what Radar could not read. The rest of the page states the
+  // open and what KubeAtlas could not read. The rest of the page states the
   // answer; this is the only place it argues with itself.
   const unresolved = [
     ...(diagnosis.unresolved ?? []).filter((item) => item.trim()),
@@ -457,9 +457,9 @@ export function AssessmentSources({
   resolution?: InvestigationRootCauseEvidenceResolution;
   investigationCase?: InvestigationCaseResolution;
   /**
-   * Notes the agent wrote that could not be tied to a Radar result: a
-   * reference that named nothing, a role Radar does not know, a sentence over
-   * the length limit. Radar does not repair them, because repairing one means
+   * Notes the agent wrote that could not be tied to a KubeAtlas result: a
+   * reference that named nothing, a role KubeAtlas does not know, a sentence over
+   * the length limit. KubeAtlas does not repair them, because repairing one means
    * deciding what the agent meant, so it says how many were lost instead.
    */
   unlinkedEvidence?: number;
@@ -577,8 +577,8 @@ export function AssessmentSources({
       {unlinkedEvidence > 0 ? (
         <p className="mt-2 text-[11px] text-theme-text-tertiary">
           {unlinkedEvidence === 1
-            ? "1 agent note could not be linked to a Radar result and is not shown."
-            : `${unlinkedEvidence} agent notes could not be linked to Radar results and are not shown.`}
+            ? "1 agent note could not be linked to a KubeAtlas result and is not shown."
+            : `${unlinkedEvidence} agent notes could not be linked to KubeAtlas results and are not shown.`}
         </p>
       ) : null}
       {omittedEntries > 0 ? (
@@ -908,7 +908,7 @@ function DiagnosisResult({
   storyInline?: boolean;
   readOnlyAssessment?: boolean;
   revisedAfter?: string;
-  /** Reads Radar could not complete for this assessment; listed under Still open. */
+  /** Reads KubeAtlas could not complete for this assessment; listed under Still open. */
   assessmentLimits?: string[];
   assessmentCopy?: Pick<AssessmentCopyRadar, "context" | "receipts">;
 }) {
@@ -1231,7 +1231,7 @@ function DiagnosisResult({
   );
 }
 
-/** The banner line and the clipboard line for one adverse Radar card must be the same words. */
+/** The banner line and the clipboard line for one adverse KubeAtlas card must be the same words. */
 function healthFlagSentence(flag: {
   status: string;
   title: string;
@@ -1239,7 +1239,7 @@ function healthFlagSentence(flag: {
 }): string {
   return flag.status === "contradiction"
     ? `The agent calls ${flag.title} a ${flag.role} and still reports healthy`
-    : `Radar flagged ${flag.title} · no explanation is linked to it`;
+    : `KubeAtlas flagged ${flag.title} · no explanation is linked to it`;
 }
 
 export function AllClearCard({
@@ -1270,10 +1270,10 @@ export function AllClearCard({
   assessmentSources?: ReactNode;
   storyInline?: boolean;
   revisedAfter?: string;
-  /** Reads Radar could not complete for this assessment; listed under Still open. */
+  /** Reads KubeAtlas could not complete for this assessment; listed under Still open. */
   assessmentLimits?: string[];
   assessmentCopy?: Pick<AssessmentCopyRadar, "context" | "receipts">;
-  /** Adverse Radar cards with the agent's position on each (story shape). */
+  /** Adverse KubeAtlas cards with the agent's position on each (story shape). */
   healthSignals?: InvestigationHealthSignal[];
   onRevealSource?: (sourceId: string) => void;
 }) {
@@ -1295,7 +1295,7 @@ export function AllClearCard({
     evidenceConflictExplainedBy.length > 0;
   const unexplainedConflict = evidenceConflict && !explained;
   // Story shape: the summary and the certainty word are the verdict; adverse
-  // Radar cards the agent explained become lines in Still open, and only a
+  // KubeAtlas cards the agent explained become lines in Still open, and only a
   // card the agent's verdict never addressed (or contradicts) keeps a header
   // that names it — so the reader knows exactly how it relates to the answer.
   const signals = healthSignals ?? [];
@@ -1310,8 +1310,8 @@ export function AllClearCard({
     .map((signal) => ({
       text:
         signal.status === "explained"
-          ? `Radar flagged ${signal.title} · the agent looked at it and reads it as not a live problem: ${signal.claim}`
-          : `Radar flagged ${signal.title} · the agent reads it as related, but not what matters here: ${signal.claim}`,
+          ? `KubeAtlas flagged ${signal.title} · the agent looked at it and reads it as not a live problem: ${signal.claim}`
+          : `KubeAtlas flagged ${signal.title} · the agent reads it as related, but not what matters here: ${signal.claim}`,
       onReveal:
         signal.sourceId && onRevealSource
           ? () => onRevealSource(signal.sourceId!)
@@ -1422,13 +1422,13 @@ export function AllClearCard({
         </AIMarkdown>
         {unexplainedConflict ? (
           <p className="mt-2 text-xs text-theme-text-secondary">
-            Radar also captured evidence of an active problem. Review that
+            KubeAtlas also captured evidence of an active problem. Review that
             evidence before treating the agent&apos;s conclusion as an
             all-clear.
           </p>
         ) : explained ? (
           <p className="mt-2 text-xs text-theme-text-secondary">
-            Radar captured evidence of an active problem. The agent explains its
+            KubeAtlas captured evidence of an active problem. The agent explains its
             interpretation in the note on{" "}
             {joinTitles(evidenceConflictExplainedBy!)}.
             {coverageLimited
@@ -1468,7 +1468,7 @@ export function InconclusiveCard({
   revisedAfter?: string;
   assessmentSources?: ReactNode;
   assessmentAction?: ReactNode;
-  /** Reads Radar could not complete for this assessment; listed under Still open. */
+  /** Reads KubeAtlas could not complete for this assessment; listed under Still open. */
   assessmentLimits?: string[];
   assessmentCopy?: Pick<AssessmentCopyRadar, "context" | "receipts">;
 }) {

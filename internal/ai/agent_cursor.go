@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // cursorAgent drives the Cursor CLI (`cursor-agent -p`). Cursor has no hermetic

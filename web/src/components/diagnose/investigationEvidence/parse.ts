@@ -3,8 +3,8 @@ import {
   type IssueRecentChange,
   stripAnsi,
   type IssueWithheld,
-} from "@skyhook-io/k8s-ui";
-import { type TimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+} from "@maomada/k8s-ui";
+import { type TimeSeries } from "@maomada/k8s-ui/components/charts";
 import {
   type DiagnosisChangeContext,
   type DiagnosisCrashCause,
@@ -50,7 +50,7 @@ export function kubernetesResource(
 ): InvestigationKubernetesResource | undefined {
   const resource = record(value);
   const metadata = record(resource?.metadata);
-  // Core Secrets intentionally use Radar's current safe detail contract rather
+  // Core Secrets intentionally use KubeAtlas's current safe detail contract rather
   // than a Kubernetes object: identity + type + key names, with no values. Make
   // that producer shape canonical for the projection instead of rejecting the
   // exact evidence the agent saw.

@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 const (
@@ -57,7 +57,7 @@ func (s *Server) logStartupSummaryBlock() {
 		mcpEnabled:           s.mcpEnabled(),
 		mcpReadOnly:          s.mcpReadOnly(),
 		aiAgent:              aiAgent,
-		aiCLIOverride:        strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")),
+		aiCLIOverride:        strings.TrimSpace(os.Getenv("KUBEATLAS_AI_CLI_BIN")),
 		configManagement:     s.configManagement(),
 		cloudMode:            cloud.Mode(),
 		showRemoteAccessHint: s.remoteAccessHint,
@@ -246,7 +246,7 @@ func startupAIStatus(summary startupLogSummary) string {
 		// The override wins over detection, so when it names something this
 		// Radar can't run, nothing else was tried. Saying "no agent CLI found"
 		// here would send the user to set the variable they already set.
-		return "disabled (can't run RADAR_AI_CLI_BIN=" + summary.aiCLIOverride + ")"
+		return "disabled (can't run KUBEATLAS_AI_CLI_BIN=" + summary.aiCLIOverride + ")"
 	default:
 		return "disabled (no agent CLI found). Install Claude Code, Codex, Cursor, or OpenCode"
 	}

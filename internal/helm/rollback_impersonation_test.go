@@ -1,7 +1,7 @@
 package helm
 
 import (
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 	"net/http"
 	"net/http/httptest"
 	"slices"

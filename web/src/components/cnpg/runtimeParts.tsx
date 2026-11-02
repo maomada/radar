@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { clsx } from 'clsx'
 import { Lock } from 'lucide-react'
-import { toneTextClass } from '@skyhook-io/k8s-ui'
+import { toneTextClass } from '@maomada/k8s-ui'
 import { useLocation } from 'react-router-dom'
 import { useCNPGNavigate } from './useCNPGNavigate'
 import { cnpgClusterProblemsPath, cnpgWithinDetail } from './paths'

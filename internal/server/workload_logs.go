@@ -27,13 +27,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/podlogs"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/podlogs"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 type workloadLogMetadata struct {

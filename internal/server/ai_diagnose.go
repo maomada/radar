@@ -13,13 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/checks"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/checks"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // canonicalDiagnoseTarget resolves the exact Kubernetes identity once, at the
@@ -170,7 +170,7 @@ func managedByFromMeta(obj *unstructured.Unstructured) string {
 
 // currentConsents reports whether the CURRENT disclosure version has been
 // acknowledged, per surface (versions live in internal/config — one source of
-// truth with the CLI). Machine-scoped (~/.radar/config.json): one
+// truth with the CLI). Machine-scoped (~/.kubeatlas/config.json): one
 // acknowledgment covers the web panel and the CLI.
 func currentConsents() map[string]bool {
 	consents := make(map[string]bool)
@@ -223,7 +223,7 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 		"agents":      agents,
 		"enabled":     enabled,
 		"eligible":    eligible,
-		"cliOverride": strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")) != "",
+		"cliOverride": strings.TrimSpace(os.Getenv("KUBEATLAS_AI_CLI_BIN")) != "",
 		"consented":   currentConsents(),
 	})
 }

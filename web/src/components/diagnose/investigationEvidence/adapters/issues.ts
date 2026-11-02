@@ -1,4 +1,4 @@
-import { type Issue, type IssueRecentChange } from "@skyhook-io/k8s-ui";
+import { type Issue, type IssueRecentChange } from "@maomada/k8s-ui";
 import { type DiagnosisDNSContext } from "../../diagnoseEvidenceTypes";
 import {
   ProjectionBuilder,
@@ -77,7 +77,7 @@ export function adaptIssues(
       "Issue visibility",
       nonEmptyString(visibility.impact)
         ? visibility.impact
-        : `Radar reported ${visibility.state} visibility for this issue query.`,
+        : `KubeAtlas reported ${visibility.state} visibility for this issue query.`,
       "unknown",
     );
   }
@@ -146,7 +146,7 @@ export function adaptIssues(
     builder.limit(
       source,
       "Issue-related changes",
-      "Radar's change history is incomplete for part of the window, so earlier changes may be missing.",
+      "KubeAtlas's change history is incomplete for part of the window, so earlier changes may be missing.",
       "unknown",
     );
   }
@@ -180,7 +180,7 @@ function addNoIssuesReceipt(
     builder.limit(
       source,
       "Issues",
-      "Radar found no matching issues, but the search covered only namespaces the current user can access.",
+      "KubeAtlas found no matching issues, but the search covered only namespaces the current user can access.",
       "unknown",
     );
     return;

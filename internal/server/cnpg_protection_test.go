@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/integration"
+	"github.com/maomada/radar/internal/integration"
 )
 
 func TestCNPGArchivingPreviewRejectsInvalidAndOversizedBodies(t *testing.T) {

@@ -13,7 +13,7 @@ import {
   toneTextClass,
   type CNPGClusterHA,
   type CNPGHAInstance,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useCNPGClusterCapabilities, type CNPGRuntimeInstance, type CNPGRuntimeReplication } from '../../api/cnpg'
 import { CNPGInstanceActions } from './actions/CNPGInstanceActions'
 import { formatBytes, lsnDistance, standbyOwnBacklog } from './lsn'

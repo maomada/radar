@@ -80,13 +80,13 @@ node scripts/workload-metrics-demo/capture.mjs http://localhost:9347 Deployment/
 
 This saves workload responses and per-Pod Istio counter/count/bucket history,
 preserving labels. It requires the raw-query permission as well as workload read
-access. `RADAR_CAPTURE_AUTHORIZATION` optionally authenticates to Radar (not to
+access. `KUBEATLAS_CAPTURE_AUTHORIZATION` optionally authenticates to Radar (not to
 Prometheus); it is never written into evidence or sent through redirects.
 Connection evidence omits the backend address and error text, which may contain
 credentials. Raw metric labels and cluster names are retained: treat captures as
 private operational data, not automatically safe public attachments.
 For large raw captures start that dedicated Radar process with
-`RADAR_MCP_PROM_MAX_RESPONSE_BYTES=8388608`. The capture fails on summarized
+`KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES=8388608`. The capture fails on summarized
 responses instead of presenting them as complete. A capture records observations;
 unlike `check`, it does not certify expected chart values.
 
@@ -108,7 +108,7 @@ itself, including cluster separation, observer separation, unit conversion,
 quantiles and duplicate cAdvisor scrape targets:
 
 ```sh
-RADAR_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 go test -C pkg ./prom -run 'TestWorkload(History)?PromQL' -v
+KUBEATLAS_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 go test -C pkg ./prom -run 'TestWorkload(History)?PromQL' -v
 ```
 
 This does not replace live exporter compatibility testing or UI screenshots.

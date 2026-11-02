@@ -243,7 +243,7 @@ describe("RecentList", () => {
     expect(visible(html)).toContain("my-custom-context");
   });
 
-  it("uses Radar's readable kind labels and omits built-in group display noise", () => {
+  it("uses KubeAtlas's readable kind labels and omits built-in group display noise", () => {
     const text = visible(
       render([run(), run({ id: "plural", kind: "deployments", group: "" })]),
     );

@@ -165,7 +165,7 @@ function configEntries(
 }
 
 function secretKeys(resource: InvestigationResourceEvidenceInput): string[] {
-  // Radar's current get_resource producer structurally removes Secret values
+  // KubeAtlas's current get_resource producer structurally removes Secret values
   // and emits only this explicit key-name list. Do not inspect data/stringData:
   // this stays fail-closed even if an unexpected object reaches the UI.
   if (!Array.isArray(resource.keys)) return [];

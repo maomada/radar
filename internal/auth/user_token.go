@@ -7,7 +7,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // userTokenIdentity resolves the identity of a tunneled request in

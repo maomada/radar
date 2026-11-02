@@ -17,11 +17,11 @@ const insight = (status: string, data: InsightQuery["state"]["data"], error: unk
 const gone = new ApiError("Application not found", 404);
 
 describe("gitopsTreeRefetchInterval", () => {
-  it("asks every 2s while Radar connects to argocd-server", () => {
+  it("asks every 2s while KubeAtlas connects to argocd-server", () => {
     expect(gitopsTreeRefetchInterval(tree("success", { healthApiPending: true }))).toBe(2000);
   });
 
-  it("asks every 30s while Radar retries, no faster than the server re-checks", () => {
+  it("asks every 30s while KubeAtlas retries, no faster than the server re-checks", () => {
     expect(gitopsTreeRefetchInterval(tree("success", { healthApiRetrying: true }))).toBe(30_000);
   });
 
@@ -34,11 +34,11 @@ describe("gitopsTreeRefetchInterval", () => {
     expect(gitopsTreeRefetchInterval(tree("error", { healthApiPending: true }))).toBe(30_000);
   });
 
-  it("keeps asking through a long Radar or proxy outage", () => {
+  it("keeps asking through a long KubeAtlas or proxy outage", () => {
     expect(gitopsTreeRefetchInterval(tree("error", { healthApiRetrying: true }, new ApiError("Bad Gateway", 502)))).toBe(30_000);
   });
 
-  it("stops once Radar answers that the Application is gone or can't be read", () => {
+  it("stops once KubeAtlas answers that the Application is gone or can't be read", () => {
     expect(gitopsTreeRefetchInterval(tree("error", { healthApiRetrying: true }, gone))).toBe(false);
     expect(gitopsTreeRefetchInterval(tree("error", { healthApiPending: true }, new ApiError("Forbidden", 403)))).toBe(false);
   });
@@ -57,7 +57,7 @@ describe("gitopsInsightsRefetchInterval", () => {
     ).toBe(2000);
   });
 
-  it("asks every 2s while Radar connects", () => {
+  it("asks every 2s while KubeAtlas connects", () => {
     expect(
       gitopsInsightsRefetchInterval(
         insight("success", { capabilities: { argoConnecting: true } }),
@@ -65,7 +65,7 @@ describe("gitopsInsightsRefetchInterval", () => {
     ).toBe(2000);
   });
 
-  it("asks every 30s while Radar retries", () => {
+  it("asks every 30s while KubeAtlas retries", () => {
     expect(
       gitopsInsightsRefetchInterval(
         insight("success", { capabilities: { argoRetrying: true } }),
@@ -87,7 +87,7 @@ describe("gitopsInsightsRefetchInterval", () => {
     ).toBe(30_000);
   });
 
-  it("stops once Radar answers that the Application is gone", () => {
+  it("stops once KubeAtlas answers that the Application is gone", () => {
     expect(
       gitopsInsightsRefetchInterval(insight("error", { capabilities: { argoRetrying: true } }, gone)),
     ).toBe(false);

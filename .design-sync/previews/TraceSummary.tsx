@@ -1,4 +1,4 @@
-import { TraceSummary, type Trace } from '@skyhook-io/k8s-ui'
+import { TraceSummary, type Trace } from '@maomada/k8s-ui'
 
 const NS = 'payments'
 const SUBJECT = { kind: 'Service', name: 'checkout-api', namespace: NS }
@@ -101,7 +101,7 @@ const broken = {
 const indirectOnly = {
   ...base,
   verdict: 'degraded',
-  headline: 'Only control-plane evidence — Radar is not permitted to probe the dataplane',
+  headline: 'Only control-plane evidence — KubeAtlas is not permitted to probe the dataplane',
   coverage: { tested: 1, passed: 1, failed: 0, skipped: 2 },
   downstream: [
     serviceHop(),

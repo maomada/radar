@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/prom"
-	"github.com/skyhook-io/radar/pkg/prom/promtest"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom/promtest"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -361,9 +361,9 @@ func TestPVCUsageRefusesSplitMetricPartitions(t *testing.T) {
 }
 
 func TestPVCScopePromQL(t *testing.T) {
-	image := os.Getenv("RADAR_TEST_PROMTOOL_IMAGE")
+	image := os.Getenv("KUBEATLAS_TEST_PROMTOOL_IMAGE")
 	if image == "" {
-		t.Skip("set RADAR_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 to evaluate queries with Docker")
+		t.Skip("set KUBEATLAS_TEST_PROMTOOL_IMAGE=prom/prometheus:v3.5.0 to evaluate queries with Docker")
 	}
 	input := []map[string]string{}
 	tests := []map[string]any{}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/server"
+	"github.com/maomada/radar/internal/server"
 )
 
 // listPackagesInput mirrors the /api/packages query params.

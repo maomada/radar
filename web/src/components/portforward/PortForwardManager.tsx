@@ -32,8 +32,8 @@ import { useToast } from '../ui/Toast'
 import { openExternal } from '../../utils/navigation'
 import { apiUrl } from '../../api/config'
 import { apiFetch, useCapabilities } from '../../api/client'
-import { pluralize } from '@skyhook-io/k8s-ui'
-import { Collapse } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { pluralize } from '@maomada/k8s-ui'
+import { Collapse } from '@maomada/k8s-ui/components/ui/Collapse'
 
 // --- Types -------------------------------------------------------------------
 
@@ -93,7 +93,7 @@ function usePortForwardQuery(enabled: boolean) {
       if (!res.ok) throw new Error('Failed to fetch port forwards')
       return res.json()
     },
-    // Port-forward is a local-binary feature; in-cluster (Radar Cloud) the
+    // Port-forward is a local-binary feature; in-cluster (upstream Cloud) the
     // capability is false, so don't poll an endpoint that can never return a
     // usable session. Also covers RBAC-denied users.
     enabled,
@@ -150,7 +150,7 @@ const PortForwardContext = createContext<PortForwardContextValue | null>(null)
 
 export function PortForwardProvider({ children }: { children: ReactNode }) {
   // Gate the session-list poll on runtime mode, not the RBAC capability: port-forward
-  // only works when radar runs as a local binary, so in-cluster (Radar Cloud) we never
+  // only works when radar runs as a local binary, so in-cluster (upstream Cloud) we never
   // poll /portforwards. We deliberately do NOT gate on `portForward` (RBAC) — a local
   // user with portforward rights in only some namespaces must still see/stop the
   // sessions they start (the start buttons gate per-namespace separately). Using the

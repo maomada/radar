@@ -1,5 +1,5 @@
 // Client for local AI investigations (OSS BYO-agent). The agent CLI runs
-// on the user's own machine/subscription against Radar's MCP; this just starts
+// on the user's own machine/subscription against KubeAtlas's MCP; this just starts
 // the investigation and consumes its SSE event stream.
 import { getApiBase, getAuthHeaders, getCredentialsMode } from "./config";
 
@@ -29,12 +29,12 @@ export interface AgentsResponse {
   // "install an agent to enable this" (eligible && !enabled) apart from "not
   // available here" (auth/cloud/--no-mcp). Absent on older servers / embed hosts.
   eligible?: boolean;
-  // cliOverride: RADAR_AI_CLI_BIN is set, pinning the engine to one CLI. With
+  // cliOverride: KUBEATLAS_AI_CLI_BIN is set, pinning the engine to one CLI. With
   // CLIs detected and investigations still off, that variable is what's broken.
   // Absent on older servers and embed hosts.
   cliOverride?: boolean;
   // Machine-scoped consent per disclosure surface, recorded server-side
-  // (~/.radar) — one acknowledgment covers the web panel and the CLI.
+  // (~/.kubeatlas) — one acknowledgment covers the web panel and the CLI.
   consented?: Record<string, boolean>;
 }
 
@@ -48,7 +48,7 @@ export interface DiagnoseStep {
   summary?: string; // input args (on running)
   result?: string; // result text (on done), capped
   evidenceRef?: string; // server-issued reference used to bind a root cause to this exact result
-  // Server validated Radar's uncapped producer result and this retained result
+  // Server validated KubeAtlas's uncapped producer result and this retained result
   // as its exact capped derivative.
   radarEvidence?: boolean;
   isError?: boolean; // authoritative agent-host result; absent means unknown
@@ -61,7 +61,7 @@ export interface RootCauseEvidence {
 }
 
 /**
- * How the agent frames one cited Radar result. Roles order cards; they never
+ * How the agent frames one cited KubeAtlas result. Roles order cards; they never
  * hide one.
  *
  * One half of a Go↔TS contract: `Roles` in pkg/investigation/verdict.go and
@@ -126,7 +126,7 @@ export interface Diagnosis {
    * absence selects the previous rendering.
    */
   summary?: string;
-  /** The agent's own word for how sure it is; rendered in the agent tone, never as a Radar mark. */
+  /** The agent's own word for how sure it is; rendered in the agent tone, never as a KubeAtlas mark. */
   certainty?: DiagnosisCertainty;
   /** What would change the answer or could not be verified. Rendered above the story fold. */
   unresolved?: string[];
@@ -135,7 +135,7 @@ export interface Diagnosis {
   /** Typed next steps; absent on older runs, where `remediation` is the only list. */
   steps?: DiagnosisStep[];
   rootCauseEvidence?: RootCauseEvidence;
-  /** The agent's case over Radar's evidence; absent from hosted backends and older runs. */
+  /** The agent's case over KubeAtlas's evidence; absent from hosted backends and older runs. */
   evidence?: DiagnosisEvidenceItem[];
   /** How many of the agent's evidence entries never reached the UI, including ones cut before they got a slot in `evidence`. */
   unlinkedEvidence?: number;
@@ -197,7 +197,7 @@ export interface DiagnoseStreamEvent {
   phase?: string; // "investigating" | "connected" | "ready"
   // Startup facts the agent CLI reported on the "ready" phase.
   model?: string;
-  toolCount?: number; // Radar tools the agent registered
+  toolCount?: number; // KubeAtlas tools the agent registered
   mcpServers?: MCPServerStatus[];
   step?: DiagnoseStep;
   token?: string;
@@ -208,7 +208,7 @@ export interface DiagnoseStreamEvent {
   verify?: boolean; // on "turn": explicit post-change re-check
   explainAssessment?: number; // on "turn": originating assessment done-event sequence
   // Evidence-backed mutation truth on an apply turn's terminal event. Only
-  // "confirmed" means a Radar write tool authoritatively reported success.
+  // "confirmed" means a KubeAtlas write tool authoritatively reported success.
   applyOutcome?: ApplyMutationOutcome;
   // On an apply terminal event, the server durably queued the adjacent
   // read-only verification turn. This prevents an idle control flash between
@@ -230,7 +230,7 @@ export interface RunSummary {
   namespace: string;
   name: string;
   /** The issue this session is for, on hosts that key sessions by issue. Always
-   *  absent from Radar's own backend, which records no issue. */
+   *  absent from KubeAtlas's own backend, which records no issue. */
   issueId?: string;
   context: string;
   agent?: string; // backend CLI that drove this run ("claude"/"codex")
@@ -267,7 +267,7 @@ export async function fetchAgents(
   const body = (await res.json()) as AgentsResponse & {
     agents: AgentInfo[] | null;
   };
-  // Older Radar servers send "no agent found" as JSON null, not []. This client
+  // Older KubeAtlas servers send "no agent found" as JSON null, not []. This client
   // also runs against servers of other versions, and that is the single most
   // common response on a machine with no CLI, so normalise here rather than in
   // every caller that reaches for .filter.
@@ -277,7 +277,7 @@ export async function fetchAgents(
 /**
  * Why a host refused an investigation, and what would unblock it. Hosts that
  * meter investigations send these beside the sentence to show, so an embedding
- * app can offer the matching action. Radar's own backend never sends them.
+ * app can offer the matching action. KubeAtlas's own backend never sends them.
  */
 export interface DiagnoseRefusal {
   /** Machine-readable code, e.g. "ai_quota_exhausted". */
@@ -335,7 +335,7 @@ export interface InvestigationRefusal {
 }
 
 /** The refusal a DiagnoseError carries, or null when the host sent none
- * (Radar's own backend never does). */
+ * (KubeAtlas's own backend never does). */
 export function investigationRefusal(
   error: unknown,
 ): InvestigationRefusal | null {
@@ -362,12 +362,12 @@ export async function createRun(
     namespace: string;
     name: string;
     // Associates the session with the issue it was started from, for hosts that
-    // group sessions that way. Inert for Radar's own backend, which neither reads
+    // group sessions that way. Inert for KubeAtlas's own backend, which neither reads
     // it on start nor emits it on RunSummary — carried so both hosts share one
     // request shape.
     issueId?: string;
     // Start a new session rather than continuing whatever the backend would
-    // otherwise hand back for this target. Inert for Radar's own backend, which
+    // otherwise hand back for this target. Inert for KubeAtlas's own backend, which
     // only ever continues an in-flight run — and that one is never bypassed.
     fresh?: boolean;
   },

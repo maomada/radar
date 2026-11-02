@@ -13,10 +13,10 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/pkg/investigation"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // Claude Code before v2.1.296 keeps only the first 2,048 characters of server

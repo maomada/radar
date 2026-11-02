@@ -168,7 +168,7 @@ Behavior and guarantees:
   `<redacted:unchanged>`; a value that differs reads `<redacted:desired>` and
   `<redacted:live>`, so a rotated value still shows as a change. There is no
   un-redact option.
-- Local CLI/Desktop tokens live in `~/.radar/clusters.json` (written `0600`)
+- Local CLI/Desktop tokens live in `~/.kubeatlas/clusters.json` (written `0600`)
   and are never returned by Settings APIs. Unchanged credentials are preserved;
   explicit removal deletes only this context's saved settings and credentials.
 - A token is bound to the server it was issued for: changing the Argo CD URL
@@ -232,8 +232,8 @@ operator-controlled and read-only in Settings. Pick by how Radar runs:
 
 | Deployment | How to provision | Notes |
 |------------|------------------|-------|
-| **Local / desktop** | Settings → Argo CD (paste, or set the URL and choose "Connect using CLI token") | Interactive; per-context settings persist to `~/.radar/clusters.json`. |
-| **In-cluster** | Helm `argocd.existingSecret` (or `argocd.token`) → `RADAR_ARGOCD_TOKEN` | Declarative, survives restarts, read-only in the UI. |
+| **Local / desktop** | Settings → Argo CD (paste, or set the URL and choose "Connect using CLI token") | Interactive; per-context settings persist to `~/.kubeatlas/clusters.json`. |
+| **In-cluster** | Helm `argocd.existingSecret` (or `argocd.token`) → `KUBEATLAS_ARGOCD_TOKEN` | Declarative, survives restarts, read-only in the UI. |
 | **Radar Cloud** | The customer's in-cluster Radar carries the token (as above); the token never reaches the hub. | Same env path; the hub proxies to the binary, which holds the credential. |
 
 When a token is provided via the environment, the integration becomes
@@ -246,15 +246,15 @@ and target, not every context subsequently selected. See
 
 Environment variables (read once at startup):
 
-- `RADAR_ARGOCD_TOKEN` — the API token. `RADAR_ARGOCD_TOKEN_FILE` (a mounted-secret
+- `KUBEATLAS_ARGOCD_TOKEN` — the API token. `KUBEATLAS_ARGOCD_TOKEN_FILE` (a mounted-secret
   path) takes precedence and is preferred — a file isn't exposed via
   `/proc/<pid>/environ`.
-- `RADAR_ARGOCD_URL` — explicit `argocd-server` URL; omit for in-cluster
+- `KUBEATLAS_ARGOCD_URL` — explicit `argocd-server` URL; omit for in-cluster
   auto-discovery. Must be `http(s)`, with no embedded userinfo.
-- `RADAR_ARGOCD_INSECURE_TLS` — `true` to skip TLS verification (self-signed
+- `KUBEATLAS_ARGOCD_INSECURE_TLS` — `true` to skip TLS verification (self-signed
   server). Leave unset otherwise; it exposes the token on the path to the server.
 
-Helm (`deploy/helm/radar`), preferring a pre-created Secret so the token never
+Helm (`deploy/helm/kubeatlas`), preferring a pre-created Secret so the token never
 lands in the release state:
 
 ```yaml
@@ -270,7 +270,7 @@ Scoping and lifecycle:
 - **Scope the Secret per cluster.** The token authenticates to *one* `argocd-server`;
   auto-discovery sends it to whichever server this cluster exposes. Broadcasting one
   Secret across clusters with a shared GitOps manifest would send the token to each
-  cluster's server. Prefer `RADAR_ARGOCD_URL` to pin the endpoint explicitly.
+  cluster's server. Prefer `KUBEATLAS_ARGOCD_URL` to pin the endpoint explicitly.
 - **Rotation requires a pod restart** — env vars and Secret-backed env are read at
   startup and don't hot-reload. Roll the Deployment to pick up a new token.
 - **Invalid env config fails closed.** If the env vars are set but don't resolve to

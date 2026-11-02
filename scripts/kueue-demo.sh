@@ -16,7 +16,7 @@ DEMO_NS="kueue-demo"
 MARKER_NAME="radar-kueue-demo-owner"
 MARKER_VALUE="skyhook-radar-kueue-demo-v1"
 WAIT_SECONDS="${WAIT_SECONDS:-300}"
-RADAR_URL="${RADAR_URL:-http://127.0.0.1:9280}"
+KUBEATLAS_URL="${KUBEATLAS_URL:-http://127.0.0.1:9280}"
 PREVIOUS_CONTEXT=''
 RESTORE_CONTEXT=false
 
@@ -304,7 +304,7 @@ mcp_get_workload() {
     -H 'Content-Type: application/json' \
     -H 'Accept: application/json, text/event-stream' \
     -d "${request}" \
-    "${RADAR_URL}/mcp")" || return 1
+    "${KUBEATLAS_URL}/mcp")" || return 1
   event="$(sed -n 's/^data: //p' <<<"${response}" | tail -n 1)"
   [ -n "${event}" ] || { warn "MCP response contained no SSE data event" >&2; return 1; }
   if jq -e '.error != null or .result.isError == true' <<<"${event}" >/dev/null; then
@@ -315,22 +315,22 @@ mcp_get_workload() {
 }
 
 radar_health_ready() {
-  curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/health" 2>/dev/null | \
+  curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/health" 2>/dev/null | \
     jq -e '.status == "healthy"' >/dev/null 2>&1
 }
 
 radar_crd_discovery_ready() {
-  curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/cluster-info" 2>/dev/null | \
+  curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/cluster-info" 2>/dev/null | \
     jq -e '.crdDiscoveryStatus == "ready"' >/dev/null 2>&1
 }
 
 radar_workloads_ready() {
-  curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/resources/workloads?group=kueue.x-k8s.io&namespaces=${DEMO_NS}" 2>/dev/null | \
+  curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/resources/workloads?group=kueue.x-k8s.io&namespaces=${DEMO_NS}" 2>/dev/null | \
     jq -e 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end | type == "array" and length == 3 and all(.[]; .apiVersion == "kueue.x-k8s.io/v1beta2")' >/dev/null 2>&1
 }
 
 radar_clusterqueues_ready() {
-  curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/resources/clusterqueues?group=kueue.x-k8s.io" 2>/dev/null | \
+  curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/resources/clusterqueues?group=kueue.x-k8s.io" 2>/dev/null | \
     jq -e 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end | type == "array" and length == 2 and all(.[]; .apiVersion == "kueue.x-k8s.io/v1beta2")' >/dev/null 2>&1
 }
 
@@ -343,7 +343,7 @@ assert_radar_scheduling() {
   [ -n "${workload}" ] || fail "No Kueue Workload found for Job '${job}'"
 
   rest_response="$(curl -fsS --connect-timeout 5 --max-time 15 \
-    "${RADAR_URL}/api/ai/resources/workloads/${DEMO_NS}/${workload}?group=kueue.x-k8s.io")" || \
+    "${KUBEATLAS_URL}/api/ai/resources/workloads/${DEMO_NS}/${workload}?group=kueue.x-k8s.io")" || \
     fail "Radar AI resource request failed for ${job}'s Workload '${workload}'"
 
   jq -e \
@@ -412,19 +412,19 @@ cmd_verify_radar() {
   require_cmd jq "https://jqlang.github.io/jq/download/"
   require_owned_cluster
   assert_cluster_contract
-  step "Verifying Radar API at ${RADAR_URL}"
+  step "Verifying Radar API at ${KUBEATLAS_URL}"
 
   local response
   wait_until "Radar health endpoint" radar_health_ready
 
-  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/cluster-info")" || \
+  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/cluster-info")" || \
     fail "Radar cluster-info request failed"
   jq -e --arg context "${KUBECTL_CTX}" '.context == $context and .cluster == $context' <<<"${response}" >/dev/null || \
     fail "Radar is not connected to the expected context and cluster '${KUBECTL_CTX}'"
   wait_until "Radar CRD discovery" radar_crd_discovery_ready
 
   wait_until "Radar to cache the three Kueue Workloads" radar_workloads_ready
-  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/resources/workloads?group=kueue.x-k8s.io&namespaces=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || \
+  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/resources/workloads?group=kueue.x-k8s.io&namespaces=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || \
     fail "Radar Workload list request failed"
   jq -e 'type == "array" and length == 3 and all(.[]; .apiVersion == "kueue.x-k8s.io/v1beta2")' <<<"${response}" >/dev/null || \
     fail "Radar did not return the three group-pure Kueue Workloads"
@@ -436,7 +436,7 @@ cmd_verify_radar() {
     fail "Radar did not expose queue-held's inactive-queue Workload"
 
   wait_until "Radar to cache the two Kueue ClusterQueues" radar_clusterqueues_ready
-  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/resources/clusterqueues?group=kueue.x-k8s.io" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || \
+  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/resources/clusterqueues?group=kueue.x-k8s.io" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || \
     fail "Radar ClusterQueue list request failed"
   jq -e 'type == "array" and length == 2 and all(.[]; .apiVersion == "kueue.x-k8s.io/v1beta2")' <<<"${response}" >/dev/null || \
     fail "Radar did not return the two group-pure ClusterQueues"
@@ -532,7 +532,7 @@ Environment:
   KUBERNETES_VERSION expected Kubernetes server version (default: v1.36.1)
   KIND_NODE_IMAGE immutable kind node image (default: kindest/node v1.36.1 digest)
   WAIT_SECONDS   maximum wait per reconciled state (default: 300)
-  RADAR_URL      running Radar base URL for verify-radar (default: http://127.0.0.1:9280)
+  KUBEATLAS_URL      running Radar base URL for verify-radar (default: http://127.0.0.1:9280)
 
 This validates Kueue controller reconciliation and Radar's read path. It does not
 validate GPU hardware, device plugins, DRA allocation, utilization, or cost.

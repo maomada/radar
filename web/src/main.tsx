@@ -39,11 +39,11 @@ window.addEventListener('mouseup', (e: MouseEvent) => {
 }, true)
 
 
-// Standalone Radar binary: same-origin API, router at root. It owns the whole
+// Standalone KubeAtlas binary: same-origin API, router at root. It owns the whole
 // tab, so it opts into per-view document.title. Library consumers (e.g.
 // radar-hub-web) render <RadarApp apiBase="..." basename="..." /> WITHOUT this
 // flag, keeping their own tab title.
-const runtimeConfig = window.__RADAR_RUNTIME_CONFIG__
+const runtimeConfig = window.__KUBEATLAS_RUNTIME_CONFIG__
 
 ReactDOM.createRoot(document.getElementById('radar')!).render(
   <React.StrictMode>

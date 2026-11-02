@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/internal/readscope"
+	"github.com/maomada/radar/internal/readscope"
 )
 
 func TestSearchDeniedSecretIsNeverReturned(t *testing.T) {

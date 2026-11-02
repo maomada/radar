@@ -1,5 +1,5 @@
 import { type ComponentProps } from 'react'
-import { CreateResourceDialog as BaseCreateResourceDialog } from '@skyhook-io/k8s-ui'
+import { CreateResourceDialog as BaseCreateResourceDialog } from '@maomada/k8s-ui'
 import { fetchYamlSchemas, useApplyResource, usePreviewResources } from '../../api/client'
 import { useCapabilitiesContext } from '../../contexts/CapabilitiesContext'
 

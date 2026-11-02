@@ -10,8 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	toolscache "k8s.io/client-go/tools/cache"
 
-	"github.com/skyhook-io/radar/pkg/policyreports"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/policyreports"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // KyvernoStatus reports why the PolicyReport index is (or isn't) populated.

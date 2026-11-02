@@ -14,10 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/netpol"
-	"github.com/skyhook-io/radar/pkg/timeutil"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/netpol"
+	"github.com/maomada/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 const (

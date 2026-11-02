@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runDeltaSyncFetch, type ChangesDeltaMeta } from './client'
-import type { TimelineEvent } from '@skyhook-io/k8s-ui'
+import type { TimelineEvent } from '@maomada/k8s-ui'
 
 // Orchestration test for the useChanges delta contract. The pure helpers
 // (deltaFetchCursor / mergeDeltaEvents / maxEventSeq) are covered in
@@ -32,8 +32,8 @@ function pageResponse(page: Page): Response {
   return new Response(JSON.stringify(page.events), {
     status: 200,
     headers: {
-      'X-Radar-Timeline-Epoch': page.epoch,
-      'X-Radar-Timeline-Max-Seq': String(page.maxSeq),
+      'X-KubeAtlas-Timeline-Epoch': page.epoch,
+      'X-KubeAtlas-Timeline-Max-Seq': String(page.maxSeq),
     },
   })
 }

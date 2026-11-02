@@ -16,8 +16,8 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/server"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/server"
 )
 
 // Protocol 2026-07-28 has no initialize: a client learns the server's

@@ -82,7 +82,7 @@ try {
   await once(socket, 'listening');
   const port = socket.address().port;
   await new Promise(resolve => socket.close(resolve));
-  const radar = start(resolve(root, 'radar'), [`--kubeconfig=${kubeconfig}`, '--kubeconfig-dir=', '--listen-address=127.0.0.1', `--port=${port}`, '--no-browser', '--prometheus-header=X-Radar-Demo=true', '--prometheus-header-from-env=X-Radar-Demo-Env=RADAR_METRICS_DEMO_HEADER', `--prometheus-url=http://127.0.0.1:${promPort}`], 'radar');
+  const radar = start(resolve(root, 'radar'), [`--kubeconfig=${kubeconfig}`, '--kubeconfig-dir=', '--listen-address=127.0.0.1', `--port=${port}`, '--no-browser', '--prometheus-header=X-Radar-Demo=true', '--prometheus-header-from-env=X-Radar-Demo-Env=KUBEATLAS_METRICS_DEMO_HEADER', `--prometheus-url=http://127.0.0.1:${promPort}`], 'radar');
   const get = async path => {
     if (abort.signal.aborted || radar.exitCode !== null || forward.exitCode !== null) throw Error('An owned test process stopped');
     const response = await fetch(`http://127.0.0.1:${port}${path}`, {signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30000)])});

@@ -74,7 +74,7 @@ cmd_verify_admission() {
 radar_admission_matches() {
   local name="$1" decision="$2" phase="$3" type="$4" status="$5" reason="$6" workload response
   workload="$(admission_workload "${name}")" || return 1
-  response="$(curl -fsS "${RADAR_URL}/api/kueue/admission/jobsets/${ADMISSION_NS}/${name}?group=jobset.x-k8s.io")" || return 1
+  response="$(curl -fsS "${KUBEATLAS_URL}/api/kueue/admission/jobsets/${ADMISSION_NS}/${name}?group=jobset.x-k8s.io")" || return 1
   jq -e --argjson native "${workload}" --arg decision "${decision}" --arg phase "${phase}" --arg type "${type}" --arg status "${status}" --arg reason "${reason}" '
     .installed and .total == 1 and .truncated == false and (.workloads | length) == 1 and
     (.workloads[0] | .uid == $native.metadata.uid and .name == $native.metadata.name and .projection == "available" and

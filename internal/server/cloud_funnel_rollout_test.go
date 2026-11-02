@@ -59,12 +59,12 @@ func TestBucketKeyFallsBackWhenDeploymentUnreadable(t *testing.T) {
 }
 
 func TestCloudFunnelEnvOverrideWins(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_FUNNEL", "on")
+	t.Setenv("KUBEATLAS_CLOUD_FUNNEL", "on")
 	if !cloudFunnelInCohort() {
-		t.Fatal("RADAR_CLOUD_FUNNEL=on did not force the funnel on")
+		t.Fatal("KUBEATLAS_CLOUD_FUNNEL=on did not force the funnel on")
 	}
-	t.Setenv("RADAR_CLOUD_FUNNEL", "off")
+	t.Setenv("KUBEATLAS_CLOUD_FUNNEL", "off")
 	if cloudFunnelInCohort() {
-		t.Fatal("RADAR_CLOUD_FUNNEL=off did not force the funnel off")
+		t.Fatal("KUBEATLAS_CLOUD_FUNNEL=off did not force the funnel off")
 	}
 }

@@ -1,6 +1,6 @@
 // FetchErrorShape is the duck-typed contract every fetch error in the
 // app already satisfies — both web/'s ApiError and radar-hub-web's
-// ApiError expose .status and .message. Living in @skyhook-io/k8s-ui
+// ApiError expose .status and .message. Living in @maomada/k8s-ui
 // without importing either lets presentational components (FetchResult,
 // ResourcesView's forbidden-kind sidebar) classify errors uniformly
 // across the OSS binary and Radar Hub.

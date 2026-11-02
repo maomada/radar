@@ -29,10 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	toolscache "k8s.io/client-go/tools/cache"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // DebugEvents enables verbose event debugging when true (set via --debug-events flag)
@@ -512,7 +512,7 @@ func InitResourceCache(ctx context.Context) error {
 			wrapped.ResourceCache = syncing
 			publishSyncingCache(wrapped, gen)
 		}
-		cfg.DebugSyncDelays = parseDebugSyncDelays(os.Getenv("RADAR_DEBUG_SYNC_DELAY"))
+		cfg.DebugSyncDelays = parseDebugSyncDelays(os.Getenv("KUBEATLAS_DEBUG_SYNC_DELAY"))
 
 		core, err := k8score.NewResourceCache(cfg)
 		if err != nil {
@@ -588,7 +588,7 @@ func promoteCache(wrapped *ResourceCache, gen uint64, syncComplete bool) bool {
 	return true
 }
 
-// parseDebugSyncDelays parses RADAR_DEBUG_SYNC_DELAY — a development seam for
+// parseDebugSyncDelays parses KUBEATLAS_DEBUG_SYNC_DELAY — a development seam for
 // exercising the progressive-readiness window on fast clusters. Accepts a
 // bare duration ("60s", applied to pods) or per-kind pairs
 // ("pods=60s,deployments=10s"). Returns nil for empty/invalid input.
@@ -608,7 +608,7 @@ func parseDebugSyncDelays(raw string) map[string]time.Duration {
 		}
 		d, err := time.ParseDuration(strings.TrimSpace(val))
 		if err != nil || d <= 0 {
-			log.Printf("[cache] ignoring invalid RADAR_DEBUG_SYNC_DELAY entry %q: %v", part, err)
+			log.Printf("[cache] ignoring invalid KUBEATLAS_DEBUG_SYNC_DELAY entry %q: %v", part, err)
 			continue
 		}
 		delays[strings.TrimSpace(key)] = d

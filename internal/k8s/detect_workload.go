@@ -10,9 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/pkg/cronsched"
-	"github.com/skyhook-io/radar/pkg/hpadiag"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/cronsched"
+	"github.com/maomada/radar/pkg/hpadiag"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 // HPAProblem describes a detected issue with an HPA.

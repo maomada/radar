@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { CNPGClusterHA } from '@skyhook-io/k8s-ui'
+import type { CNPGClusterHA } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 
 // /api/cnpg/clusters/{ns}/{name}/ha — quorum, disruption budgets, Leases,

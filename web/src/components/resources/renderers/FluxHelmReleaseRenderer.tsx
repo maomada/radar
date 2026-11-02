@@ -1,6 +1,6 @@
-import { FluxHelmReleaseRenderer as BaseFluxHelmReleaseRenderer, type FluxValuesReference } from '@skyhook-io/k8s-ui/components/resources/renderers/FluxHelmReleaseRenderer'
-import { AlertBanner, ResourceLink } from '@skyhook-io/k8s-ui/components/ui/drawer-components'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { FluxHelmReleaseRenderer as BaseFluxHelmReleaseRenderer, type FluxValuesReference } from '@maomada/k8s-ui/components/resources/renderers/FluxHelmReleaseRenderer'
+import { AlertBanner, ResourceLink } from '@maomada/k8s-ui/components/ui/drawer-components'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { isForbiddenError, useResourceAvailability } from '../../../api/client'
 
 interface FluxHelmReleaseData {

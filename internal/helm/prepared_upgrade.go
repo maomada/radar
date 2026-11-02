@@ -579,7 +579,7 @@ func validateOfficialRadarChart(releaseName, namespace string, loaded *chart.Cha
 	officialSource := false
 	if metadata != nil {
 		for _, source := range metadata.Sources {
-			if strings.TrimSuffix(source, "/") == "https://github.com/skyhook-io/radar" {
+			if strings.TrimSuffix(source, "/") == "https://github.com/maomada/radar" {
 				officialSource = true
 				break
 			}

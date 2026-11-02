@@ -3,13 +3,13 @@ package main
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/reachability"
-	versionpkg "github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/reachability"
+	versionpkg "github.com/maomada/radar/internal/version"
 )
 
 func TestReachabilityImagesWithVersionChecksDisabled(t *testing.T) {
-	t.Setenv("RADAR_DISABLE_VERSION_CHECK", "")
-	t.Setenv("RADAR_IMAGE", "")
+	t.Setenv("KUBEATLAS_DISABLE_VERSION_CHECK", "")
+	t.Setenv("KUBEATLAS_IMAGE", "")
 	previousVersion := versionpkg.Current
 	previousDisabled := versionpkg.IsDisabled()
 	previousImage := reachability.DefaultImageRef
@@ -38,7 +38,7 @@ func TestReachabilityImagesWithVersionChecksDisabled(t *testing.T) {
 			reachability.LatestReleaseImage = nil
 			configureReachabilityImages()
 
-			if got, want := reachability.DefaultImage(), "ghcr.io/skyhook-io/radar:"+tc.wantTag; got != want {
+			if got, want := reachability.DefaultImage(), "ghcr.io/maomada/kubeatlas:"+tc.wantTag; got != want {
 				t.Errorf("probe image = %q, want %q", got, want)
 			}
 		})

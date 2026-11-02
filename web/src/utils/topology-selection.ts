@@ -1,7 +1,7 @@
-import type { SelectedResource, Topology, TopologyNode } from '@skyhook-io/k8s-ui/types/core'
-import { builtinGroupForKind, canonicalResourceGroup } from '@skyhook-io/k8s-ui/utils/api-resources'
-import { apiVersionToGroup, kindToPluralWithGroup } from '@skyhook-io/k8s-ui/utils/navigation'
-import { topologyNodeResourceKind } from '@skyhook-io/k8s-ui/utils/topology-neighborhood'
+import type { SelectedResource, Topology, TopologyNode } from '@maomada/k8s-ui/types/core'
+import { builtinGroupForKind, canonicalResourceGroup } from '@maomada/k8s-ui/utils/api-resources'
+import { apiVersionToGroup, kindToPluralWithGroup } from '@maomada/k8s-ui/utils/navigation'
+import { topologyNodeResourceKind } from '@maomada/k8s-ui/utils/topology-neighborhood'
 
 function topologyNodeGroup(node: TopologyNode): string | undefined {
   const apiVersion = node.data.apiVersion

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Badge, StatusDot, formatAge, toneTextClass, type HealthLevel, formatGrant } from '@skyhook-io/k8s-ui'
+import { Badge, StatusDot, formatAge, toneTextClass, type HealthLevel, formatGrant } from '@maomada/k8s-ui'
 import { useCNPGRecovery, type CNPGContainerState, type CNPGRecoveryResponse, type CNPGRecoverySpec } from '../../../api/cnpg-recovery'
 import { buildWorkloadPath } from '../../../utils/navigation'
 import { observeRestore, restoreNextSteps, type RestoreBackupDeclared, type RestoreNextStep, type RestoreNextStepId, type RestoreObservation } from './restoreModel'

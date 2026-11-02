@@ -6,11 +6,11 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/audit"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/checks"
+	"github.com/maomada/radar/internal/audit"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
+	bp "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/checks"
 )
 
 type auditInput struct {

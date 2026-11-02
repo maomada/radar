@@ -6,12 +6,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/auditcontext"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/policyreports"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
-	topo "github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/internal/auditcontext"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/policyreports"
+	"github.com/maomada/radar/pkg/resourcecontext"
+	topo "github.com/maomada/radar/pkg/topology"
 )
 
 // mcpPolicyReportLookupAdapter wraps k8s.GetPolicyReportIndex into the

@@ -88,10 +88,10 @@ func TestMCPModePrecedence(t *testing.T) {
 		{name: "cli enables disabled file", file: Config{MCP: ptr(false)}, args: []string{"--no-mcp=false"}, want: MCPMode{true, false}},
 		{name: "cli false preserves readonly", env: "true", args: []string{"--no-mcp=false"}, want: MCPMode{true, true}},
 		{name: "both explicit false", file: Config{MCP: ptr(false)}, env: "true", args: []string{"--no-mcp=false", "--mcp-read-only=false"}, want: MCPMode{true, false}},
-		{name: "invalid env", env: "yes", err: "RADAR_MCP_READ_ONLY must be a boolean"},
+		{name: "invalid env", env: "yes", err: "KUBEATLAS_MCP_READ_ONLY must be a boolean"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("RADAR_MCP_READ_ONLY", tt.env)
+			t.Setenv("KUBEATLAS_MCP_READ_ONLY", tt.env)
 			fs := flag.NewFlagSet("test", flag.ContinueOnError)
 			fs.SetOutput(io.Discard)
 			flags := RegisterMCPFlags(fs, tt.file)

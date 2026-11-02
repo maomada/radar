@@ -1,4 +1,4 @@
-import { TurnView } from '@skyhook-io/k8s-ui'
+import { TurnView } from '@maomada/k8s-ui'
 
 const wrap = { width: 560, padding: 8 }
 const noop = () => {}
@@ -28,7 +28,7 @@ export function Investigating() {
           status: 'running', diagnosis: null, error: null,
           startup: { phase: 'ready', model: 'claude-sonnet-5', toolCount: 24 },
           timeline: [
-            { kind: 'thinking', text: 'The Deployment has 0/3 ready replicas. Starting with Radar’s diagnosis of the workload, then the previous container’s logs.' },
+            { kind: 'thinking', text: 'The Deployment has 0/3 ready replicas. Starting with KubeAtlas’s diagnosis of the workload, then the previous container’s logs.' },
             diagnoseTool,
             { kind: 'thinking', text: 'All three pods terminate with **OOMKilled** (exit 137). Checking whether the node is under memory pressure before blaming the limit.' },
             logsTool,
@@ -51,7 +51,7 @@ export function CompletedAssessment() {
         turn={{
           status: 'done', error: null,
           timeline: [
-            { kind: 'thinking', text: 'Starting with Radar’s diagnosis of payments/checkout-api.' },
+            { kind: 'thinking', text: 'Starting with KubeAtlas’s diagnosis of payments/checkout-api.' },
             diagnoseTool, logsTool, { ...nodeTool, status: 'done', ms: 210, isError: false, result: '{"kind":"Node"}' },
           ],
           diagnosis: { rootCause: 'checkout-api is OOMKilled at its 256Mi limit', summary: 'checkout-api is being OOMKilled during cache warm-up.', certainty: 'established', report: '', remediation: [] },

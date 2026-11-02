@@ -13,11 +13,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/app"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/internal/timeline"
-	versionpkg "github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/app"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/internal/timeline"
+	versionpkg "github.com/maomada/radar/internal/version"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -63,9 +63,9 @@ func NewDesktopApp(srv *server.Server, timelineStoreCfg timeline.StoreConfig) *D
 // same cluster (e.g. "packagear-prod-eks", not the full EKS ARN).
 func formatWindowTitle(contextName string) string {
 	if contextName == "" {
-		return "Radar"
+		return "KubeAtlas"
 	}
-	return "Radar — " + clusterShortName(contextName)
+	return "KubeAtlas — " + clusterShortName(contextName)
 }
 
 func (a *DesktopApp) updateWindowTitle(contextName string) {

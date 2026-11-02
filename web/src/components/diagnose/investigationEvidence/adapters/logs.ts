@@ -1,4 +1,4 @@
-import { displayKind } from "@skyhook-io/k8s-ui";
+import { displayKind } from "@maomada/k8s-ui";
 import {
   ProjectionBuilder,
   addLogs,
@@ -136,7 +136,7 @@ export function adaptWorkloadLogs(
     return;
   }
   const logsRaw = value.logs;
-  const noStreams = `Radar found ${value.pods} pod${value.pods === 1 ? "" : "s"} but got no logs from ${value.pods === 1 ? "it" : "them"}, so the logs were not checked.`;
+  const noStreams = `KubeAtlas found ${value.pods} pod${value.pods === 1 ? "" : "s"} but got no logs from ${value.pods === 1 ? "it" : "them"}, so the logs were not checked.`;
   if (!Array.isArray(logsRaw)) {
     if (logsRaw === undefined || logsRaw === null) {
       builder.limit(source, "Workload logs", noStreams, "unknown");

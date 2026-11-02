@@ -176,9 +176,9 @@ describe("helm release adapter", () => {
             revision: 8,
           },
           valuesError:
-            'Radar Cloud role "viewer" cannot view Helm release values (requires member or higher)',
+            'upstream Cloud role "viewer" cannot view Helm release values (requires member or higher)',
           diffError:
-            'Radar Cloud role "viewer" cannot view Helm release diffs (requires member or higher)',
+            'upstream Cloud role "viewer" cannot view Helm release diffs (requires member or higher)',
           valuesDiffError: "values diff failed",
           notesDiffError: "notes diff failed",
           resourceDiffError: "resource diff failed",

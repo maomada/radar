@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
-import { AlertBanner, Badge, Collapse, CollapseChevron, useDisclosure } from '@skyhook-io/k8s-ui'
+import { AlertBanner, Badge, Collapse, CollapseChevron, useDisclosure } from '@maomada/k8s-ui'
 import { useAuthMe, useNamespaceAccess } from '../api/client'
 
 // Every read is filtered to the user's namespaces, so someone bound to none
 // sees empty lists in every view and reads it as an empty cluster. Stated in
 // terms of the user's own access, not how the cluster is meant to be set up:
-// Radar can't know whether an org intends hub roles or IdP groups here.
+// KubeAtlas can't know whether an org intends hub roles or IdP groups here.
 export function NoClusterAccessBanner() {
   const { data: auth } = useAuthMe()
   // Mounted once content is ready (and again after a context switch), so the
@@ -33,14 +33,14 @@ export function NoClusterAccessBanner() {
         title="你无权读取此集群中的任何命名空间"
         message={
           <>
-            Radar is connected, but your Kubernetes permissions don't allow reading any namespace, so
+            KubeAtlas is connected, but your Kubernetes permissions don't allow reading any namespace, so
             every view looks empty. Signed in as <span className="font-mono">{me.username}</span>.
           </>
         }
       >
         {groups.length > 0 && (
           // ph-no-capture: group IDs name the customer's directory structure.
-          // Radar Cloud embeds this view with session replay on, and its text
+          // upstream Cloud embeds this view with session replay on, and its text
           // mask only catches credential-shaped values. A no-op without PostHog.
           <div className="ph-no-capture mt-2">
             <button

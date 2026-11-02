@@ -96,7 +96,7 @@ describe("canRerunInvestigation", () => {
 });
 
 describe("investigation history navigation", () => {
-  it("keeps hosted recovery language out of standalone Radar", () => {
+  it("keeps hosted recovery language out of standalone KubeAtlas", () => {
     expect(unavailableInvestigationMessage(false)).toBe(
       "This investigation is unavailable. It may have been removed, or its saved history may have been cleared.",
     );

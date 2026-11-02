@@ -1,4 +1,4 @@
-import { CNPG_BARMAN_PLUGIN_NAME, cnpgBackupDeclaration, cnpgBarmanPlugin, getCNPGClusterBarmanPlugin, getCNPGPostgresMajor, cnpgBackupMatchesCluster, cnpgArchiveMatchesCluster, getCNPGBackupPlugin, objectStoreForBackup, getCNPGObjectStoreRecoveryWindows, isApiGroup, type HealthLevel, type CNPGWorkspaceResponse, coverageReadable, formatGrant } from '@skyhook-io/k8s-ui'
+import { CNPG_BARMAN_PLUGIN_NAME, cnpgBackupDeclaration, cnpgBarmanPlugin, getCNPGClusterBarmanPlugin, getCNPGPostgresMajor, cnpgBackupMatchesCluster, cnpgArchiveMatchesCluster, getCNPGBackupPlugin, objectStoreForBackup, getCNPGObjectStoreRecoveryWindows, isApiGroup, type HealthLevel, type CNPGWorkspaceResponse, coverageReadable, formatGrant } from '@maomada/k8s-ui'
 import type { CNPGRuntimeResponse } from '../../../api/cnpg'
 import type { ActionCapability } from '../../../api/actions'
 import type { CNPGRecoveryResponse, CNPGRecoveryPod } from '../../../api/cnpg-recovery'
@@ -209,7 +209,7 @@ export interface EvidencePoint {
 }
 
 /**
- * What Radar can show about how far back and how far forward a restore can
+ * What KubeAtlas can show about how far back and how far forward a restore can
  * reach. Each point names where it came from; a missing point is unknown,
  * never "none".
  */
@@ -327,9 +327,9 @@ export function pitrWarnings(targetIso: string, e: RecoveryEvidence, now = Date.
   }
   const latest = latestEvidence(e)
   if (latest && t > Date.parse(latest.at) && t <= now) {
-    out.push(`The target is after the newest evidence Radar has (${formatUTC(latest.at)}, from ${latest.source}). If WAL up to the target was not archived, PostgreSQL stops recovery with an error.`)
+    out.push(`The target is after the newest evidence KubeAtlas has (${formatUTC(latest.at)}, from ${latest.source}). If WAL up to the target was not archived, PostgreSQL stops recovery with an error.`)
   }
-  if (!latest && !e.firstPoint) out.push('Radar has no evidence of what this source holds, so the target cannot be checked.')
+  if (!latest && !e.firstPoint) out.push('KubeAtlas has no evidence of what this source holds, so the target cannot be checked.')
   return out
 }
 
@@ -627,7 +627,7 @@ export type RestoreNextStepId = 'connect' | 'validate' | 'backup'
 export interface RestoreNextStep {
   id: RestoreNextStepId
   label: string
-  /** Set only where Radar can tell; `unknown` otherwise (whether applications moved is never known). */
+  /** Set only where KubeAtlas can tell; `unknown` otherwise (whether applications moved is never known). */
   state: 'done' | 'partial' | 'todo' | 'unknown'
   note?: string
 }
@@ -655,7 +655,7 @@ const BACKUP_STEP: Record<RestoreBackupDeclared | 'unread', Pick<RestoreNextStep
 
 /**
  * The checklist a restored cluster shows once it is healthy. Links only;
- * Radar writes nothing. Validation reads the recorded note; backups read the
+ * KubeAtlas writes nothing. Validation reads the recorded note; backups read the
  * Cluster spec (undefined when not read). Snapshots alone are partial: they
  * give no point-in-time recovery.
  */
@@ -663,7 +663,7 @@ export function restoreNextSteps(input: { validationRecorded: boolean; backup: R
   const label = 'Set up and verify backups and WAL archiving'
   const backup: RestoreNextStep = { id: 'backup', label, ...BACKUP_STEP[input.backup ?? 'unread'] }
   return [
-    { id: 'connect', label: 'Point applications at it', state: 'unknown', note: 'Radar cannot tell which applications use it' },
+    { id: 'connect', label: 'Point applications at it', state: 'unknown', note: 'KubeAtlas cannot tell which applications use it' },
     input.validationRecorded
       ? { id: 'validate', label: 'Record what you checked', state: 'done', note: 'A validation note is recorded' }
       : { id: 'validate', label: 'Record what you checked', state: 'todo' },

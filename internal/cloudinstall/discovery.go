@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 type OwnershipClassification string
@@ -254,36 +254,36 @@ func inspectDeploymentRuntime(deployment *appsv1.Deployment) DeploymentRuntime {
 
 	for _, env := range container.Env {
 		switch env.Name {
-		case "RADAR_CLOUD_MODE":
+		case "KUBEATLAS_CLOUD_MODE":
 			runtime.CloudModeConfigured = true
 			if env.ValueFrom != nil {
 				runtime.CloudModeUnresolved = true
 			} else {
 				runtime.CloudMode, _ = strconv.ParseBool(env.Value)
 			}
-		case "RADAR_CLOUD_URL":
+		case "KUBEATLAS_CLOUD_URL":
 			if !runtime.CloudURLConfigured {
 				runtime.CloudURL = env.Value
 				runtime.CloudURLConfigured = env.Value != "" || env.ValueFrom != nil
 				runtime.CloudURLUnresolved = env.ValueFrom != nil
 			}
-		case "RADAR_CLOUD_CLUSTER_NAME":
+		case "KUBEATLAS_CLOUD_CLUSTER_NAME":
 			if !runtime.ClusterNameConfigured {
 				runtime.ClusterName = env.Value
 				runtime.ClusterNameConfigured = env.Value != "" || env.ValueFrom != nil
 				runtime.ClusterNameUnresolved = env.ValueFrom != nil
 			}
-		case "RADAR_CLOUD_HUB_URL":
+		case "KUBEATLAS_CLOUD_HUB_URL":
 			if !runtime.HubURLConfigured {
 				runtime.HubURL = env.Value
 				runtime.HubURLConfigured = env.Value != "" || env.ValueFrom != nil
 				runtime.HubURLUnresolved = env.ValueFrom != nil
 			}
-		case "RADAR_CLOUD_ENROLLMENT_KEY_FILE":
+		case "KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE":
 			if env.Value != "" || env.ValueFrom != nil {
 				runtime.EnrollmentConfigured = true
 			}
-		case "RADAR_CLOUD_TOKEN":
+		case "KUBEATLAS_CLOUD_TOKEN":
 			runtime.CloudTokenConfigured = env.Value != "" || env.ValueFrom != nil
 			if env.ValueFrom != nil && env.ValueFrom.SecretKeyRef != nil {
 				runtime.CloudTokenSecretName = env.ValueFrom.SecretKeyRef.Name

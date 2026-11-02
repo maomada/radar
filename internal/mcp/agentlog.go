@@ -9,7 +9,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/logsafe"
+	"github.com/maomada/radar/internal/logsafe"
 )
 
 // agentLogFields is the fixed shape of the agent-context log line emitted

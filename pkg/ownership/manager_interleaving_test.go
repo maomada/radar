@@ -3,10 +3,10 @@ package ownership_test
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/ownership"
-	"github.com/skyhook-io/radar/pkg/ownership/ownershiptest"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/ownership"
+	"github.com/maomada/radar/pkg/ownership/ownershiptest"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 // A manager the view read while its kind was loading, then found by the

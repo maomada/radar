@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ClusterName, LocalTerminalTab as SharedLocalTerminalTab, Tooltip, parseContextName, useDock, type LocalTerminalSessionInfo } from '@skyhook-io/k8s-ui'
+import { ClusterName, LocalTerminalTab as SharedLocalTerminalTab, Tooltip, parseContextName, useDock, type LocalTerminalSessionInfo } from '@maomada/k8s-ui'
 import { getWsUrl } from '../../api/config'
 import { useConnection } from '../../context/ConnectionContext'
 import { useOpenLocalTerminal } from './DockContext'
@@ -49,7 +49,7 @@ export function LocalTerminalTab({ tabId, title, intendedContext, isActive, init
       toolbarExtra={
         <div className="flex items-center gap-2 min-w-0">
           {context ? (
-            <Tooltip content={<>Radar supplied a temporary kubeconfig for <strong>{context}</strong>. Shell settings and commands can override it.</>} wrapperClassName="min-w-0">
+            <Tooltip content={<>KubeAtlas supplied a temporary kubeconfig for <strong>{context}</strong>. Shell settings and commands can override it.</>} wrapperClassName="min-w-0">
               <span className="flex items-center gap-1 min-w-0 text-xs text-theme-text-secondary">
                 <span className="shrink-0">Opened for:</span>
                 <ClusterName name={context} noBadge noTooltip />
@@ -66,16 +66,16 @@ export function LocalTerminalTab({ tabId, title, intendedContext, isActive, init
             <span className="text-xs text-warning-text whitespace-nowrap">No context selected</span>
           ) : (
             <Tooltip content={sessionInfo
-              ? 'Radar could not create a temporary kubeconfig. This shell uses the original or inherited kubeconfig.'
+              ? 'KubeAtlas could not create a temporary kubeconfig. This shell uses the original or inherited kubeconfig.'
               : 'The server has not reported this terminal’s kubeconfig.'}>
               <span className="text-xs text-warning-text">Context not confirmed</span>
             </Tooltip>
           )}
           {mismatched && (
-            <Tooltip content={<>Radar is showing <strong>{connection.context}</strong>. {contextNotice} Switch back to reconnect, or open a new terminal.</>} wrapperClassName="shrink-0">
+            <Tooltip content={<>KubeAtlas is showing <strong>{connection.context}</strong>. {contextNotice} Switch back to reconnect, or open a new terminal.</>} wrapperClassName="shrink-0">
               <span
                 role="status"
-                aria-label={`Radar is showing ${connection.context}. ${contextNotice}`}
+                aria-label={`KubeAtlas is showing ${connection.context}. ${contextNotice}`}
                 className="flex items-center gap-1 text-xs text-warning-text whitespace-nowrap"
               >
                 <AlertTriangle className="w-3 h-3" />

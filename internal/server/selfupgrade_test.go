@@ -9,7 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 // TestSelfUpgradePatchOptions is a tripwire: handleSelfUpgrade must use
@@ -31,7 +31,7 @@ func TestSelfUpgradeRequiresCloudOwner(t *testing.T) {
 
 	for _, tier := range []string{"radar:viewer", "radar:member", "radar:unknown", ""} {
 		t.Run(tier, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/agent/self-upgrade", strings.NewReader(`{"image":"ghcr.io/skyhook-io/radar:1.9.0"}`))
+			req := httptest.NewRequest(http.MethodPost, "/api/agent/self-upgrade", strings.NewReader(`{"image":"ghcr.io/maomada/kubeatlas:1.9.0"}`))
 			req = req.WithContext(auth.ContextWithUser(req.Context(), userWithGroups(tier)))
 			rec := httptest.NewRecorder()
 
@@ -60,8 +60,8 @@ func TestSelfUpgradeImagePreservesConfiguredRepository(t *testing.T) {
 	}{
 		{
 			name:       "official repository",
-			containers: []corev1.Container{{Name: "radar", Image: "ghcr.io/skyhook-io/radar:1.8.0"}},
-			want:       "ghcr.io/skyhook-io/radar:1.9.0",
+			containers: []corev1.Container{{Name: "radar", Image: "ghcr.io/maomada/kubeatlas:1.8.0"}},
+			want:       "ghcr.io/maomada/kubeatlas:1.9.0",
 		},
 		{
 			name:       "private registry with port",
@@ -92,7 +92,7 @@ func TestSelfUpgradeImagePreservesConfiguredRepository(t *testing.T) {
 func TestSelfUpgradeCloudOwnerPassesRoleGate(t *testing.T) {
 	t.Setenv("MY_POD_NAMESPACE", "")
 	t.Setenv("MY_DEPLOYMENT_NAME", "")
-	req := httptest.NewRequest(http.MethodPost, "/api/agent/self-upgrade", strings.NewReader(`{"image":"ghcr.io/skyhook-io/radar:1.9.0"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/agent/self-upgrade", strings.NewReader(`{"image":"ghcr.io/maomada/kubeatlas:1.9.0"}`))
 	req = req.WithContext(auth.ContextWithUser(req.Context(), userWithGroups("radar:owner")))
 	rec := httptest.NewRecorder()
 
@@ -161,13 +161,13 @@ spec:
       serviceAccountName: radar
       containers:
         - name: radar
-          image: "ghcr.io/skyhook-io/radar:1.6.1"
+          image: "ghcr.io/maomada/kubeatlas:1.6.1"
           imagePullPolicy: IfNotPresent
         - name: sidecar
           image: "example.com/sidecar:v1"
 `
 
-	patch, err := buildSelfUpgradeApplyPatch(manifest, "radar", "radar", "radar", "ghcr.io/skyhook-io/radar:1.6.2")
+	patch, err := buildSelfUpgradeApplyPatch(manifest, "radar", "radar", "radar", "ghcr.io/maomada/kubeatlas:1.6.2")
 	if err != nil {
 		t.Fatalf("buildSelfUpgradeApplyPatch() error = %v", err)
 	}
@@ -200,7 +200,7 @@ spec:
 	if err != nil || !ok {
 		t.Fatalf("containers lookup ok=%v err=%v", ok, err)
 	}
-	if got := containers[0].(map[string]any)["image"]; got != "ghcr.io/skyhook-io/radar:1.6.2" {
+	if got := containers[0].(map[string]any)["image"]; got != "ghcr.io/maomada/kubeatlas:1.6.2" {
 		t.Errorf("radar image = %q, want upgraded image", got)
 	}
 	if got := containers[0].(map[string]any)["imagePullPolicy"]; got != "IfNotPresent" {
@@ -212,7 +212,7 @@ spec:
 }
 
 func TestBuildSelfUpgradeApplyPatchRejectsMissingDeployment(t *testing.T) {
-	_, err := buildSelfUpgradeApplyPatch("apiVersion: v1\nkind: Service\nmetadata:\n  name: radar\n", "radar", "radar", "radar", "ghcr.io/skyhook-io/radar:1.6.2")
+	_, err := buildSelfUpgradeApplyPatch("apiVersion: v1\nkind: Service\nmetadata:\n  name: radar\n", "radar", "radar", "radar", "ghcr.io/maomada/kubeatlas:1.6.2")
 	if err == nil {
 		t.Fatal("buildSelfUpgradeApplyPatch() error = nil, want missing deployment error")
 	}

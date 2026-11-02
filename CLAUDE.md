@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Radar is a modern Kubernetes visibility tool — local-first, no account required, no cloud dependency, fast. It provides topology visualization, event timeline, service traffic maps, resource browsing, Helm management, cluster audit (best-practices scanning), and Kubernetes upgrade impact analysis. Runs as a kubectl plugin (`kubectl-radar`) or standalone binary and opens a web UI in the browser. Open source, free forever. Built by Skyhook.
+Radar is a modern Kubernetes visibility tool — local-first, no account required, no cloud dependency, fast. It provides topology visualization, event timeline, service traffic maps, resource browsing, Helm management, cluster audit (best-practices scanning), and Kubernetes upgrade impact analysis. Runs as a kubectl plugin (`kubectl-kubeatlas`) or standalone binary and opens a web UI in the browser. Open source, free forever. Built by Skyhook.
 
 ## Code comments
 
@@ -28,7 +28,7 @@ Not everything is in this file. The following files contain critical details tha
 | Adding a **new CRD integration** (renderer, topology, discovery) | [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) — full checklist with collision gotchas |
 | Building a **workspace integration** (several related CRDs with their own screens, like `/cnpg` or `/capacity`) | [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md#3-workspace-integrations) — the shared server, UI and action pieces to import, and what is not shared yet; [DESIGN.md](DESIGN.md#unknown-partial-and-denied-values) — how unknown, partial and denied values read |
 | Working on the **CloudNativePG workspace** (`/cnpg`) | [docs/cnpg.md](docs/cnpg.md) — destinations, navigation (drawer trail, return label, `ctx` guard) and the certainty table: which source each fact comes from and what it reads when unknown. Data from `/api/cnpg/workspace` (per-kind coverage); derivations in `packages/k8s-ui/src/components/cnpg/workspace.ts` + `relations.ts`; screens in `web/src/components/cnpg/` |
-| Working on **local per-cluster integration settings** (Metrics, Argo CD, Cost in `~/.radar/clusters.json`) | [docs/configuration.md](docs/configuration.md#local-integration-connections) — store `internal/config/profiles.go`, resolve/update `internal/connections`, activation `internal/connectionruntime`, routes `GET/PUT /api/integrations/connections`. In local mode the older `PUT /api/integrations/{prometheus,argocd,cost}` return 409 |
+| Working on **local per-cluster integration settings** (Metrics, Argo CD, Cost in `~/.kubeatlas/clusters.json`) | [docs/configuration.md](docs/configuration.md#local-integration-connections) — store `internal/config/profiles.go`, resolve/update `internal/connections`, activation `internal/connectionruntime`, routes `GET/PUT /api/integrations/connections`. In local mode the older `PUT /api/integrations/{prometheus,argocd,cost}` return 409 |
 | Working on **GitOps** (Argo CD / Flux detail pages, operations, Terminating lifecycle, drift, per-resource health, remote destinations) | [docs/gitops.md](docs/gitops.md) — detail-page tabs, operation semantics, the Terminating severity ramp, nested navigation, single-cluster scope. Engine in `pkg/gitops/`, handlers `internal/server/gitops_handlers.go` |
 | Working on an **integration's reverse-lookup or actions** (Velero, CloudNativePG, Kyverno, Argo Rollouts, …) | That integration's section in [docs/integrations.md](docs/integrations.md) + the doc comments in `internal/server/<name>_handlers.go` — both carry the per-integration gating and scope rules this file only summarizes |
 | Working on **RBAC visibility** (Permissions / blast radius, SA/Role/Binding reverse lookups) | `pkg/rbac/index.go` (index, implicit groups, `MaxFlatRules`), `internal/server/rbac_handlers.go`, and the header of `packages/k8s-ui/src/utils/rbac-blast-radius.ts` — the rule that resource-only wildcards must NOT trigger is load-bearing |
@@ -38,7 +38,7 @@ Not everything is in this file. The following files contain critical details tha
 | Working on the **timeline / workload history** | `pkg/timeline/store.go` (`ResourceScope`: owner UID, `OwnerlessRefs`) + the `handleWorkloadHistory` doc comment in `internal/server/workload_history.go` |
 | Working on **network trace / reachability** | [docs/reachability.md](docs/reachability.md) + `internal/server/trace_handlers.go` |
 | Working on **authentication, auth-enabled mode, impersonation or per-user authorization** | [docs/authentication.md](docs/authentication.md) — auth modes, how per-user RBAC is enforced, ServiceAccount RBAC, session cookies. For Radar Cloud's default permission tiers and the integration-read policy, [docs/cloud-rbac-baseline.md](docs/cloud-rbac-baseline.md) |
-| Changing the **Helm chart** or **in-cluster deployment** (chart values, chart RBAC, ingress) | [deploy/helm/radar/README.md](deploy/helm/radar/README.md) — the canonical chart source (the `skyhook-io/helm-charts` copy is overwritten on release, never edit it there); [docs/in-cluster.md](docs/in-cluster.md) for deployment paths |
+| Changing the **Helm chart** or **in-cluster deployment** (chart values, chart RBAC, ingress) | [deploy/helm/kubeatlas/README.md](deploy/helm/kubeatlas/README.md) — the canonical chart source (the `skyhook-io/helm-charts` copy is overwritten on release, never edit it there); [docs/in-cluster.md](docs/in-cluster.md) for deployment paths |
 | Working on the **Helm releases view** (release list, revisions, rollback, operation insight) | [docs/helm.md](docs/helm.md) |
 | Working on the **Metrics tab** (workload HTTP rate/errors/latency, CPU/memory/throttling) | [docs/workload-metrics.md](docs/workload-metrics.md) — metric sources, attribution, per-run-mode overrides; test with `make workload-metrics-demo` |
 | Working on **application grouping** ("these workloads are one app", cross-cluster app identity) | [docs/app-grouping.md](docs/app-grouping.md) — the model, then the code files it names |
@@ -52,17 +52,17 @@ Not everything is in this file. The following files contain critical details tha
 | Working on the **investigation verdict, story or Findings pane** | [docs/mcp.md](docs/mcp.md) ("The story contract") — the verdict JSON, `[[radar:evidence=N]]` placement grammar, run-scoped citation, and the assessment-turn rule. The contract (prompts, verdict, parser, binder) lives in `pkg/investigation`, **shared with Radar Hub**; OSS orchestration and ref eligibility stay in `internal/ai/runs.go`; frontend in `web/src/components/diagnose/` (`investigationStory.ts`, `AnalysisStory.tsx`, `investigationState.ts`) |
 | Writing or modifying **frontend UI / styling** | [DESIGN.md](DESIGN.md) — theme tokens, do's/don'ts, component patterns |
 | Syncing k8s-ui to **Claude Design** (`/design-sync`) | [.design-sync/NOTES.md](.design-sync/NOTES.md) + [.design-sync/conventions.md](.design-sync/conventions.md) (the usage guide shipped to Design) — build pipeline (`build-pkg.mjs`), config, re-sync command, known warns and size budget. `.design-sync/previews/*.tsx` are the authored preview cards; update them when a previewed component's props change |
-| Touching anything library consumers import | `web/package.json` + `web/src/index.ts` (and the consumer-facing `web/README.md` / `packages/k8s-ui/README.md` — e.g. the k8s-ui YAML editors must stay CDN-free for air-gapped installs) — `web/` IS the `@skyhook-io/radar-app` npm package. Public surface: `RadarApp`, runtime-config setters (`setApiBase` etc.), `NavCustomization`. Breaking it breaks all downstream consumers. |
+| Touching anything library consumers import | `web/package.json` + `web/src/index.ts` (and the consumer-facing `web/README.md` / `packages/k8s-ui/README.md` — e.g. the k8s-ui YAML editors must stay CDN-free for air-gapped installs) — `web/` IS the `@maomada/kubeatlas-app` npm package. Public surface: `RadarApp`, runtime-config setters (`setApiBase` etc.), `NavCustomization`. Breaking it breaks all downstream consumers. |
 | Adding or changing **api/fetch call sites** | `web/src/api/config.ts` — all fetches go through `getApiBase()`, `apiUrl()`, `getWsUrl()`, `getAuthHeaders()`, `getCredentialsMode()`. New fetch sites must use these helpers so library consumers (Radar Hub) can override per-cluster. |
 | Embedding Radar inside another app | `web/src/RadarApp.tsx` + `web/src/context/NavCustomization.tsx` — `apiBase`, `basename`, `router`, `navSlots` props. Check Radar Hub call sites when changing this interface. |
 
 ## Library distribution
 
-Radar's frontend is also published as **`@skyhook-io/radar-app`** (source-only npm package, same model as `@skyhook-io/k8s-ui`). `web/` IS the package — `web/src/index.ts` is the library entry, and Radar's own binary entry (`web/src/main.tsx`) consumes the same source. Consumers get `<RadarApp apiBase basename router navSlots queryClient />`, the runtime-config setters (`setApiBase`, `setBasename`, `setAuthHeadersProvider`, `setCredentialsMode`) for non-React code paths, and the `NavCustomization` type. Published via tag `radar-app-v<semver>` (`.github/workflows/publish-radar-app.yml`) — only with explicit authorization, per the rule above.
+Radar's frontend is also published as **`@maomada/kubeatlas-app`** (source-only npm package, same model as `@maomada/k8s-ui`). `web/` IS the package — `web/src/index.ts` is the library entry, and Radar's own binary entry (`web/src/main.tsx`) consumes the same source. Consumers get `<RadarApp apiBase basename router navSlots queryClient />`, the runtime-config setters (`setApiBase`, `setBasename`, `setAuthHeadersProvider`, `setCredentialsMode`) for non-React code paths, and the `NavCustomization` type. Published via tag `radar-app-v<semver>` (`.github/workflows/publish-radar-app.yml`) — only with explicit authorization, per the rule above.
 
 Known consumers: Radar Hub (`skyhook-dev/radar-hub-web`).
 
-`pkg/` is a separate Go module (`github.com/skyhook-io/radar/pkg`) that Radar Hub imports (`issuesapi`, `investigation`, `k8score`, `checks`, `auth`, …): keep it free of `internal/` imports and coordinate exported-API changes with Hub, same as the npm packages.
+`pkg/` is a separate Go module (`github.com/maomada/radar/pkg`) that Radar Hub imports (`issuesapi`, `investigation`, `k8score`, `checks`, `auth`, …): keep it free of `internal/` imports and coordinate exported-API changes with Hub, same as the npm packages.
 
 **Consumer scope:** Radar OSS and Radar Hub are the supported consumers. Coordinate interface changes with Hub; do not preserve unused modes or add migration machinery for hypothetical consumers. `navSlots.embedded` hides all Radar chrome; Hub owns its sidebar and top bar.
 
@@ -94,7 +94,7 @@ web/src → (npm run build) → web/dist → (make embed) → internal/static/di
 ```bash
 ./scripts/visual-test-start.sh          # Build + launch on random port (9300-9399)
 ./scripts/visual-test-start.sh --skip-build  # Relaunch without rebuilding
-source .playwright-mcp/visual-test-state.env # Load $RADAR_URL, $SCREENSHOT_DIR, etc.
+source .playwright-mcp/visual-test-state.env # Load $KUBEATLAS_URL, $SCREENSHOT_DIR, etc.
 ./scripts/visual-test-stop.sh           # Kill process, open screenshot folder
 ```
 Use `/visual-test` command for the full workflow (cluster check, Playwright MCP, screenshots, report). Screenshots go under `.playwright-mcp/visual-test/`.
@@ -219,7 +219,7 @@ Namespace filters accept both `?namespace=X` (single) and `?namespaces=X,Y` (pre
 
 ### Version skew (newer UI, older Radar)
 
-Radar Hub embeds the newest `@skyhook-io/radar-app` against whatever Radar each cluster runs, so a frontend call to a new endpoint can hit a Radar that predates it. When adding an endpoint the UI calls: advertise a flag for it in `FeatureCapabilities` (`internal/k8s/capabilities.go`) in the same PR, add an entry with that flag and `flagShippedWithEndpoint: true` to `web/src/api/radarFeatures.ts`, and guard the hook with `useRadarFeature`. An older Radar then gets a "needs a newer Radar" note instead of a red error. `TestFeatureFlagsHaveFrontendGates` fails if the flag and the entry drift apart.
+Radar Hub embeds the newest `@maomada/kubeatlas-app` against whatever Radar each cluster runs, so a frontend call to a new endpoint can hit a Radar that predates it. When adding an endpoint the UI calls: advertise a flag for it in `FeatureCapabilities` (`internal/k8s/capabilities.go`) in the same PR, add an entry with that flag and `flagShippedWithEndpoint: true` to `web/src/api/radarFeatures.ts`, and guard the hook with `useRadarFeature`. An older Radar then gets a "needs a newer Radar" note instead of a red error. `TestFeatureFlagsHaveFrontendGates` fails if the flag and the entry drift apart.
 
 ### Review checklist: the four ways Radar runs
 
@@ -233,9 +233,9 @@ Every review of server or UI behavior considers all four:
 
 React Query mutations carry `meta: { errorMessage, successMessage }` — the global toast handler reads those. Server errors arrive as `{"error": "..."}` and surface unchanged. Don't add per-mutation `onError` toasts that would duplicate the meta-driven path.
 
-### Shared UI Package (@skyhook-io/k8s-ui)
+### Shared UI Package (@maomada/k8s-ui)
 
-`packages/k8s-ui/` is the shared presentation layer — components are pure, data hooks live in `web/` and inject via props/callbacks. `web/src/components/resources/ResourcesView.tsx` is the canonical wrapper pattern. Linked via npm workspaces; Vite source-aliases `@skyhook-io/k8s-ui` → `../packages/k8s-ui/src` (no build step). Key exports: `ResourcesView`, `ResourceRendererDispatch`, `ResourceActionsBar`, `EditableYamlView`, renderers, resource-utils, `categorizeResources`, `getKindLabel`, `getKindPlural`.
+`packages/k8s-ui/` is the shared presentation layer — components are pure, data hooks live in `web/` and inject via props/callbacks. `web/src/components/resources/ResourcesView.tsx` is the canonical wrapper pattern. Linked via npm workspaces; Vite source-aliases `@maomada/k8s-ui` → `../packages/k8s-ui/src` (no build step). Key exports: `ResourcesView`, `ResourceRendererDispatch`, `ResourceActionsBar`, `EditableYamlView`, renderers, resource-utils, `categorizeResources`, `getKindLabel`, `getKindPlural`.
 
 **Badges + status tones.** `components/ui/Badge.tsx` owns the canonical color strings as literal class names (Tailwind's scanner can't see template literals); `utils/badge-colors.ts` re-exports and derives the per-domain maps. One health vocabulary everywhere — `HealthLevel` = `healthy | degraded | alert | unhealthy | neutral | unknown`, shared by `resource-utils.ts`, the `.status-*` CSS classes and `components/ui/status-tone.tsx` (`StatusDot`, `mapHealthToTone`); normalize raw API strings via `mapHealthToTone`, never add a parallel vocabulary. `alert` (orange) sits between `degraded` (amber) and `unhealthy` (red) for 3-step severity gradients.
 

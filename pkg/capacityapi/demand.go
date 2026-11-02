@@ -3,8 +3,8 @@ package capacityapi
 import (
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 type DemandState string

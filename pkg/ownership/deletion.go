@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // DeletionAnswer projects garbage collection after the subject is removed.

@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/gitops"
-	"github.com/skyhook-io/radar/pkg/gitops/diagnose"
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	"github.com/maomada/radar/pkg/gitops"
+	"github.com/maomada/radar/pkg/gitops/diagnose"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 type Insight struct {

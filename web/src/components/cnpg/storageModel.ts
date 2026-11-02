@@ -1,5 +1,5 @@
 import { formatBytes } from './lsn'
-import { cnpgDiskTone, type HealthLevel } from '@skyhook-io/k8s-ui'
+import { cnpgDiskTone, type HealthLevel } from '@maomada/k8s-ui'
 import type { CNPGStorageTarget, CNPGStorageVolume, CNPGStorageWAL } from '../../api/cnpg-storage'
 
 function setPath(obj: Record<string, any>, path: string[], value: unknown) {

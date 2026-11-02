@@ -49,17 +49,17 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/internal/contextname"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/contextname"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 // CloudConnectConfig is the Cloud-connect wiring resolved at startup.
 type CloudConnectConfig struct {
-	HubAPIURL             string // Hub API origin (default https://api.radarhq.io)
-	HubAppURL             string // Hub frontend origin for wizard links (default https://app.radarhq.io)
+	HubAPIURL             string // Hub API origin (default https://api.example.test)
+	HubAppURL             string // Hub frontend origin for wizard links (default https://app.example.test)
 	Kubeconfig            string // explicit kubeconfig override, for recovery command rendering
 	CloudTunnelConfigured bool   // --cloud-url was set on this process
 }
@@ -1261,6 +1261,9 @@ func (s *Server) writeCloudInstallJSON(w http.ResponseWriter, status int, data a
 // started with --cloud-url alone is not pitched a connection it already has.
 // (Embedded mode additionally hides the funnel client-side as chrome policy.)
 func (s *Server) cloudConnectCapability() *k8s.CloudConnectCapability {
+	if s.cloudConnectCfg.HubAPIURL == "" || s.cloudConnectCfg.HubAppURL == "" {
+		return nil
+	}
 	if cloudMode() || s.cloudConnectCfg.CloudTunnelConfigured {
 		return nil
 	}
@@ -1276,6 +1279,10 @@ func (s *Server) cloudConnectCapability() *k8s.CloudConnectCapability {
 		AppURL: s.cloudConnectCfg.HubAppURL,
 		APIURL: s.cloudConnectCfg.HubAPIURL,
 	}
+}
+
+func (s *Server) handleCloudUnavailable(w http.ResponseWriter, r *http.Request) {
+	s.writeError(w, http.StatusGone, "upstream Cloud integration is not available in KubeAtlas")
 }
 
 // redactCloudToken removes a cluster token that an upstream error may have

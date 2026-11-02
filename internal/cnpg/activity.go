@@ -9,8 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	pkgtimeline "github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/resourceid"
+	pkgtimeline "github.com/maomada/radar/pkg/timeline"
 )
 
 // The scan bounds attribution across retained rows, before the requested window.

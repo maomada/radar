@@ -75,14 +75,14 @@ describe('cnpgViewNamedForKind', () => {
 
 describe('cnpgClusterKindListMode', () => {
   const cnpg = { name: 'clusters', group: 'postgresql.cnpg.io' }
-  it('shows the Clusters view for the CloudNativePG Cluster kind when this Radar serves it', () => {
+  it('shows the Clusters view for the CloudNativePG Cluster kind when this KubeAtlas serves it', () => {
     expect(cnpgClusterKindListMode(cnpg, 'supported', false)).toBe('view')
   })
   it('waits, rather than flashing the table, only while capabilities first load', () => {
     expect(cnpgClusterKindListMode(cnpg, 'unknown', true)).toBe('wait')
     expect(cnpgClusterKindListMode(cnpg, 'unknown', false)).toBe('table')
   })
-  it('keeps the table on a Radar without the views, and for every other kind', () => {
+  it('keeps the table on a KubeAtlas without the views, and for every other kind', () => {
     expect(cnpgClusterKindListMode(cnpg, 'unsupported', false)).toBe('table')
     expect(cnpgClusterKindListMode({ name: 'clusters', group: 'cluster.x-k8s.io' }, 'supported', false)).toBe('table')
     expect(cnpgClusterKindListMode({ name: 'backups', group: 'postgresql.cnpg.io' }, 'supported', false)).toBe('table')

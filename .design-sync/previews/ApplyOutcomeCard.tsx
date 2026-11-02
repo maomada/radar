@@ -1,4 +1,4 @@
-import { ApplyOutcomeCard } from '@skyhook-io/k8s-ui'
+import { ApplyOutcomeCard } from '@maomada/k8s-ui'
 
 const wrap = { width: 480, padding: 8 }
 const noop = () => {}

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/ai"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/ai"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestPutConfigRejectsContradictoryMCPWithoutChangingFile(t *testing.T) {

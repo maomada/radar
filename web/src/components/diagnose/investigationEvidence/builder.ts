@@ -164,8 +164,8 @@ export function projectInvestigationEvidence(
       order += 1;
       if (item.kind !== "tool") continue;
       // Full-local agents may load user MCP servers whose bare tool names collide
-      // with Radar's. Only results matched by the server to the active private
-      // transport ledger may enter the surface labelled "Radar evidence".
+      // with KubeAtlas's. Only results matched by the server to the active private
+      // transport ledger may enter the surface labelled "KubeAtlas evidence".
       if (item.radarEvidence !== true) continue;
       const source: InvestigationEvidenceSource = {
         id: investigationEvidenceSourceId(turnIndex, item.id),
@@ -212,7 +212,7 @@ export function projectInvestigationEvidence(
         builder.limit(
           source,
           investigationResultLabel(source),
-          "Only part of this investigation result was saved, so Radar could not summarize it here.",
+          "Only part of this investigation result was saved, so KubeAtlas could not summarize it here.",
           "truncated",
         );
         continue;
@@ -221,7 +221,7 @@ export function projectInvestigationEvidence(
         builder.limit(
           source,
           investigationResultLabel(source),
-          "This investigation step did not return details Radar could summarize.",
+          "This investigation step did not return details KubeAtlas could summarize.",
           "unknown",
         );
         continue;
@@ -240,7 +240,7 @@ export function projectInvestigationEvidence(
         builder.limit(
           source,
           investigationResultLabel(source),
-          "Radar cannot confirm whether this investigation step completed successfully. Available evidence is shown, but an empty result cannot confirm that nothing was found.",
+          "KubeAtlas cannot confirm whether this investigation step completed successfully. Available evidence is shown, but an empty result cannot confirm that nothing was found.",
           "unknown",
         );
       }

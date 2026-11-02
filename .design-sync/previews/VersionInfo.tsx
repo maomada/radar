@@ -1,5 +1,5 @@
-import { VersionInfo } from '@skyhook-io/k8s-ui'
-import type { AppRow, AppWorkload } from '@skyhook-io/k8s-ui'
+import { VersionInfo } from '@maomada/k8s-ui'
+import type { AppRow, AppWorkload } from '@maomada/k8s-ui'
 
 const list = { display: 'flex', flexDirection: 'column', gap: 2, width: 340 } as const
 const rowCell = {

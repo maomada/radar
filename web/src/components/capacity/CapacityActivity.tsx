@@ -10,8 +10,8 @@ import {
   type CapacityActivityResponse,
   type CapacityResourceIdentity,
   FilterPill,
-} from "@skyhook-io/k8s-ui";
-import { Badge } from "@skyhook-io/k8s-ui/components/ui/Badge";
+} from "@maomada/k8s-ui";
+import { Badge } from "@maomada/k8s-ui/components/ui/Badge";
 import {
   isCapacityCursorInvalidError,
   useCapacityActivity,

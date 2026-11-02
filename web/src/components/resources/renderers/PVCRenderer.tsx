@@ -1,4 +1,4 @@
-import { PVCRenderer as BasePVCRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/PVCRenderer'
+import { PVCRenderer as BasePVCRenderer } from '@maomada/k8s-ui/components/resources/renderers/PVCRenderer'
 import { PVCUsageBar } from '../../resource/PVCUsageBar'
 
 interface PVCRendererProps {

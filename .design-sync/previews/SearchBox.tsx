@@ -1,4 +1,4 @@
-import { SearchBox } from '@skyhook-io/k8s-ui'
+import { SearchBox } from '@maomada/k8s-ui'
 
 const stack = { display: 'flex', flexDirection: 'column', gap: 14, width: 340 } as const
 const noop = () => {}

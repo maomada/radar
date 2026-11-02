@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
-	"github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/timeline"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

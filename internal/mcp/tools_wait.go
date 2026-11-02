@@ -18,8 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 var (

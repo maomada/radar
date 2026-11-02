@@ -6,7 +6,7 @@ import type {
   CNPGCatalogUsersResponse,
   VeleroStoredBackupsResponse,
   VeleroRunMessagesResponse,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 import { hasPolicyReports, useAPIResources } from './apiResources'
 import { isRadarFeatureUnsupported } from './radarFeatures'
@@ -41,8 +41,8 @@ export function usePolicyResource(kind: string, namespace: string, name: string,
     // would just repeat the denial on every drawer open.
     retry: false,
   })
-  // A Radar too old for policy results, on a cluster with no policy engine,
-  // gets the answer a current Radar would give: not installed. Prompting an
+  // A KubeAtlas too old for policy results, on a cluster with no policy engine,
+  // gets the answer a current KubeAtlas would give: not installed. Prompting an
   // upgrade there would promise a section that stays empty. Derived at render
   // so it follows discovery whenever /api-resources answers; until it does the
   // section stays loading rather than flashing a note it may withdraw.

@@ -19,10 +19,10 @@ import (
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/netpol"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/netpol"
 )
 
 func netpolTestPod(name string, lbls map[string]string, ready bool) *corev1.Pod {

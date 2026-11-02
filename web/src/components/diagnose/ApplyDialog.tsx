@@ -7,14 +7,14 @@ import {
   Sparkles,
   RefreshCw,
 } from "lucide-react";
-import { DialogPortal } from "@skyhook-io/k8s-ui/components/ui/DialogPortal";
-import { GitOpsWriteWarning, type GitOpsOwnerRef } from "@skyhook-io/k8s-ui";
+import { DialogPortal } from "@maomada/k8s-ui/components/ui/DialogPortal";
+import { GitOpsWriteWarning, type GitOpsOwnerRef } from "@maomada/k8s-ui";
 import {
   canConfirmGitOpsWrite,
   gitOpsWriteGuardKey,
   type GitOpsWriteGuard,
-} from "@skyhook-io/k8s-ui/utils/gitops-write-guard";
-import { CrossplaneApplyNotice } from "@skyhook-io/k8s-ui/components/ui/CrossplaneOperationNotice";
+} from "@maomada/k8s-ui/utils/gitops-write-guard";
+import { CrossplaneApplyNotice } from "@maomada/k8s-ui/components/ui/CrossplaneOperationNotice";
 import { parseContextName } from "../../utils/context-name";
 import type { Diagnosis, ApplyMutationOutcome } from "../../api/diagnose";
 import { AIMarkdown, CopyButton } from "./AIMarkdown";
@@ -62,7 +62,7 @@ export function ApplyDialog({
   // a direct change — it's the canonical footgun (the controller reverts it). Gating
   // (not just warning) makes the user opt into "yes, I know this may be undone."
   // Apply also waits until ownership has been checked.
-  // TODO(SKY-1075): once Radar can connect the user's SCM (GitHub/GitLab/…), replace
+  // TODO(SKY-1075): once KubeAtlas can connect the user's SCM (GitHub/GitLab/…), replace
   //   direct apply on managed resources with "open a PR against the Git source"
   //   instead — the durable fix. See Linear SKY-1075.
   // The guard key the acknowledgment was given for: a different verdict (the
@@ -141,7 +141,7 @@ export function ApplyDialog({
                   <span className="font-medium">
                     The agent said this applies only if:
                   </span>{" "}
-                  {precondition}. Radar has not checked that condition.
+                  {precondition}. KubeAtlas has not checked that condition.
                 </span>
               </p>
             ) : null}
@@ -198,7 +198,7 @@ export function ApplyDialog({
   );
 }
 
-// The result of an apply turn. Mutation truth comes from Radar write-tool
+// The result of an apply turn. Mutation truth comes from KubeAtlas write-tool
 // results, not the agent's prose or process exit. Missing outcome metadata is
 // therefore fail-closed as unknown; only explicit confirmation renders green.
 export function ApplyOutcomeCard({
@@ -225,10 +225,10 @@ export function ApplyOutcomeCard({
       : "Outcome unknown";
   const detail = error || outcome;
   const fallbackDetail = confirmed
-    ? "Radar confirmed that the change was applied. Check the current state to confirm its effect."
+    ? "KubeAtlas confirmed that the change was applied. Check the current state to confirm its effect."
     : failed
-      ? "Radar could not confirm that the change was applied. Review Activity before retrying."
-      : "Radar could not confirm whether the change was applied. Check the current state before retrying.";
+      ? "KubeAtlas could not confirm that the change was applied. Review Activity before retrying."
+      : "KubeAtlas could not confirm whether the change was applied. Check the current state before retrying.";
   const containerClass = confirmed
     ? "border-emerald-500/30 bg-emerald-500/5"
     : failed
@@ -244,11 +244,11 @@ export function ApplyOutcomeCard({
     : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10";
   const provenance = confirmed
     ? error
-      ? "Radar confirmed the change — the agent report is incomplete"
-      : "Radar confirmed the change was applied"
+      ? "KubeAtlas confirmed the change — the agent report is incomplete"
+      : "KubeAtlas confirmed the change was applied"
     : failed
-      ? "Radar did not confirm that the change was applied"
-      : "Radar cannot confirm whether the change was applied";
+      ? "KubeAtlas did not confirm that the change was applied"
+      : "KubeAtlas cannot confirm whether the change was applied";
   return (
     <div className={`mt-3 space-y-2 ${animate ? "animate-result-in" : ""}`}>
       <div className={`rounded-lg border p-3 ${containerClass}`}>

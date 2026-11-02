@@ -29,7 +29,7 @@
 // compose.go) — the issue stream is "what's broken now", not an audit.
 package issues
 
-import "github.com/skyhook-io/radar/pkg/issuesapi"
+import "github.com/maomada/radar/pkg/issuesapi"
 
 // Severity is the normalized issue severity. The public Issues contract is
 // critical|warning only:

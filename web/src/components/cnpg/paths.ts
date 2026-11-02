@@ -1,4 +1,4 @@
-import type { CNPGDimension } from '@skyhook-io/k8s-ui'
+import type { CNPGDimension } from '@maomada/k8s-ui'
 import { cnpgDetailPath } from './routes'
 
 export function cnpgClusterFullPath(namespace: string, name: string, ctx?: string, tab?: string): string {

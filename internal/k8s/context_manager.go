@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/errorlog"
 )
 
 // ContextSwitchTimeout is now defined in deadlines.go as a package variable

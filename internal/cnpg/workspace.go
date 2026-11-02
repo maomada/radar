@@ -13,14 +13,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	listersbatchv1 "k8s.io/client-go/listers/batch/v1"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/cnpg"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/topology"
+	integration "github.com/maomada/radar/internal/integration"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	bp "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/cnpg"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/topology"
 )
 
 const barmanGroup = "barmancloud.cnpg.io"

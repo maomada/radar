@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 func TestComputeApplicationCostTrendFromProm_BatchesByNamespaceAndReportsPartialCoverage(t *testing.T) {

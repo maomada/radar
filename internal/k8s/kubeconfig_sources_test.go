@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/errorlog"
 	"k8s.io/client-go/tools/clientcmd"
 )
 

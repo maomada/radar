@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/pkg/auth"
 )
 
 func TestGitopsIssuesMemo_ComposesOncePerKeyWithinTTL(t *testing.T) {

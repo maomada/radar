@@ -8,17 +8,17 @@ import {
   hpaStateLabel,
   hpaStateLevel,
   stripAnsi,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import {
   type DiagnosisChangeContext,
   type DiagnosisEvidenceLimitationBase,
   type DiagnosisPodLogEntry,
   diagnosisSeverityTone,
 } from "../diagnoseEvidenceTypes";
-import { getCrossplaneConditionTone } from "@skyhook-io/k8s-ui/components/resources/resource-utils-crossplane";
+import { getCrossplaneConditionTone } from "@maomada/k8s-ui/components/resources/resource-utils-crossplane";
 import { investigationResourceEvidenceSummary } from "../investigationResourceEvidenceModel";
 import { kindToPluralWithGroup } from "../../../utils/navigation";
-import { pluralToKind } from "@skyhook-io/k8s-ui";
+import { pluralToKind } from "@maomada/k8s-ui";
 import { stableHash } from "./identity";
 import { nonEmptyString, parseJSON, record, stringArray } from "./parse";
 import {
@@ -538,7 +538,7 @@ function addResourceContextLimitations(
     builder.limit(
       source,
       omitted.field,
-      `Radar left out part of the resource context (${omitted.reason.replaceAll("_", " ")}).`,
+      `KubeAtlas left out part of the resource context (${omitted.reason.replaceAll("_", " ")}).`,
       omitted.reason === "budget_exceeded" ? "truncated" : "unknown",
     );
   }
@@ -547,7 +547,7 @@ function addResourceContextLimitations(
     builder.limit(
       source,
       "Relationships",
-      `Radar returned ${shown} of ${context.referencedBy.total} referenced-by relationships.`,
+      `KubeAtlas returned ${shown} of ${context.referencedBy.total} referenced-by relationships.`,
       "truncated",
     );
   }
@@ -555,7 +555,7 @@ function addResourceContextLimitations(
     builder.limit(
       source,
       "Application references",
-      "Radar returned part of the stale Secret references.",
+      "KubeAtlas returned part of the stale Secret references.",
       "truncated",
     );
   }
@@ -568,8 +568,8 @@ function addIssueLimitations(
   if (value.members_truncated) {
     builder.limit(
       source,
-      `Radar Issue ${value.id}`,
-      "Radar returned part of the affected-resource list.",
+      `KubeAtlas Issue ${value.id}`,
+      "KubeAtlas returned part of the affected-resource list.",
       "truncated",
     );
   }
@@ -631,7 +631,7 @@ function workloadReadinessFromResource(
   return undefined;
 }
 // A scaler that cannot act (no metrics, cannot read the target) or is pinned
-// at its ceiling is a captured Radar fact about the workload, so it lifts the
+// at its ceiling is a captured KubeAtlas fact about the workload, so it lifts the
 // card the way an adverse condition does. Ordinary scale-ups and scale-downs
 // are the autoscaler working and stay as detail.
 function adverseScalerStates(
@@ -1010,7 +1010,7 @@ export function invalidPayload(
   builder.limit(
     source,
     section,
-    "Radar couldn't summarize this investigation step. Review it in Activity.",
+    "KubeAtlas couldn't summarize this investigation step. Review it in Activity.",
     "unknown",
   );
 }

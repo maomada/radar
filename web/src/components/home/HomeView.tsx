@@ -26,8 +26,8 @@ import {
   issueTimingForDisplay,
   subjectRef,
   type Issue,
-} from '@skyhook-io/k8s-ui'
-import { formatCompactAge } from '@skyhook-io/k8s-ui/utils/format'
+} from '@maomada/k8s-ui'
+import { formatCompactAge } from '@maomada/k8s-ui/utils/format'
 import { ClusterHealthCard } from './ClusterHealthCard'
 import { AlertTriangle, CheckCircle, Loader2, Shield } from 'lucide-react'
 import { uncheckedSourceLines } from '../issues/uncheckedSources'
@@ -45,8 +45,8 @@ interface HomeViewProps {
   fallbackClusterLoadState?: ClusterLoadState
   /**
    * Optional override for the Certificate Health card's click. When an embedded
-   * host (Radar Cloud) takes Certs over with its own fleet page, it passes this
-   * to route there instead of Radar's TLS-secrets resource list. Omitted in
+   * host (upstream Cloud) takes Certs over with its own fleet page, it passes this
+   * to route there instead of KubeAtlas's TLS-secrets resource list. Omitted in
    * standalone OSS → the card drills into secrets as before.
    */
   onNavigateToCerts?: () => void
@@ -304,7 +304,7 @@ interface ProblemsPanelProps {
   issues: Issue[]
   issueCount: number
   visibility?: IssuesResponse['visibility']
-  /** One line per issue source Radar couldn't check. Any line means an
+  /** One line per issue source KubeAtlas couldn't check. Any line means an
    *  empty list isn't an all-clear. */
   uncheckedLines?: string[]
   onRetryIssues: () => void
@@ -419,7 +419,7 @@ export function ProblemsPanel({
                 title={hasLimitedVisibility ? '没有可见的活跃问题' : unchecked ? '未找到问题' : '没有活跃问题'}
                 body={
                   hasLimitedVisibility
-                    ? 'Radar could not read every workload source in this scope.'
+                    ? 'KubeAtlas could not read every workload source in this scope.'
                     : unchecked
                       ? uncheckedLines.join(' ')
                       : '所选范围内没有严重或警告问题。'

@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/helm"
+	"github.com/maomada/radar/internal/helm"
 )
 
 // InstallPlanMode is the classified way a cluster can be connected to Cloud.

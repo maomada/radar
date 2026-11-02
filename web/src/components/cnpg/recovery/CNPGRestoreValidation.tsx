@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { ActionConfirmDialog, Badge, cnpgRecoveryMatchesCluster, formatAge, isApiGroup } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, Badge, cnpgRecoveryMatchesCluster, formatAge, isApiGroup } from '@maomada/k8s-ui'
 import { useCNPGClusterCapabilities, useCNPGWorkspace } from '../../../api/cnpg'
 import { useRecordCNPGRestoreValidation, type CNPGRecoveryResponse } from '../../../api/cnpg-recovery'
 import { actionDialogResult } from '../../../api/actions'
@@ -10,9 +10,9 @@ import { CNPGRestoreChecks } from './CNPGRestoreChecks'
 import { RESTORE_VALIDATION_ANNOTATION, cnpgRestoredPrimaryUp, formatLocal, formatUTC, targetIsoFrom } from './restoreModel'
 
 const CHECKLIST = [
-  'Confirm the databases and roles Radar lists are the ones you expect',
+  'Confirm the databases and roles KubeAtlas lists are the ones you expect',
   'Compare row counts of the tables you care about with the source',
-  'Check where recovery stopped, as Radar reads it, against the point you needed',
+  'Check where recovery stopped, as KubeAtlas reads it, against the point you needed',
   'Run the application’s own smoke query or health check against it',
 ]
 
@@ -32,7 +32,7 @@ function useSourceCluster(namespace: string, name: string, snapshot: CNPGRecover
 /**
  * Protection → Restore validation on a Cluster bootstrapped from backups. The
  * record is a person's note of what they checked, stored on this Cluster as
- * an annotation; Radar never turns it into a pass.
+ * an annotation; KubeAtlas never turns it into a pass.
  */
 export function CNPGRestoreValidation({ namespace, name }: { namespace: string; name: string }) {
   const { observation, snapshot } = useRestoreObservation(namespace, name)
@@ -71,7 +71,7 @@ export function CNPGRestoreValidation({ namespace, name }: { namespace: string; 
           <dl className="grid grid-cols-[9rem_minmax(0,1fr)] gap-x-4 gap-y-1.5">
             <dt className="text-theme-text-tertiary">Recorded</dt>
             <dd className="text-theme-text-primary">
-              by {note.recordedBy || 'a user Radar could not identify (authentication is off)'} · {formatUTC(note.recordedAt)} ({formatAge(note.recordedAt)} ago)
+              by {note.recordedBy || 'a user KubeAtlas could not identify (authentication is off)'} · {formatUTC(note.recordedAt)} ({formatAge(note.recordedAt)} ago)
             </dd>
             <dt className="text-theme-text-tertiary">What was checked</dt>
             <dd className="whitespace-pre-wrap break-words text-theme-text-primary">{note.checked}</dd>
@@ -103,7 +103,7 @@ export function CNPGRestoreValidation({ namespace, name }: { namespace: string; 
           </p>
         )}
         <p className="mt-2 text-[11px] text-theme-text-tertiary">
-          Stored on this Cluster as the {RESTORE_VALIDATION_ANNOTATION} annotation. It is a note, not a test Radar ran, so it never shows as passed.
+          Stored on this Cluster as the {RESTORE_VALIDATION_ANNOTATION} annotation. It is a note, not a test KubeAtlas ran, so it never shows as passed.
         </p>
       </div>
       {open && (

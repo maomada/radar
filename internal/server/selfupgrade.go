@@ -17,11 +17,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/imageutil"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/logsafe"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/imageutil"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/logsafe"
 )
 
 var radarImageTagPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$`)
@@ -89,9 +89,9 @@ func (s *Server) handleSelfUpgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const allowedRepo = "ghcr.io/skyhook-io/radar:"
+	const allowedRepo = "ghcr.io/maomada/kubeatlas:"
 	if !strings.HasPrefix(req.Image, allowedRepo) {
-		s.writeError(w, http.StatusBadRequest, "image must be from ghcr.io/skyhook-io/radar")
+		s.writeError(w, http.StatusBadRequest, "image must be from ghcr.io/maomada/kubeatlas")
 		return
 	}
 	tag := strings.TrimPrefix(req.Image, allowedRepo)

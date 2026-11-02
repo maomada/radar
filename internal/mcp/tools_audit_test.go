@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	bp "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/checks"
+	bp "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/checks"
 )
 
 func TestCollectAuditToolFindingsUsesCanonicalSeverity(t *testing.T) {

@@ -1,7 +1,7 @@
-import { englishPlural } from "@skyhook-io/k8s-ui/utils/pluralize";
+import { englishPlural } from "@maomada/k8s-ui/utils/pluralize";
 import type { IssuesResponse, UncheckedSource } from "../../api/client";
 
-// The line each issue source gets wherever Radar's issues would otherwise read
+// The line each issue source gets wherever KubeAtlas's issues would otherwise read
 // as complete, when nothing more specific can be said about the gap.
 const SOURCE_LINES: Record<string, string> = {
   helm: "Helm releases couldn't be checked, so failed or stuck releases may be missing.",
@@ -10,7 +10,7 @@ const SOURCE_LINES: Record<string, string> = {
   karpenter: "Karpenter resources couldn't be checked, so NodePool and NodeClaim issues may be missing.",
 };
 
-// For a source this version doesn't know, sent by a newer Radar.
+// For a source this version doesn't know, sent by a newer KubeAtlas.
 export const UNKNOWN_SOURCE_LINE = "Some issue checks couldn't run, so issues may be missing.";
 
 const NAMED_LIMIT = 3;
@@ -31,7 +31,7 @@ function helmLine({ reason, namespaces }: UncheckedSource): string {
     : "";
   const missing = where ? "failed or stuck releases there may be missing" : "failed or stuck releases may be missing";
   if (reason === "collector_access_denied") {
-    return `Helm releases ${where}couldn't be checked because Radar's service account isn't allowed to impersonate users, so ${missing}.`;
+    return `Helm releases ${where}couldn't be checked because KubeAtlas's service account isn't allowed to impersonate users, so ${missing}.`;
   }
   return `Helm releases ${where}couldn't be checked, so ${missing}.`;
 }

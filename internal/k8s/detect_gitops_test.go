@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
-	"github.com/skyhook-io/radar/pkg/gitops/diagnose"
-	gitopsinsights "github.com/skyhook-io/radar/pkg/gitops/insights"
+	"github.com/maomada/radar/pkg/gitops/diagnose"
+	gitopsinsights "github.com/maomada/radar/pkg/gitops/insights"
 )
 
 func argoApp(name, ns, health, sync, phase string, automated bool, conds []any) *unstructured.Unstructured {

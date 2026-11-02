@@ -124,7 +124,7 @@ export function resolveInvestigationCase(
     const source = matches[0];
     const subject = validCaseSubject(entry.subject);
     // A subject the agent supplied but got wrong is not the same as one it
-    // deliberately omitted. Omission asks Radar to place the note anywhere the
+    // deliberately omitted. Omission asks KubeAtlas to place the note anywhere the
     // cited call produced; a malformed subject asked for something specific
     // that does not resolve, so the note stays beside its source rather than
     // landing on whichever observation happens to be the only one.
@@ -329,7 +329,7 @@ export { sameKind };
 
 /**
  * Whether a listing row is the entry a citation names. A package row carries
- * a kind of Radar's own, so the agent names it by the kind it knows the
+ * a kind of KubeAtlas's own, so the agent names it by the kind it knows the
  * package as (the Flux HelmRelease, the chart); every other row is named by
  * its kind.
  */
@@ -346,7 +346,7 @@ export function listingRowNamesSubject(
 
 // The vocabulary the agent places with names evidence kinds a reader would
 // distinguish (logs, events, changes, metrics, alerts, issue); everything a
-// call returns about a resource is "resource" to it, whether Radar draws that
+// call returns about a resource is "resource" to it, whether KubeAtlas draws that
 // as a resource card, a listing, a ranking, a posture card, a Helm release, a
 // permissions check or a neighborhood. The kinds a diagnose bundle yields
 // beside its resource (startup, crash, dns, network, receipts) stay out so

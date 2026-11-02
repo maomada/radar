@@ -42,12 +42,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/loadtest"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/internal/static"
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/loadtest"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/internal/static"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 func main() {
@@ -62,7 +62,7 @@ func main() {
 	flag.Parse()
 
 	// Isolate config/settings writes to a temp directory so e2e tests
-	// don't touch the developer's real ~/.radar/config.json.
+	// don't touch the developer's real ~/.kubeatlas/config.json.
 	tmpHome, err := os.MkdirTemp("", "radar-testserver-*")
 	if err != nil {
 		log.Fatalf("Failed to create temp HOME: %v", err)

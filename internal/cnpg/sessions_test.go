@@ -20,8 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	integration "github.com/skyhook-io/radar/internal/integration"
+	"github.com/maomada/radar/internal/auth"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 type cnpgExecCall struct {

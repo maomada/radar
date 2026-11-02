@@ -10,10 +10,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/pkg/capacityapi"
-	"github.com/skyhook-io/radar/pkg/karpenter"
-	"github.com/skyhook-io/radar/pkg/subject"
-	"github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/karpenter"
+	"github.com/maomada/radar/pkg/subject"
+	"github.com/maomada/radar/pkg/timeline"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

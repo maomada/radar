@@ -125,7 +125,7 @@ describe('Omnibar note', () => {
   it('keeps the empty state and note steady while the same query re-fetches', () => {
     render({ text: 'Still loading — results may change.' }, { isFetching: true })
     typeQuery('lease')
-    expect(document.body.textContent).toContain('Radar 已搜索范围内没有匹配项。')
+    expect(document.body.textContent).toContain('KubeAtlas 已搜索范围内没有匹配项。')
     expect(document.body.textContent).toContain('Still loading — results may change.')
   })
 
@@ -135,7 +135,7 @@ describe('Omnibar note', () => {
     expect(document.body.textContent).toContain('没有资源匹配“lease”。')
     render({ text: "Leases can't be searched." })
     typeQuery('lease')
-    expect(document.body.textContent).toContain('Radar 已搜索范围内没有匹配项。')
+    expect(document.body.textContent).toContain('KubeAtlas 已搜索范围内没有匹配项。')
     expect(document.body.textContent).not.toContain('没有资源匹配')
   })
 })

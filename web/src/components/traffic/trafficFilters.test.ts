@@ -614,7 +614,7 @@ describe('selectedEdgeMatcher', () => {
   // A server that doesn't orient responses sends one server to
   // client on the client's ephemeral port; dropping it would leave requests looking
   // unanswered.
-  it('keeps a reversed response from a Radar that does not orient responses', () => {
+  it('keeps a reversed response from a KubeAtlas that does not orient responses', () => {
     const on = selectedEdgeMatcher(pairs, false, asDrawn)
     const response = { ...record('api', 'web', 41234), l7Protocol: 'HTTP', l7Type: 'RESPONSE' }
     expect(on(response)).toBe(true)
@@ -631,7 +631,7 @@ describe('selectedEdgeMatcher', () => {
 
   // Known and unavoidable: the response carries the client's port, so with
   // two edges web→api on different ports it belongs to either.
-  it('matches an old Radar\'s response to each of the caller\'s edges', () => {
+  it('matches an old KubeAtlas\'s response to each of the caller\'s edges', () => {
     const on = selectedEdgeMatcher([{ source: ep('shop', 'web'), destination: ep('shop', 'api'), port: 9090 }], false, asDrawn)
     expect(on({ ...record('api', 'web', 41234), l7Protocol: 'HTTP', l7Type: 'RESPONSE' })).toBe(true)
   })

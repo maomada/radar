@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 )
 
 // fromObject builds a candidate from a typed K8s object. Returns ok=false

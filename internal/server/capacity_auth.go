@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/readscope"
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/readscope"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 func (s *Server) capacityNamespacesForUser(r *http.Request) []string {

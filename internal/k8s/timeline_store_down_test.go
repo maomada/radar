@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/internal/timeline"
+	"github.com/maomada/radar/internal/timeline"
 )
 
 // With no store installed, changes that would have been recorded must move the
@@ -73,9 +73,9 @@ func TestTimelineStoreDownCountsLostChangesOnly(t *testing.T) {
 // start, loses Kubernetes Events the same way it loses resource changes, and
 // the drop counter has to say so.
 func TestTimelineStoreFailureCountsLostKubernetesEvents(t *testing.T) {
-	dsn := os.Getenv("RADAR_TEST_POSTGRES_DSN")
+	dsn := os.Getenv("KUBEATLAS_TEST_POSTGRES_DSN")
 	if dsn == "" {
-		t.Skip("RADAR_TEST_POSTGRES_DSN not set")
+		t.Skip("KUBEATLAS_TEST_POSTGRES_DSN not set")
 	}
 	timeline.ResetStore()
 	t.Cleanup(timeline.ResetStore)

@@ -10,13 +10,13 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/skyhook-io/radar/internal/cloud"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/cloud"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 func userTokenMode(t *testing.T) {
 	t.Helper()
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	pkgauth.SetCredentialMode(pkgauth.CredentialsUserToken)
 	t.Cleanup(func() { pkgauth.SetCredentialMode(pkgauth.CredentialsImpersonate) })
 }
@@ -161,7 +161,7 @@ func TestUserToken_ReservedForwardedGroupRejected(t *testing.T) {
 }
 
 func TestUserToken_OffByDefaultKeepsCloudVocabularyRule(t *testing.T) {
-	t.Setenv("RADAR_CLOUD_MODE", "true")
+	t.Setenv("KUBEATLAS_CLOUD_MODE", "true")
 	rec, got := serveUserToken(t, nil, "oidc:alice@example.com", "k8s-admins,radar:viewer", "good-token")
 	if rec.Code != http.StatusForbidden || got != nil {
 		t.Fatalf("status = %d, want impersonate mode to keep rejecting non-radar groups", rec.Code)

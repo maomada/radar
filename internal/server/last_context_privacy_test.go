@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/pkg/auth"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/pkg/auth"
 )
 
 // The remembered cluster shares settings.json with the user's preferences, so

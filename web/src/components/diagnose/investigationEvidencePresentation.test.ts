@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { HPADiagnosisState } from "@skyhook-io/k8s-ui";
+import type { HPADiagnosisState } from "@maomada/k8s-ui";
 import {
   evidenceDisplaySnapshot,
   groupEvidenceCoverage,
@@ -389,7 +389,7 @@ describe("coverage presentation", () => {
     "does not disguise unsummarizable %s as ordinary sampling",
     (label) => {
       const message =
-        "Radar couldn't summarize this investigation step. Review it in Activity.";
+        "KubeAtlas couldn't summarize this investigation step. Review it in Activity.";
       for (const notes of [
         [limitation(label, message, "unknown")],
         [

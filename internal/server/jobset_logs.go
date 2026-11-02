@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/internal/podlogs"
+	"github.com/maomada/radar/internal/podlogs"
 )
 
 func (s *Server) handleJobSetLogs(w http.ResponseWriter, r *http.Request) {

@@ -684,7 +684,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     ).toEqual([false, false, true]);
   });
 
-  it("promotes cited evidence ahead of other Radar observations without exposing tool-result wrappers", () => {
+  it("promotes cited evidence ahead of other KubeAtlas observations without exposing tool-result wrappers", () => {
     const ref = evidenceRef("a", "b");
     const projection = project(
       tool(
@@ -740,7 +740,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     expect(html).not.toContain("validated against this run");
     expect(html).not.toContain("Agent-selected check");
     expect(html).not.toContain("from this check below");
-    expect(html).not.toContain("Additional Radar observations");
+    expect(html).not.toContain("Additional KubeAtlas observations");
     expect(html.indexOf("CrashLoopBackOff")).toBeLessThan(
       html.indexOf("Kubernetes events"),
     );
@@ -839,7 +839,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     expect(html).not.toContain("View source");
     expect(html).toContain(">Evidence</h2>");
     expect(html).not.toContain("Evidence from cited results");
-    expect(html).not.toContain("Additional Radar observations");
+    expect(html).not.toContain("Additional KubeAtlas observations");
     expect(html).toContain("No relevant evidence to show yet");
   });
 
@@ -886,7 +886,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     expect(html).toContain(">Evidence</h2>");
     expect(html).toContain("Kubernetes events");
     expect(html).not.toContain("Evidence from cited results");
-    expect(html).not.toContain("Additional Radar observations");
+    expect(html).not.toContain("Additional KubeAtlas observations");
     expect(html).not.toContain("No relevant evidence to show yet");
   });
 
@@ -985,7 +985,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     });
 
     expect(missing).toContain(
-      "Assessment does not cite specific Radar evidence",
+      "Assessment does not cite specific KubeAtlas evidence",
     );
     expect(invalid).toContain("Assessment references could not be matched");
     expect(invalid).toContain(
@@ -993,7 +993,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     );
   });
 
-  it("offers a quiet Radar link only for a host-wired, unambiguous subject", () => {
+  it("offers a quiet KubeAtlas link only for a host-wired, unambiguous subject", () => {
     const projection = project(
       tool("issues-nav", "issues", {
         issues: [criticalIssue],
@@ -1003,10 +1003,10 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
     );
 
     expect(render(projection)).not.toContain(
-      "Open current Deployment shop/api in Radar",
+      "Open current Deployment shop/api in KubeAtlas",
     );
     expect(render(projection, false, undefined, undefined, () => {})).toContain(
-      "Open current Deployment shop/api in Radar",
+      "Open current Deployment shop/api in KubeAtlas",
     );
   });
 
@@ -1447,7 +1447,7 @@ describe("InvestigationEvidencePane hierarchy and provenance", () => {
       const html = render(projection, false, undefined, { status, links: [] });
       const notice =
         status === "missing"
-          ? "Assessment does not cite specific Radar evidence"
+          ? "Assessment does not cite specific KubeAtlas evidence"
           : "Assessment references could not be matched";
       expect(html.indexOf(notice)).toBeGreaterThan(-1);
       expect(html.indexOf(notice)).toBeLessThan(
@@ -1799,7 +1799,7 @@ describe("InvestigationEvidencePane honest result states", () => {
     const html = render(projection);
     expect(html).toContain("More evidence about this resource");
     expect(html).toContain("No warning events");
-    expect(html).not.toContain("What Radar did not find");
+    expect(html).not.toContain("What KubeAtlas did not find");
     expect(html).not.toContain(`${receipt!.id}-body`);
   });
 
@@ -2049,7 +2049,7 @@ describe("InvestigationEvidencePane honest result states", () => {
     expect(html).not.toContain("1 investigation result needs review");
     expect(html).toContain("Evidence coverage update: Issue scan:");
     expect(html).toContain(
-      "Only part of this investigation result was saved, so Radar could not summarize it here.",
+      "Only part of this investigation result was saved, so KubeAtlas could not summarize it here.",
     );
     expect(html).toContain('aria-label="View result for Issue scan"');
     expect(source.primaryGroupId).toBeUndefined();
@@ -2312,7 +2312,7 @@ describe("Track A evidence bodies and deep links", () => {
     expect(html).toContain("MongoServerError: Authentication failed.");
     expect(html).toContain("Log tail · filter matched nothing");
     expect(html).toContain(
-      "Open current Pod shop/api-68c7b766dc-fmphn in Radar",
+      "Open current Pod shop/api-68c7b766dc-fmphn in KubeAtlas",
     );
     expect(
       html.match(
@@ -2473,7 +2473,7 @@ describe("Track A evidence bodies and deep links", () => {
     expect(html).toContain("Deployment shop/api has 0/1 ready replicas");
     expect(html).toContain("0/1 ready");
     expect(html).toContain("1/1 succeeded");
-    expect(html).toContain("Open current HelmRelease shop/shop in Radar");
+    expect(html).toContain("Open current HelmRelease shop/shop in KubeAtlas");
   });
 
   it("renders an access check verdict and a subject's bindings", () => {
@@ -2576,7 +2576,7 @@ describe("Track A evidence bodies and deep links", () => {
     expect(html).toContain("3 rules");
     expect(html).toContain("1 effective rules");
     expect(html).toContain("shop/api-68c7b766dc-fmphn");
-    expect(html).toContain("Open current Service Account shop/api-sa in Radar");
+    expect(html).toContain("Open current Service Account shop/api-sa in KubeAtlas");
     expect(html).toContain("not what the workload has exercised");
   });
 
@@ -2634,7 +2634,7 @@ describe("Track A evidence bodies and deep links", () => {
     );
     const html = render(projection, false, undefined, undefined, () => {});
     expect(html).toContain("Relationships around Deployment api");
-    expect(html).toContain("Open current Deployment shop/api in Radar");
+    expect(html).toContain("Open current Deployment shop/api in KubeAtlas");
   });
 
   it("leads collapsed event cards with the event, keeping counts secondary", () => {
@@ -3243,7 +3243,7 @@ describe("InvestigationEvidencePane metrics cards", () => {
     expect(html).toContain(
       "1 change recorded in this window is marked on the chart.",
     );
-    expect(html).toContain("Open current Deployment shop/api in Radar");
+    expect(html).toContain("Open current Deployment shop/api in KubeAtlas");
   });
 });
 
@@ -3291,7 +3291,7 @@ describe("InvestigationEvidencePane diagnose vitals", () => {
       ),
     );
     expect(withChanges).toContain(
-      "None of the changes Radar read fall in this window.",
+      "None of the changes KubeAtlas read fall in this window.",
     );
 
     // The same chart with no change lookup in the turn must stay silent: an
@@ -3327,7 +3327,7 @@ describe("InvestigationEvidencePane diagnose vitals", () => {
       ),
     );
     expect(withoutChanges).not.toContain(
-      "None of the changes Radar read fall in this window.",
+      "None of the changes KubeAtlas read fall in this window.",
     );
   });
 
@@ -3379,7 +3379,7 @@ describe("InvestigationEvidencePane diagnose vitals", () => {
       partition.workload
         .filter((group) => group.kind === "receipt")
         .map((group) => group.latest.title),
-    ).toEqual(["Radar's diagnosis found no live issues", "No warning events"]);
+    ).toEqual(["KubeAtlas's diagnosis found no live issues", "No warning events"]);
     const onOpenResource = vi.fn();
     const html = render(
       projection,
@@ -3397,7 +3397,7 @@ describe("InvestigationEvidencePane diagnose vitals", () => {
     expect(html).toContain(
       "1 change recorded in this window is marked on the chart.",
     );
-    expect(html).toContain("Open current Deployment shop/api in Radar");
+    expect(html).toContain("Open current Deployment shop/api in KubeAtlas");
   });
 
   it("never marks the target's changes on a neighbour's chart", () => {
@@ -3634,7 +3634,7 @@ describe("InvestigationEvidencePane scaled-by section", () => {
     expect(unlisted).not.toMatch(/<button[^>]*>api<\/button>/);
   });
 
-  it("stays quiet for scalers Radar did not diagnose", () => {
+  it("stays quiet for scalers KubeAtlas did not diagnose", () => {
     const html = render(
       project(
         scaledDeployment([

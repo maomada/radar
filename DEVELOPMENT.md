@@ -55,7 +55,7 @@ radar/
 │   └── desktop/            # Desktop app entry point (Wails v2)
 ├── internal/
 │   ├── app/               # Application lifecycle management
-│   ├── config/            # Persistent configuration (~/.radar/config.json)
+│   ├── config/            # Persistent configuration (~/.kubeatlas/config.json)
 │   ├── helm/              # Helm SDK client and handlers
 │   ├── images/            # Container image inspection
 │   ├── k8s/               # Kubernetes client, informers, caching
@@ -63,7 +63,7 @@ radar/
 │   ├── opencost/          # OpenCost integration (cost analysis)
 │   ├── prometheus/        # Prometheus client and discovery
 │   ├── server/            # HTTP server, REST API, SSE, WebSocket
-│   ├── settings/          # User preferences (~/.radar/settings.json)
+│   ├── settings/          # User preferences (~/.kubeatlas/settings.json)
 │   ├── static/            # Embedded frontend (built from web/)
 │   ├── traffic/           # Traffic visualization (Hubble, Caretta, Istio)
 │   └── ...                # errorlog, updater, version
@@ -73,7 +73,7 @@ radar/
 │   ├── timeline/          # Timeline event storage (memory/SQLite)
 │   └── topology/          # Graph construction and relationships
 ├── packages/
-│   └── k8s-ui/            # Shared UI package (@skyhook-io/k8s-ui)
+│   └── k8s-ui/            # Shared UI package (@maomada/k8s-ui)
 ├── web/                    # React frontend
 │   ├── src/
 │   │   ├── api/           # API client, React Query hooks, SSE

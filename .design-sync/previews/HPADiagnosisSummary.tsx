@@ -1,4 +1,4 @@
-import { HPADiagnosisSummary, type HPADiagnosisView } from '@skyhook-io/k8s-ui'
+import { HPADiagnosisSummary, type HPADiagnosisView } from '@maomada/k8s-ui'
 
 const maxed: HPADiagnosisView = {
   state: 'limited_max',

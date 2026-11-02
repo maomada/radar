@@ -1,5 +1,5 @@
-import { type Issue, type IssueRecentChange } from "@skyhook-io/k8s-ui";
-import { type TimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+import { type Issue, type IssueRecentChange } from "@maomada/k8s-ui";
+import { type TimeSeries } from "@maomada/k8s-ui/components/charts";
 import {
   type DiagnosisChangeContext,
   type DiagnosisCrashCause,
@@ -460,7 +460,7 @@ export type InvestigationEvidenceData =
       resources: InvestigationResourceSummary[];
       scope: string;
       /**
-       * Set only when Radar's collector read the kind in just these
+       * Set only when KubeAtlas's collector read the kind in just these
        * namespaces: a name missing from the rows is unknown outside them.
        */
       namespacesRead?: string[];
@@ -470,7 +470,7 @@ export type InvestigationEvidenceData =
        */
       namespacesReadOmitted?: number;
       /**
-       * Radar's own sentence for a partial or narrowed list: what it didn't
+       * KubeAtlas's own sentence for a partial or narrowed list: what it didn't
        * read and why, shown with the rows so they never read as everything.
        */
       coverageNote?: string;

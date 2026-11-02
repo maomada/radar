@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 // swapGlobals temporarily sets the package-level k8sClient / k8sConfig /

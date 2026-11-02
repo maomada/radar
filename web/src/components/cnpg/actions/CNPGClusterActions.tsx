@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, DatabaseBackup, MoreHorizontal, Repeat, X } from 'lucide-react'
 import { clsx } from 'clsx'
-import { ActionConfirmDialog, DialogPortal, FoldSection, Tooltip, cnpgPDBFact, cnpgQuorumFact, toneTextClass, type ActionWrite, type CNPGClusterHA, type CNPGProblem } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, DialogPortal, FoldSection, Tooltip, cnpgPDBFact, cnpgQuorumFact, toneTextClass, type ActionWrite, type CNPGClusterHA, type CNPGProblem } from '@maomada/k8s-ui'
 import { useCNPGAction, useCNPGClusterCapabilities, useCNPGRuntime, type CNPGActionResult, type CNPGBackupMethod, type CNPGClusterActionName, type CNPGClusterCapabilities } from '../../../api/cnpg'
 import { actionDialogResult, type ActionCapability, capabilityReason } from '../../../api/actions'
 import { useToast } from '../../ui/Toast'

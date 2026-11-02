@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/images"
+	"github.com/maomada/radar/internal/images"
 )
 
 // busyboxLS is `ls -la` output from a BusyBox image, where the listing falls

@@ -1,4 +1,4 @@
-import { YamlReview, type YamlPreviewResult } from '@skyhook-io/k8s-ui'
+import { YamlReview, type YamlPreviewResult } from '@maomada/k8s-ui'
 
 const noop = () => {}
 const frame = {

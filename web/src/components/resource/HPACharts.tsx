@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { LineChart, Lock } from 'lucide-react'
-import { AlertBanner } from '@skyhook-io/k8s-ui'
+import { AlertBanner } from '@maomada/k8s-ui'
 import { usePrometheusHPAMetrics, usePrometheusStatus, useAutoPromConnect, isForbiddenError, type PrometheusSeries } from '../../api/client'
 
 /**

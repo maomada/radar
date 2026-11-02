@@ -18,7 +18,7 @@ vi.mock('../../context/ConnectionContext', () => ({
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
-vi.mock('@skyhook-io/k8s-ui', async () => {
+vi.mock('@maomada/k8s-ui', async () => {
   const dock = await import('../../../../packages/k8s-ui/src/components/dock/DockContext')
   const { ClusterName } = await import('../../../../packages/k8s-ui/src/components/ui/ClusterName')
   const { Tooltip } = await import('../../../../packages/k8s-ui/src/components/ui/Tooltip')

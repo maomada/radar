@@ -5,8 +5,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/health"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/health"
 )
 
 // classifyTimelineHealth maps a changed resource to the timeline HealthState

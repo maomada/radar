@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	internalopencost "github.com/maomada/radar/internal/opencost"
 )
 
 // userWithGroups builds an authenticated user carrying the given groups, used
@@ -195,7 +195,7 @@ func TestPutConfigRejectsInvalidOpenCostCurrency(t *testing.T) {
 func putConfigStatus(t *testing.T, user *auth.User) (int, string) {
 	t.Helper()
 	// Redirect config persistence to a temp HOME so pass-through cases that
-	// reach config.Update() don't clobber the developer's real ~/.radar.
+	// reach config.Update() don't clobber the developer's real ~/.kubeatlas.
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir())
 	s := &Server{}

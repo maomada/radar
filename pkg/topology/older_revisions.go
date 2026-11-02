@@ -3,8 +3,8 @@ package topology
 import (
 	appsv1 "k8s.io/api/apps/v1"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 // revisionAnnotations is where each kind that keeps old ReplicaSets for

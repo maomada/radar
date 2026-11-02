@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CNPGClusterHA } from '@skyhook-io/k8s-ui'
+import type { CNPGClusterHA } from '@maomada/k8s-ui'
 import type { CNPGClusterFacts, CNPGRuntimeResponse } from '../../../api/cnpg'
 import { CNPG_OP_FIRST_READ_MS, CNPG_OP_STALL_MS, CNPG_OP_UNOBSERVABLE_MS, advanceCNPGOperation, restartedSince, summarizeSteps, supersedeFor, type CNPGObservation, type CNPGTrackedOperation } from './model'
 
@@ -197,7 +197,7 @@ describe('supersedeFor', () => {
     expect(supersedeFor([op({ id: 'c', cluster: 'other' })], next)[0].state).toBe('requested')
   })
 
-  it('never reaches a record issued against another Radar', () => {
+  it('never reaches a record issued against another KubeAtlas', () => {
     const next = op({ id: 'b', kind: 'hibernate', label: 'Hibernate' })
     expect(supersedeFor([op({ id: 'a', apiBase: '/c/other/api' })], next)[0].state).toBe('requested')
   })
@@ -227,7 +227,7 @@ describe('destroyInstance observer', () => {
   })
 })
 
-describe('operations Radar cannot observe', () => {
+describe('operations KubeAtlas cannot observe', () => {
   it('a reload finishes at once instead of being followed all session', () => {
     const next = advanceCNPGOperation(op({ kind: 'reload', target: undefined }), obs({ now: T0 + 1000 }))
     expect(next.state).toBe('unobservable')
@@ -467,7 +467,7 @@ describe('rolling restart and fencing', () => {
     expect(o.steps?.map((s) => s.label)).toEqual(['pg-2 restarted and ready'])
   })
 
-  it('is superseded by a fence requested in Radar', () => {
+  it('is superseded by a fence requested in KubeAtlas', () => {
     const fence = op({ id: 'f', kind: 'fence', label: 'Fence pg-1', target: undefined, baseline: { instances: ['pg-1'] }, startedAt: T0 + 1_000 })
     expect(supersedeFor([restart([])], fence)[0].state).toBe('superseded')
     expect(supersedeFor([op({ kind: 'restartInstance', label: 'Restart pg-1', target: { name: 'pg-1' } })], fence)[0].state).toBe('superseded')

@@ -1,4 +1,4 @@
-import { HealthStatusBadge } from '@skyhook-io/k8s-ui'
+import { HealthStatusBadge } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const row = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } as const

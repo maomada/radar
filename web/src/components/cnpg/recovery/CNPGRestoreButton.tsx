@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { History } from 'lucide-react'
-import { Tooltip } from '@skyhook-io/k8s-ui'
+import { Tooltip } from '@maomada/k8s-ui'
 import { CNPGRestoreDialog, type CNPGRestoreEntry } from './CNPGRestoreDialog'
 
 /** Restore into a new Cluster, from a Backup, an ObjectStore or a Cluster's backups. */

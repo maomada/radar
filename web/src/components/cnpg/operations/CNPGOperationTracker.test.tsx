@@ -229,7 +229,7 @@ it('does not let runtime cached by another view stand in for the identity while 
   }
 })
 
-it('leaves records issued against another Radar alone', () => {
+it('leaves records issued against another KubeAtlas alone', () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   const startedAt = Date.now() - 1_000
   const other: CNPGTrackedOperation = { id: 'east', kind: 'reload', label: 'Reload', apiBase: '/c/east/api', context: 'kind-db', namespace: 'db', cluster: 'pg', clusterUID: 'uid', startedAt, lastProgressAt: startedAt, state: 'requested', baseline: {} }

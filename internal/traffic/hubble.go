@@ -30,7 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skyhook-io/radar/internal/portforward"
+	"github.com/maomada/radar/internal/portforward"
 )
 
 const (

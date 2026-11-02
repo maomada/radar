@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/version"
 )
 
 // State represents the current state of the update process.

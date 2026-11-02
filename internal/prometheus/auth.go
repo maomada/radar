@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // AuthGate is the per-request resource read check used by handlers that read

@@ -9,4 +9,4 @@ export {
   parseLogLine,
   parseLogRange,
   handleSSEError,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'

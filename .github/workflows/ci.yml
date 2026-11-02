@@ -86,7 +86,7 @@ jobs:
               - 'package-lock.json'
               - '.npmrc'
               - '**/testdata/**'
-              - 'deploy/helm/radar/files/**'
+              - 'deploy/helm/kubeatlas/files/**'
               - 'scripts/gpu-ecosystem-demo/**'
               - 'scripts/workload-metrics-demo/**'
               - 'scripts/check-whats-new.sh'
@@ -158,7 +158,7 @@ jobs:
 
       - name: Evaluate workload PromQL in Prometheus
         env:
-          RADAR_TEST_PROMTOOL_IMAGE: prom/prometheus:v3.5.0
+          KUBEATLAS_TEST_PROMTOOL_IMAGE: prom/prometheus:v3.5.0
         run: go test ./prom -run '^TestWorkload(History)?PromQL$' -count=1
 
       - name: Build
@@ -217,26 +217,26 @@ jobs:
       # against the service above.
       - name: Run tests
         env:
-          RADAR_TEST_POSTGRES_DSN: postgres://radar:radar@localhost:5432/radar?sslmode=disable
+          KUBEATLAS_TEST_POSTGRES_DSN: postgres://radar:radar@localhost:5432/radar?sslmode=disable
           # Turns a missing DSN into a failure instead of a silent skip: without
           # it, losing the service or the env block above would leave the whole
           # PostgreSQL backend untested while this job still reported green.
-          RADAR_REQUIRE_POSTGRES_TESTS: "1"
+          KUBEATLAS_REQUIRE_POSTGRES_TESTS: "1"
         run: |
           pkgs=$(go list ./...)
-          readarray -t pkgs_to_test < <(grep -vx 'github.com/skyhook-io/radar/internal/server' <<<"$pkgs")
+          readarray -t pkgs_to_test < <(grep -vx 'github.com/maomada/radar/internal/server' <<<"$pkgs")
           go test "${pkgs_to_test[@]}"
 
       - name: Evaluate PVC and CNPG PromQL in Prometheus
         env:
-          RADAR_TEST_PROMTOOL_IMAGE: prom/prometheus:v3.5.0
+          KUBEATLAS_TEST_PROMTOOL_IMAGE: prom/prometheus:v3.5.0
         run: go test ./internal/prometheus -run '^(TestPVCScopePromQL|TestCNPGDiskGrowthPromQL)$' -count=1
 
       - name: Build
         run: go build -o explorer ./cmd/explorer
 
       - name: Build standalone portal
-        run: go build -o radar-portal ./cmd/radar-portal
+        run: go build -o kubeatlas-portal ./cmd/kubeatlas-portal
 
   backend-server:
     name: Backend (internal/server)
@@ -393,17 +393,17 @@ jobs:
           version: v4.2.3
 
       - name: Lint
-        run: helm lint deploy/helm/radar
+        run: helm lint deploy/helm/kubeatlas
 
       - name: Lint Portal chart
-        run: helm lint deploy/helm/radar-portal --set image.repository=example.test/radar-portal --set existingSecret=portal-auth
+        run: helm lint deploy/helm/kubeatlas-portal --set image.repository=example.test/kubeatlas-portal --set existingSecret=portal-auth
 
       - name: Render default values
-        run: helm template radar deploy/helm/radar > /dev/null
+        run: helm template radar deploy/helm/kubeatlas > /dev/null
 
       - name: Render cloud.enabled with inline token
         run: |
-          helm template radar deploy/helm/radar \
+          helm template radar deploy/helm/kubeatlas \
             --set cloud.enabled=true \
             --set cloud.url=wss://cloud.example/agent \
             --set cloud.clusterName=test \
@@ -411,7 +411,7 @@ jobs:
 
       - name: Render cloud.enabled with existingSecret
         run: |
-          helm template radar deploy/helm/radar \
+          helm template radar deploy/helm/kubeatlas \
             --set cloud.enabled=true \
             --set cloud.url=wss://cloud.example/agent \
             --set cloud.clusterName=test \
@@ -419,7 +419,7 @@ jobs:
 
       - name: Reject cloud.enabled without token or existingSecret
         run: |
-          if helm template radar deploy/helm/radar \
+          if helm template radar deploy/helm/kubeatlas \
             --set cloud.enabled=true \
             --set cloud.url=wss://cloud.example/agent \
             --set cloud.clusterName=test 2>/dev/null; then
@@ -429,18 +429,18 @@ jobs:
 
       - name: Render Argo CD integration with inline token
         run: |
-          helm template radar deploy/helm/radar \
+          helm template radar deploy/helm/kubeatlas \
             --set argocd.token=argo_deadbeef \
             --set argocd.url=https://argocd.example.com > /dev/null
 
       - name: Render Argo CD integration with existingSecret
         run: |
-          helm template radar deploy/helm/radar \
+          helm template radar deploy/helm/kubeatlas \
             --set argocd.existingSecret=my-argo-token > /dev/null
 
       - name: Reject Argo CD token and existingSecret together
         run: |
-          if helm template radar deploy/helm/radar \
+          if helm template radar deploy/helm/kubeatlas \
             --set argocd.token=argo_deadbeef \
             --set argocd.existingSecret=my-argo-token 2>/dev/null; then
             echo "ERROR: helm template should have failed with both token and existingSecret set"
@@ -449,14 +449,14 @@ jobs:
 
       - name: Render PostgreSQL timeline storage with existingSecret
         run: |
-          helm template radar deploy/helm/radar \
+          helm template radar deploy/helm/kubeatlas \
             --set timeline.storage=postgres \
             --set timeline.postgres.existingSecret=radar-postgres \
             --set timeline.retention=720h > /dev/null
 
       - name: Reject PostgreSQL storage without existingSecret
         run: |
-          if helm template radar deploy/helm/radar \
+          if helm template radar deploy/helm/kubeatlas \
             --set timeline.storage=postgres 2>/dev/null; then
             echo "ERROR: helm template should have failed with no existingSecret set"
             exit 1
@@ -531,7 +531,7 @@ jobs:
         include:
           - component: radar
             dockerfile: Dockerfile
-          - component: radar-portal
+          - component: kubeatlas-portal
             dockerfile: Dockerfile.portal
     steps:
       - uses: actions/checkout@v7

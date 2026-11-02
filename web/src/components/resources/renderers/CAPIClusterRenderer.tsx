@@ -1,5 +1,5 @@
-import { CAPIClusterRenderer as BaseCAPIClusterRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/CAPIClusterRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { CAPIClusterRenderer as BaseCAPIClusterRenderer } from '@maomada/k8s-ui/components/resources/renderers/CAPIClusterRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useCapabilities } from '../../../api/client'
 
 export function CAPIClusterRenderer({ data, onNavigate }: { data: any; onNavigate?: (ref: ResourceRef) => void }) {

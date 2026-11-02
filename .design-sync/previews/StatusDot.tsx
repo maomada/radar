@@ -1,4 +1,4 @@
-import { StatusDot } from '@skyhook-io/k8s-ui'
+import { StatusDot } from '@maomada/k8s-ui'
 import type { ComponentProps } from 'react'
 
 type Tone = ComponentProps<typeof StatusDot>['tone']

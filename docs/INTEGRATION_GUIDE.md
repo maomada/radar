@@ -25,13 +25,13 @@ don't assume every discoverable resource has a CRD object.
   Entries carry group, versions, plural, kind and scope; `WarmupCommonCRDs` consumes
   this registry. Don't add a separate name-only warmup list. Fallback registration
   probes access; an entry is not proof that the API is installed or readable.
-- [ ] Check the [Helm ClusterRole](../deploy/helm/radar/templates/clusterrole.yaml) and
-  [values](../deploy/helm/radar/values.yaml) for the new API group. Follow existing
+- [ ] Check the [Helm ClusterRole](../deploy/helm/kubeatlas/templates/clusterrole.yaml) and
+  [values](../deploy/helm/kubeatlas/values.yaml) for the new API group. Follow existing
   per-group read-access toggles; don't rely on an opt-in wildcard or request write
   permissions for a read-only integration. The chart coverage test checks groups,
   not every resource/verb or rendered toggle combination.
 - [ ] Make an explicit Radar Cloud caller-permission decision in
-  `deploy/helm/radar/files/integration-read-baseline.yaml`: grant, existing, or
+  `deploy/helm/kubeatlas/files/integration-read-baseline.yaml`: grant, existing, or
   withhold with a reason. Check exact scope and credential-bearing fields; a
   collection grant or renderer is not permission approval. See
   [the default read policy](cloud-rbac-baseline.md). Coverage tests compare the

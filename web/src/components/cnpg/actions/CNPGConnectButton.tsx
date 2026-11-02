@@ -3,7 +3,7 @@ import { useCNPGKubectlContext } from '../useCNPGKubectlContext'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { Plug, X } from 'lucide-react'
-import { CNPGConnectSection, DialogPortal, Tooltip, type ResourceRef, type NavigateToResource } from '@skyhook-io/k8s-ui'
+import { CNPGConnectSection, DialogPortal, Tooltip, type ResourceRef, type NavigateToResource } from '@maomada/k8s-ui'
 import { buildWorkloadPath, refToSelectedResource } from '../../../utils/navigation'
 import { useCNPGFleet } from '../useCNPGSidebarWorkspace'
 import { Notice, RefreshFailedNotice } from '../../workspace/layout'
@@ -122,7 +122,7 @@ export function CNPGConnectButton({
               <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="text-accent-text hover:underline">Retry</button>
             </Notice>
           ) : (
-            <div className="text-sm text-theme-text-tertiary">{fleet ? 'Radar cannot read this Cluster with your access.' : 'Reading the Cluster…'}</div>
+            <div className="text-sm text-theme-text-tertiary">{fleet ? 'KubeAtlas cannot read this Cluster with your access.' : 'Reading the Cluster…'}</div>
           )}
         </div>
       </DialogPortal>

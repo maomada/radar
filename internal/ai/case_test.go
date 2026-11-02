@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func caseJSON(fields string) string {

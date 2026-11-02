@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	topology "github.com/skyhook-io/radar/pkg/topology"
+	topology "github.com/maomada/radar/pkg/topology"
 )
 
 // deniedKindsKey is the grouping seam that keeps a user who is denied a

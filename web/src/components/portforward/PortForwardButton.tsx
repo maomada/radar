@@ -5,9 +5,9 @@ import { clsx } from 'clsx'
 import { useAvailablePorts, AvailablePort } from '../../api/client'
 import { useStartPortForward } from './PortForwardManager'
 import { useIsLocalDeployment } from '../../contexts/CapabilitiesContext'
-import { validatePort } from '@skyhook-io/k8s-ui/utils/validators'
+import { validatePort } from '@maomada/k8s-ui/utils/validators'
 import { Tooltip } from '../ui/Tooltip'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 
 interface PortForwardButtonProps {
   type: 'pod' | 'service'

@@ -6,7 +6,7 @@ package timeline
 import (
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/k8score"
 )
 
 // Type aliases — canonical definitions live in pkg/k8score.

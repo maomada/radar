@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 type fakeUpgradeAuthorizer struct {

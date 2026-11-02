@@ -164,7 +164,7 @@ func TestSecurityChecks_Secure(t *testing.T) {
 func TestSecurityChecks_RunAsNonRootInheritedFromPod(t *testing.T) {
 	// Pod-level PodSecurityContext.RunAsNonRoot=true should satisfy the
 	// runAsRoot check for containers that don't set it themselves.
-	// Regression for https://github.com/skyhook-io/radar/issues/484
+	// Regression for https://github.com/maomada/radar/issues/484
 	input := &CheckInput{
 		Deployments: []*appsv1.Deployment{{
 			ObjectMeta: metav1.ObjectMeta{Name: "pod-nonroot", Namespace: "default"},

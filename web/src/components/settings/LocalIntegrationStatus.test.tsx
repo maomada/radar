@@ -45,7 +45,7 @@ describe('LocalIntegrationStatus for Argo CD', () => {
   })
 
   it('shows why the last read failed on a working connection', () => {
-    const html = render({ configured: true, connected: true, address: 'https://argocd', reason: "Radar's last read from Argo CD failed: the request timed out." })
+    const html = render({ configured: true, connected: true, address: 'https://argocd', reason: "KubeAtlas's last read from Argo CD failed: the request timed out." })
     expect(html).toContain('已连接')
     expect(html).toContain('the request timed out')
   })

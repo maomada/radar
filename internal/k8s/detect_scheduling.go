@@ -20,13 +20,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/pkg/gkedisk"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/karpenter"
-	"github.com/skyhook-io/radar/pkg/resourceid"
-	"github.com/skyhook-io/radar/pkg/scheduling"
-	"github.com/skyhook-io/radar/pkg/timeutil"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/pkg/gkedisk"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/karpenter"
+	"github.com/maomada/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/scheduling"
+	"github.com/maomada/radar/pkg/timeutil"
 )
 
 // Scheduling failure decomposition.

@@ -73,7 +73,7 @@ export function useTrafficSources() {
 // does not probe every source on each page.
 export function useTrafficAvailable(enabled = true): boolean {
   // A workload focus needs the server to name each pod's workload, which
-  // shipped with flow records. An older Radar leaves Hubble pods unnamed, so
+  // shipped with flow records. An older KubeAtlas leaves Hubble pods unnamed, so
   // the focus it opened would match nothing.
   const resolvesWorkloads = useRadarFeature('trafficRecords').support === 'supported'
   const { data } = useQuery<TrafficSourcesResponse>({
@@ -152,7 +152,7 @@ export interface TrafficEndpointPair {
 }
 
 /** The selection rides in the query string, URL-encoded. Proxies in front of
- *  Radar commonly refuse request lines over 8 KiB (ingress-nginx's default),
+ *  KubeAtlas commonly refuse request lines over 8 KiB (ingress-nginx's default),
  *  so a larger selection is not sent at all. */
 const MAX_TRAFFIC_MATCH_CHARS = 6_000
 

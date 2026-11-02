@@ -4,7 +4,7 @@ import type {
   RBACRoleResponse,
   RBACWhoamiResponse,
   RBACNamespaceResponse,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { fetchJSON } from './client'
 
 // /api/rbac/subject/{kind}/{namespace}/{name}   (ServiceAccount)

@@ -2,7 +2,7 @@ import { useMemo, forwardRef } from 'react'
 import {
   ClusterSwitcher,
   type ClusterSwitcherItem,
-} from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui'
 import { useContexts, useClusterInfo, useCapabilities } from '../api/client'
 import type { ContextInfo } from '../types'
 import { useContextSwitchFlow } from './useContextSwitchFlow'

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import yaml from 'yaml'
-import { ActionConfirmDialog, ConfirmDialog, FoldSection, isApiGroup } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, ConfirmDialog, FoldSection, isApiGroup } from '@maomada/k8s-ui'
 import { useCNPGRuntime, useCNPGWorkspace } from '../../../api/cnpg'
 import { useCNPGRestoreCapability } from '../../../api/cnpg-recovery'
 import { useResources } from '../../../api/client'
@@ -40,7 +40,7 @@ export type CNPGRestoreEntry = { kind: 'cluster'; name: string } | { kind: 'back
 /**
  * Restore builds a new Cluster manifest, shows the evidence for the recovery
  * target and what the manifest copies from the source, and hands it to
- * Radar's create flow (server dry-run, strict create). After the create the
+ * KubeAtlas's create flow (server dry-run, strict create). After the create the
  * user is offered the new Cluster's page, which follows the restore.
  */
 export function CNPGRestoreDialog({ namespace, entry, onClose }: { namespace: string; entry: CNPGRestoreEntry; onClose: () => void }) {

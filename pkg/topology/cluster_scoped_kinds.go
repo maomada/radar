@@ -3,7 +3,7 @@ package topology
 import (
 	"strings"
 
-	k8score "github.com/skyhook-io/radar/pkg/k8score"
+	k8score "github.com/maomada/radar/pkg/k8score"
 )
 
 // ClusterScopedKindEntry maps a topology NodeKind for a cluster-scoped

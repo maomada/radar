@@ -8,7 +8,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skyhook-io/radar/pkg/netpol"
+	"github.com/maomada/radar/pkg/netpol"
 )
 
 // diffNetworkPolicy reports changes to which pods a policy selects, which

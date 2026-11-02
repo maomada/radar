@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // WorkloadOwner identifies a workload by name and kind.

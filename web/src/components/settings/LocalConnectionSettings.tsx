@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Badge, Collapse, ConfirmDialog, SelectMenu } from '@skyhook-io/k8s-ui'
+import { Badge, Collapse, ConfirmDialog, SelectMenu } from '@maomada/k8s-ui'
 import { ArrowLeft, Info } from 'lucide-react'
 import { Tooltip } from '../ui/Tooltip'
 import type { FormFeedback } from './FormSaveActions'
@@ -587,7 +587,7 @@ export function LocalConnectionSettings({
       value: previousSource,
       label: '之前的全局设置',
       description: previous.error
-        ? `Can’t be used: ${previous.error.replace(/\.$/, '')}. Fix it in ~/.radar/config.json.`
+        ? `Can’t be used: ${previous.error.replace(/\.$/, '')}. Fix it in ~/.kubeatlas/config.json.`
         : describeSource(kind, previous),
       disabled: !!previous.error,
     }] : []),
@@ -959,7 +959,7 @@ export function LocalConnectionSettings({
       {task === 'reconfirm' && (
         <div className="space-y-4">
           <p className="text-sm text-theme-text-secondary">
-            自保存这些设置后，此上下文的服务器、证书颁发机构、代理或用户已发生变化。仅当后端服务于此集群时才保留集成，否则 Radar 可能显示其他集群的数据。
+            自保存这些设置后，此上下文的服务器、证书颁发机构、代理或用户已发生变化。仅当后端服务于此集群时才保留集成，否则 KubeAtlas 可能显示其他集群的数据。
           </p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs">
             {previousIdentity && previousIdentity.server === currentIdentity.server ? (

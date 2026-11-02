@@ -15,25 +15,25 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/skyhook-io/radar/internal/argocd"
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connectionruntime"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
-	mcppkg "github.com/skyhook-io/radar/internal/mcp"
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	"github.com/skyhook-io/radar/internal/server"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/internal/static"
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/internal/traffic"
-	versionpkg "github.com/skyhook-io/radar/internal/version"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/argocd"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connectionruntime"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
+	mcppkg "github.com/maomada/radar/internal/mcp"
+	internalopencost "github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/server"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/internal/static"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/internal/traffic"
+	versionpkg "github.com/maomada/radar/internal/version"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 var clusterConnectionProbe = k8s.TestClusterConnection
@@ -100,7 +100,7 @@ type AppConfig struct {
 	MCPEnabled                  bool
 	MCPExecTools                bool   // register exec_pod (--mcp-exec-tools)
 	AIHistory                   bool   // persist AI investigations across restarts
-	AIHistoryDBPath             string // "" = ~/.radar/ai-runs.db
+	AIHistoryDBPath             string // "" = ~/.kubeatlas/ai-runs.db
 	AuthConfig                  auth.Config
 	HubAPIURL                   string // Hub API origin override ("" = hosted default)
 	HubAppURL                   string // Hub frontend origin override ("" = derived)
@@ -146,7 +146,7 @@ func InitializeK8s(cfg AppConfig) error {
 	if err != nil {
 		log.Printf("[context] failed to read the remembered Desktop context: %v", err)
 		errorlog.Record("k8s-init", "warning",
-			"could not read the Desktop cluster memory from local settings. Starting on the kubeconfig's current-context instead; check ~/.radar/settings.json.")
+			"could not read the Desktop cluster memory from local settings. Starting on the kubeconfig's current-context instead; check ~/.kubeatlas/settings.json.")
 	}
 	err = k8s.Initialize(k8s.InitOptions{
 		KubeconfigPath:   cfg.Kubeconfig,
@@ -251,7 +251,7 @@ func BuildTimelineStoreConfig(cfg AppConfig) (timeline.StoreConfig, error) {
 		dbPath := cfg.TimelineDBPath
 		if dbPath == "" {
 			homeDir, _ := os.UserHomeDir()
-			dbPath = filepath.Join(homeDir, ".radar", "timeline.db")
+			dbPath = filepath.Join(homeDir, ".kubeatlas", "timeline.db")
 		}
 		storeCfg.Path = dbPath
 		storeCfg.RetentionAge = cfg.TimelineRetention
@@ -557,7 +557,7 @@ func CreateServer(cfg AppConfig) *server.Server {
 		dbPath := cfg.AIHistoryDBPath
 		if dbPath == "" {
 			homeDir, _ := os.UserHomeDir()
-			dbPath = filepath.Join(homeDir, ".radar", "ai-runs.db")
+			dbPath = filepath.Join(homeDir, ".kubeatlas", "ai-runs.db")
 		}
 		serverCfg.AIHistoryDB = dbPath
 	}
@@ -765,7 +765,7 @@ func mcpPortFilePath() string {
 		log.Printf("[mcp] Cannot determine home directory: %v (port file will not be written)", err)
 		return ""
 	}
-	return filepath.Join(homeDir, ".radar", "mcp-port")
+	return filepath.Join(homeDir, ".kubeatlas", "mcp-port")
 }
 
 // Shutdown performs graceful teardown of all subsystems and the HTTP server.

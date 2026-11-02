@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { copyText } from '@skyhook-io/k8s-ui/utils/clipboard'
+import { copyText } from '@maomada/k8s-ui/utils/clipboard'
 
 import { installWailsClipboardShim } from './wails-clipboard'
 

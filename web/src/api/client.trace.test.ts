@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe('runInClusterMerged error surfacing', () => {
   it('rejects a denial with the server message', async () => {
-    respond(403, JSON.stringify({ error: 'your Radar Cloud role cannot run an in-cluster reachability test' }))
+    respond(403, JSON.stringify({ error: 'your upstream Cloud role cannot run an in-cluster reachability test' }))
     await expect(runInClusterMerged('Service', 'prod', 'web')).rejects.toThrow(/Cloud role/)
   })
 

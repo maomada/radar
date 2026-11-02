@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.skyhook-io/radar",
-  "title": "Radar Kubernetes MCP Server",
+  "name": "io.github.maomada/kubeatlas",
+  "title": "KubeAtlas Kubernetes MCP Server",
   "description": "Kubernetes MCP server for diagnosis, resource management, GitOps, and RBAC-enforced operations.",
   "repository": {
-    "url": "https://github.com/skyhook-io/radar",
+    "url": "https://github.com/maomada/radar",
     "source": "github"
   },
-  "websiteUrl": "https://radarhq.io/product/mcp",
+  "websiteUrl": "https://github.com/maomada/radar/blob/main/docs/mcp.md",
   "version": "1.8.6",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/skyhook-io/radar:1.8.6",
+      "identifier": "ghcr.io/maomada/kubeatlas:1.8.6",
       "runtimeHint": "docker",
       "runtimeArguments": [
         {
@@ -20,7 +20,7 @@
           "name": "-p",
           "value": "127.0.0.1:9280:9280",
           "isRequired": true,
-          "description": "Expose Radar's HTTP server (UI + MCP) on 127.0.0.1:9280 only"
+          "description": "Expose KubeAtlas's HTTP server (UI + MCP) on 127.0.0.1:9280 only"
         },
         {
           "type": "named",
@@ -41,7 +41,7 @@
           "name": "-e",
           "value": "KUBECONFIG=/kubeconfig",
           "isRequired": true,
-          "description": "Point Radar at the mounted kubeconfig"
+          "description": "Point KubeAtlas at the mounted kubeconfig"
         }
       ],
       "transport": {

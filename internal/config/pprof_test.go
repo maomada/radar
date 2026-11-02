@@ -20,10 +20,10 @@ func TestPprofOverride(t *testing.T) {
 		{name: "invalid env", env: "yes", want: "error"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("RADAR_PPROF", tt.env)
+			t.Setenv("KUBEATLAS_PPROF", tt.env)
 			got, err := PprofOverrideFromEnv()
 			if tt.want == "error" {
-				if err == nil || !strings.Contains(err.Error(), "RADAR_PPROF must be a boolean") {
+				if err == nil || !strings.Contains(err.Error(), "KUBEATLAS_PPROF must be a boolean") {
 					t.Fatalf("expected invalid environment error, got %v", err)
 				}
 				return

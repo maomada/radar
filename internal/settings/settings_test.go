@@ -77,7 +77,7 @@ func TestUpdateCheckedDoesNotOverwriteInvalidSettings(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 	t.Setenv("USERPROFILE", dir)
-	path := filepath.Join(dir, ".radar", "settings.json")
+	path := filepath.Join(dir, ".kubeatlas", "settings.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -117,8 +117,8 @@ func TestLoadInvalidJSON(t *testing.T) {
 	t.Setenv("HOME", dir)
 	t.Setenv("USERPROFILE", dir)
 
-	os.MkdirAll(filepath.Join(dir, ".radar"), 0o755)
-	os.WriteFile(filepath.Join(dir, ".radar", "settings.json"), []byte("{bad"), 0o644)
+	os.MkdirAll(filepath.Join(dir, ".kubeatlas"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".kubeatlas", "settings.json"), []byte("{bad"), 0o644)
 
 	s := Load()
 	if s.Theme != "" {
@@ -158,7 +158,7 @@ func TestSaveCreatesDirectory(t *testing.T) {
 		t.Fatalf("Save should create directory: %v", err)
 	}
 
-	path := filepath.Join(dir, ".radar", "settings.json")
+	path := filepath.Join(dir, ".kubeatlas", "settings.json")
 	if _, err := os.Stat(path); err != nil {
 		t.Errorf("settings.json should exist: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestRolloutKeyMintsOnceAndPersists(t *testing.T) {
 	if raw, err := json.Marshal(Load()); err != nil || strings.Contains(string(raw), id) {
 		t.Fatalf("install ID leaked into serialized settings: %s (%v)", raw, err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, ".radar", "install-id"))
+	data, err := os.ReadFile(filepath.Join(dir, ".kubeatlas", "install-id"))
 	if err != nil || strings.TrimSpace(string(data)) != id {
 		t.Fatalf("persisted id = %q (%v), want %q", data, err, id)
 	}

@@ -1,4 +1,4 @@
-import { type IssueRecentChange } from "@skyhook-io/k8s-ui";
+import { type IssueRecentChange } from "@maomada/k8s-ui";
 import {
   ProjectionBuilder,
   addChanges,

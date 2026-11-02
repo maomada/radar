@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // RunManager owns AI investigations as durable, server-side jobs. An investigation
@@ -195,10 +195,10 @@ const (
 	automaticUncertainVerificationPrompt = "An apply attempt ended with an uncertain outcome. Re-check the resource's current status and health now, determine whether the requested change took effect, and say what the current evidence proves."
 )
 
-// turnTimeout returns the per-turn wall-clock ceiling (RADAR_AI_TURN_TIMEOUT
+// turnTimeout returns the per-turn wall-clock ceiling (KUBEATLAS_AI_TURN_TIMEOUT
 // accepts a Go duration, e.g. "30m", for unusually slow setups).
 func turnTimeout() time.Duration {
-	if v := strings.TrimSpace(os.Getenv("RADAR_AI_TURN_TIMEOUT")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("KUBEATLAS_AI_TURN_TIMEOUT")); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			return d
 		}

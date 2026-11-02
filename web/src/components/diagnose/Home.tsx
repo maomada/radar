@@ -12,7 +12,7 @@ import { type RunSummary } from "../../api/diagnose";
 import {
   groupQualifiesLaneId,
   pluralToKind,
-} from "@skyhook-io/k8s-ui/utils/navigation";
+} from "@maomada/k8s-ui/utils/navigation";
 import { parseContextName } from "../../utils/context-name";
 import { formatInvestigationTarget } from "./target";
 import { Tooltip } from "../ui/Tooltip";
@@ -185,7 +185,7 @@ export function RecentList({
   for (const r of runs) {
     const kind = pluralToKind(r.kind);
     const groups = groupsByKind.get(kind) ?? new Set<string>();
-    // Match Radar's resource-lane display convention: built-in API groups
+    // Match KubeAtlas's resource-lane display convention: built-in API groups
     // share a readable kind label; custom groups may need disambiguation.
     groups.add(groupQualifiesLaneId(r.group) ? r.group : "");
     groupsByKind.set(kind, groups);

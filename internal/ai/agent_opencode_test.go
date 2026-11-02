@@ -12,8 +12,8 @@ import (
 	"testing"
 	"testing/iotest"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 func TestResolveAgentOpencode(t *testing.T) {

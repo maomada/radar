@@ -5,10 +5,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	"github.com/skyhook-io/radar/internal/readscope"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	"github.com/maomada/radar/internal/readscope"
 
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 func (s *Server) handleCNPGClusterHistory(w http.ResponseWriter, r *http.Request) {

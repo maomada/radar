@@ -1,8 +1,8 @@
 import { useEffect, useId, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell, Check, Cloud, Globe, History, Sparkles, Users, X } from 'lucide-react'
-import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
-import { DialogPortal } from '@skyhook-io/k8s-ui/components/ui/DialogPortal'
+import { Collapse, CollapseChevron } from '@maomada/k8s-ui/components/ui/Collapse'
+import { DialogPortal } from '@maomada/k8s-ui/components/ui/DialogPortal'
 import { Tooltip } from './ui/Tooltip'
 import { CloudConnectFlow } from './CloudConnectFlow'
 import { SelfManagedStart } from './SelfManagedStart'
@@ -33,7 +33,7 @@ import {
 } from '../api/client'
 
 // OSS → Cloud funnel: a quiet globe button in the top bar that opens a modal
-// pitching Radar Cloud: Radar for you and your team, every cluster, around the
+// pitching upstream Cloud: KubeAtlas for you and your team, every cluster, around the
 // clock. Alerts and hosted investigations lead because they are the two things
 // the OSS binary cannot do at all. Two lanes (capabilities.cloudConnect): "driver" runs
 // the in-product connect flow against this server; "wizard" links to the Hub's
@@ -41,15 +41,15 @@ import {
 //
 // The only outbound call is the Hub's own copy, fetched when the dialog opens
 // (never on a poll or a timer) and falling back per-field to the constants
-// below. The request names the lane the footer renders and where this Radar
+// below. The request names the lane the footer renders and where this KubeAtlas
 // runs, both closed enums. The links into the Hub carry utm_content naming
 // the link that was clicked and, after an in-app attempt that did not connect,
 // radar_outcome saying what happened; see cloudConnectHandoff.ts.
-const FALLBACK_APP_URL = 'https://app.radarhq.io'
+const FALLBACK_APP_URL = 'https://app.example.test'
 
 // Rendered until (or unless) the Hub states its own. Keeping the compiled-in
 // copy as the fallback means an unreachable Hub, a self-hosted one, or an
-// offline laptop all render exactly what Radar rendered before this fetch
+// offline laptop all render exactly what KubeAtlas rendered before this fetch
 // existed — the dialog never waits on the network and never shows a gap.
 // Ordered by what matters most when deciding to connect a cluster: network
 // posture, then reversibility, then attestation, then billing. Deliberately
@@ -64,17 +64,17 @@ const DEFAULT_ASSURANCES = [
   '3 clusters free, no card required',
 ]
 // Other OSS surfaces (a GitOps app that deploys to another cluster, say)
-// point at Radar Cloud by asking this button to open its dialog, so there
-// is one pitch and one flow. The button is mounted whenever Radar runs
+// point at upstream Cloud by asking this button to open its dialog, so there
+// is one pitch and one flow. The button is mounted whenever KubeAtlas runs
 // standalone; embedded hosts never mount it and never dispatch this.
 const OPEN_EVENT = 'radar:open-cloud-funnel'
 
 export function openCloudFunnel() {
   window.dispatchEvent(new Event(OPEN_EVENT))
 }
-const ABOUT_URL = 'https://radarhq.io/about'
-const BENCHMARK_URL = 'https://radarhq.io/benchmark'
-const PRICING_URL = 'https://radarhq.io/pricing'
+const ABOUT_URL = 'https://github.com/maomada/radar/blob/main/README.md'
+const BENCHMARK_URL = 'https://github.com/maomada/radar/blob/main/docs/loadtest.md'
+const PRICING_URL = 'https://github.com/maomada/radar/blob/main/README.md'
 const SEEN_KEY = 'radar.cloudFunnel.seen'
 
 // localStorage access can throw (SecurityError) where storage is denied —
@@ -122,26 +122,26 @@ export function CloudFunnelButton() {
   const pitchLane = lane === 'driver' && !clusterConnected ? 'wizard' : lane
   const appUrl = capabilities.data?.cloudConnect?.appUrl || FALLBACK_APP_URL
   // utm_content names the link that was clicked. It travels only in the link
-  // the user opens; Radar sends nothing on its own. Only the blocked card may
+  // the user opens; KubeAtlas sends nothing on its own. Only the blocked card may
   // deep-link the install page (see exitFor); the pitch buttons and the
   // footer link go to signup.
   const signupUrl = buildSignupUrl(appUrl, 'wizard-signup-button')
 
   // Only while the dialog is open — never on the capabilities poll. The Hub
   // learns that someone opened it, which is congruent with what the dialog is
-  // for; it must not learn that Radar is merely running.
+  // for; it must not learn that KubeAtlas is merely running.
   const connectInfo = useCloudConnectInfo(capabilities.data?.cloudConnect?.apiUrl, open, {
     lane: pitchLane,
     mode: capabilities.data?.deployment?.mode,
   })
 
-  // In-cluster Radar can't install its own connection, but it knows exactly
+  // In-cluster KubeAtlas can't install its own connection, but it knows exactly
   // which install it is — so the wizard link can carry the real target, and a
   // GitOps-owned install can be told the imperative command isn't for it.
   const inCluster = capabilities.data?.deployment?.mode === 'in-cluster'
   const self = useCloudConnectSelf(open && inCluster)
 
-  // Each time the dialog opens, look for a Radar in the cluster that already
+  // Each time the dialog opens, look for a KubeAtlas in the cluster that already
   // carries Cloud settings — installed by a colleague after a handoff, or from
   // another machine. The plan would refuse to install over it; better to say
   // "already connected" and point at it than to offer a click that ends blocked.
@@ -290,7 +290,7 @@ export function CloudFunnelButton() {
       <Tooltip
         content={
           <>
-            <span className="block font-semibold">Meet Radar Cloud</span>
+            <span className="block font-semibold">Meet upstream Cloud</span>
             See all your clusters in one place, share with your team, and get alerts and automatic AI investigations.
           </>
         }
@@ -300,7 +300,7 @@ export function CloudFunnelButton() {
       >
         <button
           onClick={openModal}
-          aria-label="Radar Cloud"
+          aria-label="upstream Cloud"
           aria-haspopup="dialog"
           className="relative p-1.5 rounded-md bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary transition-colors"
         >
@@ -320,7 +320,7 @@ export function CloudFunnelButton() {
       <DialogPortal
         open={open}
         onClose={() => setOpen(false)}
-        ariaLabel="Radar Cloud"
+        ariaLabel="upstream Cloud"
         className="w-[580px] max-w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col"
       >
         <button
@@ -379,7 +379,7 @@ export function CloudFunnelButton() {
               discoverPending={discoverPending}
               clustersUrl={`${appUrl}/clusters`}
               // Also covers the capabilities query: until it resolves, lane
-              // defaults to wizard and Radar does not yet know it is
+              // defaults to wizard and KubeAtlas does not yet know it is
               // in-cluster, so the CTA would escape before classification.
               selfLoading={inCluster && self.isPending}
               onConnect={startConnect}
@@ -419,7 +419,7 @@ function Eyebrow() {
   return (
     <div className="flex items-center gap-3 mb-5">
       <RadarSweep />
-      <span className="font-mono text-[16px] tracking-[0.12em] uppercase text-emerald-600 dark:text-emerald-400">Radar Cloud</span>
+      <span className="font-mono text-[16px] tracking-[0.12em] uppercase text-emerald-600 dark:text-emerald-400">upstream Cloud</span>
     </div>
   )
 }
@@ -455,7 +455,7 @@ function ModalFooter({
   // Live copy from the Hub; undefined until (or unless) it arrives.
   assurances?: string[]
   notice?: string
-  // Present only in-cluster: what this Radar knows about its own install.
+  // Present only in-cluster: what this KubeAtlas knows about its own install.
   self?: CloudConnectSelf
   // True while in-cluster self-classification is still in flight.
   selfLoading?: boolean
@@ -463,7 +463,7 @@ function ModalFooter({
   // specific cluster — kept out of the button, whose width must not depend
   // on the name.
   clusterName?: string
-  // Driver lane: a Radar in the cluster that already carries Cloud settings.
+  // Driver lane: a KubeAtlas in the cluster that already carries Cloud settings.
   alreadyConnected?: CloudInstallConnectedRadar
   connectedCount?: number
   // True while that lookup is in flight: a click now would start the very
@@ -494,19 +494,19 @@ function ModalFooter({
         <div className="mb-3.5 card-inner p-3 text-[12px] leading-relaxed text-theme-text-secondary">
           {ambiguous ? (
             <>
-              Radar found conflicting management metadata on this install, so it can't say whether a Helm
+              KubeAtlas found conflicting management metadata on this install, so it can't say whether a Helm
               upgrade or a repository change is the right move. Run{' '}
               <code className="font-mono text-[11px]">radar cloud install</code> from a machine with
               kubectl. It inspects the release and refuses rather than guessing.
             </>
           ) : gitops ? (
             <>
-              This Radar is managed by{' '}
+              This KubeAtlas is managed by{' '}
               <b className="text-theme-text-primary">{self.controller || 'a GitOps controller'}</b>, so
               connecting it is a values change in your repository; an imperative upgrade would be reverted.{' '}
               {cliOnly ? (
                 <>
-                  Radar found that evidence but couldn't confirm it against the live object, so run{' '}
+                  KubeAtlas found that evidence but couldn't confirm it against the live object, so run{' '}
                   <code className="font-mono text-[11px]">radar cloud install</code> from a machine with
                   kubectl. It inspects the release before generating anything.
                 </>
@@ -532,21 +532,21 @@ function ModalFooter({
       )}
       {lane === 'driver' && alreadyConnected && (
         <div className="mb-3.5 card-inner p-3 text-[12px] leading-relaxed text-theme-text-secondary">
-          <span className="font-semibold text-theme-text-primary">This cluster is already connected to Radar Cloud.</span>{' '}
+          <span className="font-semibold text-theme-text-primary">This cluster is already connected to upstream Cloud.</span>{' '}
           Found release{' '}
           <code className="font-mono text-[11px] text-theme-text-primary">{alreadyConnected.release || alreadyConnected.deployment}</code>{' '}
           in namespace <code className="font-mono text-[11px] text-theme-text-primary">{alreadyConnected.namespace}</code>{' '}
           {alreadyConnected.hubHost ? (
             <>
-              configured for a Radar Cloud at{' '}
+              configured for a upstream Cloud at{' '}
               <code className="font-mono text-[11px] text-theme-text-primary">{alreadyConnected.hubHost}</code> — open that one to see
               this cluster.
             </>
           ) : alreadyConnected.clusterUrl ? (
-            <>configured to connect. Open Radar Cloud to see it; if it isn’t there, its page shows the recovery options.</>
+            <>configured to connect. Open upstream Cloud to see it; if it isn’t there, its page shows the recovery options.</>
           ) : (
             <>
-              with Cloud settings Radar can’t read from here. Look for it in Radar Cloud; if it isn’t there, an admin can
+              with Cloud settings KubeAtlas can’t read from here. Look for it in upstream Cloud; if it isn’t there, an admin can
               recover the pairing with <code className="font-mono text-[11px] text-theme-text-primary">radar cloud status</code>.
             </>
           )}
@@ -563,7 +563,7 @@ function ModalFooter({
               rel="noopener noreferrer"
               className="whitespace-nowrap px-6 py-2.5 rounded-[10px] bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-[14px] font-bold shadow-[0_0_22px_rgba(16,185,129,0.35)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] hover:-translate-y-px transition-all"
             >
-              {alreadyConnected.clusterUrl ? 'Open in Radar Cloud' : 'Open Radar Cloud'}
+              {alreadyConnected.clusterUrl ? 'Open in upstream Cloud' : 'Open upstream Cloud'}
             </a>
           )
         ) : lane === 'driver' && clusterConnected ? (
@@ -587,7 +587,7 @@ function ModalFooter({
             onClick={(e) => { if (selfPending) e.preventDefault() }}
             className={`px-5 py-2 rounded-[10px] bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-[13.5px] font-bold shadow-[0_0_22px_rgba(16,185,129,0.35)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] hover:-translate-y-px transition-all ${selfPending ? 'opacity-60 pointer-events-none' : ''}`}
           >
-            {lane === 'driver' ? 'Continue in Radar Cloud' : self?.ownership === 'helm' || gitops ? 'Connect this cluster' : 'Try Cloud free'}
+            {lane === 'driver' ? 'Continue in upstream Cloud' : self?.ownership === 'helm' || gitops ? 'Connect this cluster' : 'Try Cloud free'}
           </a>
         )}
         {/* Self-Managed is a paid product with its own trial, so it gets a real
@@ -600,20 +600,20 @@ function ModalFooter({
             onClick={onSelfManaged}
             className="whitespace-nowrap px-4 py-2 rounded-[10px] border border-theme-border bg-theme-surface hover:bg-theme-hover text-theme-text-primary text-[13px] font-medium transition-colors"
           >
-            Run Radar Cloud yourself
+            Run upstream Cloud yourself
           </button>
         )}
         <button onClick={onLater} className="ml-auto whitespace-nowrap text-[12px] text-theme-text-tertiary hover:text-theme-text-primary transition-colors">
           {lane === 'driver' && alreadyConnected ? 'Close' : 'Maybe later'}
         </button>
       </div>
-      {/* The last attempt's stop, when Radar could not even inspect the
+      {/* The last attempt's stop, when KubeAtlas could not even inspect the
           cluster: the toast that first said so is gone in seconds, and "Try
           again" alone does not say what to try again for. The footer link
           above is the way around it. */}
       {lane === 'driver' && prepareError && (
         <p className="mt-2.5 text-[11.5px] leading-relaxed text-amber-600 dark:text-amber-400">
-          Radar couldn’t inspect this cluster: {prepareError}
+          KubeAtlas couldn’t inspect this cluster: {prepareError}
         </p>
       )}
       {/* Mechanics, not marketing: a falsifiable claim the plan card then
@@ -675,14 +675,14 @@ function PitchBody({ lane, freeTier }: { lane: 'driver' | 'wizard'; freeTier?: s
     <div className="px-8 pt-7 pb-5">
       <Eyebrow />
       <h3 className="text-[22px] font-semibold leading-tight tracking-tight text-theme-text-primary mb-3 text-balance">
-        Close the laptop. Radar keeps watching.
+        Close the laptop. KubeAtlas keeps watching.
       </h3>
       <p className="text-[14px] leading-relaxed text-theme-text-secondary mb-1.5">
-        Radar Cloud is the hosted side of Radar: alerts, AI root cause and every cluster in one place, for
+        upstream Cloud is the hosted side of KubeAtlas: alerts, AI root cause and every cluster in one place, for
         you and your team.
       </p>
       <p className="text-[14px] leading-relaxed text-theme-text-secondary mb-6">
-        The Radar you're running{' '}
+        The KubeAtlas you're running{' '}
         <b className="text-theme-text-primary font-semibold">stays free and open source, always.</b>
       </p>
       <ul className="space-y-2.5 mb-3">
@@ -714,9 +714,9 @@ function PitchBody({ lane, freeTier }: { lane: 'driver' | 'wizard'; freeTier?: s
             {/* No heading: the disclosure's own label already names this one. */}
             <p className="text-[12px] leading-relaxed text-theme-text-secondary">
               {lane === 'driver'
-                ? "Setup runs here in the app: Radar is installed in your cluster and tunnels outward to Radar Cloud, so there's no ingress to open."
-                : "Radar runs in your cluster and tunnels outward to Radar Cloud, so there's no ingress to open."}{' '}
-              Live views are fetched from your cluster when someone opens them, within their permissions. Radar
+                ? "Setup runs here in the app: KubeAtlas is installed in your cluster and tunnels outward to upstream Cloud, so there's no ingress to open."
+                : "KubeAtlas runs in your cluster and tunnels outward to upstream Cloud, so there's no ingress to open."}{' '}
+              Live views are fetched from your cluster when someone opens them, within their permissions. KubeAtlas
               Cloud stores event history, changes and investigation results, so you can go back in time to
               debug.
             </p>
@@ -724,8 +724,8 @@ function PitchBody({ lane, freeTier }: { lane: 'driver' | 'wizard'; freeTier?: s
           <section>
             <h4 className="text-[12.5px] font-semibold text-theme-text-primary mb-0.5">Investigations</h4>
             <p className="text-[12px] leading-relaxed text-theme-text-secondary">
-              In our public benchmark, the same agent diagnosed faults 3× faster on average with Radar than with
-              plain kubectl, and Radar answered 1.6–3.6× faster on average than the other AI SRE tools we tested.
+              In our public benchmark, the same agent diagnosed faults 3× faster on average with KubeAtlas than with
+              plain kubectl, and KubeAtlas answered 1.6–3.6× faster on average than the other AI SRE tools we tested.
               Run it automatically on the alert rules you choose, or on demand from any issue, with no CLI or API
               key.{' '}
               <a href={BENCHMARK_URL} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap text-theme-text-secondary underline underline-offset-2 hover:text-theme-text-primary">
@@ -736,7 +736,7 @@ function PitchBody({ lane, freeTier }: { lane: 'driver' | 'wizard'; freeTier?: s
           <section>
             <h4 className="text-[12.5px] font-semibold text-theme-text-primary mb-0.5">What it costs</h4>
             <p className="text-[12px] leading-relaxed text-theme-text-secondary">
-              Radar Cloud is {freeLine}, including 100 investigations a month. Paid plans add investigations for
+              upstream Cloud is {freeLine}, including 100 investigations a month. Paid plans add investigations for
               every cluster, with optional $1 overage, plus enterprise features like SSO, SCIM and audit logs.{' '}
               <a href={PRICING_URL} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap text-theme-text-secondary underline underline-offset-2 hover:text-theme-text-primary">
                 See pricing →

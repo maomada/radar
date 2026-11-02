@@ -1,4 +1,4 @@
-import { Badge, PageHeader } from '@skyhook-io/k8s-ui'
+import { Badge, PageHeader } from '@maomada/k8s-ui'
 import { Boxes, Server, ShieldAlert } from 'lucide-react'
 
 const panel = { width: 620, maxWidth: '100%' }

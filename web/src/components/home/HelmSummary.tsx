@@ -91,7 +91,7 @@ export function HelmSummary({ data, onNavigate }: HelmSummaryProps) {
             <Tooltip content={data.error} wrapperClassName="!block mt-1 min-w-0 w-full text-center">
             <span className="text-[11px] text-center px-2 line-clamp-2 [overflow-wrap:anywhere] max-w-full">
               {data.errorCode === 'unconfigured'
-                ? '请在 Radar Helm chart values 中设置 rbac.helm=true。'
+                ? '请在 KubeAtlas Helm chart values 中设置 rbac.helm=true。'
                 : data.error}
             </span>
             </Tooltip>

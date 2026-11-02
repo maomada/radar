@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
 )
 
 // useCNPGHistoryPrometheus serves a Prometheus whose range queries answer

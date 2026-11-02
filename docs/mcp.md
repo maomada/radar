@@ -68,8 +68,8 @@ their Apply action is unavailable because it requires MCP write tools.
 This setting does not restrict writes in the Radar UI or REST API.
 
 CLI and Desktop accept both flags. You can also set
-`RADAR_MCP_READ_ONLY=1` or persist `"mcpReadOnly": true` in
-`~/.radar/config.json`. The existing `"mcp": false` disables all MCP endpoints.
+`KUBEATLAS_MCP_READ_ONLY=1` or persist `"mcpReadOnly": true` in
+`~/.kubeatlas/config.json`. The existing `"mcp": false` disables all MCP endpoints.
 
 CLI settings take priority over the environment, which takes priority over the
 config file. A higher-priority mode selection replaces a lower-priority one:
@@ -78,10 +78,10 @@ config file. A higher-priority mode selection replaces a lower-priority one:
 | --- | --- |
 | No settings | Full MCP, including `/mcp` |
 | Config `mcpReadOnly: true`, CLI `--no-mcp` | Disabled |
-| Config `mcp: false`, env `RADAR_MCP_READ_ONLY=1` | Read-only |
-| Env `RADAR_MCP_READ_ONLY=1`, CLI `--mcp-read-only=false` | Full MCP |
+| Config `mcp: false`, env `KUBEATLAS_MCP_READ_ONLY=1` | Read-only |
+| Env `KUBEATLAS_MCP_READ_ONLY=1`, CLI `--mcp-read-only=false` | Full MCP |
 | Config `mcp: false`, CLI `--no-mcp=false` | Full MCP |
-| Env `RADAR_MCP_READ_ONLY=1`, CLI `--no-mcp=false` | Read-only |
+| Env `KUBEATLAS_MCP_READ_ONLY=1`, CLI `--no-mcp=false` | Read-only |
 
 An explicit false value clears only that setting. Environment booleans use
 Go's `strconv.ParseBool` spelling (`1`, `0`, `true`, `false`, `T`, `F`, and
@@ -105,7 +105,7 @@ using `/mcp` must be updated. Startup output and `/api/capabilities`
 
 Run one non-interactive argv command in a container, like `kubectl exec`.
 Enable with `--mcp-exec-tools` (CLI/Desktop), `"mcpExecTools": true` in
-`~/.radar/config.json`, or Helm `mcp.execTools: true`. It defaults off.
+`~/.kubeatlas/config.json`, or Helm `mcp.execTools: true`. It defaults off.
 `--disable-exec`, `--mcp-read-only` and disabled MCP override the opt-in.
 It is destructive, available only on full `/mcp`, and excluded from built-in
 Diagnose and Apply. `/api/capabilities.mcpExecTools` reports registration,
@@ -142,7 +142,7 @@ Pod and, for workloads, its revision evidence. Exec uses WebSocket (`get` on
 `pods/exec`) with SPDY fallback (`create`). Kubernetes 1.35's default-on
 `AuthorizePodWebsocketUpgradeCreatePermission` gate additionally checks `create`
 for WebSocket. Forbidden errors carry `rbac_denied` and permission guidance.
-See the [Helm enablement matrix](../deploy/helm/radar/README.md#mcp-container-commands).
+See the [Helm enablement matrix](../deploy/helm/kubeatlas/README.md#mcp-container-commands).
 
 One deadline covers lookup and execution: zero/omitted defaults to 30 seconds;
 1–45 is accepted, negative/larger values are rejected. Lookup timeout is a tool
@@ -473,7 +473,7 @@ Any other MCP client that supports the Streamable HTTP transport can connect to 
 
 This repository does not currently publish a separate MCP registry entry or
 CLI release archives. The older `io.github.skyhook-io/radar` registry identity
-and `ghcr.io/skyhook-io/radar` image belong to the upstream project; they are
+and `ghcr.io/maomada/kubeatlas` image belong to the upstream project; they are
 not releases of this independently maintained repository. Use a locally built
 Radar binary or an owned OCI image only after it has been published as
 described in [CI/CD](ci-cd.md).

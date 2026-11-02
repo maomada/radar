@@ -1,6 +1,6 @@
 package audit
 
-import "github.com/skyhook-io/radar/pkg/configrefs"
+import "github.com/maomada/radar/pkg/configrefs"
 
 // ConfigReferenceEvidence separates observed use from the inventories needed
 // to assert absence. An omitted namespace is unknown, never proof of no use.

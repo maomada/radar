@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/skyhook-io/radar/pkg/netpol"
+	"github.com/maomada/radar/pkg/netpol"
 )
 
 func npPod(lbls map[string]string, ports ...corev1.ContainerPort) *corev1.Pod {

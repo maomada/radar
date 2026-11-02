@@ -43,7 +43,7 @@ describe("shouldRetryCapacityQuery", () => {
     );
   });
 
-  it("never retries a feature the connected Radar predates", () => {
+  it("never retries a feature the connected KubeAtlas predates", () => {
     expect(
       shouldRetryCapacityQuery(0, new RadarFeatureUnsupportedError("capacity", {})),
     ).toBe(false);
@@ -70,7 +70,7 @@ describe("capacityRefetchInterval", () => {
     ).toBe(false);
   });
 
-  it("stops polling a Radar that predates Capacity", () => {
+  it("stops polling a KubeAtlas that predates Capacity", () => {
     expect(
       capacityRefetchInterval(undefined, true)({
         state: { error: new RadarFeatureUnsupportedError("capacity", {}) },

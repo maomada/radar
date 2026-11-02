@@ -1,7 +1,7 @@
 package server
 
 import (
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
 
 	"encoding/json"
 	"errors"
@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
+	integration "github.com/maomada/radar/internal/integration"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/internal/auth"
+	"github.com/maomada/radar/internal/auth"
 )
 
 func TestParseCNPGReportOptions(t *testing.T) {

@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it, vi } from 'vitest'
 import { CNPGScreenGate, CoverageNotice } from './shared'
-import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse } from '@skyhook-io/k8s-ui'
+import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse } from '@maomada/k8s-ui'
 vi.mock('../../context/ConnectionContext', () => ({ useConnection: () => ({ connection: { context: 'test' } }) }))
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 it('retries an initial failure, disables duplicate retries and shows recovered data', async () => {
@@ -54,6 +54,6 @@ it('identifies coverage the server did not report without claiming the kind is a
   const data: CNPGWorkspaceResponse = { installed: true, context: 'test', namespaces: null, objects: {}, coverage: Object.fromEntries(CNPG_WORKSPACE_KEYS.filter(k => k !== 'databaseRoles').map(k => [k, { state: 'full' as const }])), issues: [], audit: [], backupsOmitted: 0 }
   const fleet = buildCNPGFleet(data)
   const html = renderToStaticMarkup(<CoverageNotice data={data} fleet={fleet} kinds={['databaseRoles']} />)
-  expect(html).toContain('DatabaseRole (not read by this Radar)')
+  expect(html).toContain('DatabaseRole (not read by this KubeAtlas)')
   expect(html).toContain('Counts over incomplete data are lower bounds')
 })

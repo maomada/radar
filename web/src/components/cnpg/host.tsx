@@ -1,6 +1,6 @@
 import { useRadarFeature } from '../../api/client'
 import { useState } from 'react'
-import { isApiGroup } from '@skyhook-io/k8s-ui'
+import { isApiGroup } from '@maomada/k8s-ui'
 import type { RenderDiagnoseAction } from '../../context/DiagnoseCustomization'
 import { CNPGClustersKindView } from './CNPGClustersKindView'
 import { CNPGCreateClusterDialog } from './CNPGCreateClusterDialog'

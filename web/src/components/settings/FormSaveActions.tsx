@@ -1,4 +1,4 @@
-import { Collapse } from "@skyhook-io/k8s-ui";
+import { Collapse } from "@maomada/k8s-ui";
 import { Check } from "lucide-react";
 
 export interface FormFeedback {

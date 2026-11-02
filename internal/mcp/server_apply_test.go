@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/server"
+	"github.com/maomada/radar/internal/server"
 )
 
 func TestApplyMountExcludesExecTools(t *testing.T) {

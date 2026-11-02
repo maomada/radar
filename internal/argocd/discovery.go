@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	pfpkg "github.com/skyhook-io/radar/pkg/portforward"
+	pfpkg "github.com/maomada/radar/pkg/portforward"
 )
 
 const serverLabelSelector = "app.kubernetes.io/name=argocd-server"

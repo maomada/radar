@@ -1,13 +1,13 @@
-import { WorkloadRenderer as BaseWorkloadRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/WorkloadRenderer'
+import { WorkloadRenderer as BaseWorkloadRenderer } from '@maomada/k8s-ui/components/resources/renderers/WorkloadRenderer'
 import { useNavigate } from 'react-router-dom'
 import { useScaleWorkload, fetchJSON } from '../../../api/client'
 import { useRBACSubject } from '../../../api/rbac'
 import { usePolicyResource } from '../../../api/policy'
 import { podLimitRangeNames, useNamespaceLimitRanges } from '../../../api/quotas'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import { kindToPlural, kindToPluralWithGroup } from '@skyhook-io/k8s-ui/utils/navigation'
+import { kindToPlural, kindToPluralWithGroup } from '@maomada/k8s-ui/utils/navigation'
 import type { Relationships, ResourceRef, ResourceWithRelationships, WorkloadPodInfo } from '../../../types'
-import type { ScalerDiagnosis } from '@skyhook-io/k8s-ui/components/resources/renderers/WorkloadRenderer'
+import type { ScalerDiagnosis } from '@maomada/k8s-ui/components/resources/renderers/WorkloadRenderer'
 
 // Map plural lowercase kind to singular PascalCase for ownerReferences matching
 function getOwnerKind(kind: string): string {

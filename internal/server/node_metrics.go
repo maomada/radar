@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/internal/k8s"
 	corev1 "k8s.io/api/core/v1"
 )
 

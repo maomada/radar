@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { CNPGKindCoverage, CNPGSchedulePreview, CNPGWorkspaceResponse, Grant, TimelineEvent } from '@skyhook-io/k8s-ui'
+import type { CNPGKindCoverage, CNPGSchedulePreview, CNPGWorkspaceResponse, Grant, TimelineEvent } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 import { apiUrl } from './config'
 import { useReviewedActionMutation } from './reviewedActionMutation'

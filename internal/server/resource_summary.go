@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/skyhook-io/radar/pkg/prune"
+	"github.com/maomada/radar/pkg/prune"
 )
 
 // Summary strip profiles for ?include=summary on the resource list endpoint.

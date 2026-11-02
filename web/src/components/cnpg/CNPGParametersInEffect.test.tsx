@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
-import { toneTextClass } from '@skyhook-io/k8s-ui'
+import { toneTextClass } from '@maomada/k8s-ui'
 import { ParameterRow, cnpgParameterBoolean } from './CNPGParametersInEffect'
 import { cnpgParametersView } from './inspectModel'
 import type { CNPGParametersResponse } from '../../api/cnpg-inspect'

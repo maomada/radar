@@ -24,10 +24,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/connections"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/argoapi"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/connections"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/argoapi"
 )
 
 var (
@@ -140,7 +140,7 @@ type Manager struct {
 	token       string
 	insecureTLS bool
 	// envManaged is set when the integration was provisioned from the environment
-	// (RADAR_ARGOCD_TOKEN[_FILE]) rather than the Settings UI — including the case
+	// (KUBEATLAS_ARGOCD_TOKEN[_FILE]) rather than the Settings UI — including the case
 	// where that provisioning was ATTEMPTED but failed (see envError). Such a
 	// config is the declarative source of truth: the UI renders it read-only, the
 	// apply handler refuses to change it, and it is never written to disk.
@@ -278,16 +278,16 @@ func RestoreConfig(url, token string, insecureTLS bool, tokenContext, tokenBindi
 
 // Env var names for declarative (headless / in-cluster / Cloud) provisioning.
 const (
-	envArgoToken     = "RADAR_ARGOCD_TOKEN"
-	envArgoTokenFile = "RADAR_ARGOCD_TOKEN_FILE"
-	envArgoURL       = "RADAR_ARGOCD_URL"
-	envArgoInsecure  = "RADAR_ARGOCD_INSECURE_TLS"
+	envArgoToken     = "KUBEATLAS_ARGOCD_TOKEN"
+	envArgoTokenFile = "KUBEATLAS_ARGOCD_TOKEN_FILE"
+	envArgoURL       = "KUBEATLAS_ARGOCD_URL"
+	envArgoInsecure  = "KUBEATLAS_ARGOCD_INSECURE_TLS"
 )
 
 // SeedFromEnvVars provisions the Argo CD integration from environment variables,
 // for deployments with no interactive Settings session (helm/in-cluster, Cloud
-// tunnel). RADAR_ARGOCD_TOKEN_FILE (a mounted-secret path) takes precedence over
-// the inline RADAR_ARGOCD_TOKEN — file mounts don't expose the value via
+// tunnel). KUBEATLAS_ARGOCD_TOKEN_FILE (a mounted-secret path) takes precedence over
+// the inline KUBEATLAS_ARGOCD_TOKEN — file mounts don't expose the value via
 // /proc/<pid>/environ. When a token is present the integration becomes
 // environment-managed (read-only in the UI, never persisted). Returns
 // (false, nil) when no token env is set, leaving the interactive path unchanged.

@@ -3,7 +3,7 @@
 # Usage:
 #   Full build (default):  docker build .
 #   Release (pre-built):   docker build --target release .
-#                          (requires radar-amd64/radar-arm64 binaries in context)
+#                          (requires kubeatlas-amd64/kubeatlas-arm64 binaries in context)
 
 # =============================================================================
 # Stage 1: Build frontend
@@ -56,7 +56,7 @@ ARG SOURCE_REVISION=unknown
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOEXPERIMENT=${GOEXPERIMENT} \
     go build -ldflags "-s -w -X main.version=${VERSION}" \
-    -o /radar ./cmd/explorer
+    -o /kubeatlas ./cmd/explorer
 
 # =============================================================================
 # Stage 3a: Full build (default) - copies from build stages
@@ -72,19 +72,19 @@ LABEL org.opencontainers.image.vendor="maomada"
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 LABEL org.opencontainers.image.version=$VERSION
 
-COPY --from=backend-builder /radar /radar
+COPY --from=backend-builder /kubeatlas /kubeatlas
 
 EXPOSE 9280
 USER nonroot:nonroot
 # Keep the container networking invariant in ENTRYPOINT so docker run arguments
 # and Compose command overrides cannot silently replace the shared listener.
-ENTRYPOINT ["/radar", "--listen-address=0.0.0.0"]
+ENTRYPOINT ["/kubeatlas", "--listen-address=0.0.0.0"]
 CMD ["--no-browser"]
 
 # =============================================================================
 # Stage 3b: Release build - uses pre-built binaries from goreleaser
 # Much faster for multi-arch since no QEMU compilation needed
-# Requires: radar-amd64 and radar-arm64 in build context
+# Requires: kubeatlas-amd64 and kubeatlas-arm64 in build context
 # =============================================================================
 FROM gcr.io/distroless/static-debian12:nonroot AS release
 
@@ -98,11 +98,11 @@ LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 LABEL org.opencontainers.image.version=$VERSION
 
 ARG TARGETARCH
-COPY radar-${TARGETARCH} /radar
+COPY kubeatlas-${TARGETARCH} /kubeatlas
 
 EXPOSE 9280
 USER nonroot:nonroot
 # Keep the container networking invariant in ENTRYPOINT so docker run arguments
 # and Compose command overrides cannot silently replace the shared listener.
-ENTRYPOINT ["/radar", "--listen-address=0.0.0.0"]
+ENTRYPOINT ["/kubeatlas", "--listen-address=0.0.0.0"]
 CMD ["--no-browser"]

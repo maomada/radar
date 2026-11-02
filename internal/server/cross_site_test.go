@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloud"
 )
 
 // A page on another site can send a POST without a preflight when the content
@@ -385,7 +385,7 @@ func TestRefusedWriteExplainsTheFix(t *testing.T) {
 	if body.ErrorCode != "cross_origin_refused" {
 		t.Fatalf("error_code = %q", body.ErrorCode)
 	}
-	for _, want := range []string{"http://radar.internal", "radar.radar.svc:9280", "Host header", "trustedOrigins", "RADAR_TRUSTED_ORIGINS", "--trusted-origins"} {
+	for _, want := range []string{"http://radar.internal", "radar.radar.svc:9280", "Host header", "trustedOrigins", "KUBEATLAS_TRUSTED_ORIGINS", "--trusted-origins"} {
 		if !strings.Contains(body.Error, want) {
 			t.Fatalf("message %q does not mention %q", body.Error, want)
 		}

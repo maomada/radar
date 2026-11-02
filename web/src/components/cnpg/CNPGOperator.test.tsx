@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it, vi } from 'vitest'
-import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse } from '@skyhook-io/k8s-ui'
+import { buildCNPGFleet, CNPG_WORKSPACE_KEYS, type CNPGWorkspaceResponse } from '@maomada/k8s-ui'
 import { CNPGOperator, ConfigBlock } from './CNPGOperator'
 vi.mock('./useCNPGNavigate', () => ({ useCNPGNavigate: () => vi.fn() }))
 const operator = vi.hoisted(() => ({ partial: false }))

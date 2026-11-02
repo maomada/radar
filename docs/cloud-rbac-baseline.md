@@ -16,7 +16,7 @@ particular UI or client.
 
 ## What becomes readable
 
-The [reviewed policy table](../deploy/helm/radar/files/integration-read-baseline.yaml)
+The [reviewed policy table](../deploy/helm/kubeatlas/files/integration-read-baseline.yaml)
 is the source the chart renders, not a list generated from runtime discovery.
 It covers curated GitOps, routing/policy, autoscaling, observability, database,
 backup, cluster lifecycle, policy-report and GPU/batch resources. Each tuple has

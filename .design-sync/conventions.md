@@ -1,14 +1,14 @@
-# Building with Skyhook Radar (`@skyhook-io/k8s-ui`)
+# Building with Skyhook KubeAtlas (`@maomada/k8s-ui`)
 
-This is Radar's Kubernetes UI library — the components behind Skyhook's cluster-visibility product. Every component is on `window.K8sUI.*` (import as `import { Badge, StatusDot } from '@skyhook-io/k8s-ui'`). Build Kubernetes/infra dashboards, resource views, and operational surfaces from these real parts; they map 1:1 onto shippable Radar code.
+This is KubeAtlas's Kubernetes UI library — the components behind Skyhook's cluster-visibility product. Every component is on `window.K8sUI.*` (import as `import { Badge, StatusDot } from '@maomada/k8s-ui'`). Build Kubernetes/infra dashboards, resource views, and operational surfaces from these real parts; they map 1:1 onto shippable KubeAtlas code.
 
 ## Setup & wrapping
 - **No app-wide provider.** Most components (Badge, StatusDot, HealthRing, DistributionBar, Property, Section, CardSection, PageHeader, EmptyState, Facet, charts, every `*Renderer` resource view…) render standalone.
 - **Theme is CSS, not a React provider.** Tokens live on `:root`; default is **light**. For dark mode add `class="dark"` to a root element (`document.documentElement.classList.toggle('dark', isDark)`).
 - Only these need their own provider, and only when used: `ToastProvider` (toasts), `DockProvider` (logs/terminal dock).
-- **App feature components** (from Radar's app, same global): Diagnose/AI investigation (`AnalysisStory`, `ResultCard`, `AllClearCard`, `InconclusiveCard`, `EvidenceCard`, `InvestigationEvidencePane`, `TurnView`, `ApplyDialog`), `ClusterSchedulingCard`, `CurrentAllocationUse`, `TrafficGraph`, `TrafficFilterSidebar`, `TopologyPreview`, Helm `RevisionHistory` / `ValuesDiffPreview` / `ManifestViewer`. They take data as props — see each `.prompt.md` for realistic shapes.
+- **App feature components** (from KubeAtlas's app, same global): Diagnose/AI investigation (`AnalysisStory`, `ResultCard`, `AllClearCard`, `InconclusiveCard`, `EvidenceCard`, `InvestigationEvidencePane`, `TurnView`, `ApplyDialog`), `ClusterSchedulingCard`, `CurrentAllocationUse`, `TrafficGraph`, `TrafficFilterSidebar`, `TopologyPreview`, Helm `RevisionHistory` / `ValuesDiffPreview` / `ManifestViewer`. They take data as props — see each `.prompt.md` for realistic shapes.
 - YAML editors (`YamlEditor`, `YamlDiffEditor`, `YamlReview`) render as read-only code / line-diff views in designs.
-- Icons: `lucide-react` (Radar's icon set) — e.g. `RefreshCw`, `Trash2`, `CirclePause`. `RowActionMenu` items take an `icon` component.
+- Icons: `lucide-react` (KubeAtlas's icon set) — e.g. `RefreshCw`, `Trash2`, `CirclePause`. `RowActionMenu` items take an `icon` component.
 
 ## Styling idiom — Tailwind v4 utilities over theme tokens
 Style your own layout with these theme classes (never hard-code hex — they adapt to light/dark):
@@ -31,7 +31,7 @@ Component-layer classes: `.badge` / `.badge-sm`, `.btn-brand` / `.btn-brand-mute
 
 ## Idiomatic example
 ```tsx
-import { PageHeader, Badge, StatusDot, Property } from '@skyhook-io/k8s-ui'
+import { PageHeader, Badge, StatusDot, Property } from '@maomada/k8s-ui'
 
 export function WorkloadPanel() {
   return (
@@ -49,6 +49,6 @@ export function WorkloadPanel() {
   )
 }
 ```
-Compose Radar's real parts for the UI; use the theme classes above only for your own layout glue.
+Compose KubeAtlas's real parts for the UI; use the theme classes above only for your own layout glue.
 
-Only utilities Radar itself uses are compiled into the stylesheet; prefer the classes above and common layout utilities (`flex`, `gap-*`, `p-*`, `text-sm`/`text-xs`), and fall back to inline `style` for anything unusual.
+Only utilities KubeAtlas itself uses are compiled into the stylesheet; prefer the classes above and common layout utilities (`flex`, `gap-*`, `p-*`, `text-sm`/`text-xs`), and fall back to inline `style` for anything unusual.

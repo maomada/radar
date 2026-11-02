@@ -18,7 +18,7 @@ import type { InvestigationEvidenceTimelineItem } from "../types";
 import { evidenceRef, groupsOf, project, tool } from "../evidenceFixtures";
 
 // The list_resources results a partial read returns over MCP: narrowed to the
-// namespaces Radar collects (alpha, gamma), with gamma still loading. internal/mcp
+// namespaces KubeAtlas collects (alpha, gamma), with gamma still loading. internal/mcp
 // pins them to the producer and internal/ai proves every agent backend hands
 // their joined text blocks to Findings unchanged; this suite projects that
 // text the way Findings does.
@@ -53,7 +53,7 @@ function projectCase(
   ]);
 }
 
-describe("a list Radar read only in some of the namespaces it collects", () => {
+describe("a list KubeAtlas read only in some of the namespaces it collects", () => {
   it("shows the rows it read with the namespaces they came from", () => {
     const projection = projectCase("partial", undefined, [
       tool("diagnose", "diagnose", {
@@ -75,16 +75,16 @@ describe("a list Radar read only in some of the namespaces it collects", () => {
       inventory.latest.data.resources.map((row) => [row.namespace, row.name]),
     ).toEqual([["alpha", "alpha-object"]]);
     expect(inventory.latest.summary).toBe("1 returned · only alpha read");
-    // The rows carry Radar's own sentence: why gamma is missing, and who can
+    // The rows carry KubeAtlas's own sentence: why gamma is missing, and who can
     // widen the read, not just which namespace was read.
     expect(inventory.latest.data.coverageNote).toBe(
-      'Partial: 1 Service from namespace "alpha". Unknown: namespace "gamma", because Radar is still loading services there. Other namespaces are unknown: Radar collects services only in namespaces "alpha", "gamma". Whoever runs Radar can widen its collection.',
+      'Partial: 1 Service from namespace "alpha". Unknown: namespace "gamma", because KubeAtlas is still loading services there. Other namespaces are unknown: KubeAtlas collects services only in namespaces "alpha", "gamma". Whoever runs KubeAtlas can widen its collection.',
     );
     expect(
       renderToStaticMarkup(
         createElement(InventoryBody, { data: inventory.latest.data }),
       ),
-    ).toContain("because Radar is still loading services there");
+    ).toContain("because KubeAtlas is still loading services there");
     expect(inventory.latest.data.namespacesRead).toEqual(["alpha"]);
     expect(projection.limitations).toEqual([]);
     const coverageLimited = investigationEvidenceCoverageLimited(
@@ -112,7 +112,7 @@ describe("a list Radar read only in some of the namespaces it collects", () => {
     const projection = projectCase("partial and empty");
     expect(groupsOf(projection.groups, "inventory")).toEqual([]);
     expect(projection.limitations.map((item) => item.message)).toEqual([
-      'Partial: no services in namespace "alpha". Unknown: namespace "gamma", because Radar is still loading services there. Other namespaces are unknown: Radar collects services only in namespaces "alpha", "gamma". Whoever runs Radar can widen its collection.',
+      'Partial: no services in namespace "alpha". Unknown: namespace "gamma", because KubeAtlas is still loading services there. Other namespaces are unknown: KubeAtlas collects services only in namespaces "alpha", "gamma". Whoever runs KubeAtlas can widen its collection.',
     ]);
     expect(investigationEvidenceCoverageLimited(projection, "Service")).toBe(
       true,
@@ -134,7 +134,7 @@ describe("a list Radar read only in some of the namespaces it collects", () => {
       gaps: [{ code: "radar_namespace_not_collected" }],
     };
     const summary =
-      "These are the services in 40 namespaces only. Not read: part of the scope, because Radar doesn't collect services there. Services may exist there that this list doesn't show.";
+      "These are the services in 40 namespaces only. Not read: part of the scope, because KubeAtlas doesn't collect services there. Services may exist there that this list doesn't show.";
     const rows = [
       { kind: "Service", name: "present", namespace: namespaces[0] },
       { kind: "Service", name: "observed", namespace: "team-39" },
@@ -204,7 +204,7 @@ describe("a list Radar read only in some of the namespaces it collects", () => {
     expect(empty.limitations[0].message).not.toContain("team-09");
   });
 
-  it("names the resource Radar read, not the alias the agent asked for", () => {
+  it("names the resource KubeAtlas read, not the alias the agent asked for", () => {
     const projection = projectCase("partial and empty, kind by alias");
     const [message] = projection.limitations.map((item) => item.message);
     expect(message).toContain("no services in namespace");
@@ -281,7 +281,7 @@ describe("a list Radar read only in some of the namespaces it collects", () => {
       }),
     ]);
     expect(empty.limitations.map((item) => item.message)).toEqual([
-      "Radar found no matching resources for services resources. Anything you do not have permission to read was not searched.",
+      "KubeAtlas found no matching resources for services resources. Anything you do not have permission to read was not searched.",
     ]);
   });
 
@@ -298,13 +298,13 @@ describe("a list Radar read only in some of the namespaces it collects", () => {
       ]);
       expect(projection.groups).toEqual([]);
       expect(projection.limitations.map((item) => item.message)).toEqual([
-        "Radar couldn't summarize this investigation step. Review it in Activity.",
+        "KubeAtlas couldn't summarize this investigation step. Review it in Activity.",
       ]);
     }
   });
 });
 
-describe("a list Radar read all of", () => {
+describe("a list KubeAtlas read all of", () => {
   const rows = [{ kind: "Service", name: "api", namespace: "alpha" }];
 
   it("shows rows without a coverage caveat when nothing narrowed the scope", () => {
@@ -387,7 +387,7 @@ describe("a list Radar read all of", () => {
     ]);
   });
 
-  it("never reads an older Radar's bare array as complete", () => {
+  it("never reads an older KubeAtlas's bare array as complete", () => {
     const empty = project([
       tool("empty", "list_resources", [], {
         summary: JSON.stringify({ kind: "services" }),

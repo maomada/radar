@@ -14,10 +14,10 @@ fi
 source "$STATEFILE"
 
 # Kill Radar
-if kill "$RADAR_PID" 2>/dev/null; then
-  echo "Radar (PID $RADAR_PID) stopped."
+if kill "$KUBEATLAS_PID" 2>/dev/null; then
+  echo "Radar (PID $KUBEATLAS_PID) stopped."
 else
-  echo "Radar (PID $RADAR_PID) was already stopped."
+  echo "Radar (PID $KUBEATLAS_PID) was already stopped."
 fi
 
 # Open the screenshot folder only if something was actually captured.
@@ -32,7 +32,7 @@ if [[ -d "$SCREENSHOT_DIR" ]]; then
   fi
 fi
 
-echo "Logs: $RADAR_LOG"
+echo "Logs: $KUBEATLAS_LOG"
 
 # Clean up state file
 rm -f "$STATEFILE"

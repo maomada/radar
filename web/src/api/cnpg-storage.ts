@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { CNPGDiskReading, CNPGMetricIsolation, Grant } from '@skyhook-io/k8s-ui'
+import type { CNPGDiskReading, CNPGMetricIsolation, Grant } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 
 export type CNPGPVCRole = 'PG_DATA' | 'PG_WAL' | 'PG_TABLESPACE'

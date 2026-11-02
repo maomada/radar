@@ -32,8 +32,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // ErrNoCLI means no usable agent CLI was found on PATH — the feature stays
@@ -240,10 +240,10 @@ var agentCLICandidates = []string{"claude", "codex", "cursor-agent", "opencode"}
 
 // Detector / Diagnoser ------------------------------------------------------
 
-// ResolveCLI returns a usable agent-CLI path: the RADAR_AI_CLI_BIN override if
+// ResolveCLI returns a usable agent-CLI path: the KUBEATLAS_AI_CLI_BIN override if
 // set + present, else the first known candidate on PATH. "" if none.
 func ResolveCLI() string {
-	if explicit := strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")); explicit != "" {
+	if explicit := strings.TrimSpace(os.Getenv("KUBEATLAS_AI_CLI_BIN")); explicit != "" {
 		if p, err := exec.LookPath(explicit); err == nil {
 			return p
 		}
@@ -280,7 +280,7 @@ func newDiagnoser(backends []Agent, evidenceRefs *investigationrefs.Registry) *D
 
 // New returns a single-backend Diagnoser for the given binary, or ErrNoCLI if
 // empty. The backend is chosen from the binary name (see resolveAgent). Used by
-// the RADAR_AI_CLI_BIN override path and tests.
+// the KUBEATLAS_AI_CLI_BIN override path and tests.
 func New(bin string, evidenceRefs *investigationrefs.Registry) (*Diagnoser, error) {
 	if strings.TrimSpace(bin) == "" {
 		return nil, ErrNoCLI
@@ -290,10 +290,10 @@ func New(bin string, evidenceRefs *investigationrefs.Registry) (*Diagnoser, erro
 }
 
 // NewDetected builds a Diagnoser over every supported agent CLI present on PATH.
-// The RADAR_AI_CLI_BIN override, when set + present, forces a single backend.
+// The KUBEATLAS_AI_CLI_BIN override, when set + present, forces a single backend.
 // Returns ErrNoCLI when nothing usable is found.
 func NewDetected(ctx context.Context, evidenceRefs *investigationrefs.Registry) (*Diagnoser, error) {
-	if explicit := strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")); explicit != "" {
+	if explicit := strings.TrimSpace(os.Getenv("KUBEATLAS_AI_CLI_BIN")); explicit != "" {
 		return New(ResolveCLI(), evidenceRefs)
 	}
 	var backends []Agent
@@ -315,12 +315,12 @@ func NewDetected(ctx context.Context, evidenceRefs *investigationrefs.Registry) 
 // drops one that is gone. A CLI installed, moved or removed while Radar runs is
 // then reflected without a restart. Runs already in flight keep the backend they
 // started with. The default backend changes only if it was removed. With
-// RADAR_AI_CLI_BIN set, nothing else is searched: only the pinned file is
+// KUBEATLAS_AI_CLI_BIN set, nothing else is searched: only the pinned file is
 // checked, and its backend dropped or restored as it stops or starts being
 // runnable. Returns the names it added, re-pointed or dropped.
 func (d *Diagnoser) Refresh(ctx context.Context) []string {
 	detected := map[string]string{}
-	if strings.TrimSpace(os.Getenv("RADAR_AI_CLI_BIN")) != "" {
+	if strings.TrimSpace(os.Getenv("KUBEATLAS_AI_CLI_BIN")) != "" {
 		if bin := ResolveCLI(); bin != "" {
 			detected[resolveAgent(bin).Name()] = bin
 		}
@@ -420,7 +420,7 @@ func (d *Diagnoser) resolveTurnAgent(name string) Agent {
 }
 
 func maxTurns() int {
-	if v := strings.TrimSpace(os.Getenv("RADAR_AI_MAX_TURNS")); v != "" {
+	if v := strings.TrimSpace(os.Getenv("KUBEATLAS_AI_MAX_TURNS")); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}

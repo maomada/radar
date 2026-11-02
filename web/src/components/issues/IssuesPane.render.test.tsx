@@ -75,7 +75,7 @@ describe('Issues page query ownership', () => {
   })
 })
 
-describe('Issues page when Radar could not read Helm releases', () => {
+describe('Issues page when KubeAtlas could not read Helm releases', () => {
   const line = "Helm releases couldn't be checked, so failed or stuck releases may be missing."
   const text = (html: string) => html.replace(/&#x27;|&#39;/g, "'")
 
@@ -125,7 +125,7 @@ describe('Issues page when Radar could not read Helm releases', () => {
     expect(html).not.toContain('Nothing broken right now')
   })
 
-  it('keeps the all-clear for a Radar that read Helm or predates the field', () => {
+  it('keeps the all-clear for a KubeAtlas that read Helm or predates the field', () => {
     state.fleet.data = { issues: [], total: 0, total_matched: 0 }
     const html = text(render('/issues'))
     expect(html).toContain('Nothing broken right now')

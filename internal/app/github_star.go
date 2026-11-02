@@ -195,7 +195,7 @@ func starStatePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, ".radar", "star.json"), nil
+	return filepath.Join(homeDir, ".kubeatlas", "star.json"), nil
 }
 
 func loadStarState(path string) *starState {

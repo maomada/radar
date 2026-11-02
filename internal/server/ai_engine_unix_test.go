@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 func TestReadOnlyMCPStartsAIEngine(t *testing.T) {
@@ -23,7 +23,7 @@ func TestReadOnlyMCPStartsAIEngine(t *testing.T) {
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("RADAR_AI_CLI_BIN", bin)
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", bin)
 	stub := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 	s := &Server{mcpReadOnlyHandler: stub, mcpInvestigationHandler: stub, aiInvestigationRefs: investigationrefs.NewRegistry()}
 	t.Cleanup(func() {
@@ -75,7 +75,7 @@ func TestListAgentsTurnsInvestigationsOnForACLIInstalledLater(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "")
-	t.Setenv("RADAR_AI_CLI_BIN", "")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
 
 	mcp := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 	s := &Server{
@@ -144,7 +144,7 @@ func TestListAgentsReportsOffOnceTheLastCLIIsRemoved(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "")
-	t.Setenv("RADAR_AI_CLI_BIN", "")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
 	mcp := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 	s := &Server{
 		authConfig:              auth.Config{Mode: "none"},
@@ -186,7 +186,7 @@ func TestDiagnoseStartRefusesAnAgentThatIsNotInstalled(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("PATH", "")
-	t.Setenv("RADAR_AI_CLI_BIN", "")
+	t.Setenv("KUBEATLAS_AI_CLI_BIN", "")
 	bin := filepath.Join(home, ".local", "bin")
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		t.Fatal(err)

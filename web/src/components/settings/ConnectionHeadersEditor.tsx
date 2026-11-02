@@ -1,4 +1,4 @@
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 
 export interface HeaderOperation {
   key: string

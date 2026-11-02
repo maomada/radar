@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/internal/usagedata"
-	gitopstree "github.com/skyhook-io/radar/pkg/gitops/tree"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/internal/usagedata"
+	gitopstree "github.com/maomada/radar/pkg/gitops/tree"
 )
 
 // NamespaceScopeMode is the closed enum the frontend's `mode` discriminator

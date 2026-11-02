@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/settings"
 )
 
 func useTempHome(t *testing.T) string {
@@ -132,7 +132,7 @@ func TestPersistLastContextSkipsUnresolvableReference(t *testing.T) {
 
 func TestPersistLastContextPreservesInvalidSettings(t *testing.T) {
 	dir := useTempHome(t)
-	path := filepath.Join(dir, ".radar", "settings.json")
+	path := filepath.Join(dir, ".kubeatlas", "settings.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestPersistLastContextPreservesInvalidSettings(t *testing.T) {
 
 func TestForgetLastContextPreservesInvalidSettings(t *testing.T) {
 	dir := useTempHome(t)
-	path := filepath.Join(dir, ".radar", "settings.json")
+	path := filepath.Join(dir, ".kubeatlas", "settings.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestStartupContextPreferenceEmptyWithoutSavedContext(t *testing.T) {
 
 func TestStartupContextPreferenceReportsUnreadableSettings(t *testing.T) {
 	dir := useTempHome(t)
-	path := filepath.Join(dir, ".radar", "settings.json")
+	path := filepath.Join(dir, ".kubeatlas", "settings.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}

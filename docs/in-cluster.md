@@ -7,17 +7,17 @@ GitHub releases. An unreadable release lookup reports an error; the installer
 fails if the required CLI archive or checksum is missing. Historical package identities are retained for
 compatibility; they do not imply that package-manager releases are available.
 
-Deploy Radar to your Kubernetes cluster for shared team access.
+Deploy KubeAtlas to your Kubernetes cluster for shared team access.
 
 For an optional independent registry of in-cluster and opted-in local
-CLI/Desktop Radar instances, see the [self-hosted Radar Portal guide](portal.md).
+CLI/Desktop KubeAtlas instances, see the [self-hosted KubeAtlas Portal guide](portal.md).
 
-> **Note:** This guide covers deploying Radar as a pod in your cluster. If you're running Radar locally but need to understand cluster connection behavior (e.g., using `KUBECONFIG` to override in-cluster detection), see the [Configuration Guide](configuration.md).
+> **Note:** This guide covers deploying KubeAtlas as a pod in your cluster. If you're running KubeAtlas locally but need to understand cluster connection behavior (e.g., using `KUBECONFIG` to override in-cluster detection), see the [Configuration Guide](configuration.md).
 
 Choose the path that matches what you are trying to do:
 
 - **New installation:** follow [Quick Start](#quick-start), then configure how
-  your team will reach and authenticate to Radar.
+  your team will reach and authenticate to KubeAtlas.
 - **Existing installation:** start with [Upgrading](#upgrading). The correct
   workflow depends on whether Helm, Argo CD, Flux, or another system owns the
   deployment.
@@ -28,7 +28,7 @@ Set `VERSION` to a version actually published by the manual Release GHCR
 workflow before running these commands.
 
 ```bash
-helm upgrade --install radar oci://ghcr.io/maomada/charts/radar \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas \
   --version "$VERSION" -n radar --create-namespace
 ```
 
@@ -40,10 +40,10 @@ open http://localhost:9280
 
 ## Installation settings
 
-Shared OSS Radar is configured by the installation operator, not by visitors to
+Shared OSS KubeAtlas is configured by the installation operator, not by visitors to
 its web UI. Settings shows effective configuration and connection status; it does
 not save installation changes. Use Helm values (or flags/environment for a
-non-Helm deployment), then restart or roll out Radar. Kubernetes actions such as
+non-Helm deployment), then restart or roll out KubeAtlas. Kubernetes actions such as
 scaling workloads still follow their existing permissions.
 
 | Setting | Helm values |
@@ -66,18 +66,18 @@ helm:
     - oci://ghcr.io/myorg/charts
 ```
 
-`audit: null` uses Radar's default system-namespace exclusions. Explicit empty
+`audit: null` uses KubeAtlas's default system-namespace exclusions. Explicit empty
 lists include every namespace and enable all checks. Check IDs are listed in
 the `checks` object returned by `GET /api/audit`. Namespace exclusions accept
 exact names or one leading/trailing `*`. OCI entries are prefixes, not full chart
 references; private-registry credentials are not managed by these values.
 
 The chart renders audit/OCI settings into a read-only ConfigMap, separate from
-Radar's writable local files. Its checksum triggers a rollout when values
-change. Radar reads it at startup and rejects unknown fields, unsupported schema
+KubeAtlas's writable local files. Its checksum triggers a rollout when values
+change. KubeAtlas reads it at startup and rejects unknown fields, unsupported schema
 versions, invalid patterns, and unknown check IDs. It never writes ConfigMaps or
 Secrets to save UI edits. Rotating an externally managed integration Secret
-also requires restarting Radar; that Secret's contents are not part of the
+also requires restarting KubeAtlas; that Secret's contents are not part of the
 ConfigMap checksum. A timeline PVC does not persist installation settings.
 
 When upgrading from an installation where Settings allowed edits, copy the
@@ -103,13 +103,13 @@ using an explicit kubeconfig with a non-loopback listener. A personal loopback
 CLI in a Kubernetes-hosted development workspace remains editable unless an
 operator file is supplied. Helm installations always supply that file, regardless
 of listener or kubeconfig overrides. Local unauthenticated CLI/Desktop settings
-remain editable. Radar Cloud retains its existing role-managed settings and
+remain editable. upstream Cloud retains its existing role-managed settings and
 personal preferences; the chart rejects non-default `audit` or `helm.ociSources`
 values in Cloud mode rather than silently ignoring them.
 
 For non-Helm shared OSS, use the existing flags/env for integrations. Structured
 audit/OCI settings can be supplied through a read-only JSON file selected by
-`RADAR_OPERATOR_SETTINGS_FILE`:
+`KUBEATLAS_OPERATOR_SETTINGS_FILE`:
 
 Without that file, managed OSS uses the built-in audit policy and an empty OCI
 source list, not old values from `settings.json`. If `audit` is supplied, both
@@ -128,19 +128,19 @@ into operator-owned settings. In Cloud it is ignored with a startup warning.
 
 ## Upgrading
 
-Upgrade Radar through the same source that manages the current installation.
-If Argo CD or Flux owns Radar, change the version in Git and let the controller
+Upgrade KubeAtlas through the same source that manages the current installation.
+If Argo CD or Flux owns KubeAtlas, change the version in Git and let the controller
 reconcile it. Running `helm upgrade` directly against a GitOps-managed release
 creates drift and the controller may revert it.
 
 Before upgrading, review the [release notes](https://github.com/maomada/radar/releases)
 between your current and target versions, especially for a major-version update.
-The Radar version shown on the Home page matches the published Helm chart
+The KubeAtlas version shown on the Home page matches the published Helm chart
 version.
 
 ### Helm
 
-If Radar links you to a Helm release, use that release name and namespace. You
+If KubeAtlas links you to a Helm release, use that release name and namespace. You
 can also find likely releases with:
 
 ```bash
@@ -151,7 +151,7 @@ Select a previously published version, then upgrade while preserving the
 values already set on the release:
 
 ```bash
-helm upgrade radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" \
+helm upgrade radar oci://ghcr.io/maomada/charts/kubeatlas --version "$VERSION" \
   --namespace radar \
   --reset-then-reuse-values \
   --wait
@@ -176,21 +176,21 @@ Do not upgrade the live Helm release or Deployment directly. Update the
 version in the repository that owns the installation, then reconcile its
 controller:
 
-- **Argo CD Application:** if the Application directly references the Radar
+- **Argo CD Application:** if the Application directly references the KubeAtlas
   chart, update its Helm chart `targetRevision`. Otherwise update the chart or
   image version in the Git source referenced by the Application, then sync it.
-- **Flux HelmRelease:** update the Radar chart version in the HelmRelease source,
+- **Flux HelmRelease:** update the KubeAtlas chart version in the HelmRelease source,
   usually `spec.chart.spec.version`, then reconcile the HelmRelease.
-- **Flux Kustomization:** update the Radar chart or image version in the Git
+- **Flux Kustomization:** update the KubeAtlas chart or image version in the Git
   source referenced by the Kustomization, then reconcile it.
 
-Radar links directly to a verified owning Application, HelmRelease, or
+KubeAtlas links directly to a verified owning Application, HelmRelease, or
 Kustomization when it can. Open that object to confirm its source and health
 before changing Git.
 
 ### If the manager could not be identified
 
-Inspect the Radar Deployment before choosing an upgrade method:
+Inspect the KubeAtlas Deployment before choosing an upgrade method:
 
 ```bash
 kubectl get deployment --all-namespaces \
@@ -210,11 +210,11 @@ Look at the Deployment's labels and annotations:
 A GitOps-managed chart normally has both Helm and GitOps metadata. In that
 case, GitOps is the source of truth: update Git rather than running Helm
 directly. If none of these markers exist, update the manifests or image tag in
-the system that originally deployed Radar.
+the system that originally deployed KubeAtlas.
 
 ### Verify or roll back
 
-Wait for the Radar Deployment to finish rolling out, then refresh Radar and
+Wait for the KubeAtlas Deployment to finish rolling out, then refresh KubeAtlas and
 confirm the new version on the Home page:
 
 ```bash
@@ -240,14 +240,14 @@ httpRoute:
     - radar.your-domain.com
 ```
 
-With no custom `rules`, the chart routes `/` to Radar. `httpRoute` and `ingress` are mutually exclusive, and at least one `parentRefs` entry is required. See the [chart reference](../deploy/helm/radar/README.md#with-gateway-api-httproute) for custom rules and timeouts.
+With no custom `rules`, the chart routes `/` to KubeAtlas. `httpRoute` and `ingress` are mutually exclusive, and at least one `parentRefs` entry is required. See the [chart reference](../deploy/helm/kubeatlas/README.md#with-gateway-api-httproute) for custom rules and timeouts.
 
 ## Exposing with Ingress
 
 ### Ingress without authentication
 
 > **Warning:** Only use this behind a trusted private network boundary. Anyone
-> who can reach Radar can use the permissions granted to its ServiceAccount.
+> who can reach KubeAtlas can use the permissions granted to its ServiceAccount.
 > For shared or externally reachable installations, configure authentication
 > before exposing the ingress.
 
@@ -264,17 +264,17 @@ ingress:
 ```
 
 ```bash
-helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" \
+helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas --version "$VERSION" \
   -n radar -f values.yaml
 ```
 
-Without authentication Radar answers only hostnames it can trust not to be a
+Without authentication KubeAtlas answers only hostnames it can trust not to be a
 rebound attacker page: `localhost`, IP addresses, Kubernetes Service names
 (`radar`, `radar.<namespace>`, `radar.<namespace>.svc`), and the ingress and
 HTTPRoute hostnames, which the chart adds for you. If you reach
-Radar by another name (a second DNS name, an external load balancer hostname,
+KubeAtlas by another name (a second DNS name, an external load balancer hostname,
 the Gateway listener hostname when `httpRoute.hostnames` is empty), add it to
-`allowedHosts`; otherwise requests fail with *Radar without
+`allowedHosts`; otherwise requests fail with *KubeAtlas without
 authentication answers only ...* naming the host. A wildcard ingress host such
 as `*.example.com` is added as is and covers the names under it. Keep the
 ingress forwarding the original `Host`: a controller that rewrites it to the
@@ -283,7 +283,7 @@ Service name or an IP bypasses this check. See
 
 ### Subpath Ingress (No Strip-Prefix)
 
-If your ingress forwards `/radar/...` to the Radar service as `/radar/...`, set `basePath` to the same prefix:
+If your ingress forwards `/radar/...` to the KubeAtlas service as `/radar/...`, set `basePath` to the same prefix:
 
 ```yaml
 # values.yaml
@@ -301,11 +301,11 @@ ingress:
 
 Then open `https://tools.your-domain.com/radar/`. Do not set `basePath` when your ingress already rewrites `/radar` to `/`.
 
-Path segments accept letters, digits, `-`, `_`, `.` and `~`. Radar serves the app
+Path segments accept letters, digits, `-`, `_`, `.` and `~`. KubeAtlas serves the app
 **only** under the prefix — requests to unprefixed paths get a 404, so update any
 external health checks or scrapers that hit `/api/health` or `/metrics` directly
 (the chart's own probes follow `basePath` automatically). `basePath` is not
-supported together with Radar Cloud (`--cloud-url`), which owns the URL path
+supported together with upstream Cloud (`--cloud-url`), which owns the URL path
 itself.
 
 **Every URL you hand to an external system must include the prefix.** With OIDC
@@ -321,8 +321,8 @@ auth:
     # https://tools.your-domain.com/radar/auth/backchannel-logout
 ```
 
-Radar's callback route lives at `{basePath}/auth/callback`, so a redirect URL
-without the prefix sends the IdP to a path the ingress doesn't route to Radar and
+KubeAtlas's callback route lives at `{basePath}/auth/callback`, so a redirect URL
+without the prefix sends the IdP to a path the ingress doesn't route to KubeAtlas and
 login ends in a 404.
 
 **Give each instance its own hostname.** Two Radars behind subpaths on one
@@ -333,13 +333,10 @@ scoped per origin with no path-scoped equivalent in the platform at all. Logging
 into one can end the other's session, and preferences set in one show up in the
 other. A hostname each keeps them properly separate.
 
-Separately from that: a Radar per cluster gives you a view per cluster. Each
+Separately from that: a KubeAtlas per cluster gives you a view per cluster. Each
 watches only its own cluster and carries its own upgrades, ingress and auth
-config, with no cross-cluster search or combined issue list across them. If you
-want several clusters in one view, the optional external
-[Radar Cloud](https://radarhq.io) service provides that control plane. It is
-operated outside this repository; you still run Radar in each cluster, and
-each agent dials out to the configured control-plane endpoint.
+config, with no cross-cluster search or combined issue list across them.
+Upstream Cloud connectivity is unavailable in KubeAtlas.
 
 ### With ingress basic authentication
 
@@ -367,7 +364,7 @@ each agent dials out to the configured control-plane endpoint.
      annotations:
        nginx.ingress.kubernetes.io/auth-type: basic
        nginx.ingress.kubernetes.io/auth-secret: radar-basic-auth
-       nginx.ingress.kubernetes.io/auth-realm: "Radar"
+       nginx.ingress.kubernetes.io/auth-realm: "KubeAtlas"
      hosts:
        - host: radar.your-domain.com
          paths:
@@ -377,7 +374,7 @@ each agent dials out to the configured control-plane endpoint.
 
 3. **Deploy:**
    ```bash
-   helm upgrade --install radar oci://ghcr.io/maomada/charts/radar --version "$VERSION" \
+   helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas --version "$VERSION" \
      -n radar -f values.yaml
    ```
 
@@ -420,7 +417,7 @@ Example: `radar.prod-us-east1.example.com`
 
 ## RBAC
 
-Radar uses its ServiceAccount to access the Kubernetes API. The Helm chart creates a ClusterRole with **read-only access** to common resources by default:
+KubeAtlas uses its ServiceAccount to access the Kubernetes API. The Helm chart creates a ClusterRole with **read-only access** to common resources by default:
 
 - Pods, Services, ConfigMaps, Events, Namespaces, Nodes, ServiceAccounts, Endpoints
 - Deployments, DaemonSets, StatefulSets, ReplicaSets
@@ -436,10 +433,10 @@ Some features require additional permissions. Most are disabled by default for s
 |---------|-------|---------|-------------|
 | Secrets | `rbac.secrets: true` | `false` | Show secrets in resource list |
 | Terminal | `rbac.podExec: true` | `false` | Shell access to pods |
-| Port Forward | `rbac.portForward: true` | `false` | Port forwarding to pods/services. Also the traffic-source fallback (Hubble/Caretta): Radar dials the relay/metrics Service directly first, so this is only needed when a NetworkPolicy or routing blocks that direct path |
+| Port Forward | `rbac.portForward: true` | `false` | Port forwarding to pods/services. Also the traffic-source fallback (Hubble/Caretta): KubeAtlas dials the relay/metrics Service directly first, so this is only needed when a NetworkPolicy or routing blocks that direct path |
 | Logs | `rbac.podLogs: true` | `true` | View pod logs |
 | Helm Write | `rbac.helm: true` | `false` | Install/upgrade/rollback/uninstall Helm releases (grants broad write access; auto-enables secrets). When auth or cloud is on, also emits a split helm add-on: `radar-helm` (CRDs/storage/PDBs/namespaces, bound to owner+member) and `radar-helm-admin` (RBAC/webhooks/APIServices, owner-only) — see [authentication.md](authentication.md#cloud-mode-helm-bindings) |
-| RBAC view | `rbac.viewRBAC: true` | `false` | Show ClusterRoles, ClusterRoleBindings, Roles, RoleBindings in the resource browser. Off by default: cache-served reads bypass per-user RBAC, so granting this exposes the cluster's authorization graph to every authenticated Radar user |
+| RBAC view | `rbac.viewRBAC: true` | `false` | Show ClusterRoles, ClusterRoleBindings, Roles, RoleBindings in the resource browser. Off by default: cache-served reads bypass per-user RBAC, so granting this exposes the cluster's authorization graph to every authenticated KubeAtlas user |
 | Webhooks view | `rbac.viewWebhooks: true` | `false` | Show admission webhook configurations. Off by default because they expose the cluster's admission-control posture; auto-enabled when auth or cloud mode enforces each user's own RBAC |
 | Node runtime evidence | `rbac.viewNodeRuntime: true` | `false` | Let upgrade-impact checks inspect kubelet metrics and effective configuration through `nodes/proxy`. Enable only for a trusted no-auth audience; authenticated users need this permission on their own Kubernetes identity |
 | Traffic TLS | `rbac.traffic: true` | `true` | Read Hubble relay TLS certs for Cilium traffic observation |
@@ -458,7 +455,7 @@ rbac:
   helm: false         # Enable Helm write operations (broad permissions)
 ```
 
-The terminal's **Debug** action launches a throwaway container (ephemeral container on a pod, or a privileged pod on a node) using `busybox:latest` by default. If the built-in restricted Pod Security Standard rejects the default pod debug container, Radar retries with a restricted-compatible Linux security context using the target/pod non-root UID, or UID `65532` by default, so custom images used in restricted namespaces must work as a non-root user. In air-gapped or private-registry clusters where the default image can't be pulled, point it at a reachable mirror:
+The terminal's **Debug** action launches a throwaway container (ephemeral container on a pod, or a privileged pod on a node) using `busybox:latest` by default. If the built-in restricted Pod Security Standard rejects the default pod debug container, KubeAtlas retries with a restricted-compatible Linux security context using the target/pod non-root UID, or UID `65532` by default, so custom images used in restricted namespaces must work as a non-root user. In air-gapped or private-registry clusters where the default image can't be pulled, point it at a reachable mirror:
 
 ```yaml
 # values.yaml
@@ -466,11 +463,11 @@ debug:
   image: my-registry.internal/busybox:1.36
 ```
 
-Radar doesn't attach image-pull secrets to debug containers or pods — ephemeral containers inherit the target pod's, and node debug pods rely on the `default` namespace's ServiceAccount / node registry config — so the image must be pullable without Radar supplying credentials.
+KubeAtlas doesn't attach image-pull secrets to debug containers or pods — ephemeral containers inherit the target pod's, and node debug pods rely on the `default` namespace's ServiceAccount / node registry config — so the image must be pullable without KubeAtlas supplying credentials.
 
 ### CRD Permissions
 
-Radar reads CRDs from many popular tools. Common CRD groups can be toggled individually:
+KubeAtlas reads CRDs from many popular tools. Common CRD groups can be toggled individually:
 
 ```yaml
 rbac:
@@ -493,21 +490,21 @@ rbac:
   additionalRules: []       # Arbitrary extra ClusterRole rules
 ```
 
-Radar's NetworkPolicy check (an issue when a policy leaves every pod behind a Service with no allowed inbound traffic) also reads the policies of other engines that can allow what a core NetworkPolicy denies: Cilium, Calico, Antrea (`rbac.crdGroups.antrea`), EKS VPC CNI (`rbac.crdGroups.awsNetworkPolicy`) and `policy.networking.k8s.io`. If one of those APIs is served but Radar can't read it, the check stays silent for the Services it might cover, so keep these groups enabled.
+KubeAtlas's NetworkPolicy check (an issue when a policy leaves every pod behind a Service with no allowed inbound traffic) also reads the policies of other engines that can allow what a core NetworkPolicy denies: Cilium, Calico, Antrea (`rbac.crdGroups.antrea`), EKS VPC CNI (`rbac.crdGroups.awsNetworkPolicy`) and `policy.networking.k8s.io`. If one of those APIs is served but KubeAtlas can't read it, the check stays silent for the Services it might cover, so keep these groups enabled.
 
 Calico access is read-only (`get`, `list`, and `watch`) for both API groups and is enabled by default. Set `rbac.crdGroups.calico=false` to disable it. If chart-managed Calico access is disabled, grant only the resources you need through `rbac.additionalRules`; both groups may be required while a cluster exposes modern and legacy Calico APIs.
 
-The chart grants cluster-wide `get/list/watch` on VictoriaMetrics VMAgent, VMCluster and VMSingle whenever it grants cluster-wide Secrets reads: `rbac.secrets: true`, `rbac.helm: true`, auth enabled (`auth.mode != none`), or cloud mode. These objects can carry inline credentials, so they share the same grant decision as Secrets; there is no separate VictoriaMetrics setting. All other VictoriaMetrics kinds are excluded from this rule. See the [chart reference](../deploy/helm/radar/README.md#crd-access) for exclusions and wildcard grants.
+The chart grants cluster-wide `get/list/watch` on VictoriaMetrics VMAgent, VMCluster and VMSingle whenever it grants cluster-wide Secrets reads: `rbac.secrets: true`, `rbac.helm: true`, auth enabled (`auth.mode != none`), or cloud mode. These objects can carry inline credentials, so they share the same grant decision as Secrets; there is no separate VictoriaMetrics setting. All other VictoriaMetrics kinds are excluded from this rule. See the [chart reference](../deploy/helm/kubeatlas/README.md#crd-access) for exclusions and wildcard grants.
 
-Radar decides what it can read at startup, so RBAC changes take effect when the Radar pod restarts. `helm upgrade` rolls the pod whenever `rbac` values change; restart Radar yourself after changing its RBAC outside Helm.
+KubeAtlas decides what it can read at startup, so RBAC changes take effect when the KubeAtlas pod restarts. `helm upgrade` rolls the pod whenever `rbac` values change; restart KubeAtlas yourself after changing its RBAC outside Helm.
 
 ### Graceful RBAC Degradation
 
-You see what you have access to — Radar doesn't require cluster-admin. Whatever your ServiceAccount (or the impersonated user, when auth is enabled) can list, Radar shows. Resource types you can't list show an actionable denied-state instead of a misleading "0 / None found": for a core cluster-scoped kind (Node, PV, StorageClass, and the like) your identity can't read, Radar shows a copyable `ClusterRole` + `ClusterRoleBinding` request to hand to a cluster admin (reason `rbac_denied`), and distinguishes that from a kind Radar's own ServiceAccount can't read, where a user-level grant wouldn't help (reason `unavailable`, no snippet). The "Your access on this cluster" dialog lists the core cluster-scoped kinds being hidden alongside your effective rules. Namespaces you can't access don't appear.
+You see what you have access to — KubeAtlas doesn't require cluster-admin. Whatever your ServiceAccount (or the impersonated user, when auth is enabled) can list, KubeAtlas shows. Resource types you can't list show an actionable denied-state instead of a misleading "0 / None found": for a core cluster-scoped kind (Node, PV, StorageClass, and the like) your identity can't read, KubeAtlas shows a copyable `ClusterRole` + `ClusterRoleBinding` request to hand to a cluster admin (reason `rbac_denied`), and distinguishes that from a kind KubeAtlas's own ServiceAccount can't read, where a user-level grant wouldn't help (reason `unavailable`, no snippet). The "Your access on this cluster" dialog lists the core cluster-scoped kinds being hidden alongside your effective rules. Namespaces you can't access don't appear.
 
-A namespace-scoped ServiceAccount (RoleBinding without a ClusterRole) is fully supported — Radar detects this at startup and works within the permitted namespace.
+A namespace-scoped ServiceAccount (RoleBinding without a ClusterRole) is fully supported — KubeAtlas detects this at startup and works within the permitted namespace.
 
-**Stalled API requests.** If a read from the Kubernetes API stalls without the connection resetting (for example, a proxy whose upstream dropped silently), Radar ends it after 60 seconds with no data and retries, instead of freezing that resource's data until a restart. Slow transfers that keep making progress are never cut, and log streams, exec and port-forward are unaffected.
+**Stalled API requests.** If a read from the Kubernetes API stalls without the connection resetting (for example, a proxy whose upstream dropped silently), KubeAtlas ends it after 60 seconds with no data and retries, instead of freezing that resource's data until a restart. Slow transfers that keep making progress are never cut, and log streams, exec and port-forward are unaffected.
 
 **RBAC granularity (auth enabled):**
 
@@ -550,7 +547,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-Set `rbac.create: false` in the Helm values and apply the custom Role/RoleBinding above. Radar will detect the namespace-scoped permissions and work within `my-team` only.
+Set `rbac.create: false` in the Helm values and apply the custom Role/RoleBinding above. KubeAtlas will detect the namespace-scoped permissions and work within `my-team` only.
 
 ## Authentication
 
@@ -563,7 +560,7 @@ auth:
   mode: proxy
 ```
 
-Then deploy an auth proxy (e.g., oauth2-proxy) in front of Radar. Users authenticate through the proxy, and Radar uses K8s impersonation so each user's actions are governed by their own K8s RBAC bindings.
+Then deploy an auth proxy (e.g., oauth2-proxy) in front of KubeAtlas. Users authenticate through the proxy, and KubeAtlas uses K8s impersonation so each user's actions are governed by their own K8s RBAC bindings.
 
 **Quick start with OIDC:**
 ```yaml
@@ -579,57 +576,57 @@ auth:
 
 ## Security Considerations
 
-When deploying Radar in-cluster:
+When deploying KubeAtlas in-cluster:
 
 The Helm chart explicitly sets `--listen-address=0.0.0.0` so its ClusterIP
 Service can reach the pod. Unlike the native CLI's loopback-only default, this
-makes Radar reachable on the pod network; the following controls are therefore
+makes KubeAtlas reachable on the pod network; the following controls are therefore
 part of the deployment boundary.
 
 1. **Authentication**: Always enable authentication when exposing via ingress. Use [built-in auth](authentication.md) (proxy or OIDC mode) or basic auth (shown above) at minimum.
 
-2. **RBAC scope**: The default ClusterRole grants cluster-wide read access. For namespace-restricted access, set `rbac.create: false` and create a custom Role/RoleBinding. Radar will gracefully adapt to the available permissions.
+2. **RBAC scope**: The default ClusterRole grants cluster-wide read access. For namespace-restricted access, set `rbac.create: false` and create a custom Role/RoleBinding. KubeAtlas will gracefully adapt to the available permissions.
 
 3. **Privileged features**: Terminal (`podExec`) and port forwarding grant significant access. Only enable these in trusted environments or when using [per-user authentication](authentication.md).
 
-4. **Network access**: Consider using NetworkPolicies to restrict which pods can reach Radar.
+4. **Network access**: Consider using NetworkPolicies to restrict which pods can reach KubeAtlas.
 
 ## Timeline Storage: memory vs sqlite vs postgres
 
-Radar's timeline records every cluster change. Three backends:
+KubeAtlas's timeline records every cluster change. Three backends:
 
 - **`memory`** (default): events live in-process, lost on pod restart. Lowest footprint; pick this if you only need recent activity (last few hours).
 - **`sqlite`**: events persist to a PVC across restarts. Multi-day audit trail; pick this for long-running in-cluster deployments where you care about history surviving pod cycles. Requires `persistence.enabled=true`.
-- **`postgres`**: events persist in an externally managed PostgreSQL database. Pick this for durability across restarts and rolling updates, or when you want to avoid the single-PVC constraint. Use a dedicated database per Radar deployment. The DSN must be provided via an existing Kubernetes Secret (`timeline.postgres.existingSecret`); Helm never touches the credential.
+- **`postgres`**: events persist in an externally managed PostgreSQL database. Pick this for durability across restarts and rolling updates, or when you want to avoid the single-PVC constraint. Use a dedicated database per KubeAtlas deployment. The DSN must be provided via an existing Kubernetes Secret (`timeline.postgres.existingSecret`); Helm never touches the credential.
 
-For SQLite, tune `timeline.retention` (Go duration; `0` disables age cleanup), `timeline.maxSize`, and `persistence.size` together. Keep `timeline.maxSize` below the PVC size so Radar prunes oldest events before the volume fills. `timeline.maxSize` is ignored for postgres and memory.
+For SQLite, tune `timeline.retention` (Go duration; `0` disables age cleanup), `timeline.maxSize`, and `persistence.size` together. Keep `timeline.maxSize` below the PVC size so KubeAtlas prunes oldest events before the volume fills. `timeline.maxSize` is ignored for postgres and memory.
 
 Cleanup runs hourly + once at startup. Confirm it's keeping up via `/api/diagnostics` — the `timeline.maxStorageBytes`, `timeline.lastCleanupAt`, `timeline.lastCleanupDeletedRows`, `timeline.lastCleanupError`, and `timeline.storageBytes` fields surface the state without requiring `kubectl logs`.
 
 ### PostgreSQL requirements
 
 - PostgreSQL 14+ (tested against 17).
-- A dedicated database and a user with DDL permissions so Radar can create/update the `radar_timeline_*` tables, indexes, and migrations on first startup.
+- A dedicated database and a user with DDL permissions so KubeAtlas can create/update the `radar_timeline_*` tables, indexes, and migrations on first startup.
 - `sslmode` and other TLS settings are controlled through the DSN string.
 - The DSN is read from a Secret; never put it in Helm values or `config.json`.
-- Restart the Radar Deployment after rotating the Secret because Kubernetes does not refresh environment variables in running containers.
+- Restart the KubeAtlas Deployment after rotating the Secret because Kubernetes does not refresh environment variables in running containers.
 - There is no built-in import path from SQLite to PostgreSQL. Migrating historical events is not supported.
-- An unreachable PostgreSQL costs you the timeline, not the rest of Radar. Cluster views keep working, the Timeline page says the database can't be reached and points to the logs, which have the connection error (so does the diagnostics overlay), and Radar reconnects on its own once the database answers. Radar logs when the database becomes unreachable, how soon it tries again, and when it answers again, naming the database's host, port, name and user (never the password) with the driver's error; search the logs for `[timeline]`. Events that occur while it is down are not recorded and are not recovered later; the dropped count in diagnostics shows how many. Radar never falls back to an in-memory timeline, because that looks healthy and then loses everything on the next restart.
-- Because the rest of Radar keeps working and `/api/health` stays healthy, an outage is easy to miss. Alert on Radar's `/metrics` instead: `radar_timeline_available` is `0` while the database can't be reached (checked at most every 5s, with a 2s limit on each check), and `radar_timeline_dropped_events_total{reason="store_unavailable"}` and `{reason="store_failed"}` count the changes lost to it. For example, `radar_timeline_available == 0` held for 5 minutes. The reason itself is not in the metrics, because it names the database host; it is in the Timeline page and the diagnostics overlay.
+- An unreachable PostgreSQL costs you the timeline, not the rest of KubeAtlas. Cluster views keep working, the Timeline page says the database can't be reached and points to the logs, which have the connection error (so does the diagnostics overlay), and KubeAtlas reconnects on its own once the database answers. KubeAtlas logs when the database becomes unreachable, how soon it tries again, and when it answers again, naming the database's host, port, name and user (never the password) with the driver's error; search the logs for `[timeline]`. Events that occur while it is down are not recorded and are not recovered later; the dropped count in diagnostics shows how many. KubeAtlas never falls back to an in-memory timeline, because that looks healthy and then loses everything on the next restart.
+- Because the rest of KubeAtlas keeps working and `/api/health` stays healthy, an outage is easy to miss. Alert on KubeAtlas's `/metrics` instead: `radar_timeline_available` is `0` while the database can't be reached (checked at most every 5s, with a 2s limit on each check), and `radar_timeline_dropped_events_total{reason="store_unavailable"}` and `{reason="store_failed"}` count the changes lost to it. For example, `radar_timeline_available == 0` held for 5 minutes. The reason itself is not in the metrics, because it names the database host; it is in the Timeline page and the diagnostics overlay.
 - Verified TLS modes: `require` and `verify-full`.
 
 ## Configuration Reference
 
-See [Helm Chart README](../deploy/helm/radar/README.md) for all available values.
+See [Helm Chart README](../deploy/helm/kubeatlas/README.md) for all available values.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `image.repository` | Container image | `ghcr.io/maomada/radar` |
+| `image.repository` | Container image | `ghcr.io/maomada/kubeatlas` |
 | `image.tag` | Image tag | Chart appVersion |
 | `ingress.enabled` | Enable ingress | `false` |
 | `ingress.className` | Ingress class | `""` |
 | `service.port` | Service port | `9280` |
-| `basePath` | URL prefix Radar serves under, e.g. `/radar` for no-strip-prefix subpath ingress | `""` |
+| `basePath` | URL prefix KubeAtlas serves under, e.g. `/radar` for no-strip-prefix subpath ingress | `""` |
 | `mcp.enabled` | Enable MCP server for AI tools | `true` |
 | `debug.image` | Image for ephemeral debug containers and node debug pods. In built-in restricted PodSecurity namespaces, pod debug containers may retry as the target/pod non-root UID, or UID `65532` by default; point at a compatible mirror for air-gapped / private-registry clusters. | `""` (busybox:latest) |
 | `listPageSize` | Paginate the initial LIST of high-cardinality kinds (Pods, ReplicaSets) on very large clusters that fail to sync; `0` = off, try `2000`. Only used when the apiserver lacks WatchList streaming. | `0` |
@@ -659,7 +656,7 @@ See [Helm Chart README](../deploy/helm/radar/README.md) for all available values
 | `rbac.traffic` | Read Hubble TLS certs | `true` |
 | `rbac.crdGroups.all` | `get/list/watch` on every API group and resource, including core Secrets; overrides per-group flags | `false` |
 
-**Response compression:** Radar gzip-compresses HTTP responses by default (streaming endpoints like SSE are excluded). The level defaults to `1` (best speed), since on large clusters peak response size coincides with peak CPU. Set the `RADAR_COMPRESS_LEVEL` environment variable (via the chart's pod `env`) to `0` to disable, or `2`-`9` to trade CPU for smaller bodies on bandwidth-bound deployments.
+**Response compression:** KubeAtlas gzip-compresses HTTP responses by default (streaming endpoints like SSE are excluded). The level defaults to `1` (best speed), since on large clusters peak response size coincides with peak CPU. Set the `KUBEATLAS_COMPRESS_LEVEL` environment variable (via the chart's pod `env`) to `0` to disable, or `2`-`9` to trade CPU for smaller bodies on bandwidth-bound deployments.
 
 ## Troubleshooting
 
@@ -679,12 +676,12 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx
 
 If the UI loads through an ingress but pod exec does not connect, ensure the ingress forwards WebSocket upgrades. If it does and exec still fails, see the next section: the terminal uses the same address check as changes.
 
-### Requests fail with "Radar without authentication answers only ..."
+### Requests fail with "KubeAtlas without authentication answers only ..."
 
-Without authentication, Radar refuses requests addressed to a hostname it does
+Without authentication, KubeAtlas refuses requests addressed to a hostname it does
 not know, so that a web page cannot reach it by pointing its own hostname at
-Radar's address. The message names the hostname. Add it to `allowedHosts` in
-the Helm chart (outside Helm, `--allowed-hosts` or `RADAR_ALLOWED_HOSTS`), or
+KubeAtlas's address. The message names the hostname. Add it to `allowedHosts` in
+the Helm chart (outside Helm, `--allowed-hosts` or `KUBEATLAS_ALLOWED_HOSTS`), or
 enable authentication. The chart already allows its Service names and the
 ingress and HTTPRoute hostnames you set; names it cannot know include a Gateway
 listener hostname, a load balancer hostname and a custom cluster domain. See
@@ -698,7 +695,7 @@ read of up to five seconds. Configure every proxy and client on this path to all
 at least 150 seconds for the default. If you send an explicit drain timeout, allow
 more than that value plus five seconds and network latency.
 
-For ingress-nginx, add these annotations to your Radar Ingress, or set them under
+For ingress-nginx, add these annotations to your KubeAtlas Ingress, or set them under
 the Helm chart's `ingress.annotations` values:
 
 ```yaml
@@ -708,7 +705,7 @@ nginx.ingress.kubernetes.io/proxy-send-timeout: "150"
 
 These are the ingress-nginx controller's [timeout annotations](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#custom-timeouts).
 Other ingress controllers and load balancers have their own request or upstream
-response timeout settings. Set each layer explicitly; extending Radar's deadline
+response timeout settings. Set each layer explicitly; extending KubeAtlas's deadline
 cannot override a shorter limit in front of it.
 
 A browser, proxy or MCP timeout does not prove the drain failed or that nothing
@@ -717,29 +714,29 @@ retrying or shutting it down. API callers can use `waitForDeletion: false` and M
 callers `wait_for_deletion: false` for admission-only behavior, but must then
 verify deletion separately. See [MCP drain timeouts](mcp.md#node-drain-timeouts).
 
-### Changes fail with "Radar refused this request"
+### Changes fail with "KubeAtlas refused this request"
 
-If you can browse, but every action that changes the cluster (apply, delete, scale, restart, drain, Argo CD or Flux sync) fails with *Radar refused this request because it came from ...*, the proxy in front of Radar is rewriting the `Host` header. The pod terminal does not connect, and a few views that load data with POST, such as application cost, fail the same way. Radar accepts these only from a page served at its own address, so that another website you have open cannot act through your browser, and a rewritten `Host` hides that address. The message names both addresses: where the request came from, and the `Host` Radar received.
+If you can browse, but every action that changes the cluster (apply, delete, scale, restart, drain, Argo CD or Flux sync) fails with *KubeAtlas refused this request because it came from ...*, the proxy in front of KubeAtlas is rewriting the `Host` header. The pod terminal does not connect, and a few views that load data with POST, such as application cost, fail the same way. KubeAtlas accepts these only from a page served at its own address, so that another website you have open cannot act through your browser, and a rewritten `Host` hides that address. The message names both addresses: where the request came from, and the `Host` KubeAtlas received.
 
 Fix it either way:
 
 - Configure the proxy to keep the original `Host` header.
-- Tell Radar the address you open it at. In the Helm chart:
+- Tell KubeAtlas the address you open it at. In the Helm chart:
 
   ```yaml
   trustedOrigins:
     - http://radar.internal
   ```
 
-  Outside Helm, set `RADAR_TRUSTED_ORIGINS` or pass `--trusted-origins`. Use the scheme and host exactly as they appear in your browser's address bar, with the port if there is one. Separate several with commas.
+  Outside Helm, set `KUBEATLAS_TRUSTED_ORIGINS` or pass `--trusted-origins`. Use the scheme and host exactly as they appear in your browser's address bar, with the port if there is one. Separate several with commas.
 
-  A trusted origin can do everything Radar's own page can: read, make changes and open pod terminals (and, on a local install, the local terminal). List only addresses that serve Radar. This setting does not cover the MCP endpoint at `/mcp`, which has its own `RADAR_MCP_TRUSTED_ORIGINS`.
+  A trusted origin can do everything KubeAtlas's own page can: read, make changes and open pod terminals (and, on a local install, the local terminal). List only addresses that serve KubeAtlas. This setting does not cover the MCP endpoint at `/mcp`, which has its own `KUBEATLAS_MCP_TRUSTED_ORIGINS`.
 
-A page served from any other address cannot call Radar's API at all, reads included. That covers another port on `localhost`, because browsers treat all ports on a host as one site. If you run your own browser tool that calls Radar's API, for example a dashboard on `http://localhost:3000`, add its address to trusted origins the same way. curl, scripts and MCP clients are not affected.
+A page served from any other address cannot call KubeAtlas's API at all, reads included. That covers another port on `localhost`, because browsers treat all ports on a host as one site. If you run your own browser tool that calls KubeAtlas's API, for example a dashboard on `http://localhost:3000`, add its address to trusted origins the same way. curl, scripts and MCP clients are not affected.
 
-This read check relies on the `Sec-Fetch-Site` header, which browsers send only to HTTPS addresses and to `localhost`. If you open Radar over plain HTTP at any other address, a page on another site can still make Radar answer a read, though it cannot see the answer. Changes stay protected either way. Serve Radar over HTTPS to close that gap.
+This read check relies on the `Sec-Fetch-Site` header, which browsers send only to HTTPS addresses and to `localhost`. If you open KubeAtlas over plain HTTP at any other address, a page on another site can still make KubeAtlas answer a read, though it cannot see the answer. Changes stay protected either way. Serve KubeAtlas over HTTPS to close that gap.
 
-Radar logs each refusal with the headers it received:
+KubeAtlas logs each refusal with the headers it received:
 
 ```bash
 kubectl logs -n radar -l app.kubernetes.io/name=radar | grep '\[origin\] refused'
@@ -747,11 +744,11 @@ kubectl logs -n radar -l app.kubernetes.io/name=radar | grep '\[origin\] refused
 
 ### Metrics charts show "Prometheus not connected"
 
-Radar discovers Prometheus in the background as soon as it connects to the cluster (and again after every context switch), by listing Services and probing the ones that look like a PromQL backend at their in-cluster address. When it can watch Services in every namespace it reads them from its own cache instead of listing them from the API. Discovery also runs again in the background, without a timer, when Radar has no connection and a Prometheus-like Service is created or one of its Pods becomes Ready (so a Prometheus installed after Radar connects on its own), and when the connected endpoint stops answering queries or its port-forward closes. While that runs the charts show "Discovering Prometheus…"; once it ends without a connection, the charts and **Settings → Overview → Metrics** show why:
+KubeAtlas discovers Prometheus in the background as soon as it connects to the cluster (and again after every context switch), by listing Services and probing the ones that look like a PromQL backend at their in-cluster address. When it can watch Services in every namespace it reads them from its own cache instead of listing them from the API. Discovery also runs again in the background, without a timer, when KubeAtlas has no connection and a Prometheus-like Service is created or one of its Pods becomes Ready (so a Prometheus installed after KubeAtlas connects on its own), and when the connected endpoint stops answering queries or its port-forward closes. While that runs the charts show "Discovering Prometheus…"; once it ends without a connection, the charts and **Settings → Overview → Metrics** show why:
 
 - *no Prometheus service found in cluster* — nothing matched the well-known names or labels. Set `traffic.prometheusUrl`.
-- *No working Prometheus endpoint found. Candidate services could not be reached* — candidates exist but their Service addresses did not answer from Radar's pod. In-cluster Radar does not fall back to port-forwarding. Check endpoint health and network access, or configure a reachable `traffic.prometheusUrl`. This does not mean Prometheus is absent.
-- *Prometheus candidate monitoring/prometheus-server:9090 was unreachable, and NetworkPolicy monitoring/… isolates ingress to its pods with no rule admitting radar/…* — Radar found the reason. When a probe fails at the network level, Radar evaluates the core `NetworkPolicy` objects it can see in its own namespace and the candidate's against its own pod and the candidate's published endpoints, and names the policies only when they deny the connection outright (an egress denial on Radar's side is reported the same way). It stays silent whenever the answer is uncertain: `MY_POD_NAME`/`MY_POD_NAMESPACE` unset, a namespace-scoped install that cannot list policies in the candidate's namespace, an endpoint it cannot resolve, a `hostNetwork` pod, or a probe that was refused rather than unreachable. Two limits: this is the policy's declared intent — a CNI that does not enforce NetworkPolicy (kindnet) will still pass the traffic — and Cilium/Calico CRD policies are not evaluated.
+- *No working Prometheus endpoint found. Candidate services could not be reached* — candidates exist but their Service addresses did not answer from KubeAtlas's pod. In-cluster KubeAtlas does not fall back to port-forwarding. Check endpoint health and network access, or configure a reachable `traffic.prometheusUrl`. This does not mean Prometheus is absent.
+- *Prometheus candidate monitoring/prometheus-server:9090 was unreachable, and NetworkPolicy monitoring/… isolates ingress to its pods with no rule admitting radar/…* — KubeAtlas found the reason. When a probe fails at the network level, KubeAtlas evaluates the core `NetworkPolicy` objects it can see in its own namespace and the candidate's against its own pod and the candidate's published endpoints, and names the policies only when they deny the connection outright (an egress denial on KubeAtlas's side is reported the same way). It stays silent whenever the answer is uncertain: `MY_POD_NAME`/`MY_POD_NAMESPACE` unset, a namespace-scoped install that cannot list policies in the candidate's namespace, an endpoint it cannot resolve, a `hostNetwork` pod, or a probe that was refused rather than unreachable. Two limits: this is the policy's declared intent — a CNI that does not enforce NetworkPolicy (kindnet) will still pass the traffic — and Cilium/Calico CRD policies are not evaluated.
 - *Prometheus headers are configured but no Prometheus URL is set* — see `traffic.prometheusHeadersFromEnv` above.
 
 For CLI/Desktop connection failures, see [local integration connections](configuration.md#local-integration-connections).

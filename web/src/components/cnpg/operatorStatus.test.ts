@@ -38,7 +38,7 @@ describe('cnpgOperatorActionNote when unknown', () => {
   it('says briefly what could not be confirmed', () => {
     expect(cnpgOperatorActionNote({ state: 'unknown', unknown: "couldn't read its leader lease" } as never)).toEqual({
       tone: 'info',
-      text: "Radar couldn't confirm the operator is running (couldn't read its leader lease).",
+      text: "KubeAtlas couldn't confirm the operator is running (couldn't read its leader lease).",
     })
   })
 })

@@ -3,7 +3,7 @@ import { Virtuoso } from 'react-virtuoso'
 import { clsx } from 'clsx'
 import { ArrowRight, Crosshair, Minus } from 'lucide-react'
 import type { AggregatedFlow } from '../../types'
-import { SEVERITY_TEXT } from '@skyhook-io/k8s-ui/utils/badge-colors'
+import { SEVERITY_TEXT } from '@maomada/k8s-ui/utils/badge-colors'
 import { Tooltip } from '../ui/Tooltip'
 import type { TrafficGraphSelection } from './TrafficGraph'
 import {

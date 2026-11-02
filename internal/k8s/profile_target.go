@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 type ProfileTarget struct {

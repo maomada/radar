@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // A series scope keeps a query to this Kubernetes cluster's series in a

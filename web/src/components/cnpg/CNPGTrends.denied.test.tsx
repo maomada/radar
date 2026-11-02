@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../api/cnpg-history', async (orig) => ({
   ...(await orig<typeof import('../../api/cnpg-history')>()),
-  useCNPGClusterHistory: () => ({ data: { source: 'none', reason: 'Radar is not connected to Prometheus' }, isLoading: false, error: null }),
+  useCNPGClusterHistory: () => ({ data: { source: 'none', reason: 'KubeAtlas is not connected to Prometheus' }, isLoading: false, error: null }),
 }))
 
 const { CNPGTrends } = await import('./CNPGTrends')
@@ -24,7 +24,7 @@ describe('CNPGTrends without Prometheus', () => {
     expect(html).not.toContain('Collecting samples')
     expect(html).not.toContain('since this page opened')
     expect(html).not.toContain('Drag across a chart')
-    expect(html).toContain('History needs Prometheus. Radar is not connected to Prometheus.')
+    expect(html).toContain('History needs Prometheus. KubeAtlas is not connected to Prometheus.')
   })
   it('samples in the page when the proxy is allowed', () => {
     const html = render()

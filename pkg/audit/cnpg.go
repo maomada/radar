@@ -1,7 +1,7 @@
 package audit
 
 import (
-	"github.com/skyhook-io/radar/pkg/cnpg"
+	"github.com/maomada/radar/pkg/cnpg"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

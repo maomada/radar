@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { stringify as toYaml } from "yaml";
 import { codeToHtml } from "shiki";
-import { DialogPortal } from "@skyhook-io/k8s-ui/components/ui/DialogPortal";
+import { DialogPortal } from "@maomada/k8s-ui/components/ui/DialogPortal";
 import { useTheme } from "../../context/ThemeContext";
 import type {
   Diagnosis,
@@ -28,7 +28,7 @@ import type {
   DiagnoseStreamEvent,
   MCPServerStatus,
 } from "../../api/diagnose";
-import { Collapse, CollapseChevron } from "@skyhook-io/k8s-ui";
+import { Collapse, CollapseChevron } from "@maomada/k8s-ui";
 import { Tooltip } from "../ui/Tooltip";
 import type { InvestigationSourceExcerpt } from "./investigationSourceFocus";
 import {
@@ -124,13 +124,13 @@ function startupLabel(startup: StartupSignal, agentLabel: string): string {
     case "investigating":
       return `${agentLabel} starting…`;
     case "connected":
-      return "Connected to Radar's tools";
+      return "Connected to KubeAtlas's tools";
     case "ready": {
       const parts = [`${agentLabel} ready`];
       if (startup.model) parts.push(startup.model);
       if (startup.toolCount !== undefined)
         parts.push(
-          `${startup.toolCount} Radar ${startup.toolCount === 1 ? "tool" : "tools"}`,
+          `${startup.toolCount} KubeAtlas ${startup.toolCount === 1 ? "tool" : "tools"}`,
         );
       return parts.join(" · ");
     }
@@ -506,8 +506,8 @@ export function Timeline({
             ))}
             {radarServer
               ? mcpStatusIsFailure(radarServer.status)
-                ? ` at startup. ${agentLabel} had no Radar tools this turn, so it could not use Radar's cluster evidence.`
-                : ` at startup. Radar's tools may not have been available to ${agentLabel} this turn.`
+                ? ` at startup. ${agentLabel} had no KubeAtlas tools this turn, so it could not use KubeAtlas's cluster evidence.`
+                : ` at startup. KubeAtlas's tools may not have been available to ${agentLabel} this turn.`
               : allDefiniteFailures
                 ? ` at startup. ${agentLabel} ran this turn without those tools.`
                 : ` at startup. Those tools may not have been available to ${agentLabel} this turn.`}
@@ -674,7 +674,7 @@ function RunningStatus({ label }: { label: string }) {
 }
 
 // The wait the operator feels is the whole turn's, so the counter is a
-// row-level figure set apart from the label: "Connected to Radar's tools"
+// row-level figure set apart from the label: "Connected to KubeAtlas's tools"
 // followed by "10s" read as if the handshake took that long.
 export function runningElapsedLabel(elapsed: number): string | undefined {
   return elapsed >= 3 ? `${elapsed}s elapsed` : undefined;
@@ -933,9 +933,9 @@ export function toolDurationLabel(ms: number | undefined): string | undefined {
   return `${Math.round(ms / 1000)}s`;
 }
 
-// The producer's own words for a failed call, reduced to one line. Radar's MCP
+// The producer's own words for a failed call, reduced to one line. KubeAtlas's MCP
 // errors are plain text; a JSON envelope with an `error` field is unwrapped.
-// Radar's not-found errors append retry hints for the agent after an em dash;
+// KubeAtlas's not-found errors append retry hints for the agent after an em dash;
 // only the clause before it says what failed, so the hints are dropped.
 export function toolErrorReason(
   result: string | undefined,

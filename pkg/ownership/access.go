@@ -1,7 +1,7 @@
 package ownership
 
 import (
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // Decision is whether a caller may read something. The zero value denies, so

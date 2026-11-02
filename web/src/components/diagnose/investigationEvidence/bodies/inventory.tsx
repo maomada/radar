@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { Badge, StatusDot, mapHealthToTone } from "@skyhook-io/k8s-ui";
+import { Badge, StatusDot, mapHealthToTone } from "@maomada/k8s-ui";
 import type { DiagnosisEvidenceSubject } from "../../../../api/diagnose";
 import {
   investigationSourceArgs,
@@ -44,7 +44,7 @@ export function namedInventoryRows(
   items: readonly { subject?: DiagnosisEvidenceSubject }[],
   /** The namespace the listing call was scoped to; rows omit it then. */
   scopeNamespace?: string,
-  /** Set when Radar's collector read the listed kind only in these namespaces. */
+  /** Set when KubeAtlas's collector read the listed kind only in these namespaces. */
   namespacesRead?: readonly string[],
   namespacesReadOmitted = 0,
 ): NamedInventoryRow[] {

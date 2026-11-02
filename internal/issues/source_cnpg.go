@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/cnpg"
-	"github.com/skyhook-io/radar/pkg/conditions"
+	"github.com/maomada/radar/pkg/cnpg"
+	"github.com/maomada/radar/pkg/conditions"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

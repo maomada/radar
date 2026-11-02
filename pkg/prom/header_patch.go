@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/urlutil"
+	"github.com/maomada/radar/pkg/urlutil"
 )
 
 type HeaderOperation struct {

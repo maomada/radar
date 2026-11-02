@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/timeline/storetest"
+	"github.com/maomada/radar/pkg/timeline/storetest"
 )
 
 // The shared EventStore contract lives in pkg/timeline/storetest and runs here

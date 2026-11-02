@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 // SetWorkloadMetricsScope binds an operator assertion to the current client.

@@ -21,10 +21,10 @@ assert_not_exists() {
 ARCHIVE_DIR="$FIXTURE_DIR/archive"
 MOCK_BIN="$FIXTURE_DIR/bin"
 mkdir -p "$ARCHIVE_DIR" "$MOCK_BIN"
-printf '#!/bin/sh\nprintf "radar fixture %%s\\n" "$*"\n' > "$ARCHIVE_DIR/kubectl-radar"
-chmod 0755 "$ARCHIVE_DIR/kubectl-radar"
-tar -czf "$FIXTURE_DIR/radar_v0.0.0_linux_amd64.tar.gz" -C "$ARCHIVE_DIR" kubectl-radar
-ARCHIVE_SHA=$(sha256sum "$FIXTURE_DIR/radar_v0.0.0_linux_amd64.tar.gz" | awk '{print $1}')
+printf '#!/bin/sh\nprintf "kubeatlas fixture %%s\\n" "$*"\n' > "$ARCHIVE_DIR/kubeatlas"
+chmod 0755 "$ARCHIVE_DIR/kubeatlas"
+tar -czf "$FIXTURE_DIR/kubeatlas_v0.0.0_linux_amd64.tar.gz" -C "$ARCHIVE_DIR" kubeatlas
+ARCHIVE_SHA=$(sha256sum "$FIXTURE_DIR/kubeatlas_v0.0.0_linux_amd64.tar.gz" | awk '{print $1}')
 export FIXTURE_DIR ARCHIVE_SHA
 
 cat > "$MOCK_BIN/curl" <<'EOF'
@@ -47,7 +47,7 @@ prefix='https://github.com/maomada/radar/releases/download/v0.0.0/'
 case "$url" in
   "$latest")
     case "${MOCK_MODE:-owned}" in
-      upstream) printf '%s' 'https://github.com/skyhook-io/radar/releases/tag/v0.0.0' ;;
+      upstream) printf '%s' 'https://github.com/maomada/radar/releases/tag/v0.0.0' ;;
       unknown) printf '%s' 'https://example.com/releases/tag/v0.0.0' ;;
       *) printf '%s' "$tag" ;;
     esac
@@ -57,14 +57,14 @@ case "$url" in
     case "$filename" in
       checksums.txt)
         case "${CHECKSUM_CASE:-valid}" in
-          valid) printf '%s  %s\n' "$ARCHIVE_SHA" "radar_v0.0.0_linux_amd64.tar.gz" > "$output" ;;
-          mismatch) printf '%064d  %s\n' 0 "radar_v0.0.0_linux_amd64.tar.gz" > "$output" ;;
+          valid) printf '%s  %s\n' "$ARCHIVE_SHA" "kubeatlas_v0.0.0_linux_amd64.tar.gz" > "$output" ;;
+          mismatch) printf '%064d  %s\n' 0 "kubeatlas_v0.0.0_linux_amd64.tar.gz" > "$output" ;;
           missing) printf '%s  %s\n' "$ARCHIVE_SHA" "other.tar.gz" > "$output" ;;
           *) exit 1 ;;
         esac
         ;;
-      radar_v0.0.0_linux_amd64.tar.gz)
-        cp "$FIXTURE_DIR/radar_v0.0.0_linux_amd64.tar.gz" "$output"
+      kubeatlas_v0.0.0_linux_amd64.tar.gz)
+        cp "$FIXTURE_DIR/kubeatlas_v0.0.0_linux_amd64.tar.gz" "$output"
         ;;
       *) exit 1 ;;
     esac
@@ -85,14 +85,14 @@ run_install() {
 default_dir="$FIXTURE_DIR/default/bin"
 custom_dir="$FIXTURE_DIR/custom/bin"
 run_install "$default_dir" >/dev/null
-assert_file "$default_dir/kubectl-radar"
-[ -L "$default_dir/radar" ] || fail "default fixture did not create radar alias"
-"$default_dir/radar" --version >/dev/null
+assert_file "$default_dir/kubeatlas"
+[ -L "$default_dir/kubectl-kubeatlas" ] || fail "default fixture did not create kubectl plugin alias"
+"$default_dir/kubeatlas" --version >/dev/null
 
 run_install "$custom_dir" >/dev/null
-assert_file "$custom_dir/kubectl-radar"
-[ -L "$custom_dir/radar" ] || fail "custom fixture did not create radar alias"
-"$custom_dir/kubectl-radar" --version >/dev/null
+assert_file "$custom_dir/kubeatlas"
+[ -L "$custom_dir/kubectl-kubeatlas" ] || fail "custom fixture did not create kubectl plugin alias"
+"$custom_dir/kubectl-kubeatlas" --version >/dev/null
 
 for checksum_case in mismatch missing; do
   rejected_dir="$FIXTURE_DIR/$checksum_case"

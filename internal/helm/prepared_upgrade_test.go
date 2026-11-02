@@ -98,7 +98,7 @@ spec:
     spec:
       containers:
       - name: radar
-        image: ghcr.io/skyhook-io/radar:1.4.2
+        image: ghcr.io/maomada/kubeatlas:1.4.2
 `
 	ref, err := preCloudDeploymentRef(manifest, "fallback", "custom")
 	if err != nil {
@@ -113,7 +113,7 @@ spec:
 }
 
 func TestSummarizeCloudUpgradeValuesUsesEffectiveChartDefaults(t *testing.T) {
-	loaded, err := loader.Load("../../deploy/helm/radar")
+	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestSummarizeCloudUpgradeValuesUsesEffectiveChartDefaults(t *testing.T) {
 
 func TestValidateOfficialRadarChart(t *testing.T) {
 	official := &chart.Chart{Metadata: &chart.Metadata{
-		Name: "radar", Version: "1.7.0", Sources: []string{"https://github.com/skyhook-io/radar"},
+		Name: "radar", Version: "1.7.0", Sources: []string{"https://github.com/maomada/radar"},
 	}}
 	if err := validateOfficialRadarChart("radar", "radar", official); err != nil {
 		t.Fatal(err)
@@ -160,7 +160,7 @@ func TestValidateOfficialRadarChart(t *testing.T) {
 }
 
 func TestDeployedCloudDisabledRequiresSafeRollbackState(t *testing.T) {
-	loaded, err := loader.Load("../../deploy/helm/radar")
+	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 	request := InstallRequest{
 		ReleaseName: "radar", Namespace: "default", ChartName: "radar", Repository: server.URL,
 		Values: map[string]any{
-			"image": map[string]any{"repository": "ghcr.io/skyhook-io/radar"},
+			"image": map[string]any{"repository": "ghcr.io/maomada/kubeatlas"},
 			"cloud": map[string]any{
 				"enabled": true, "url": "wss://cloud.invalid/agent",
 				"clusterName": "cluster-id", "existingSecret": "radar-cloud-config",
@@ -342,7 +342,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 	if prepared.CurrentValues().ImageTag != "1.5.9-pinned" {
 		t.Fatalf("current values = %+v", prepared.CurrentValues())
 	}
-	if !strings.Contains(prepared.TargetManifest(), "ghcr.io/skyhook-io/radar:"+targetChart.Metadata.AppVersion) {
+	if !strings.Contains(prepared.TargetManifest(), "ghcr.io/maomada/kubeatlas:"+targetChart.Metadata.AppVersion) {
 		t.Fatalf("target manifest did not clear image pin:\n%s", prepared.TargetManifest())
 	}
 	if strings.Contains(prepared.TargetManifest(), "1.5.9-pinned") {
@@ -397,13 +397,13 @@ func TestResolvePreparedChartSummaryUsesVerifiedArchive(t *testing.T) {
 
 func loadUpstreamRadarTestChart(t *testing.T) *chart.Chart {
 	t.Helper()
-	loaded, err := loader.Load("../../deploy/helm/radar")
+	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Cloud upgrade validation intentionally follows the upstream chart feed,
 	// not this fork's owned chart metadata.
-	loaded.Metadata.Sources = []string{"https://github.com/skyhook-io/radar"}
+	loaded.Metadata.Sources = []string{"https://github.com/maomada/radar"}
 	return loaded
 }
 
@@ -425,7 +425,7 @@ entries:
     name: radar
     version: %s
     appVersion: %q
-    sources: [https://github.com/skyhook-io/radar]
+    sources: [https://github.com/maomada/radar]
     urls: [radar-%s.tgz]
     digest: %s
 `, loaded.Metadata.Version, loaded.Metadata.AppVersion, loaded.Metadata.Version, hex.EncodeToString(digest[:]))

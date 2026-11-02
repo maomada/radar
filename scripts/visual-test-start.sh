@@ -21,7 +21,7 @@ STATEFILE=".playwright-mcp/visual-test-state.env"
 active_screenshot_dir=""
 if [[ -f "$STATEFILE" ]]; then
   source "$STATEFILE"
-  if [[ -n "${RADAR_PID:-}" && -n "${SCREENSHOT_DIR:-}" ]] && kill -0 "$RADAR_PID" 2>/dev/null; then
+  if [[ -n "${KUBEATLAS_PID:-}" && -n "${SCREENSHOT_DIR:-}" ]] && kill -0 "$KUBEATLAS_PID" 2>/dev/null; then
     active_screenshot_dir="$SCREENSHOT_DIR"
   fi
 fi
@@ -74,11 +74,11 @@ done
 
 # Write state file
 cat > "$STATEFILE" <<EOF
-RADAR_PID=$PID
-RADAR_PORT=$PORT
+KUBEATLAS_PID=$PID
+KUBEATLAS_PORT=$PORT
 SCREENSHOT_DIR=$SSDIR
-RADAR_LOG=$LOGFILE
-RADAR_URL=http://localhost:$PORT
+KUBEATLAS_LOG=$LOGFILE
+KUBEATLAS_URL=http://localhost:$PORT
 EOF
 
 echo ""

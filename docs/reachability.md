@@ -189,15 +189,15 @@ The in-cluster test runs a short-lived Job whose container executes `radar probe
 
 1. **Explicit override** - `--reachability-image` flag / `reachabilityImage` config. Always wins.
 2. **Self-read** - radar's OWN running pod image, read from `MY_POD_NAME` / `MY_POD_NAMESPACE` (downward API) using radar's service account. The honest default: the probe runs the *same* image as radar, so it's automatically correct for private registries, mirrors, and digest-pinned deploys.
-3. **`RADAR_IMAGE` env** - the Helm chart sets this to radar's deployed image; a no-RBAC fallback for when self-read can't run.
-4. **Version-matched owned image** - `ghcr.io/maomada/radar:<version>` when that version has been published, where `<version>` is Radar's own build version.
+3. **`KUBEATLAS_IMAGE` env** - the Helm chart sets this to radar's deployed image; a no-RBAC fallback for when self-read can't run.
+4. **Version-matched owned image** - `ghcr.io/maomada/kubeatlas:<version>` when that version has been published, where `<version>` is Radar's own build version.
 
 The image must ship the radar binary at `/radar` (the Job runs `["/radar","probe",...]`) - every official radar image does.
 
 By deploy shape:
-- **Standalone (Helm chart):** self-read or the chart's `RADAR_IMAGE` resolves radar's deployed image. Nothing to configure.
+- **Standalone (Helm chart):** self-read or the chart's `KUBEATLAS_IMAGE` resolves radar's deployed image. Nothing to configure.
 - **Cloud agent (`--cloud-url`):** radar runs in-cluster as its own image; self-read resolves it. Nothing to configure.
-- **Embedded in another app:** embedding only the *frontend* library (e.g. Radar Hub) is unaffected - the backend is still a real radar image. If radar's *backend* is wrapped inside a non-radar image, self-read returns that host image, which only works if it ships `/radar` with the `probe` subcommand; otherwise set `--reachability-image` / `RADAR_IMAGE` to a published radar image. If neither is valid the probe pod fails honestly (a clear "couldn't start" status + a copyable command), never a wrong result.
+- **Embedded in another app:** embedding only the *frontend* library (e.g. Radar Hub) is unaffected - the backend is still a real radar image. If radar's *backend* is wrapped inside a non-radar image, self-read returns that host image, which only works if it ships `/radar` with the `probe` subcommand; otherwise set `--reachability-image` / `KUBEATLAS_IMAGE` to a published radar image. If neither is valid the probe pod fails honestly (a clear "couldn't start" status + a copyable command), never a wrong result.
 
 **Local development:** a `-dirty` local build's version isn't a published tag, so the default (#4) won't exist. Build a probe image from your code and load it into kind:
 

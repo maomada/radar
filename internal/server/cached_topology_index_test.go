@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	topology "github.com/skyhook-io/radar/pkg/topology"
+	topology "github.com/maomada/radar/pkg/topology"
 )
 
 func topoWithEdge(src, dst string) *topology.Topology {

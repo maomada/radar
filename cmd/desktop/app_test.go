@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/timeline"
 )
 
 func TestFormatWindowTitle(t *testing.T) {
@@ -12,17 +12,17 @@ func TestFormatWindowTitle(t *testing.T) {
 		contextName string
 		want        string
 	}{
-		{"empty falls back to bare product name", "", "Radar"},
-		{"user-named context passes through", "packagear-dev-eks", "Radar — packagear-dev-eks"},
+		{"empty falls back to bare product name", "", "KubeAtlas"},
+		{"user-named context passes through", "packagear-dev-eks", "KubeAtlas — packagear-dev-eks"},
 		{
 			"full EKS ARN collapses to short cluster name (matches in-page selector)",
 			"arn:aws:eks:us-east-1:171782501968:cluster/packagear-prod-eks",
-			"Radar — packagear-prod-eks",
+			"KubeAtlas — packagear-prod-eks",
 		},
 		{
 			"GKE context collapses to cluster name",
 			"gke_my-project_us-east1-b_prod-cluster",
-			"Radar — prod-cluster",
+			"KubeAtlas — prod-cluster",
 		},
 	}
 	for _, tc := range cases {
@@ -44,18 +44,18 @@ func TestDesktopApp_UpdateWindowTitle_TracksContextSwitch(t *testing.T) {
 	}
 
 	a.updateWindowTitle("packagear-prod-eks")
-	if got != "Radar — packagear-prod-eks" {
-		t.Fatalf("after initial set: got %q, want %q", got, "Radar — packagear-prod-eks")
+	if got != "KubeAtlas — packagear-prod-eks" {
+		t.Fatalf("after initial set: got %q, want %q", got, "KubeAtlas — packagear-prod-eks")
 	}
 
 	a.updateWindowTitle("packagear-dev-eks")
-	if got != "Radar — packagear-dev-eks" {
-		t.Fatalf("after context switch: got %q, want %q", got, "Radar — packagear-dev-eks")
+	if got != "KubeAtlas — packagear-dev-eks" {
+		t.Fatalf("after context switch: got %q, want %q", got, "KubeAtlas — packagear-dev-eks")
 	}
 
 	a.updateWindowTitle("")
-	if got != "Radar" {
-		t.Fatalf("after disconnect: got %q, want %q", got, "Radar")
+	if got != "KubeAtlas" {
+		t.Fatalf("after disconnect: got %q, want %q", got, "KubeAtlas")
 	}
 }
 

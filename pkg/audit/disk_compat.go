@@ -15,7 +15,7 @@ import (
 	volumehelpers "k8s.io/component-helpers/storage/volume"
 	"k8s.io/klog/v2"
 
-	"github.com/skyhook-io/radar/pkg/gkedisk"
+	"github.com/maomada/radar/pkg/gkedisk"
 )
 
 const checkPDVolumeHyperdiskOnlyNode = "pdVolumeHyperdiskOnlyNode"

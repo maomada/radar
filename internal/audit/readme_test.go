@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	bp "github.com/skyhook-io/radar/pkg/audit"
+	bp "github.com/maomada/radar/pkg/audit"
 )
 
 func TestREADMECheckCountMatchesRegistry(t *testing.T) {

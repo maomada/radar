@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/portalagent"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/portalagent"
 )
 
 func StartPortalReporter(ctx context.Context, cfg AppConfig) {

@@ -16,8 +16,8 @@ vi.mock('../../../context/ConnectionContext', () => ({ useConnection: () => ({ c
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showSuccess: state.toast }) }))
 vi.mock('../useCNPGNavigate', () => ({ useCNPGNavigate: () => vi.fn() }))
 vi.mock('../../shared/CreateResourceDialog', () => ({ CreateResourceDialog: (props: any) => { state.editor = props; return <pre>{props.initialYaml}</pre> } }))
-vi.mock('@skyhook-io/k8s-ui', async (original) => ({
-  ...(await original<typeof import('@skyhook-io/k8s-ui')>()),
+vi.mock('@maomada/k8s-ui', async (original) => ({
+  ...(await original<typeof import('@maomada/k8s-ui')>()),
   ActionConfirmDialog: ({ onConfirm, onBack, backLabel, confirmLabel, disabledReason, incompleteReason, notes, children }: { onConfirm: () => void; onBack?: () => void; backLabel?: string; confirmLabel: string; disabledReason?: string; incompleteReason?: string; notes?: string[]; children: ReactNode }) => <div>{notes?.join(' ')}{disabledReason}{children}{onBack && <button onClick={onBack}>{backLabel}</button>}<button disabled={!!disabledReason || !!incompleteReason} onClick={onConfirm}>{confirmLabel}</button></div>,
 }))
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })

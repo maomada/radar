@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/packages"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/packages"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )

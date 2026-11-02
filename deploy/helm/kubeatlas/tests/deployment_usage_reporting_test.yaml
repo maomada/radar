@@ -1,0 +1,36 @@
+suite: deployment usage data env
+templates:
+  - deployment.yaml
+tests:
+  - it: stays off by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: KUBEATLAS_USAGE_REPORTING
+            value: "on"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: KUBEATLAS_USAGE_REPORTING
+            value: "off"
+  - it: rejects enabling usage reporting
+    set:
+      usageReporting.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: usageReporting.enabled=true is unavailable in KubeAtlas
+  - it: keeps usage data off for everyone
+    set:
+      usageReporting.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: KUBEATLAS_USAGE_REPORTING
+  - it: rejects the upstream Cloud mode
+    set:
+      cloud.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: cloud.enabled is unavailable in KubeAtlas

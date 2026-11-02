@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // ResourceKey re-exports the neutral identity key from pkg/resourceid (the

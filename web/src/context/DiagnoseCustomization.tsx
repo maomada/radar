@@ -7,7 +7,7 @@
 // the action bar's right-aligned universal-actions area, given the resource
 // context.
 //
-// Default (no provider): Radar renders no Investigate button — OSS stays
+// Default (no provider): KubeAtlas renders no Investigate button — OSS stays
 // agent-free.
 import { createContext, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
@@ -21,7 +21,7 @@ export type RenderInvestigationRunActions = (props: {
   onRunUpdated: (run: RunSummary) => void;
 }) => ReactNode;
 
-/** Host action beside a refused start or follow-up, e.g. Radar Cloud's
+/** Host action beside a refused start or follow-up, e.g. upstream Cloud's
  * "Upgrade" when an organization has used its investigations. Called only for
  * refusals that carry a code, reason or action; return null to show none. */
 export type RenderInvestigationRefusalAction = (
@@ -47,11 +47,11 @@ export type RenderDiagnoseAction = (ctx: {
  * The card makes concrete, checkable claims about *where* the agent runs,
  * *whose* model account it bills, and *where* the transcript is stored. Those
  * claims are only true of OSS's bring-your-own-local-CLI agent. A host that
- * runs the agent anywhere else (Radar Cloud runs it as a sandboxed Job under a
+ * runs the agent anywhere else (upstream Cloud runs it as a sandboxed Job under a
  * managed key) MUST supply its own copy — shipping OSS's over a different data
  * flow states the opposite of what happens.
  *
- * Radar owns the card's chrome (icon, layout, Approve/Cancel) either way; a
+ * KubeAtlas owns the card's chrome (icon, layout, Approve/Cancel) either way; a
  * host only replaces the claims.
  */
 export type DiagnoseConsentCopy = {
@@ -72,7 +72,7 @@ export interface DiagnoseCustomization {
   renderRunActions?: RenderInvestigationRunActions;
   renderRefusalAction?: RenderInvestigationRefusalAction;
   consentCopy: DiagnoseConsentCopy | undefined;
-  // undefined = default (CustomEvent → Radar's own Settings dialog);
+  // undefined = default (CustomEvent → KubeAtlas's own Settings dialog);
   // null = hide the settings affordances.
   onOpenSettings: (() => void) | null | undefined;
 }
@@ -98,7 +98,7 @@ export function DiagnoseCustomizationProvider({
   consentCopy?: DiagnoseConsentCopy;
   renderRunActions?: RenderInvestigationRunActions;
   renderRefusalAction?: RenderInvestigationRefusalAction;
-  /** Where "AI settings" affordances lead. Omit for Radar's own Settings
+  /** Where "AI settings" affordances lead. Omit for KubeAtlas's own Settings
    *  dialog; pass `null` to hide them. */
   onOpenSettings?: (() => void) | null;
   children: ReactNode;

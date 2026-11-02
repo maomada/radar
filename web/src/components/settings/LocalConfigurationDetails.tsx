@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Badge, ConfirmDialog, Disclosure } from '@skyhook-io/k8s-ui'
+import { Badge, ConfirmDialog, Disclosure } from '@maomada/k8s-ui'
 import {
   apiUrl,
   getApiBase,
@@ -89,7 +89,7 @@ export function LocalConfigurationDetails({ onNavigate }: { onNavigate: (section
       >
         <div className="space-y-3 pt-2 text-xs text-theme-text-secondary">
           <p>
-            CLI 与 Desktop 在此设备上共用 <code>~/.radar/</code> 中的这些文件。
+            CLI 与 Desktop 在此设备上共用 <code>~/.kubeatlas/</code> 中的这些文件。
           </p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
             <dt className="font-mono text-theme-text-primary">config.json</dt>

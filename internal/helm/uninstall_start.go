@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/helmhistory"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/helmhistory"
 	"helm.sh/helm/v3/pkg/release"
 )
 

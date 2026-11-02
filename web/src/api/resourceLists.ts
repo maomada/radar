@@ -1,6 +1,6 @@
-import { sanitizePrinterTable, type PrinterTable } from '@skyhook-io/k8s-ui/components/resources/printer-columns'
-import type { ResourceCoverage, ResourceListResponse } from '@skyhook-io/k8s-ui/types/resource-coverage'
-import { isLowerBound } from '@skyhook-io/k8s-ui/utils/resource-coverage'
+import { sanitizePrinterTable, type PrinterTable } from '@maomada/k8s-ui/components/resources/printer-columns'
+import type { ResourceCoverage, ResourceListResponse } from '@maomada/k8s-ui/types/resource-coverage'
+import { isLowerBound } from '@maomada/k8s-ui/utils/resource-coverage'
 
 export interface ResourceListResult<T> {
   items: T[]
@@ -9,8 +9,8 @@ export interface ResourceListResult<T> {
 }
 
 /**
- * Every list body a supported Radar sends: the coverage envelope, or from a
- * Radar that predates coverage a bare array, or for `?table=1` the printer
+ * Every list body a supported KubeAtlas sends: the coverage envelope, or from a
+ * KubeAtlas that predates coverage a bare array, or for `?table=1` the printer
  * envelope without `coverage`.
  */
 export type ResourceListBody<T> =
@@ -21,7 +21,7 @@ export type ResourceListBody<T> =
 /**
  * Reads a list body by its shape rather than by the cluster's advertised
  * features: a host can point one query client at several clusters, so a cached
- * capabilities answer may describe a different Radar than the one that
+ * capabilities answer may describe a different KubeAtlas than the one that
  * answered. A response without coverage can't establish absence, so it reads
  * as `unknown`.
  */
@@ -57,7 +57,7 @@ export function listSyncPending(coverage: ResourceCoverage | undefined): boolean
 
 /**
  * One status for a view assembled from several list reads. A failed read makes
- * it partial, and so does one Radar's collection narrowed: the view shows
+ * it partial, and so does one KubeAtlas's collection narrowed: the view shows
  * totals for the cluster, which a read of only the collected namespaces can't
  * establish. `nothingToRead` says discovery found no kind to read, which is
  * itself a complete answer.
@@ -68,4 +68,4 @@ export function combinedListStatus(coverage: ResourceCoverage[], failed: boolean
   return 'unknown'
 }
 
-export { isLowerBound as lowerBound } from '@skyhook-io/k8s-ui/utils/resource-coverage'
+export { isLowerBound as lowerBound } from '@maomada/k8s-ui/utils/resource-coverage'

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { TimeSeries } from "@skyhook-io/k8s-ui/components/charts";
+import type { TimeSeries } from "@maomada/k8s-ui/components/charts";
 import { ApiError, fetchJSON, useClusterInfo, type PrometheusTimeRange } from "./client";
 import { getApiBase } from "./config";
 

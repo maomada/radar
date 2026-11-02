@@ -1,4 +1,4 @@
-import { ProblemAlerts } from '@skyhook-io/k8s-ui'
+import { ProblemAlerts } from '@maomada/k8s-ui'
 
 const wrap = { width: 440, padding: '10px 8px' }
 

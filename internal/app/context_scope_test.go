@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/settings"
+	"github.com/maomada/radar/internal/settings"
 )
 
 // The zero value is what a terminal entrypoint passes: `kubectl radar` and

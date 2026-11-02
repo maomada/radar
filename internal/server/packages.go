@@ -15,12 +15,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	"github.com/skyhook-io/radar/internal/helm"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/packages"
-	"github.com/skyhook-io/radar/pkg/subject"
+	"github.com/maomada/radar/internal/auth"
+	"github.com/maomada/radar/internal/helm"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/packages"
+	"github.com/maomada/radar/pkg/subject"
 )
 
 // toPackagesOverlay maps the unified resolver's app-overlay (pkg/subject) into
@@ -375,7 +375,7 @@ func computePackagesInternal(ctx context.Context, cache *k8s.ResourceCache, name
 	var errs []SourceError
 
 	// Helm releases (source H). Inventory reads pass empty user/groups
-	// so the SA does the read — see deploy/helm/radar/templates/clusterrole.yaml
+	// so the SA does the read — see deploy/helm/kubeatlas/templates/clusterrole.yaml
 	// for the secrets-rule rationale (radar:viewer → K8s `view` excludes
 	// secrets, so impersonating would 403 viewers on inventory metadata
 	// that isn't credential data). Sensitive Helm reads (GetValues,

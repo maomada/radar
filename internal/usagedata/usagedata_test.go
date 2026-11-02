@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/settings"
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/settings"
+	"github.com/maomada/radar/internal/version"
 )
 
 func envOf(vars map[string]string) func(string) string {
@@ -33,12 +33,12 @@ func TestResolvePrecedence(t *testing.T) {
 		{"user yes", nil, false, yes, StateOn, SourceUser},
 		{"user no", nil, false, no, StateOff, SourceUser},
 		{"hosted install ignores a saved yes", nil, true, yes, StateOff, SourceDeployment},
-		{"hosted beats env on", map[string]string{"RADAR_USAGE_REPORTING": "on"}, true, nil, StateOff, SourceDeployment},
-		{"env on beats a saved no", map[string]string{"RADAR_USAGE_REPORTING": "on"}, false, no, StateOn, SourceEnv},
-		{"env off beats user yes", map[string]string{"RADAR_USAGE_REPORTING": "false"}, false, yes, StateOff, SourceEnv},
-		{"a typo in the env var means off", map[string]string{"RADAR_USAGE_REPORTING": "of"}, false, yes, StateOff, SourceEnv},
+		{"hosted beats env on", map[string]string{"KUBEATLAS_USAGE_REPORTING": "on"}, true, nil, StateOff, SourceDeployment},
+		{"env on beats a saved no", map[string]string{"KUBEATLAS_USAGE_REPORTING": "on"}, false, no, StateOn, SourceEnv},
+		{"env off beats user yes", map[string]string{"KUBEATLAS_USAGE_REPORTING": "false"}, false, yes, StateOff, SourceEnv},
+		{"a typo in the env var means off", map[string]string{"KUBEATLAS_USAGE_REPORTING": "of"}, false, yes, StateOff, SourceEnv},
 		{"DO_NOT_TRACK leaves a yes alone", map[string]string{"DO_NOT_TRACK": "1"}, false, yes, StateOn, SourceUser},
-		{"DO_NOT_TRACK leaves env on alone", map[string]string{"DO_NOT_TRACK": "1", "RADAR_USAGE_REPORTING": "on"}, false, nil, StateOn, SourceEnv},
+		{"DO_NOT_TRACK leaves env on alone", map[string]string{"DO_NOT_TRACK": "1", "KUBEATLAS_USAGE_REPORTING": "on"}, false, nil, StateOn, SourceEnv},
 		{"DO_NOT_TRACK alone is still undecided", map[string]string{"DO_NOT_TRACK": "1"}, false, nil, StateUndecided, SourceDefault},
 	}
 	for _, tt := range tests {
@@ -48,6 +48,20 @@ func TestResolvePrecedence(t *testing.T) {
 				t.Fatalf("got %s/%s, want %s/%s", state, source, tt.wantState, tt.wantSource)
 			}
 		})
+	}
+}
+
+func TestKubeAtlasReportingCannotBeEnabledByEnvironmentOrSavedConsent(t *testing.T) {
+	opts := reportingDisabledOptions(Options{Hosted: func() bool { return false }})
+	state, source := resolve(envOf(map[string]string{"KUBEATLAS_USAGE_REPORTING": "on"}), opts.Hosted(), &settings.UsageDataChoice{Enabled: true})
+	if state != StateOff || source != SourceDeployment {
+		t.Fatalf("got %s/%s, want %s/%s", state, source, StateOff, SourceDeployment)
+	}
+}
+
+func TestPostReportIsUnavailable(t *testing.T) {
+	if err := postReport(context.Background(), Report{}); err == nil {
+		t.Fatal("postReport should refuse without sending")
 	}
 }
 
@@ -165,7 +179,7 @@ func TestOptOutDeletesPending(t *testing.T) {
 }
 
 func TestManagedChoiceCannotChange(t *testing.T) {
-	for _, env := range []map[string]string{{"RADAR_USAGE_REPORTING": "off"}, {"RADAR_USAGE_REPORTING": "on"}} {
+	for _, env := range []map[string]string{{"KUBEATLAS_USAGE_REPORTING": "off"}, {"KUBEATLAS_USAGE_REPORTING": "on"}} {
 		h := newHarness(t, env, false)
 		if _, err := h.c.SetChoice(true); !errors.Is(err, ErrManaged) {
 			t.Fatalf("env %v: err = %v, want ErrManaged", env, err)
@@ -367,7 +381,7 @@ func TestFirstRunPromptSkipsUpgradesAndDecidedInstalls(t *testing.T) {
 	if h.c.Status().FirstRunPrompt {
 		t.Fatalf("an answered install must not prompt")
 	}
-	m := newHarness(t, map[string]string{"RADAR_USAGE_REPORTING": "off"}, false)
+	m := newHarness(t, map[string]string{"KUBEATLAS_USAGE_REPORTING": "off"}, false)
 	m.c.opts.InstalledAt = func() int64 { return m.now.Unix() }
 	if m.c.Status().FirstRunPrompt {
 		t.Fatalf("a managed install must not prompt")
@@ -391,7 +405,7 @@ func TestSharedInstallIsDecidedByConfigOnly(t *testing.T) {
 		t.Fatalf("SetChoice on a shared install: err = %v, want ErrManaged", err)
 	}
 
-	on := newHarness(t, map[string]string{"RADAR_USAGE_REPORTING": "on"}, false)
+	on := newHarness(t, map[string]string{"KUBEATLAS_USAGE_REPORTING": "on"}, false)
 	on.c.opts.Shared = func() bool { return true }
 	on.c.refresh()
 	if st := on.c.Status(); st.State != StateOn || st.Source != SourceEnv {

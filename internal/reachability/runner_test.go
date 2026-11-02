@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/pkg/probe"
 	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +19,7 @@ import (
 // fields and the command. A regression here is a security regression.
 func TestBuildProbeJob_SecurityInvariants(t *testing.T) {
 	job := buildProbeJob(RunOptions{
-		Namespace: "prod", Image: "ghcr.io/skyhook-io/radar:1.2.3",
+		Namespace: "prod", Image: "ghcr.io/maomada/kubeatlas:1.2.3",
 		Target: "10.96.0.10:8080", Scheme: "https", Host: "api.prod", Layers: "tcp,tls,http",
 	})
 
@@ -61,7 +61,7 @@ func TestBuildProbeJob_SecurityInvariants(t *testing.T) {
 	if sc.Capabilities == nil || len(sc.Capabilities.Drop) != 1 || sc.Capabilities.Drop[0] != "ALL" {
 		t.Errorf("container must drop ALL capabilities, got %v", sc.Capabilities)
 	}
-	if c.Image != "ghcr.io/skyhook-io/radar:1.2.3" {
+	if c.Image != "ghcr.io/maomada/kubeatlas:1.2.3" {
 		t.Errorf("image = %q", c.Image)
 	}
 	cmd := strings.Join(c.Command, " ")
@@ -407,10 +407,10 @@ func radarPod(ns string, containers ...corev1.Container) *corev1.Pod {
 }
 
 // TestResolveImage_Precedence pins the four-source order: explicit override >
-// self-read (radar's live pod image) > RADAR_IMAGE env > version default.
+// self-read (radar's live pod image) > KUBEATLAS_IMAGE env > version default.
 func TestResolveImage_Precedence(t *testing.T) {
 	old := DefaultImageRef
-	DefaultImageRef = "ghcr.io/skyhook-io/radar:vdefault"
+	DefaultImageRef = "ghcr.io/maomada/kubeatlas:vdefault"
 	defer func() { DefaultImageRef = old }()
 
 	client := fake.NewSimpleClientset(radarPod("radar-ns",
@@ -420,7 +420,7 @@ func TestResolveImage_Precedence(t *testing.T) {
 	ctx := context.Background()
 	t.Setenv("MY_POD_NAME", "radar-abc")
 	t.Setenv("MY_POD_NAMESPACE", "radar-ns")
-	t.Setenv("RADAR_IMAGE", "env/radar:x")
+	t.Setenv("KUBEATLAS_IMAGE", "env/radar:x")
 
 	if got := ResolveImage(ctx, client, "override/radar:pin"); got != "override/radar:pin" {
 		t.Errorf("override should win, got %q", got)
@@ -430,20 +430,20 @@ func TestResolveImage_Precedence(t *testing.T) {
 	}
 	t.Setenv("MY_POD_NAME", "") // self-read can't run
 	if got := ResolveImage(ctx, client, ""); got != "env/radar:x" {
-		t.Errorf("RADAR_IMAGE should apply when self-read unavailable, got %q", got)
+		t.Errorf("KUBEATLAS_IMAGE should apply when self-read unavailable, got %q", got)
 	}
-	t.Setenv("RADAR_IMAGE", "")
-	if got := ResolveImage(ctx, client, ""); got != "ghcr.io/skyhook-io/radar:vdefault" {
+	t.Setenv("KUBEATLAS_IMAGE", "")
+	if got := ResolveImage(ctx, client, ""); got != "ghcr.io/maomada/kubeatlas:vdefault" {
 		t.Errorf("version default should apply last, got %q", got)
 	}
 
 	// The configured --reachability-image override (recorded at startup) wins over
-	// self-read / RADAR_IMAGE / default even with an EMPTY per-call override arg -
+	// self-read / KUBEATLAS_IMAGE / default even with an EMPTY per-call override arg -
 	// this is the MCP path, which must honor the operator's override too.
 	SetConfiguredImage("configured/radar:flag")
 	defer SetConfiguredImage("")
 	t.Setenv("MY_POD_NAME", "radar-abc") // self-read would otherwise win
-	t.Setenv("RADAR_IMAGE", "env/radar:x")
+	t.Setenv("KUBEATLAS_IMAGE", "env/radar:x")
 	if got := ResolveImage(ctx, client, ""); got != "configured/radar:flag" {
 		t.Errorf("configured override should beat self-read/env/default, got %q", got)
 	}
@@ -495,26 +495,26 @@ func TestSelfPodImage(t *testing.T) {
 
 // A dev build's git-describe tag never exists on the registry, so main()
 // installs LatestReleaseImage to fall back to the newest published release.
-// It must rank BELOW every explicit source (override, self-read, RADAR_IMAGE)
+// It must rank BELOW every explicit source (override, self-read, KUBEATLAS_IMAGE)
 // and above only the version default; a failed lookup ("") keeps the default.
 func TestResolveImage_DevFallsBackToLatestRelease(t *testing.T) {
 	old := DefaultImageRef
-	DefaultImageRef = "ghcr.io/skyhook-io/radar:1.10.3-78-gabc123"
+	DefaultImageRef = "ghcr.io/maomada/kubeatlas:1.10.3-78-gabc123"
 	defer func() { DefaultImageRef = old }()
 	t.Setenv("MY_POD_NAME", "")
-	t.Setenv("RADAR_IMAGE", "")
+	t.Setenv("KUBEATLAS_IMAGE", "")
 
-	LatestReleaseImage = func() string { return "ghcr.io/skyhook-io/radar:1.10.3" }
+	LatestReleaseImage = func() string { return "ghcr.io/maomada/kubeatlas:1.10.3" }
 	defer func() { LatestReleaseImage = nil }()
-	if got := ResolveImage(context.Background(), nil, ""); got != "ghcr.io/skyhook-io/radar:1.10.3" {
+	if got := ResolveImage(context.Background(), nil, ""); got != "ghcr.io/maomada/kubeatlas:1.10.3" {
 		t.Errorf("dev build should fall back to the latest published release, got %q", got)
 	}
 
-	t.Setenv("RADAR_IMAGE", "env/radar:x")
+	t.Setenv("KUBEATLAS_IMAGE", "env/radar:x")
 	if got := ResolveImage(context.Background(), nil, ""); got != "env/radar:x" {
-		t.Errorf("RADAR_IMAGE must still outrank the latest-release fallback, got %q", got)
+		t.Errorf("KUBEATLAS_IMAGE must still outrank the latest-release fallback, got %q", got)
 	}
-	t.Setenv("RADAR_IMAGE", "")
+	t.Setenv("KUBEATLAS_IMAGE", "")
 
 	LatestReleaseImage = func() string { return "" }
 	if got := ResolveImage(context.Background(), nil, ""); got != DefaultImageRef {

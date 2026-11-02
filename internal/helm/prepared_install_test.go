@@ -69,7 +69,7 @@ func TestSelectStableChartVersion_RejectsPrereleaseOldAndMissing(t *testing.T) {
 }
 
 func TestServerDryRunFindsActualCloudDeployment(t *testing.T) {
-	loaded, err := loader.Load("../../deploy/helm/radar")
+	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ spec:
       containers:
       - name: radar
         env:
-        - {name: RADAR_CLOUD_MODE, value: "true"}
+        - {name: KUBEATLAS_CLOUD_MODE, value: "true"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -136,7 +136,7 @@ spec:
       containers:
       - name: radar
         env:
-        - {name: RADAR_CLOUD_MODE, value: "true"}
+        - {name: KUBEATLAS_CLOUD_MODE, value: "true"}
 `
 	if _, err := cloudDeploymentRef(manifest, "radar"); err == nil {
 		t.Fatal("expected ambiguous cloud Deployments to fail")
@@ -156,7 +156,7 @@ spec:
       containers:
       - name: radar
         env:
-        - {name: RADAR_CLOUD_MODE, value: "true"}
+        - {name: KUBEATLAS_CLOUD_MODE, value: "true"}
 `)}},
 	}
 	archivePath, err := chartutil.Save(chartObject, t.TempDir())

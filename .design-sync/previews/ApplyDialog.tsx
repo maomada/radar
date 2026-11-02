@@ -1,4 +1,4 @@
-import { ApplyDialog } from '@skyhook-io/k8s-ui'
+import { ApplyDialog } from '@maomada/k8s-ui'
 
 const noop = () => {}
 

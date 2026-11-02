@@ -16,24 +16,24 @@ export function destinationToast(resource: string, dest: DestinationCluster): De
     if (!dest.canSwitch) {
       return {
         message: `${resource} is on ${cluster}`,
-        detail: 'Switching clusters is turned off in this Radar.',
+        detail: 'Switching clusters is turned off in this KubeAtlas.',
       }
     }
     return {
       message: `${resource} is on ${cluster}`,
-      detail: 'Opening it switches Radar to that cluster.',
+      detail: 'Opening it switches KubeAtlas to that cluster.',
       actionLabel: `Open in ${cluster}`,
     }
   }
   if (dest.server) {
     return {
       message: `${resource} is on another cluster`,
-      detail: `No kubeconfig context points at ${hostOf(dest.server)}. Add one to open it from Radar.`,
+      detail: `No kubeconfig context points at ${hostOf(dest.server)}. Add one to open it from KubeAtlas.`,
     }
   }
   return {
     message: `${resource} is on another cluster`,
-    detail: "Radar couldn't tell which cluster, so it can't open it from here.",
+    detail: "KubeAtlas couldn't tell which cluster, so it can't open it from here.",
   }
 }
 

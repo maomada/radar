@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/trace"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/trace"
+	"github.com/maomada/radar/pkg/probe"
 )
 
 // runProbeCommand implements `radar probe` - run reachability probes against ONE
@@ -20,7 +20,7 @@ import (
 // (subject to NetworkPolicy + mesh mTLS), which is exactly what the laptop's
 // apiserver-proxy view cannot confirm. No HTTP server, no Kubernetes client:
 // probe-and-exit. This is the binary the in-cluster reachability runner executes
-// (the Radar image invoked as `radar probe ...`).
+// (the KubeAtlas image invoked as `radar probe ...`).
 func runProbeCommand(args []string) int {
 	fs := flag.NewFlagSet("probe", flag.ContinueOnError)
 	target := fs.String("target", "", "host:port to probe (host alone for a dns-only check)")

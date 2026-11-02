@@ -1,4 +1,4 @@
-import { SelectMenu } from '@skyhook-io/k8s-ui'
+import { SelectMenu } from '@maomada/k8s-ui'
 import { useEffect, useRef, useState } from 'react'
 
 const namespaces = ['checkout', 'payments', 'inventory', 'monitoring', 'ingress-nginx', 'kube-system', 'cert-manager', 'argocd']
@@ -44,7 +44,7 @@ export function Disabled() {
     <div style={{ width: 360 }}>
       <label className="mb-1 block text-sm font-medium text-theme-text-primary">Data source</label>
       <SelectMenu ariaLabel="Cost data source" value="kubecost" onChange={() => {}} options={sourceOptions} className="w-full" disabled />
-      <p className="mt-1 text-xs text-theme-text-tertiary">Managed by the RADAR_COST_SOURCE environment variable.</p>
+      <p className="mt-1 text-xs text-theme-text-tertiary">Managed by the KUBEATLAS_COST_SOURCE environment variable.</p>
     </div>
   )
 }

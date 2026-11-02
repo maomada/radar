@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/rbac"
+	pkgauth "github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/rbac"
 )
 
 // Tests for /api/rbac/subject/..., /api/rbac/role/..., /api/rbac/whoami.

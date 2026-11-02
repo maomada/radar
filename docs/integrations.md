@@ -548,7 +548,7 @@ This rule excludes VMUser/VMAuth, alerting and scrape/probe resources, and the
 Logs, Traces, Distributed and Anomaly families. The wildcard
 `rbac.crdGroups.all: true` still grants `get/list/watch` on every API group and
 resource, including core Secrets and these excluded kinds. See the
-[chart reference](../deploy/helm/radar/README.md#crd-access).
+[chart reference](../deploy/helm/kubeatlas/README.md#crd-access).
 
 ---
 

@@ -5,9 +5,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/search"
-	"github.com/skyhook-io/radar/pkg/readreason"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/internal/search"
+	"github.com/maomada/radar/pkg/readreason"
+	"github.com/maomada/radar/pkg/resourceapi"
 )
 
 // unsearchedEntry compares gap membership only. Extents and output order must be

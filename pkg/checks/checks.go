@@ -12,7 +12,7 @@ package checks
 import (
 	"sort"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // Severity is the canonical user-facing Checks severity ladder. Live issues

@@ -1,4 +1,4 @@
-import { cnpgFormatBytes, FactGrid, FactRow, formatAge, formatGrant, toneTextClass } from '@skyhook-io/k8s-ui'
+import { cnpgFormatBytes, FactGrid, FactRow, formatAge, formatGrant, toneTextClass } from '@maomada/k8s-ui'
 import { useCNPGRestoreChecks, type CNPGRestoreChecksResponse } from '../../../api/cnpg-inspect'
 import { cnpgDeclaredTargetText, cnpgRecoveryStopText } from '../inspectModel'
 
@@ -16,7 +16,7 @@ function approxRows(n: number): string {
 }
 
 /**
- * What Radar reads inside a restored cluster's primary: where recovery
+ * What KubeAtlas reads inside a restored cluster's primary: where recovery
  * stopped beside the declared target, and what the databases hold. These
  * describe what is there; whether it is what the restore needed is still the
  * person's call, recorded separately as the validation note.
@@ -27,7 +27,7 @@ export function CNPGRestoreChecks({ namespace, name }: { namespace: string; name
   return (
     <div className="border-b border-theme-border px-4 py-3 text-sm">
       <div className="flex flex-wrap items-baseline gap-x-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-theme-text-tertiary">What Radar reads in it</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-theme-text-tertiary">What KubeAtlas reads in it</h3>
         {d?.pod && d.state === 'ok' && (
           <span className="text-xs text-theme-text-tertiary">
             {d.pod} · {d.capturedAt ? `${formatAge(d.capturedAt)} ago` : 'just now'} · fixed read-only SQL over your pods/exec

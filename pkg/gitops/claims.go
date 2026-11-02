@@ -3,7 +3,7 @@ package gitops
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // ClaimSource names the metadata a claim was read from.

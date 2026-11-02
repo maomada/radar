@@ -6,7 +6,7 @@ import {
   versionUpdateURL,
 } from './version'
 
-describe('Radar version helpers', () => {
+describe('KubeAtlas version helpers', () => {
   it('parses major and minor versions with an optional v prefix', () => {
     expect(parseMajorMinor('v1.12.3')).toEqual({ major: 1, minor: 12 })
     expect(parseMajorMinor('dev')).toBeNull()

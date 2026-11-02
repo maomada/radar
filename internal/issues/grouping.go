@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/issuesapi"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // RelatedIssues returns the grouped issues whose subject OR an affected member

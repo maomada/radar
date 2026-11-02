@@ -127,7 +127,7 @@ cd web && npm run build
 │   ├── topology/      # Graph construction and relationships
 │   ├── ai/context/    # AI context minification
 │   └── timeline/      # Timeline event storage
-├── packages/k8s-ui/   # Shared UI package (@skyhook-io/k8s-ui)
+├── packages/k8s-ui/   # Shared UI package (@maomada/k8s-ui)
 ├── web/               # React frontend
 │   ├── src/
 │   │   ├── api/       # API client and hooks

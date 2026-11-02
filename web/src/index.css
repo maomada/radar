@@ -9,10 +9,10 @@
  */
 @source "../../packages/k8s-ui/src/**/*.{ts,tsx}";
 @variant dark (&:where(.dark, .dark *));
-@import "@skyhook-io/k8s-ui/theme/variables.css";
-@import "@skyhook-io/k8s-ui/theme/tailwind-theme.css";
-@import "@skyhook-io/k8s-ui/theme/components.css";
-@import "@skyhook-io/k8s-ui/topology.css";
+@import "@maomada/k8s-ui/theme/variables.css";
+@import "@maomada/k8s-ui/theme/tailwind-theme.css";
+@import "@maomada/k8s-ui/theme/components.css";
+@import "@maomada/k8s-ui/topology.css";
 @import "@fontsource-variable/dm-sans";
 @import "@fontsource/dm-mono";
 
@@ -136,7 +136,7 @@ body {
   color: var(--text-primary);
 }
 
-/* App-shell layout for standalone Radar (mounts into #radar — see index.html).
+/* App-shell layout for standalone KubeAtlas (mounts into #radar — see index.html).
    Keyed off #radar, NOT #root: this file ships as the published library
    stylesheet, so a #root rule here would match a host app's own #root and
    reshape its document. A unique id can't collide — host apps have no #radar. */

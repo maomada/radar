@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/timeline"
-	"github.com/skyhook-io/radar/pkg/cronsched"
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/internal/timeline"
+	"github.com/maomada/radar/pkg/cronsched"
+	"github.com/maomada/radar/pkg/resourceid"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

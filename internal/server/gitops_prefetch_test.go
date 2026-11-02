@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	gitopsinsights "github.com/skyhook-io/radar/pkg/gitops/insights"
+	"github.com/maomada/radar/internal/k8s"
+	gitopsinsights "github.com/maomada/radar/pkg/gitops/insights"
 )
 
 const testLastApplied = `{"kind":"Deployment","spec":{"replicas":1}}`

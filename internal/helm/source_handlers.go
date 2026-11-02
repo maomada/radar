@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"helm.sh/helm/v3/pkg/action"
 
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 func validSourceUpgradeRoute(w http.ResponseWriter, r *http.Request, req ApplyValuesRequest) bool {

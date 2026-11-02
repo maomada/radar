@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/skyhook-io/radar/pkg/cronsched"
+	"github.com/maomada/radar/pkg/cronsched"
 )
 
 // diffCronJob covers the schedule controls and the job template. Routine

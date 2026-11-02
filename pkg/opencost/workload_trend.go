@@ -6,7 +6,7 @@ import (
 	"log"
 	"sort"
 
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/pkg/prom"
 )
 
 type WorkloadTrendOptions struct {

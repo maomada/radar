@@ -1,4 +1,4 @@
-import { RowActionMenu } from '@skyhook-io/k8s-ui'
+import { RowActionMenu } from '@maomada/k8s-ui'
 import { CirclePause, History, RefreshCw, RotateCw, Trash2 } from 'lucide-react'
 import type { CSSProperties } from 'react'
 

@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
-	timeline "github.com/skyhook-io/radar/pkg/timeline"
-	"github.com/skyhook-io/radar/pkg/timelineapi"
+	timeline "github.com/maomada/radar/pkg/timeline"
+	"github.com/maomada/radar/pkg/timelineapi"
 )
 
 // CursorKind declares how a server mints its opaque delta cursor. The suite

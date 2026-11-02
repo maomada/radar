@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, type ReactNode } from 'react'
 import { Search } from 'lucide-react'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 
 export function LargeClusterNamespacePicker({ namespaces, onSelect, ranked = false, renderMeta }: {
   namespaces: { name: string }[] | undefined

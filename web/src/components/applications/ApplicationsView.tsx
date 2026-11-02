@@ -38,9 +38,9 @@ import {
   type IssueResourceRef,
   type SelectedAppWorkload,
   type SelectedResource,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { AlertTriangle, Boxes } from "lucide-react";
-import { SEVERITY_TEXT } from "@skyhook-io/k8s-ui/utils/badge-colors";
+import { SEVERITY_TEXT } from "@maomada/k8s-ui/utils/badge-colors";
 import {
   useApplicationHistory,
   useApplications,
@@ -760,7 +760,7 @@ function AppOverviewIssues({
         body={
           error instanceof Error
             ? error.message
-            : "Radar could not load issues for this application."
+            : "KubeAtlas could not load issues for this application."
         }
       />
     );

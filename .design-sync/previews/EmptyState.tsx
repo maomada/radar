@@ -1,4 +1,4 @@
-import { EmptyState } from '@skyhook-io/k8s-ui'
+import { EmptyState } from '@maomada/k8s-ui'
 import { CircleCheck, Funnel, Plug } from 'lucide-react'
 import type { CSSProperties } from 'react'
 

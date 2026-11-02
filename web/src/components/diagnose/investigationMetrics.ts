@@ -1,5 +1,5 @@
-import { displayKind, type IssueRecentChange } from "@skyhook-io/k8s-ui";
-import type { ChartAnnotation } from "@skyhook-io/k8s-ui/components/charts";
+import { displayKind, type IssueRecentChange } from "@maomada/k8s-ui";
+import type { ChartAnnotation } from "@maomada/k8s-ui/components/charts";
 import { apiVersionToGroup } from "../../utils/navigation";
 import type { DiagnosisResourceRef } from "./diagnoseEvidenceTypes";
 import type {
@@ -296,7 +296,7 @@ function producerRelatives(
 }
 
 /**
- * Changes Radar recorded for the chart's subject inside the chart window,
+ * Changes KubeAtlas recorded for the chart's subject inside the chart window,
  * paired with whether that lookup was possible at all. An empty marker list
  * means "none were recorded" only when `checked` is true; otherwise the chart
  * had no subject to look changes up for, or the turn captured no changes to
@@ -381,7 +381,7 @@ export function metricsChangeCoverage(
 }
 
 /**
- * Changes Radar recorded for the chart's subject inside the chart window.
+ * Changes KubeAtlas recorded for the chart's subject inside the chart window.
  * Callers that need to tell "none recorded" from "not looked up" want
  * {@link metricsChangeCoverage} instead.
  */

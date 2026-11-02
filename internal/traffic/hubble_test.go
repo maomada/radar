@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/skyhook-io/radar/internal/portforward"
+	"github.com/maomada/radar/internal/portforward"
 )
 
 type stubObserver struct {

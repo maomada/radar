@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	internalopencost "github.com/skyhook-io/radar/internal/opencost"
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
+	internalopencost "github.com/maomada/radar/internal/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
 )
 
 const maxOpenCostApplicationWorkloads = 100

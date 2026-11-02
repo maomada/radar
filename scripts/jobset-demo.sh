@@ -14,7 +14,7 @@ DEMO_NS="jobset-demo"
 MARKER_NAME="radar-jobset-demo-owner"
 MARKER_VALUE="skyhook-radar-jobset-demo-v1"
 WAIT_SECONDS="${WAIT_SECONDS:-240}"
-RADAR_URL="${RADAR_URL:-http://127.0.0.1:9280}"
+KUBEATLAS_URL="${KUBEATLAS_URL:-http://127.0.0.1:9280}"
 PREVIOUS_CONTEXT=''
 RESTORE_CONTEXT=false
 
@@ -356,7 +356,7 @@ mcp_get_jobset() {
     -H 'Content-Type: application/json' \
     -H 'Accept: application/json, text/event-stream' \
     -d "${request}" \
-    "${RADAR_URL}/mcp")" || return 1
+    "${KUBEATLAS_URL}/mcp")" || return 1
   event="$(sed -n 's/^data: //p' <<<"${response}" | tail -n 1)"
   [ -n "${event}" ] || { warn "MCP response contained no SSE data event" >&2; return 1; }
   if jq -e '.error != null or .result.isError == true' <<<"${event}" >/dev/null; then
@@ -383,7 +383,7 @@ radar_execution_matches() {
          primaryCondition:{type:"Failed", status:"True", reason:"FailJobSetFailurePolicyAction"}}
       else {} end')"
   rest_response="$(curl -fsS --connect-timeout 5 --max-time 15 \
-    "${RADAR_URL}/api/ai/resources/jobsets/${DEMO_NS}/${name}?group=jobset.x-k8s.io")" || \
+    "${KUBEATLAS_URL}/api/ai/resources/jobsets/${DEMO_NS}/${name}?group=jobset.x-k8s.io")" || \
     { warn "REST AI resource request failed for JobSet '${name}'" >&2; return 1; }
   mcp_response="$(mcp_get_jobset "${name}")" || { warn "MCP get_resource failed for JobSet '${name}'" >&2; return 1; }
 
@@ -407,12 +407,12 @@ radar_execution_matches() {
 }
 
 radar_health_ready() {
-  curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/health" 2>/dev/null | \
+  curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/health" 2>/dev/null | \
     jq -e '.status == "healthy"' >/dev/null 2>&1
 }
 
 radar_crd_discovery_ready() {
-  curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/cluster-info" 2>/dev/null | \
+  curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/cluster-info" 2>/dev/null | \
     jq -e '.crdDiscoveryStatus == "ready"' >/dev/null 2>&1
 }
 
@@ -420,7 +420,7 @@ radar_inventory_ready() {
   local kind="$1" group="$2" live cached projection
   projection='map({metadata: (.metadata | {namespace, name, uid, ownerReferences, labels}), status: (.status | {phase, terminalState, replicatedJobsStatus, conditions: [.conditions[]? | {type, status, reason}]})}) | sort_by(.metadata.name)'
   live="$(kc -n "${DEMO_NS}" get "${kind}${group:+.${group}}" --request-timeout=10s -o json | jq -cS ".items | ${projection}")" || return 1
-  cached="$(curl -fsS --connect-timeout 2 --max-time 5 "${RADAR_URL}/api/resources/${kind}?group=${group}&namespace=${DEMO_NS}" | jq -cS 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end |'" ${projection}")" || return 1
+  cached="$(curl -fsS --connect-timeout 2 --max-time 5 "${KUBEATLAS_URL}/api/resources/${kind}?group=${group}&namespace=${DEMO_NS}" | jq -cS 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end |'" ${projection}")" || return 1
   [ "${live}" = "${cached}" ]
 }
 
@@ -431,11 +431,11 @@ cmd_verify_radar() {
   require_cmd jq "https://jqlang.github.io/jq/download/"
   require_owned_cluster
   assert_cluster_contract
-  step "Verifying Radar API at ${RADAR_URL}"
+  step "Verifying Radar API at ${KUBEATLAS_URL}"
 
   local response jobs pods
   wait_until "Radar health endpoint" radar_health_ready
-  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/cluster-info")" || fail "Radar cluster-info request failed"
+  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/cluster-info")" || fail "Radar cluster-info request failed"
   jq -e --arg context "${KUBECTL_CTX}" '.context == $context and .cluster == $context' <<<"${response}" >/dev/null || \
     fail "Radar is not connected to the expected context and cluster '${KUBECTL_CTX}'"
   wait_until "Radar CRD discovery" radar_crd_discovery_ready
@@ -443,7 +443,7 @@ cmd_verify_radar() {
   wait_until "Radar Job identities, ownership and status" radar_inventory_ready jobs batch
   wait_until "Radar Pod identities, ownership and status" radar_inventory_ready pods ""
 
-  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/resources/jobsets?group=jobset.x-k8s.io&namespace=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || fail "Radar jobsets list request failed"
+  response="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/resources/jobsets?group=jobset.x-k8s.io&namespace=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || fail "Radar jobsets list request failed"
   jq -e '
     type == "array" and length == 3 and
     all(.[]; .apiVersion == "jobset.x-k8s.io/v1alpha2") and
@@ -453,7 +453,7 @@ cmd_verify_radar() {
       any(.status.conditions[]?; .type == "Failed" and .status == "True" and .reason == "FailJobSetFailurePolicyAction"))
   ' <<<"${response}" >/dev/null || fail "Radar did not return the three group-pure reconciled JobSets"
 
-  jobs="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/resources/jobs?namespace=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || fail "Radar jobs list request failed"
+  jobs="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/resources/jobs?namespace=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || fail "Radar jobs list request failed"
   jq -e '
     type == "array" and
     ([.[] | select(.metadata.labels["jobset.sigs.k8s.io/jobset-name"] == "roles-running")] | length) == 3 and
@@ -466,7 +466,7 @@ cmd_verify_radar() {
     ([.[] | select(.metadata.labels["jobset.sigs.k8s.io/jobset-name"] == "terminal-failure")] | length) == 1
   ' <<<"${jobs}" >/dev/null || fail "Radar did not expose the expected controller-created child Jobs"
 
-  pods="$(curl -fsS --connect-timeout 5 --max-time 15 "${RADAR_URL}/api/resources/pods?namespace=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || fail "Radar pods list request failed"
+  pods="$(curl -fsS --connect-timeout 5 --max-time 15 "${KUBEATLAS_URL}/api/resources/pods?namespace=${DEMO_NS}" | jq -ce 'if .coverage.status == "complete" then .items else error("Radar resource read is incomplete") end')" || fail "Radar pods list request failed"
   jq -e '
     type == "array" and
     ([.[] | select(.metadata.labels["jobset.sigs.k8s.io/jobset-name"] == "roles-running" and .status.phase == "Running")] | length) == 3 and
@@ -573,7 +573,7 @@ Environment:
   KUBERNETES_VERSION expected Kubernetes server version (default: v1.36.1)
   KIND_NODE_IMAGE   immutable kind node image (default: kindest/node v1.36.1 digest)
   WAIT_SECONDS      maximum wait per reconciled state (default: 240)
-  RADAR_URL         running Radar base URL for verify-radar (default: http://127.0.0.1:9280)
+  KUBEATLAS_URL         running Radar base URL for verify-radar (default: http://127.0.0.1:9280)
 
 This validates JobSet controller reconciliation and Radar's read path. It does
 not validate GPUs, distributed framework semantics, or cost. The optional

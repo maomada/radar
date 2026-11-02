@@ -76,7 +76,7 @@ const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAs
 const page = () => document.body.textContent ?? ''
 
 describe('RadarOmnibar while results load', () => {
-  it('re-queries a loading search and ends on the failure once Radar gives up on the kind', async () => {
+  it('re-queries a loading search and ends on the failure once KubeAtlas gives up on the kind', async () => {
     unsearched = pending
     await typeQuery('sp-live')
     expect(page()).toContain('Still loading — results may change.')
@@ -85,7 +85,7 @@ describe('RadarOmnibar while results load', () => {
     expect(searches).toBeGreaterThanOrEqual(5)
     expect(page()).toContain('Still loading — results may change.')
 
-    // Radar reports a kind that never synced as failed after about 30 s, so
+    // KubeAtlas reports a kind that never synced as failed after about 30 s, so
     // the omnibar must still be asking then.
     await advance(6_000)
     unsearched = failed
@@ -125,9 +125,9 @@ describe('RadarOmnibar while results load', () => {
 })
 
 describe('RadarOmnibar namespace notes', () => {
-  // Radar decides whether a missing namespace may be named as absent: only a
+  // KubeAtlas decides whether a missing namespace may be named as absent: only a
   // caller who can see every namespace is told it doesn't exist.
-  it('says a namespace does not exist when Radar says so, whatever the auth mode', async () => {
+  it('says a namespace does not exist when KubeAtlas says so, whatever the auth mode', async () => {
     for (const data of [{}, { authEnabled: true }]) {
       caps.data = data
       unsearched = [{ kind: '*', group: '', reason: 'namespace_not_found', namespaces: ['payments-prd'] }]
@@ -136,7 +136,7 @@ describe('RadarOmnibar namespace notes', () => {
     }
   })
 
-  it('stays scoped to what the caller can see when Radar does not say', async () => {
+  it('stays scoped to what the caller can see when KubeAtlas does not say', async () => {
     for (const data of [{}, { authEnabled: true }]) {
       caps.data = data
       unsearched = [{ kind: '*', group: '', reason: 'user_namespace_not_visible', namespaces: ['payments-prd'] }]
@@ -160,7 +160,7 @@ describe('RadarOmnibar read recovery', () => {
     const button = [...document.body.querySelectorAll('button')].find((b) => b.textContent === 'kind:Certificate')!
     expect(button).toBeDefined()
     const recoveryText = "Couldn't read Certificate; matches of that kind may be missing. Search kind:Certificate to re-check."
-    const siblingText = siblings === pending ? 'Still loading — results may change.' : siblings.length ? "Namespace 'rel-owner' wasn't searched: Radar here watches only some namespaces." : ''
+    const siblingText = siblings === pending ? 'Still loading — results may change.' : siblings.length ? "Namespace 'rel-owner' wasn't searched: KubeAtlas here watches only some namespaces." : ''
     expect(button.parentElement!.textContent?.trim()).toBe(recoveryText)
     expect(button.parentElement!.parentElement!.textContent).toBe(siblings === pending ? `${siblingText} ${recoveryText}` : `${recoveryText}${siblingText ? ` ${siblingText}` : ''}`)
     act(() => button.click())

@@ -1,7 +1,7 @@
 import { useOpenCostSummary, usePrometheusStatus, type useArgoStatus } from '../../api/client'
 import { costIntegrationUnavailableMessage, costSourceLabel } from '../cost/source'
 import type { IntegrationKind, IntegrationProfile } from './LocalConnectionSettings'
-import { Badge, Collapse } from '@skyhook-io/k8s-ui'
+import { Badge, Collapse } from '@maomada/k8s-ui'
 import { useRef } from 'react'
 
 export function LocalIntegrationStatus({ kind, profile, argo, busy, changedAt }: {

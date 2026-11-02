@@ -11,24 +11,24 @@
 
 VERSION ?= $(shell git describe --tags --match 'v*' --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -X main.version=$(VERSION)
-DOCKER_REPO ?= ghcr.io/maomada/radar
-RADAR_FLAGS ?=
+DOCKER_REPO ?= ghcr.io/maomada/kubeatlas
+KUBEATLAS_FLAGS ?=
 PORT ?= 9280
 
 ## Quick in-cluster test deploy (full build: frontend + embed + Go binary)
 # Usage: make deploy-test   (or make deploy-test TEST_IMAGE=... CLUSTER_NS=... CLUSTER_DEPLOY=...)
-TEST_IMAGE   ?= ghcr.io/maomada/radar:test
+TEST_IMAGE   ?= ghcr.io/maomada/kubeatlas:test
 CLUSTER_NS   ?= radar
 CLUSTER_DEPLOY ?= radar
 
 deploy-test: frontend embed
 	@echo "=== Fast test deploy: Go build → push → rollout ==="
 	@echo "Building Go binary for linux/amd64..."
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o /tmp/radar-linux ./cmd/explorer
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o /tmp/kubeatlas-linux ./cmd/explorer
 	@echo "Building minimal Docker image..."
 	@echo 'FROM gcr.io/distroless/static-debian12:nonroot' > /tmp/Dockerfile.test
-	@echo 'COPY radar-linux /app/radar' >> /tmp/Dockerfile.test
-	@echo 'ENTRYPOINT ["/app/radar"]' >> /tmp/Dockerfile.test
+	@echo 'COPY kubeatlas-linux /app/kubeatlas' >> /tmp/Dockerfile.test
+	@echo 'ENTRYPOINT ["/app/kubeatlas"]' >> /tmp/Dockerfile.test
 	docker build -t $(TEST_IMAGE) -f /tmp/Dockerfile.test /tmp
 	docker push $(TEST_IMAGE)
 	kubectl rollout restart deploy/$(CLUSTER_DEPLOY) -n $(CLUSTER_NS)
@@ -38,36 +38,37 @@ deploy-test: frontend embed
 # Build a probe image from the CURRENT code and load it into a kind cluster, for
 # developing the in-cluster reachability probe. A -dirty local build's version is
 # not a published tag, so the default image won't exist - load a local one and run
-# radar with --reachability-image $(PROBE_IMAGE). Binary path /radar + ENTRYPOINT
-# match the official image so the probe Job's `["/radar","probe",...]` command works.
+# kubeatlas with --reachability-image $(PROBE_IMAGE). The probe image uses the
+# same binary path as the official image.
 KIND_CLUSTER ?= test
-PROBE_IMAGE  ?= radar-probe:dev
+PROBE_IMAGE  ?= kubeatlas-probe:dev
 kind-load-probe:
 	@echo "Building probe binary for linux/$$(go env GOARCH)..."
-	GOOS=linux GOARCH=$$(go env GOARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o /tmp/radar-probe-bin ./cmd/explorer
+	GOOS=linux GOARCH=$$(go env GOARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o /tmp/kubeatlas-probe-bin ./cmd/explorer
 	@echo 'FROM gcr.io/distroless/static-debian12:nonroot' > /tmp/Dockerfile.probe
-	@echo 'COPY radar-probe-bin /radar' >> /tmp/Dockerfile.probe
-	@echo 'ENTRYPOINT ["/radar"]' >> /tmp/Dockerfile.probe
+	@echo 'COPY kubeatlas-probe-bin /kubeatlas' >> /tmp/Dockerfile.probe
+	@echo 'ENTRYPOINT ["/kubeatlas"]' >> /tmp/Dockerfile.probe
 	docker build -t $(PROBE_IMAGE) -f /tmp/Dockerfile.probe /tmp
 	kind load docker-image $(PROBE_IMAGE) --name $(KIND_CLUSTER)
-	@echo "Loaded $(PROBE_IMAGE) into kind/$(KIND_CLUSTER). Run radar with: --reachability-image $(PROBE_IMAGE)"
+	@echo "Loaded $(PROBE_IMAGE) into kind/$(KIND_CLUSTER). Run kubeatlas with: --reachability-image $(PROBE_IMAGE)"
 
 ## Build targets
 
 # Build the complete application (frontend + embedded binary)
 build: frontend embed backend
-	@echo "Build complete: ./radar"
+	@echo "Build complete: ./kubeatlas"
 
 # Build and install to /usr/local/bin
 install: build
-	@echo "Installing to /usr/local/bin/kubectl-radar..."
-	@cp radar /usr/local/bin/kubectl-radar || sudo cp radar /usr/local/bin/kubectl-radar
-	@echo "Installed! Run 'kubectl radar' or 'kubectl-radar'"
+	@echo "Installing kubeatlas to /usr/local/bin..."
+	@cp kubeatlas /usr/local/bin/kubeatlas || sudo cp kubeatlas /usr/local/bin/kubeatlas
+	@ln -sf kubeatlas /usr/local/bin/kubectl-kubeatlas || sudo ln -sf kubeatlas /usr/local/bin/kubectl-kubeatlas
+	@echo "Installed! Run 'kubeatlas' or 'kubectl kubeatlas'"
 
 # Build Go backend with embedded frontend
 backend:
 	@echo "Building Go backend..."
-	go build -ldflags "$(LDFLAGS)" -o radar ./cmd/explorer
+	go build -ldflags "$(LDFLAGS)" -o kubeatlas ./cmd/explorer
 
 # Build the independent portal frontend and executable.
 portal:
@@ -75,7 +76,7 @@ portal:
 	@test -f node_modules/typescript-7/bin/tsc || (echo "Installing npm dependencies..." && npm ci --prefer-offline --no-audit)
 	cd web && npx vite build --config vite.portal.config.ts
 	@touch internal/portalui/dist/.gitkeep
-	go build -ldflags "$(LDFLAGS)" -o radar-portal ./cmd/radar-portal
+	go build -ldflags "$(LDFLAGS)" -o kubeatlas-portal ./cmd/kubeatlas-portal
 
 # Build frontend (auto-installs deps if needed)
 frontend:
@@ -95,14 +96,14 @@ embed:
 # Quick rebuild and restart
 restart: frontend embed backend kill
 	@sleep 1
-	./radar --kubeconfig ~/.kube/config --no-browser --port $(PORT) $(RADAR_FLAGS) &
+	./kubeatlas --kubeconfig ~/.kube/config --no-browser --port $(PORT) $(KUBEATLAS_FLAGS) &
 	@sleep 4
 	@echo "Server running at http://localhost:$(PORT)"
 
 # Frontend-only rebuild and restart (faster - no Go recompile, serves from web/dist via --dev)
 restart-fe: frontend kill
 	@sleep 1
-	./radar --dev --kubeconfig ~/.kube/config --no-browser --port $(PORT) $(RADAR_FLAGS) &
+	./kubeatlas --dev --kubeconfig ~/.kube/config --no-browser --port $(PORT) $(KUBEATLAS_FLAGS) &
 	@sleep 4
 	@echo "Server running at http://localhost:$(PORT)"
 
@@ -123,25 +124,25 @@ watch-frontend:
 	cd web && npm run dev
 
 # Backend with air hot reload
-# Pass extra flags: make watch-backend RADAR_FLAGS="--fake-in-cluster"
+# Pass extra flags: make watch-backend KUBEATLAS_FLAGS="--fake-in-cluster"
 watch-backend:
 	@command -v air >/dev/null 2>&1 || { echo "Installing air..."; go install github.com/air-verse/air@latest; }
-	air -- $(RADAR_FLAGS)
+	air -- $(KUBEATLAS_FLAGS)
 
 # Run built binary
 run:
-	./radar --kubeconfig ~/.kube/config
+	./kubeatlas --kubeconfig ~/.kube/config
 
 # Run in dev mode (serve frontend from web/dist instead of embedded)
 run-dev:
-	./radar --kubeconfig ~/.kube/config --dev
+	./kubeatlas --kubeconfig ~/.kube/config --dev
 
 ## Utility targets
 
-# Kill any running radar process (on configured port and by process name)
+# Kill any running KubeAtlas process (on configured port and by process name)
 kill:
 	@lsof -ti:$(PORT) | xargs kill -9 2>/dev/null || true
-	@pkill -9 -f './radar' 2>/dev/null || true
+	@pkill -9 -f './kubeatlas' 2>/dev/null || true
 
 # Install all dependencies
 deps:
@@ -156,7 +157,7 @@ install-tools:
 
 # Clean build artifacts
 clean:
-	rm -f radar radar-desktop
+	rm -f kubeatlas kubeatlas-desktop
 	rm -rf web/dist
 	rm -f internal/static/dist/index.html
 	rm -rf internal/static/dist/assets
@@ -321,7 +322,7 @@ workload-metrics-demo-check:
 # Bootstrap a kind cluster with Cilium + Hubble Relay and traffic workloads,
 # for exercising every Hubble connection lane: direct in-cluster dial
 # (plaintext and TLS/SAN-discovery via `tls`), and the port-forward fallback
-# when `netpol` blocks the direct path. `install-radar` builds the current
+# when `netpol` blocks the direct path. `install-kubeatlas` builds the current
 # tree into the cluster with DEFAULT chart RBAC to prove pods/portforward
 # stays unneeded. See scripts/cilium-demo/README.md.
 cilium-demo:
@@ -479,12 +480,12 @@ docker-push:
 
 # Build desktop app: frontend + Go desktop binary
 desktop: frontend embed desktop-binary
-	@echo "Desktop build complete: ./radar-desktop"
+	@echo "Desktop build complete: ./kubeatlas-desktop"
 
 # Build desktop binary only (assumes frontend is already in internal/static/dist)
 desktop-binary:
 	@echo "Building desktop binary..."
-	CGO_ENABLED=1 CGO_LDFLAGS="-framework UniformTypeIdentifiers" go build -tags production -ldflags "$(LDFLAGS)" -o radar-desktop ./cmd/desktop
+	CGO_ENABLED=1 CGO_LDFLAGS="-framework UniformTypeIdentifiers" go build -tags production -ldflags "$(LDFLAGS)" -o kubeatlas-desktop ./cmd/desktop
 
 # Run desktop app in Wails dev mode with Go hot reload.
 # wails.json lives in cmd/desktop/ (Wails requires it next to the main package).

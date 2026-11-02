@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/probe"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/probe"
 	authzv1 "k8s.io/api/authorization/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +32,7 @@ import (
 // DefaultImageRef is the container image for the in-cluster probe Job when no
 // override is set. main() overrides the tag with the build version so a released
 // binary defaults to its matching image.
-var DefaultImageRef = "ghcr.io/skyhook-io/radar:dev"
+var DefaultImageRef = "ghcr.io/maomada/kubeatlas:dev"
 
 // configuredImage holds the operator's explicit --reachability-image / config
 // value, recorded once at startup via SetConfiguredImage. It lets BOTH the REST
@@ -63,7 +63,7 @@ func SetConfiguredImage(img string) { configuredImage = img }
 //     honest in-cluster default: the probe runs the SAME image as radar itself,
 //     correct automatically for private registries, mirrors, and digest-pinned
 //     deploys because it reads the live container image.
-//  3. RADAR_IMAGE env - a no-RBAC fallback (the Helm chart sets it to radar's
+//  3. KUBEATLAS_IMAGE env - a no-RBAC fallback (the Helm chart sets it to radar's
 //     deployed image) for when self-read can't run (no get-pods, not a pod).
 //  4. DefaultImageRef - the version-matched published image.
 //
@@ -78,7 +78,7 @@ func ResolveImage(ctx context.Context, selfClient kubernetes.Interface, override
 	if img := selfPodImage(ctx, selfClient); img != "" {
 		return img
 	}
-	if env := os.Getenv("RADAR_IMAGE"); env != "" {
+	if env := os.Getenv("KUBEATLAS_IMAGE"); env != "" {
 		return env
 	}
 	if LatestReleaseImage != nil {
@@ -89,7 +89,7 @@ func ResolveImage(ctx context.Context, selfClient kubernetes.Interface, override
 	return DefaultImageRef
 }
 
-// DefaultImage is the client-less resolution (RADAR_IMAGE env → version default).
+// DefaultImage is the client-less resolution (KUBEATLAS_IMAGE env → version default).
 // Prefer ResolveImage when a base client is available so the in-cluster self-read
 // can run.
 func DefaultImage() string {
@@ -118,7 +118,7 @@ func selfPodImage(ctx context.Context, selfClient kubernetes.Interface) string {
 	// No container named "radar": trust the first image ONLY when it is the SOLE
 	// container. A multi-container pod (injected mesh sidecar, or radar wrapped in
 	// another app) could put a non-radar image first - that image lacks /radar, so
-	// fall through to RADAR_IMAGE / the version default instead of guessing wrong.
+	// fall through to KUBEATLAS_IMAGE / the version default instead of guessing wrong.
 	if len(pod.Spec.Containers) == 1 {
 		return pod.Spec.Containers[0].Image
 	}

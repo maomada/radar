@@ -8,8 +8,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skyhook-io/radar/pkg/health"
-	"github.com/skyhook-io/radar/pkg/issuesapi"
+	"github.com/maomada/radar/pkg/health"
+	"github.com/maomada/radar/pkg/issuesapi"
 )
 
 // Restart-loop issue continuity. A container stuck restarting cycles through

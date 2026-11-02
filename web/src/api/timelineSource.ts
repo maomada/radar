@@ -1,9 +1,9 @@
 // Timeline data-source abstraction.
 //
-// Radar's timeline can be backed by two stores:
-//   - 'local'    — the in-process event store the Radar binary keeps (default,
+// KubeAtlas's timeline can be backed by two stores:
+//   - 'local'    — the in-process event store the KubeAtlas binary keeps (default,
 //                  OSS standalone). Fetched via GET {apiBase}/timeline/events.
-//   - 'retained' — a longer-horizon history store answered upstream of Radar
+//   - 'retained' — a longer-horizon history store answered upstream of KubeAtlas
 //                  (relative to apiBase) as GET {apiBase}/timeline/events and
 //                  GET {apiBase}/timeline/overview. This is an extension point:
 //                  the standalone binary never selects it; a host that embeds
@@ -14,7 +14,7 @@
 // wrappers stay source-agnostic: pick the source from context, call useEvents.
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { LIVE_TICK_MS } from '@skyhook-io/k8s-ui'
+import { LIVE_TICK_MS } from '@maomada/k8s-ui'
 import { apiFetch, mergeDeltaEvents, ApiError, type UseChangesOptions } from './client'
 import { apiUrl, getApiBase } from './config'
 import { readErrorBody } from './httpErrors'
@@ -141,7 +141,7 @@ export interface TimelineSourceConfig {
 
 // ============================================================================
 // Local source — the same ring-and-delta hook as retained, pointed at the
-// Radar binary's own /timeline/events endpoint. One mechanism, two depths.
+// KubeAtlas binary's own /timeline/events endpoint. One mechanism, two depths.
 // ============================================================================
 
 // The local binary's per-request row ceiling (its /timeline/events pages at
@@ -163,7 +163,7 @@ interface LocalHourSlot {
   namespaces: Set<string>
 }
 
-// Client-side overview for the local source. The Radar binary loads the whole
+// Client-side overview for the local source. The KubeAtlas binary loads the whole
 // event ring into the browser (the swimlane's 10k fetch), so the scrubber
 // histogram is derived here instead of from a server rollup — the local store
 // has no /timeline/overview endpoint. Buckets by hour to match the retained

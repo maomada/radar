@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// Radar's own build aliases @skyhook-io/k8s-ui to its source, so a deep
+// KubeAtlas's own build aliases @maomada/k8s-ui to its source, so a deep
 // import that the package's `exports` map can't serve still builds here and
 // only fails in a consumer that installs the published packages (Radar Hub).
 // This resolves every deep import the way Node and bundlers do: the most
@@ -50,7 +50,7 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-describe('@skyhook-io/k8s-ui deep imports', () => {
+describe('@maomada/k8s-ui deep imports', () => {
   const imports = new Set<string>()
   for (const file of sourceFiles(here)) {
     // Any quoted specifier: `from` imports, side-effect and dynamic imports,
@@ -67,7 +67,7 @@ describe('@skyhook-io/k8s-ui deep imports', () => {
 
   test.each([...imports].sort())('%s resolves through the published exports map', (subpath) => {
     const file = resolveExport(subpath)
-    expect(file, `no exports entry serves "@skyhook-io/k8s-ui/${subpath}"`).toBeDefined()
-    expect(existsSync(file!), `"@skyhook-io/k8s-ui/${subpath}" resolves to missing ${file}`).toBe(true)
+    expect(file, `no exports entry serves "@maomada/k8s-ui/${subpath}"`).toBeDefined()
+    expect(existsSync(file!), `"@maomada/k8s-ui/${subpath}" resolves to missing ${file}`).toBe(true)
   })
 })

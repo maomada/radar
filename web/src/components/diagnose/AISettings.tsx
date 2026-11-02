@@ -53,7 +53,7 @@ function ClearHistoryRow({
         ) : (
           <>
             Investigation transcripts are kept on this machine (
-            <code className="font-mono">~/.radar</code>) so history survives
+            <code className="font-mono">~/.kubeatlas</code>) so history survives
             restarts.
           </>
         )}

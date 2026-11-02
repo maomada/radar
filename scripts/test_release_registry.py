@@ -9,10 +9,10 @@ class ReleaseRegistryTests(unittest.TestCase):
         self.assertEqual(
             registry.release_targets("1.2.3"),
             (
-                "ghcr.io/maomada/radar:1.2.3",
-                "ghcr.io/maomada/radar-portal:1.2.3",
-                "ghcr.io/maomada/charts/radar:1.2.3",
-                "ghcr.io/maomada/charts/radar-portal:1.2.3",
+                "ghcr.io/maomada/kubeatlas:1.2.3",
+                "ghcr.io/maomada/kubeatlas-portal:1.2.3",
+                "ghcr.io/maomada/charts/kubeatlas:1.2.3",
+                "ghcr.io/maomada/charts/kubeatlas-portal:1.2.3",
             ),
         )
 
@@ -21,7 +21,7 @@ class ReleaseRegistryTests(unittest.TestCase):
 
         def run(command, **_):
             calls.append(command[-1])
-            existing = command[-1] == "docker://ghcr.io/maomada/radar:1.2.3"
+            existing = command[-1] == "docker://ghcr.io/maomada/kubeatlas:1.2.3"
             return subprocess.CompletedProcess(
                 command, 0 if existing else 1, stdout="{}", stderr="manifest unknown"
             )

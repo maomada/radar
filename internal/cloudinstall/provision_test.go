@@ -15,12 +15,12 @@ import (
 )
 
 func TestCloudInstallValues(t *testing.T) {
-	v := cloudInstallValues("wss://api.radarhq.io/agent", "k3Fg-9pA", false)
+	v := cloudInstallValues("wss://api.example.test/agent", "k3Fg-9pA", false)
 	cloud, _ := v["cloud"].(map[string]any)
 	if cloud["enabled"] != true {
 		t.Error("cloud.enabled must be true")
 	}
-	if cloud["url"] != "wss://api.radarhq.io/agent" {
+	if cloud["url"] != "wss://api.example.test/agent" {
 		t.Errorf("cloud.url = %v", cloud["url"])
 	}
 	if cloud["clusterName"] != "k3Fg-9pA" {
@@ -42,7 +42,7 @@ func TestCloudInstallValues(t *testing.T) {
 }
 
 func TestCloudInstallValuesCanDisableSelfUpgrade(t *testing.T) {
-	v := cloudInstallValues("wss://api.radarhq.io/agent", "cluster", true)
+	v := cloudInstallValues("wss://api.example.test/agent", "cluster", true)
 	rbac, _ := v["rbac"].(map[string]any)
 	if rbac["selfUpgrade"] != false {
 		t.Fatalf("rbac.selfUpgrade = %v, want false", rbac["selfUpgrade"])
@@ -50,7 +50,7 @@ func TestCloudInstallValuesCanDisableSelfUpgrade(t *testing.T) {
 }
 
 func TestCloudAdoptionValuesPreserveFeatureRBACUnlessEnabled(t *testing.T) {
-	preserved := cloudAdoptionValues("wss://api.radarhq.io/agent", "cluster", false, false)
+	preserved := cloudAdoptionValues("wss://api.example.test/agent", "cluster", false, false)
 	if _, ok := preserved["auth"]; ok {
 		t.Fatal("adoption must preserve the existing auth value")
 	}
@@ -59,7 +59,7 @@ func TestCloudAdoptionValuesPreserveFeatureRBACUnlessEnabled(t *testing.T) {
 		t.Fatalf("default adoption RBAC = %#v, want only selfUpgrade=true", rbac)
 	}
 
-	enabled := cloudAdoptionValues("wss://api.radarhq.io/agent", "cluster", true, true)
+	enabled := cloudAdoptionValues("wss://api.example.test/agent", "cluster", true, true)
 	rbac, _ = enabled["rbac"].(map[string]any)
 	for _, key := range []string{"helm", "secrets", "podExec", "portForward", "metrics"} {
 		if rbac[key] != true {
@@ -201,7 +201,7 @@ func TestProvisionPrepared_RequiresPlanAndFields(t *testing.T) {
 }
 
 func TestValidateProvisionConfigCloudURLTransportPolicy(t *testing.T) {
-	for _, raw := range []string{"wss://api.radarhq.io/agent", "ws://localhost:9091/agent", "ws://127.0.0.1:9091/agent", "ws://[::1]:9091/agent"} {
+	for _, raw := range []string{"wss://api.example.test/agent", "ws://localhost:9091/agent", "ws://127.0.0.1:9091/agent", "ws://[::1]:9091/agent"} {
 		t.Run("valid_"+raw, func(t *testing.T) {
 			if err := validateProvisionConfig(ProvisionConfig{Token: "t", CloudURL: raw, ClusterID: "c"}); err != nil {
 				t.Fatalf("validateProvisionConfig(%q): %v", raw, err)

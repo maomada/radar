@@ -3,11 +3,11 @@ package auditcontext
 import (
 	"sort"
 
-	"github.com/skyhook-io/radar/internal/audit"
-	"github.com/skyhook-io/radar/internal/k8s"
-	bpaudit "github.com/skyhook-io/radar/pkg/audit"
-	"github.com/skyhook-io/radar/pkg/checks"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/audit"
+	"github.com/maomada/radar/internal/k8s"
+	bpaudit "github.com/maomada/radar/pkg/audit"
+	"github.com/maomada/radar/pkg/checks"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 // SummarizeResource returns the audit findings scoped to one resource and

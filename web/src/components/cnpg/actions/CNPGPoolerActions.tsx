@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pause, Play } from 'lucide-react'
-import { ActionConfirmDialog, Tooltip } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, Tooltip } from '@maomada/k8s-ui'
 import { useCNPGAction } from '../../../api/cnpg'
 import { actionDialogResult, capabilityReason } from '../../../api/actions'
 import { useCNPGPoolerCapabilities, type CNPGPoolerCapabilities } from '../../../api/cnpg-sessions'
@@ -62,7 +62,7 @@ function PoolerDialog({ kind, caps, namespace, name, onClose }: { kind: 'pause' 
           : `Every PgBouncer of this Pooler reconnects to ${caps.facts.cluster} and serves the client queries it was holding.`
       }
       notes={[
-        'The operator applies this with PgBouncer’s PAUSE / RESUME on each Pod. Radar shows each PgBouncer’s own state (SHOW STATE) once it has applied it, when you can exec into the Pods.',
+        'The operator applies this with PgBouncer’s PAUSE / RESUME on each Pod. KubeAtlas shows each PgBouncer’s own state (SHOW STATE) once it has applied it, when you can exec into the Pods.',
         ...(pause ? ['Clients whose queries wait longer than their own timeouts see errors; a long-running transaction delays the pause.'] : []),
       ]}
       writes={[{ summary: `patch Pooler ${namespace}/${name}`, detail: `spec.pgbouncer.paused = ${pause}` }]}

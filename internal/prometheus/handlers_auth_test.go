@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/k8score"
-	"github.com/skyhook-io/radar/pkg/prom"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/k8score"
+	"github.com/maomada/radar/pkg/prom"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -310,7 +310,7 @@ func TestHandleRawQuery_OversizedResultIsSummarized(t *testing.T) {
 	SetAuthGate(nil)
 	f := setupAuthFakeProm(t)
 	h := metricsRouter()
-	t.Setenv("RADAR_MCP_PROM_MAX_RESPONSE_BYTES", "200")
+	t.Setenv("KUBEATLAS_MCP_PROM_MAX_RESPONSE_BYTES", "200")
 
 	var b strings.Builder
 	b.WriteString(`{"status":"success","data":{"resultType":"matrix","result":[`)

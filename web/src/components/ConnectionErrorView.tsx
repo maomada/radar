@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react'
 import type { ConnectionState } from '../context/ConnectionContext'
 import { ContextSwitcher } from './ContextSwitcher'
 import { parseContextName } from '../utils/context-name'
-import { ClusterName } from '@skyhook-io/k8s-ui'
+import { ClusterName } from '@maomada/k8s-ui'
 import { useOpenLocalTerminal } from './dock/DockContext'
 import { useAuthMe, useContexts } from '../api/client'
 import { Tooltip } from './ui/Tooltip'
-import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { Collapse, CollapseChevron } from '@maomada/k8s-ui/components/ui/Collapse'
 import { allShellSafe, awsProfileFlag } from '../utils/shell-safe'
 import { apiUrl } from '../api/config'
 import { useCapabilitiesContext } from '../contexts/CapabilitiesContext'
@@ -42,7 +42,7 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
     case 'GKE': {
       const result: AuthHints = {
         title: 'GKE 身份验证失败',
-        hints: ['Radar 无法获取此上下文的 Google Cloud 凭据。'],
+        hints: ['KubeAtlas 无法获取此上下文的 Google Cloud 凭据。'],
         authCommand: { label: '刷新 Google Cloud 凭据：', command: 'gcloud auth login' },
       }
       if (parsed.region && parsed.account && allShellSafe(parsed.clusterName, parsed.region, parsed.account)) {
@@ -60,7 +60,7 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
       const result: AuthHints = {
         title: 'EKS 身份验证失败',
         hints: [
-          'Radar 无法获取此上下文的 AWS 凭据。',
+          'KubeAtlas 无法获取此上下文的 AWS 凭据。',
           '对于 AWS SSO 上下文，可能需要重新登录 SSO 会话。',
         ],
         authCommand: { label: '如果此上下文使用 AWS SSO，请刷新凭据：', command: `aws sso login${profileFlag}` },
@@ -76,7 +76,7 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
     case 'AKS':
       return {
         title: 'AKS 身份验证失败',
-        hints: ['Radar 无法获取此上下文的 Azure 凭据。'],
+        hints: ['KubeAtlas 无法获取此上下文的 Azure 凭据。'],
         authCommand: { label: '刷新 Azure 凭据：', command: 'az login' },
         fallbackCommand: { label: '如果仍无效，请刷新集群凭据：', command: 'az aks get-credentials --name <cluster> --resource-group <rg>', runnable: false },
       }
@@ -84,7 +84,7 @@ function getAuthHints(context: string, awsProfile?: string): AuthHints {
       return {
         title: '身份验证失败',
         hints: [
-          'Radar 无法获取此上下文的 Kubernetes 凭据',
+          'KubeAtlas 无法获取此上下文的 Kubernetes 凭据',
           '请向云服务提供商重新进行身份验证后重试',
         ],
       }
@@ -173,7 +173,7 @@ function getAuthPluginStuckHints(): AuthHints {
     hints: [
       '此 kubeconfig 配置的凭据命令未能在时限内返回。',
       '请检查云服务商 CLI 及其身份提供商或网络依赖是否正常响应。',
-      'Radar 会在后台持续检查，并在凭据命令恢复后重新连接。',
+      'KubeAtlas 会在后台持续检查，并在凭据命令恢复后重新连接。',
     ],
   }
 }
@@ -233,9 +233,9 @@ const errorHints: Record<string, { title: string; hints: string[] }> = {
   config: {
     title: 'kubeconfig 配置问题',
     hints: [
-      'Radar 无法为此上下文加载可用的 kubeconfig',
-      '如果文件存在，请查看本地 Radar 日志以了解具体解析或加载失败原因',
-      '如果未配置 kubeconfig，Radar 会检查 ~/.kube/config；如需指定其他位置，请设置 KUBECONFIG 或传入 --kubeconfig <path>',
+      'KubeAtlas 无法为此上下文加载可用的 kubeconfig',
+      '如果文件存在，请查看本地 KubeAtlas 日志以了解具体解析或加载失败原因',
+      '如果未配置 kubeconfig，KubeAtlas 会检查 ~/.kube/config；如需指定其他位置，请设置 KUBECONFIG 或传入 --kubeconfig <path>',
     ],
   },
   rbac: {
@@ -259,8 +259,8 @@ const errorHints: Record<string, { title: string; hints: string[] }> = {
   tls: {
     title: '证书错误',
     hints: [
-      'Radar 已连接到 Kubernetes API，但 TLS 握手失败',
-      '如果错误提到 "bad certificate" 或 "certificate required"，说明集群拒绝了 Radar 客户端证书——证书可能已过期（kubeadm 证书有效期为一年）。请续期（例如运行 kubeadm certs renew）或重新下载 kubeconfig',
+      'KubeAtlas 已连接到 Kubernetes API，但 TLS 握手失败',
+      '如果错误提到 "bad certificate" 或 "certificate required"，说明集群拒绝了 KubeAtlas 客户端证书——证书可能已过期（kubeadm 证书有效期为一年）。请续期（例如运行 kubeadm certs renew）或重新下载 kubeconfig',
       '否则请检查 kubeconfig 中集群服务器主机名和 certificate-authority 设置',
       '如果此集群有意使用私有 CA，请刷新此上下文的 kubeconfig',
     ],
@@ -500,10 +500,10 @@ export function ConnectionErrorView({ connection, onRetry, isRetrying }: Connect
           {isAuthError && (
             <p className="mt-4 text-xs text-theme-text-tertiary">
               {isAuthRejected
-                ? 'Radar 会在后台重新检查并自动获取访问权限变更。点击“重试连接”可立即检查。'
+                ? 'KubeAtlas 会在后台重新检查并自动获取访问权限变更。点击“重试连接”可立即检查。'
                 : isAuthPluginStuck
-                  ? 'Radar 会在后台重新检查，并在凭据插件响应后重新连接。点击“重试连接”可立即检查。'
-                  : 'Radar 会在后台重新检查，并在凭据刷新后重新连接。点击“重试连接”可立即检查。'}
+                  ? 'KubeAtlas 会在后台重新检查，并在凭据插件响应后重新连接。点击“重试连接”可立即检查。'
+                  : 'KubeAtlas 会在后台重新检查，并在凭据刷新后重新连接。点击“重试连接”可立即检查。'}
             </p>
           )}
         </div>

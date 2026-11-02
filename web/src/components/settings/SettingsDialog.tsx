@@ -16,8 +16,8 @@ import {
   useOpenCostSummary,
 } from '../../api/client'
 import { useCapabilitiesContext } from '../../contexts/CapabilitiesContext'
-import { Input, ResourceRefBadge, SelectMenu, type ResourceRef } from '@skyhook-io/k8s-ui'
-import { Collapse, CollapseChevron } from '@skyhook-io/k8s-ui/components/ui/Collapse'
+import { Input, ResourceRefBadge, SelectMenu, type ResourceRef } from '@maomada/k8s-ui'
+import { Collapse, CollapseChevron } from '@maomada/k8s-ui/components/ui/Collapse'
 import { Tooltip } from '../ui/Tooltip'
 import { AISettingsSection, type AIDraft } from '../diagnose/AISettings'
 import { MyPermissionsContent } from './MyPermissionsDialog'
@@ -85,7 +85,7 @@ interface ConfigResponse extends IntegrationSettingsResponse {
   // from the PUT unless the user changes or clears it.
   argoCdTokenSet?: boolean
   // True when the integration is provisioned from the environment
-  // (RADAR_ARGOCD_TOKEN / _TOKEN_FILE) — the card renders read-only because the
+  // (KUBEATLAS_ARGOCD_TOKEN / _TOKEN_FILE) — the card renders read-only because the
   // server refuses UI edits to a declaratively-configured integration.
   argoCdEnvManaged?: boolean
   // Set when environment provisioning was attempted but failed (bad token file,
@@ -373,7 +373,7 @@ export function SettingsDialog({
       const committed = { ...body, opencostCurrency: saved.opencostCurrency }
       setEditedConfig((prev) => ({ ...prev, opencostCurrency: saved.opencostCurrency }))
       setConfigData((prev) => (prev ? { ...prev, file: committed } : prev))
-      setSaveMessage('已保存。重启 Radar 后生效。')
+      setSaveMessage('已保存。重启 KubeAtlas 后生效。')
       return true
     } catch (err) {
       setSaveMessage(`Error: ${err}`)
@@ -385,7 +385,7 @@ export function SettingsDialog({
   }, [editedConfig, configData, integrationBusy, draftFrozen, targetChangedWithDraft])
 
   const saveCostCurrency = useCallback(async (value: string): Promise<void> => {
-    if (!configData) throw new Error('Radar configuration is not available')
+    if (!configData) throw new Error('KubeAtlas configuration is not available')
     if (configSavingRef.current) throw new Error('Other settings are being saved')
     if (costCurrencySavingRef.current) throw new Error('A currency change is already being saved')
     costCurrencySavingRef.current = true
@@ -520,7 +520,7 @@ export function SettingsDialog({
     return () => document.removeEventListener('keydown', handleDocumentKeyDown, true)
   }, [open])
 
-  // Post-save feedback ("Saved. Restart Radar to apply.") is scoped to the
+  // Post-save feedback ("Saved. Restart KubeAtlas to apply.") is scoped to the
   // section it was saved from. Clear it on navigation so it doesn't linger — with
   // its disabled footer — on a live-apply section where "Restart to apply" is
   // wrong. It still stays put while the user remains on the saved section.
@@ -540,7 +540,7 @@ export function SettingsDialog({
   const showBrowserLaunchControls = !isDesktop && deploymentMode === 'local'
 
   // Flat, un-grouped nav ordered as a narrative — at-a-glance, then you, then how
-  // Radar connects, then data integrations, then AI, then advanced. The
+  // KubeAtlas connects, then data integrations, then AI, then advanced. The
   // per-section captions carry the restart-vs-live semantics, so group labels
   // would only add visual weight. AI investigations is always shown (the section
   // explains how to enable it when no agent CLI is installed).
@@ -610,7 +610,7 @@ export function SettingsDialog({
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
               <h2 id="settings-dialog-title" className="text-lg font-semibold text-theme-text-primary">设置</h2>
               <span className="break-all text-[11px] text-theme-text-tertiary">
-                Radar{versionInfo?.currentVersion ? ` v${versionInfo.currentVersion.replace(/^v/, '')}` : ''}
+                KubeAtlas{versionInfo?.currentVersion ? ` v${versionInfo.currentVersion.replace(/^v/, '')}` : ''}
                 <span className="text-theme-text-disabled"> · Skyhook 出品</span>
               </span>
               <UpdateNotification placement="settings" />
@@ -685,7 +685,7 @@ export function SettingsDialog({
               <div className="mb-1">
                 <h3 ref={overviewHeading} tabIndex={-1} className="text-base font-semibold text-theme-text-primary outline-none">总览</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
-                  查看 Radar 当前连接的对象 — 选择一行查看详情。
+                  查看 KubeAtlas 当前连接的对象 — 选择一行查看详情。
                 </p>
               </div>
               {configData?.management === 'local' && configData.integrationProfiles && canEditConfig && (
@@ -791,7 +791,7 @@ export function SettingsDialog({
               active={section}
               title="成本"
               managed={operatorManaged ? <OperatorSettingsSummary section="cost" config={configData} /> : undefined}
-              caption={configData?.integrationProfiles ? `${localIntegrationCaption} 显示货币适用于所有集群。` : '选择 Radar 获取成本数据的方式以及金额的显示标签。'}
+              caption={configData?.integrationProfiles ? `${localIntegrationCaption} 显示货币适用于所有集群。` : '选择 KubeAtlas 获取成本数据的方式以及金额的显示标签。'}
               live
               locked={!canEditConfig}
             >
@@ -886,13 +886,13 @@ export function SettingsDialog({
                 <h3 className="text-base font-semibold text-theme-text-primary">AI 调查</h3>
                 <p className="mt-0.5 text-xs text-theme-text-tertiary">
                   {operatorManaged
-                    ? '本地 Radar 和 Radar Cloud 均可使用 AI 调查。'
+                    ? '本地 KubeAtlas 和 upstream Cloud 均可使用 AI 调查。'
                     : diag.hosted
                     ? `使用 ${diag.agentLabel} 调查事件——读取日志、事件和拓扑以了解当前情况。`
-                    : "使用在你自己的机器上运行的 AI 代理调查事件 — 读取日志、事件和拓扑以了解当前情况。无需 Radar Cloud 或 API 密钥。"}
+                    : "使用在你自己的机器上运行的 AI 代理调查事件 — 读取日志、事件和拓扑以了解当前情况。无需 upstream Cloud 或 API 密钥。"}
                 </p>
               </div>
-              {operatorManaged ? <p className="text-sm text-theme-text-secondary">共享安装中无法使用本地 AI 调查。请在本地 Radar 中配合 Agent CLI 使用，或使用 Radar Cloud。</p> : aiAvailable ? (
+              {operatorManaged ? <p className="text-sm text-theme-text-secondary">共享安装中无法使用本地 AI 调查。请在本地 KubeAtlas 中配合 Agent CLI 使用，或使用 upstream Cloud。</p> : aiAvailable ? (
                 <div className="space-y-4">
                   <AISettingsSection
                     available={diag.available}
@@ -1262,7 +1262,7 @@ function LockWall() {
       <div className="min-w-0">
         <p className="text-sm font-medium text-theme-text-primary">需要所有者权限</p>
         <p className="mt-0.5 text-xs text-theme-text-tertiary">
-          这些设置（kubeconfig、服务器端口、时间线和集成）会影响此 Radar 实例的所有用户，因此仅所有者可以更改。如需调整，请联系所有者。
+          这些设置（kubeconfig、服务器端口、时间线和集成）会影响此 KubeAtlas 实例的所有用户，因此仅所有者可以更改。如需调整，请联系所有者。
         </p>
       </div>
     </div>
@@ -1283,7 +1283,7 @@ interface OverviewRow {
   copyable?: boolean
 }
 
-// OverviewPanel is the Settings landing: a status-at-a-glance of what Radar is
+// OverviewPanel is the Settings landing: a status-at-a-glance of what KubeAtlas is
 // connected to right now. Each row navigates to the section that manages it.
 // The Argo status query is gated on `active` (it triggers a background reconnect
 // probe, so we don't want it firing when Settings opens on another section);
@@ -1409,7 +1409,7 @@ function OverviewPanel({ active, onNavigate }: { active: boolean; onNavigate: (s
 
 // aiOverviewStatus says which reason applies, for the same reason
 // AIUnavailableNotice does: "No agent CLI" is a claim about the user's machine,
-// and it is false when RADAR_AI_CLI_BIN is what's broken, when an agent is
+// and it is false when KUBEATLAS_AI_CLI_BIN is what's broken, when an agent is
 // reported but off, when this deployment can't run investigations at all, or
 // when the agents probe hasn't answered.
 function aiOverviewStatus(
@@ -1420,7 +1420,7 @@ function aiOverviewStatus(
 ): Pick<OverviewRow, 'tone' | 'value'> {
   if (aiAvailable) return { tone: 'ok', value: '已就绪' }
   if (cliOverride && (setupState === 'needs-install' || setupState === 'needs-restart')) {
-    return { tone: 'warn', value: '无法运行 RADAR_AI_CLI_BIN' }
+    return { tone: 'warn', value: '无法运行 KUBEATLAS_AI_CLI_BIN' }
   }
   switch (setupState) {
     case 'unknown':
@@ -1495,14 +1495,14 @@ function AIUnavailableNotice({
   if (setupState === 'off') {
     return panel(
       '此部署不可用',
-      '需要在你自己的电脑上运行 Radar，开启 MCP 并关闭登录。',
+      '需要在你自己的电脑上运行 KubeAtlas，开启 MCP 并关闭登录。',
     )
   }
   if (cliOverride) {
     return panel(
-      'Radar 无法运行 RADAR_AI_CLI_BIN',
+      'KubeAtlas 无法运行 KUBEATLAS_AI_CLI_BIN',
       <>
-        修正路径，或移除该变量后重启 Radar。
+        修正路径，或移除该变量后重启 KubeAtlas。
         {unchanged && ' 仍然无法运行。'}
       </>,
       checkAgain,
@@ -1617,7 +1617,7 @@ function ServerSection({
         <>
           <ConfigToggle
             label="启动时打开浏览器"
-            description="Radar 启动时自动在浏览器中打开界面 — 关闭后将以无头模式运行，请自行打开 URL。"
+            description="KubeAtlas 启动时自动在浏览器中打开界面 — 关闭后将以无头模式运行，请自行打开 URL。"
             value={!(config.noBrowser ?? false)}
             onChange={(v) => onChange('noBrowser', !v ? true : undefined)}
           />
@@ -1803,7 +1803,7 @@ function CostSection({
             !Number.isInteger(data.service.port) ||
             data.service.port <= 0))
       ) {
-        throw new Error('Radar returned an invalid cost source response')
+        throw new Error('KubeAtlas returned an invalid cost source response')
       }
       const applied = data as CostSourceApplyResponse
       setApiKey('')
@@ -1856,7 +1856,7 @@ function CostSection({
             {sourceEnvError ? '部署成本配置无效' : '由部署配置'}
           </p>
           <p className="mt-1 text-xs text-theme-text-tertiary">
-            {sourceEnvError ?? '如需更改数据源，请编辑 RADAR_COST_SOURCE 和 RADAR_KUBECOST_* 环境变量或 Helm values，然后重启 Radar。'}
+            {sourceEnvError ?? '如需更改数据源，请编辑 KUBEATLAS_COST_SOURCE 和 KUBEATLAS_KUBECOST_* 环境变量或 Helm values，然后重启 KubeAtlas。'}
           </p>
         </div>
       )}
@@ -1942,9 +1942,9 @@ function CostSection({
                 <>当 SAML/OIDC 保护端口 9004 时，自动发现可使用 Aggregator 的 <code>tcp-api-rbac:9008</code> 端点；设置密钥后将停用此回退方式。 </>
               )}
               {deploymentMode === 'local' ? (
-                <>Radar 会将其以未加密形式保存在此设备仅所有者可访问的配置文件（<code>~/.radar/config.json</code>）中，且不会通过 API 返回。</>
+                <>KubeAtlas 会将其以未加密形式保存在此设备仅所有者可访问的配置文件（<code>~/.kubeatlas/config.json</code>）中，且不会通过 API 返回。</>
               ) : (
-                <>对于此集群内部署，请创建 Kubernetes Secret 并设置 Helm 值 <code>cost.kubecost.existingSecret</code>。在此输入的密钥将以未加密形式保存在此 Pod 的临时配置文件中，Pod 重启时可能丢失。Radar 不会通过 API 返回该密钥。</>
+                <>对于此集群内部署，请创建 Kubernetes Secret 并设置 Helm 值 <code>cost.kubecost.existingSecret</code>。在此输入的密钥将以未加密形式保存在此 Pod 的临时配置文件中，Pod 重启时可能丢失。KubeAtlas 不会通过 API 返回该密钥。</>
               )}
               {apiKeySet && !apiKeyCleared ? ' 已配置密钥。' : ''}
             </p>
@@ -2045,7 +2045,7 @@ function CostSection({
             ? <p className="mt-1 text-xs text-theme-text-secondary">自动保存。</p>
             : deploymentMode === 'local' && <p className="mt-1 text-xs text-theme-text-secondary">显示偏好 · 适用于所有本地集群。自动保存。</p>}
           <p id="cost-currency-help" className="mb-1 mt-0.5 text-xs text-theme-text-tertiary">
-            “自动”使用当前成本来源报告的货币；不可用时使用 USD。覆盖设置只会更改金额显示标签，Radar 不会进行货币换算。
+            “自动”使用当前成本来源报告的货币；不可用时使用 USD。覆盖设置只会更改金额显示标签，KubeAtlas 不会进行货币换算。
           </p>
           <SelectMenu
             id="cost-currency"
@@ -2122,8 +2122,8 @@ function MCPSection({
   return (
     <div className="space-y-3">
       <p className="text-xs text-theme-text-tertiary">
-        允许 AI 工具通过 Radar 使用 Model Context Protocol 查询此集群。
-        完整模式还允许更改。设置会在重启 Radar 后生效。
+        允许 AI 工具通过 KubeAtlas 使用 Model Context Protocol 查询此集群。
+        完整模式还允许更改。设置会在重启 KubeAtlas 后生效。
       </p>
       <ConfigToggle
         label="MCP 服务"
@@ -2268,7 +2268,7 @@ function ArgoCDConfigField({
 }
 
 // Read-only card for the environment-managed integration: the token/URL/TLS come
-// from the deployment (RADAR_ARGOCD_TOKEN / _TOKEN_FILE / _URL), so editing here
+// from the deployment (KUBEATLAS_ARGOCD_TOKEN / _TOKEN_FILE / _URL), so editing here
 // is disabled — the server refuses the PUT. Shows the effective endpoint and points
 // the operator at the deployment for changes.
 function ArgoCDEnvManagedField({
@@ -2302,8 +2302,8 @@ function ArgoCDEnvManagedField({
           </p>
           <p className="mt-1 text-xs text-theme-text-secondary break-words">{envError}</p>
           <p className="mt-2 text-xs text-theme-text-tertiary">
-            部署设置了 <code className="inline-code">RADAR_ARGOCD_TOKEN</code>（或{' '}
-            <code className="inline-code">RADAR_ARGOCD_TOKEN_FILE</code>），但无法使用，因此深度差异视图已停用。请修复部署的环境变量或 Secret 并重启；详情请查看 Radar Pod 日志。
+            部署设置了 <code className="inline-code">KUBEATLAS_ARGOCD_TOKEN</code>（或{' '}
+            <code className="inline-code">KUBEATLAS_ARGOCD_TOKEN_FILE</code>），但无法使用，因此深度差异视图已停用。请修复部署的环境变量或 Secret 并重启；详情请查看 KubeAtlas Pod 日志。
           </p>
         </div>
       </div>
@@ -2321,8 +2321,8 @@ function ArgoCDEnvManagedField({
         </p>
         <p className="mt-1 text-xs text-theme-text-tertiary">
           部署通过{' '}
-          <code className="inline-code">RADAR_ARGOCD_TOKEN</code>（或{' '}
-          <code className="inline-code">RADAR_ARGOCD_TOKEN_FILE</code>）提供令牌，因此此处为只读。若要更改，请编辑部署的环境变量或 Secret 并重启。
+          <code className="inline-code">KUBEATLAS_ARGOCD_TOKEN</code>（或{' '}
+          <code className="inline-code">KUBEATLAS_ARGOCD_TOKEN_FILE</code>）提供令牌，因此此处为只读。若要更改，请编辑部署的环境变量或 Secret 并重启。
         </p>
         <dl className="mt-3 space-y-1 text-xs">
           <div className="flex gap-2">
@@ -2364,7 +2364,7 @@ function ArgoCDEnvManagedField({
         </dl>
       </div>
       <p className="mt-2 text-xs text-theme-text-tertiary">
-        如果差异视图未加载，请确认令牌对该集群的 Argo CD 有效，并查看 Radar Pod 日志。
+        如果差异视图未加载，请确认令牌对该集群的 Argo CD 有效，并查看 KubeAtlas Pod 日志。
       </p>
     </div>
   )
@@ -2487,7 +2487,7 @@ function ArgoCDEditableField({
   const showConfiguredPlaceholder = effectiveTokenSet && !tokenTouched && !tokenCleared
   const connecting = state.status === 'connecting'
   // Opening this section with nothing set up (typically from the GitOps
-  // page's "connect Radar to your Argo CD server") starts the user at the
+  // page's "connect KubeAtlas to your Argo CD server") starts the user at the
   // token — unless a CLI session offers a one-click connect, or reads
   // already work anonymously.
   const tokenInputRef = useRef<HTMLInputElement>(null)
@@ -2500,7 +2500,7 @@ function ArgoCDEditableField({
       <p className="text-xs text-theme-text-tertiary mb-3">
         Connect your Argo CD server for the full Git-rendered desired-vs-live diff on GitOps
         Application pages — what Git declares vs what's actually running — and, on Argo CD 3, for
-        Argo's own health verdict on each resource. Without it, Radar falls back to a lighter
+        Argo's own health verdict on each resource. Without it, KubeAtlas falls back to a lighter
         annotation-based drift that can miss fields, and to its own read of each resource.
       </p>
 
@@ -2509,8 +2509,8 @@ function ArgoCDEditableField({
           <Check className="w-3.5 h-3.5 shrink-0 text-green-600 dark:text-green-400/80" />
           {anonymous ? (
             <>
-              Your Argo CD server lets Radar read without a token, so it's already connected. Add a token only
-              if anonymous access gets restricted, or a URL to point Radar at a specific server.
+              Your Argo CD server lets KubeAtlas read without a token, so it's already connected. Add a token only
+              if anonymous access gets restricted, or a URL to point KubeAtlas at a specific server.
             </>
           ) : (
             <>已连接到 Argo CD：{connectedAddress}。</>
@@ -2578,7 +2578,7 @@ function ArgoCDEditableField({
         {cliSession ? '或粘贴令牌' : 'API 令牌'}
       </label>
       <p className="text-xs text-theme-text-tertiary mb-1">
-        该令牌允许 Radar 读取你的应用。可使用{' '}
+        该令牌允许 KubeAtlas 读取你的应用。可使用{' '}
         <code className="inline-code">argocd account generate-token</code> 创建，也可在 Argo CD UI 的 Settings → Accounts 中创建。
       </p>
       <div className="flex items-center gap-2">

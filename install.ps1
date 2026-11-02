@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "maomada/radar"
-$BinaryName = "kubectl-radar.exe"
+$BinaryName = "kubectl-kubeatlas.exe"
 $InstallDir = "$env:LOCALAPPDATA\radar"
 
 # Only amd64 is supported on Windows
@@ -135,7 +135,7 @@ Write-Host "Radar v$Version installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Usage:" -ForegroundColor Yellow
 Write-Host "  kubectl radar          # as kubectl plugin"
-Write-Host "  kubectl-radar          # standalone"
+Write-Host "  kubectl-kubeatlas          # standalone"
 Write-Host "  radar                  # short alias"
 Write-Host ""
 Write-Host "Run 'radar --help' for more options." -ForegroundColor Yellow

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 const maxIssuedRefsPerScope = 256

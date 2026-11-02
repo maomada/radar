@@ -12,7 +12,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	clienttesting "k8s.io/client-go/testing"
 
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 func newFakeRolloutClient(t *testing.T, objs ...runtime.Object) *dynamicfake.FakeDynamicClient {

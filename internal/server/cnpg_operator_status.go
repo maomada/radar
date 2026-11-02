@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
 )
 
 // handleCNPGOperatorStatus serves GET /api/cnpg/operator/status?namespaces=a,b:

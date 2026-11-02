@@ -3,9 +3,9 @@ import { renderToString } from "react-dom/server";
 import type {
   CapacityActivityState,
   CapacityQuantityObservation,
-} from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
 import { DeniedCapacityState, ActivityStateBadge, InventoryQuantityCell, QuantityInline, managerStatusRank } from "./shared";
-import { CertaintyGlyph, certaintyGlyph } from "@skyhook-io/k8s-ui";
+import { CertaintyGlyph, certaintyGlyph } from "@maomada/k8s-ui";
 
 function observation(
   certainty: CapacityQuantityObservation["certainty"],
@@ -152,7 +152,7 @@ describe("ActivityStateBadge", () => {
     const html = render("ended");
     expect(html).toContain("ended");
     // Terminalized with no cause recorded — the success and error palettes
-    // would both assert evidence Radar never saw.
+    // would both assert evidence KubeAtlas never saw.
     expect(html).not.toContain("emerald");
     expect(html).not.toContain("red-");
     expect(html).toContain("text-theme-text-secondary");

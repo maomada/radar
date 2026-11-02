@@ -1,4 +1,4 @@
-import { FilterPill } from '@skyhook-io/k8s-ui'
+import { FilterPill } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const row: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }

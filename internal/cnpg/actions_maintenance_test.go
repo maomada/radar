@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	integration "github.com/skyhook-io/radar/internal/integration"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 func cnpgMaintenanceFactsMap(declared, inProgress, reusePVC bool) map[string]any {

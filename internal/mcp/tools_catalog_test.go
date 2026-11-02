@@ -12,10 +12,10 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/skyhook-io/radar/internal/issues"
-	"github.com/skyhook-io/radar/internal/meaningfulchanges"
-	"github.com/skyhook-io/radar/internal/search"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/issues"
+	"github.com/maomada/radar/internal/meaningfulchanges"
+	"github.com/maomada/radar/internal/search"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // setupDialogCatalogPath is the human-facing tool catalog rendered by the MCP

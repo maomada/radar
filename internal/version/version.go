@@ -17,7 +17,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/k8s"
 )
 
 var (
@@ -109,7 +109,7 @@ func BuildChannelName() string {
 }
 
 // LocalInstalledAt returns when Radar first ran on this machine (the creation
-// time of ~/.radar) as Unix seconds, or 0 when the platform can't tell.
+// time of ~/.kubeatlas) as Unix seconds, or 0 when the platform can't tell.
 func LocalInstalledAt() int64 {
 	return radarDirBirthtime()
 }
@@ -128,7 +128,7 @@ func SetDisabled(disabled bool) {
 }
 
 // IsDisabled reports whether automatic version checks are disabled via CLI flag
-// or RADAR_DISABLE_VERSION_CHECK.
+// or KUBEATLAS_DISABLE_VERSION_CHECK.
 func IsDisabled() bool {
 	mu.Lock()
 	flagDisabled := disabledByFlag
@@ -136,7 +136,7 @@ func IsDisabled() bool {
 	if flagDisabled {
 		return true
 	}
-	if v := os.Getenv("RADAR_DISABLE_VERSION_CHECK"); v == "1" || strings.EqualFold(v, "true") {
+	if v := os.Getenv("KUBEATLAS_DISABLE_VERSION_CHECK"); v == "1" || strings.EqualFold(v, "true") {
 		return true
 	}
 	return false
@@ -498,7 +498,7 @@ func truncateNotes(s string, maxLen int) string {
 }
 
 // installTimestamp reports when this install was set up. In-cluster that is the
-// Deployment's creation time; ~/.radar is an emptyDir whose birthtime resets
+// Deployment's creation time; ~/.kubeatlas is an emptyDir whose birthtime resets
 // with the pod. The birthtime is the weaker answer but still a better one than
 // none when the Deployment can't be read.
 func installTimestamp(ctx context.Context, mode string) int64 {
@@ -510,14 +510,14 @@ func installTimestamp(ctx context.Context, mode string) int64 {
 	return radarDirBirthtime()
 }
 
-// radarDirBirthtime returns the creation timestamp of ~/.radar/ as Unix epoch
+// radarDirBirthtime returns the creation timestamp of ~/.kubeatlas/ as Unix epoch
 // seconds, or 0 if unavailable.
 func radarDirBirthtime() int64 {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return 0
 	}
-	return dirBirthtime(filepath.Join(homeDir, ".radar"))
+	return dirBirthtime(filepath.Join(homeDir, ".kubeatlas"))
 }
 
 // detectInstallMethod determines how Radar was installed based on binary path

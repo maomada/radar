@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	pkgopencost "github.com/skyhook-io/radar/pkg/opencost"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	pkgopencost "github.com/maomada/radar/pkg/opencost"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

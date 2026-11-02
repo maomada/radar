@@ -469,7 +469,7 @@ func fetchPreparedBytes(ctx context.Context, target string, maxBytes int64, kind
 func cloudDeploymentRef(manifest, defaultNamespace string) (DeploymentRef, error) {
 	return deploymentRef(manifest, defaultNamespace, func(object manifestDeployment) bool {
 		return object.CloudMode
-	}, "Deployment with RADAR_CLOUD_MODE=true")
+	}, "Deployment with KUBEATLAS_CLOUD_MODE=true")
 }
 
 type manifestDeployment struct {
@@ -560,7 +560,7 @@ func hasCloudModeEnv(deployment *unstructured.Unstructured) bool {
 		env, _, _ := unstructured.NestedSlice(container, "env")
 		for _, raw := range env {
 			entry, ok := raw.(map[string]any)
-			if !ok || entry["name"] != "RADAR_CLOUD_MODE" || entry["value"] != "true" {
+			if !ok || entry["name"] != "KUBEATLAS_CLOUD_MODE" || entry["value"] != "true" {
 				continue
 			}
 			return true

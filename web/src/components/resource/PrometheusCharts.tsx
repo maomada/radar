@@ -4,7 +4,7 @@ import {
   MetricsSummary as BaseMetricsSummary,
   type TimeSeries,
   type ReferenceLine,
-} from '@skyhook-io/k8s-ui/components/charts'
+} from '@maomada/k8s-ui/components/charts'
 import {
   usePrometheusStatus,
   usePrometheusConnect,
@@ -15,8 +15,8 @@ import {
 } from '../../api/client'
 
 // ============================================================================
-// Radar-specific category config (lives here, not in k8s-ui, so consumers
-// reusing AreaChart aren't forced to inherit Radar's category vocabulary).
+// KubeAtlas-specific category config (lives here, not in k8s-ui, so consumers
+// reusing AreaChart aren't forced to inherit KubeAtlas's category vocabulary).
 // ============================================================================
 
 const SUPPORTED_KINDS = new Set([
@@ -56,7 +56,7 @@ export const TIME_RANGES: { value: PrometheusTimeRange; label: string }[] = [
   { value: '7d', label: '7d' },
 ]
 
-// Radar's MetricsSummary thin wrapper — adapts CategoryDef to the slim
+// KubeAtlas's MetricsSummary thin wrapper — adapts CategoryDef to the slim
 // interface of the shared k8s-ui primitive so callers downstream don't change.
 export function MetricsSummary({ series, category, unit }: {
   series: TimeSeries[]
@@ -212,7 +212,7 @@ const MEMORY_SUFFIXES: Record<string, number> = {
   n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, K: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18,
 }
 
-// NOT a duplicate of @skyhook-io/k8s-ui/utils/format's parseCPUToNanocores /
+// NOT a duplicate of @maomada/k8s-ui/utils/format's parseCPUToNanocores /
 // parseMemoryToBytes — those return 0 on invalid input. We need null so that
 // "abcMi" doesn't silently poison the caller's running sum and produce a
 // missing/zeroed reference line on the chart (real garbage data must be

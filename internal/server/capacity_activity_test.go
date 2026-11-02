@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	capacitymodel "github.com/skyhook-io/radar/internal/capacity"
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
-	"github.com/skyhook-io/radar/pkg/timeline"
+	capacitymodel "github.com/maomada/radar/internal/capacity"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/capacityapi"
+	"github.com/maomada/radar/pkg/timeline"
 )
 
 func TestCapacityActivityObservationStartUsesRetainedMemoryEvidenceWithoutPredatingProcess(t *testing.T) {

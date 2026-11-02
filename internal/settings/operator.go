@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 )
 
-const OperatorFileEnv = "RADAR_OPERATOR_SETTINGS_FILE"
+const OperatorFileEnv = "KUBEATLAS_OPERATOR_SETTINGS_FILE"
 
 type OperatorConfig struct {
 	Version        int          `json:"version"`

@@ -1,6 +1,6 @@
 package main
 
-// `radar cloud <sub>` subcommands — the first subcommand family in Radar's
+// `radar cloud <sub>` subcommands — the first subcommand family in KubeAtlas's
 // otherwise flat-flag CLI. Dispatched from main() before flag.Parse (see the
 // os.Args[1]=="cloud" check there).
 //
@@ -24,14 +24,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/app"
-	"github.com/skyhook-io/radar/internal/cliui"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/internal/config"
-	"github.com/skyhook-io/radar/internal/contextname"
-	"github.com/skyhook-io/radar/internal/helm"
-	radark8s "github.com/skyhook-io/radar/internal/k8s"
+	"github.com/maomada/radar/internal/app"
+	"github.com/maomada/radar/internal/cliui"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/config"
+	"github.com/maomada/radar/internal/contextname"
+	"github.com/maomada/radar/internal/helm"
+	radark8s "github.com/maomada/radar/internal/k8s"
 	"golang.org/x/term"
 	"helm.sh/helm/v3/pkg/chartutil"
 	k8svalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -50,7 +50,7 @@ func signalContext() (context.Context, context.CancelFunc) {
 }
 
 const (
-	defaultHubBase                 = "https://api.radarhq.io"
+	defaultHubBase                 = ""
 	cloudTunnelConfirmationTimeout = 5 * time.Minute
 	cloudKubernetesRequestTimeout  = 30 * time.Second
 )
@@ -82,18 +82,18 @@ func runCloudSubcommand() {
 }
 
 func cloudUsage(w *os.File) {
-	fmt.Fprint(w, `Connect this cluster to Radar with an in-cluster agent.
+	fmt.Fprint(w, `Connect this cluster to KubeAtlas with an in-cluster agent.
 
 Usage:
   radar cloud install [--context NAME] [-y|--yes] [--namespace NS] [--release NAME] [--adopt-existing] [--hub-url URL] [--name NAME] [--dry-run]
   radar cloud status [--context NAME] [--namespace NS --release NAME]
 
-install  Connect one kubeconfig cluster to Radar. Installs Radar when absent,
+install  Connect one kubeconfig cluster to KubeAtlas. Installs KubeAtlas when absent,
          or offers a safe native-Helm adoption / GitOps handoff when detected.
          An explicit --context is used directly; otherwise the current context
          must be confirmed unless -y/--yes is set.
 
-status   Inspect the Radar installation in one kubeconfig cluster. Reports
+status   Inspect the KubeAtlas installation in one kubeconfig cluster. Reports
          ownership, Cloud configuration, agent readiness, and Hub-reported
          tunnel health without changing Kubernetes.
 
@@ -107,13 +107,13 @@ Flags (install):
   --enable-cloud-features
                    During adoption, also enable Helm/Secrets/exec/forward/metrics RBAC
   --no-self-upgrade
-                   Do not install Radar's in-app self-upgrade Role/RoleBinding
-  --hub-url URL    Radar Hub API (default `+defaultHubBase+`; set for Radar Cloud Self-Managed)
-  --name NAME      Cluster name shown in Radar (default: selected Kubernetes context)
+                   Do not install KubeAtlas's in-app self-upgrade Role/RoleBinding
+  --hub-url URL    Radar Hub API (default `+defaultHubBase+`; set for upstream Cloud Self-Managed)
+  --name NAME      Cluster name shown in KubeAtlas (default: selected Kubernetes context)
   --chart-version  Stable chart target (default: latest published, including adoption)
   --dry-run        Run the permission preflight + print the plan; install nothing
   --no-browser     Print the approval URL instead of opening a browser
-  --browser NAME   Browser to use for approval (default: Radar config / OS default)
+  --browser NAME   Browser to use for approval (default: KubeAtlas config / OS default)
 
 Flags (status):
   --context NAME   Kubernetes context to inspect (default: current context)
@@ -126,7 +126,7 @@ func cloudConnect(args []string, w io.Writer) int {
 	fs := flag.NewFlagSet("cloud connect", flag.ContinueOnError)
 	fs.SetOutput(w)
 	hubURL := fs.String("hub-url", defaultHubBase, "Radar Hub API origin")
-	name := fs.String("name", "", "Cluster name shown in Radar (default: current kubecontext)")
+	name := fs.String("name", "", "Cluster name shown in KubeAtlas (default: current kubecontext)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			fmt.Fprintln(w, "\nLocal-process preview mode is not available yet; use `radar cloud install` for the supported in-cluster path.")
@@ -155,14 +155,14 @@ func cloudConnect(args []string, w io.Writer) int {
 		installCommand += fmt.Sprintf(" --name=%q", *name)
 	}
 	fmt.Fprintln(w, "`radar cloud connect` local preview mode is not available yet.")
-	fmt.Fprintln(w, "Radar currently accepts in-cluster agents only; no request was sent to the hub.")
+	fmt.Fprintln(w, "KubeAtlas currently accepts in-cluster agents only; no request was sent to the hub.")
 	fmt.Fprintln(w, "\nInstall the supported agent into your current kubeconfig cluster:")
 	fmt.Fprintf(w, "  %s\n", installCommand)
-	fmt.Fprintln(w, "\nIf Radar is already installed, the same command detects it and offers a native Helm adoption or GitOps handoff. Non-interactive adoption also requires --adopt-existing.")
+	fmt.Fprintln(w, "\nIf KubeAtlas is already installed, the same command detects it and offers a native Helm adoption or GitOps handoff. Non-interactive adoption also requires --adopt-existing.")
 	return 1
 }
 
-// cloudInstall implements `radar cloud install`: install Radar INTO one
+// cloudInstall implements `radar cloud install`: install KubeAtlas INTO one
 // kubeconfig context with Cloud mode enabled, using the operator's own
 // kubeconfig — the only identity that can provision the impersonation RBAC.
 // It does not start a local dialer: the in-cluster agent it installs is what
@@ -173,11 +173,11 @@ func cloudInstall(args []string) {
 	namespace := fs.String("namespace", cloudinstall.DefaultInstallNamespace, "Preferred fresh-install namespace (with --release, selects an exact target)")
 	release := fs.String("release", cloudinstall.DefaultReleaseName, "Preferred fresh-install Helm release (with --namespace, selects an exact target)")
 	chartVersion := fs.String("chart-version", "", "Chart version (default: latest published)")
-	name := fs.String("name", "", "Cluster name shown in Radar (default: selected Kubernetes context)")
+	name := fs.String("name", "", "Cluster name shown in KubeAtlas (default: selected Kubernetes context)")
 	contextName := fs.String("context", "", "Kubernetes context to install into (default: current context)")
 	adoptExisting := fs.Bool("adopt-existing", false, "Confirm automation may connect a detected existing installation")
 	enableCloudFeatures := fs.Bool("enable-cloud-features", false, "Enable optional Cloud feature RBAC while adopting")
-	noSelfUpgrade := fs.Bool("no-self-upgrade", false, "Disable Radar's in-app self-upgrade capability")
+	noSelfUpgrade := fs.Bool("no-self-upgrade", false, "Disable KubeAtlas's in-app self-upgrade capability")
 	yes := false
 	fs.BoolVar(&yes, "y", false, "Skip confirmation when using the current context")
 	fs.BoolVar(&yes, "yes", false, "Skip confirmation when using the current context")
@@ -223,7 +223,7 @@ func cloudInstall(args []string) {
 	kubeconfigSelection, err := selectCloudCommandKubeconfig(fileCfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cloud install: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Set the Kubeconfig field in Radar Settings (or config.json's `kubeconfig`) to select the primary cluster.")
+		fmt.Fprintln(os.Stderr, "Set the Kubeconfig field in KubeAtlas Settings (or config.json's `kubeconfig`) to select the primary cluster.")
 		os.Exit(1)
 	}
 	kubeconfig := kubeconfigSelection.path
@@ -247,14 +247,14 @@ func cloudInstall(args []string) {
 	stderrStyle := cliui.New(os.Stderr)
 
 	// Build kube + helm clients against the resolved kubecontext — the driver runs
-	// before Radar's normal boot, so we resolve these ourselves.
+	// before KubeAtlas's normal boot, so we resolve these ourselves.
 	clients, err := buildLocalInstallClients(kubeconfig, ctxName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cloud install: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("%s Inspecting Kubernetes context %q for an existing Radar installation…\n\n", stdoutStyle.Marker(cliui.Progress), ctxName)
+	fmt.Printf("%s Inspecting Kubernetes context %q for an existing KubeAtlas installation…\n\n", stdoutStyle.Marker(cliui.Progress), ctxName)
 	interactive := term.IsTerminal(int(os.Stdin.Fd()))
 	plan, err := inspectCloudInstallPlan(ctx, clients, *namespace, *release, cloudInstallUsesExactTarget(explicitNamespace, explicitRelease))
 	if err != nil {
@@ -268,7 +268,7 @@ func cloudInstall(args []string) {
 		os.Exit(1)
 	}
 	if *adoptExisting && plan.Mode == cloudInstallFresh {
-		fmt.Fprintln(os.Stderr, "--adopt-existing was set, but no existing Radar release was found at the selected target; refusing to turn an adoption assertion into a fresh install.")
+		fmt.Fprintln(os.Stderr, "--adopt-existing was set, but no existing KubeAtlas release was found at the selected target; refusing to turn an adoption assertion into a fresh install.")
 		os.Exit(1)
 	}
 	if *enableCloudFeatures && plan.Mode == cloudInstallFresh {
@@ -311,7 +311,7 @@ func cloudInstall(args []string) {
 	}
 
 	if plan.Mode != cloudInstallFresh && !*dryRun && !confirmExistingInstall(os.Stdin, os.Stderr, plan, *adoptExisting, interactive) {
-		fmt.Fprintln(os.Stderr, "Radar connection canceled. No Hub request or Kubernetes change was made.")
+		fmt.Fprintln(os.Stderr, "KubeAtlas connection canceled. No Hub request or Kubernetes change was made.")
 		os.Exit(1)
 	}
 
@@ -405,7 +405,7 @@ func cloudInstall(args []string) {
 		action = "Upgrading and connecting"
 	}
 	fmt.Printf("\n  %s Approved.\n", stdoutStyle.Marker(cliui.Success))
-	fmt.Printf("  %s %s Radar in namespace %q…\n", stdoutStyle.Marker(cliui.Progress), action, prepared.Namespace())
+	fmt.Printf("  %s %s KubeAtlas in namespace %q…\n", stdoutStyle.Marker(cliui.Progress), action, prepared.Namespace())
 	perr := cloudinstall.ProvisionPrepared(ctx, clients.Kubernetes, prepared, cloudinstall.ProvisionConfig{
 		Namespace:    prepared.Namespace(),
 		ReleaseName:  prepared.ReleaseName(),
@@ -482,7 +482,7 @@ func printConnectFailure(w io.Writer, err error, clustersURL string) {
 }
 
 func printInstallSuccess(w io.Writer, clusterName, clusterURL string, deployment helm.DeploymentRef, target cloudCommandTarget) {
-	fmt.Fprintf(w, "\n  %s Cluster %q is connected to Radar.\n", cliui.New(w).Marker(cliui.Success), clusterName)
+	fmt.Fprintf(w, "\n  %s Cluster %q is connected to KubeAtlas.\n", cliui.New(w).Marker(cliui.Success), clusterName)
 	fmt.Fprintf(w, "    Open: %s\n", clusterURL)
 	fmt.Fprintf(w, "    Track it: %s -n %s rollout status deployment/%s\n\n", target.Kubectl(), deployment.Namespace, deployment.Name)
 }
@@ -490,7 +490,7 @@ func printInstallSuccess(w io.Writer, clusterName, clusterURL string, deployment
 func printFreshInstallConflict(w io.Writer, err error, target cloudCommandTarget) bool {
 	var exists *helm.ReleaseExistsError
 	if errors.As(err, &exists) {
-		fmt.Fprintf(w, "Radar is already deployed as Helm release %q in namespace %q (revision %d).\n", exists.Name, exists.Namespace, exists.Revision)
+		fmt.Fprintf(w, "KubeAtlas is already deployed as Helm release %q in namespace %q (revision %d).\n", exists.Name, exists.Namespace, exists.Revision)
 		fmt.Fprintln(w, "The release appeared after this command inspected the cluster, so the prepared fresh-install plan is stale. Rerun the command to classify it; approve the offered adoption interactively or pass --adopt-existing in automation.")
 		return true
 	}
@@ -501,17 +501,17 @@ func printFreshInstallConflict(w io.Writer, err error, target cloudCommandTarget
 		if strings.HasPrefix(pending.Status, "pending-") || pending.Status == "uninstalling" {
 			fmt.Fprintln(w, "Wait for the current Helm operation to finish. If it is stale, inspect it with:")
 		} else {
-			fmt.Fprintln(w, "Radar cannot safely determine how to continue this Helm release. Inspect its state with:")
+			fmt.Fprintln(w, "KubeAtlas cannot safely determine how to continue this Helm release. Inspect its state with:")
 		}
 		fmt.Fprintf(w, "  %s status %s -n %s\n", target.Helm(), pending.Name, pending.Namespace)
-		fmt.Fprintln(w, "Resolve that release before retrying; Radar installation will not overwrite it.")
+		fmt.Fprintln(w, "Resolve that release before retrying; KubeAtlas installation will not overwrite it.")
 		return true
 	}
 
 	var history *helm.ReleaseHistoryError
 	if errors.As(err, &history) {
 		fmt.Fprintf(w, "Helm release %q in namespace %q has retained %q history (revision %d).\n", history.Name, history.Namespace, history.Status, history.Revision)
-		fmt.Fprintln(w, "Radar installation will not adopt or replace prior Helm history. Inspect it with:")
+		fmt.Fprintln(w, "KubeAtlas installation will not adopt or replace prior Helm history. Inspect it with:")
 		fmt.Fprintf(w, "  %s history %s -n %s\n", target.Helm(), history.Name, history.Namespace)
 		fmt.Fprintln(w, "Then choose a new --release name, or deliberately remove the old release history before retrying.")
 		return true
@@ -525,7 +525,7 @@ func printTokenSecretConflict(w io.Writer, err error, releaseName string, target
 	if !errors.As(err, &secret) {
 		return false
 	}
-	fmt.Fprintf(w, "Cloud token Secret %q already exists in namespace %q; Radar will not overwrite it.\n", secret.Name, secret.Namespace)
+	fmt.Fprintf(w, "Cloud token Secret %q already exists in namespace %q; KubeAtlas will not overwrite it.\n", secret.Name, secret.Namespace)
 	fmt.Fprintln(w, "Inspect the existing installation and its Cloud pairing:")
 	fmt.Fprintf(w, "  %s\n", target.CloudStatus(secret.Namespace, releaseName))
 	fmt.Fprintln(w, "Recover that installation if it belongs to an earlier approval.")
@@ -640,7 +640,7 @@ func buildLocalInstallClients(kubeconfig, contextName string) (localInstallClien
 
 // connectLoadingRules builds kubeconfig loading rules that honor a config.json
 // `kubeconfig` override. NewDefaultClientConfigLoadingRules reads the KUBECONFIG
-// env + ~/.kube/config (which main() also honors), but NOT ~/.radar/config.json's
+// env + ~/.kube/config (which main() also honors), but NOT ~/.kubeatlas/config.json's
 // `kubeconfig` — without this the install flow would resolve the default context
 // while targeting the config.json-selected one.
 func connectLoadingRules(kubeconfig string) *clientcmd.ClientConfigLoadingRules {

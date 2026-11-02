@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/capacityapi"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/capacityapi"
 )
 
 const (

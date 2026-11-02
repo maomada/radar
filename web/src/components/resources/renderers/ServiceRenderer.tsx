@@ -1,12 +1,12 @@
 import { useMemo, useState, useCallback } from 'react'
-import { ServiceRenderer as BaseServiceRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/ServiceRenderer'
+import { ServiceRenderer as BaseServiceRenderer } from '@maomada/k8s-ui/components/resources/renderers/ServiceRenderer'
 import { PortForwardInlineButton } from '../../portforward/PortForwardButton'
 import { CurlButton, CurlPanel, isHttpishPort, defaultScheme, defaultPathForPort } from '../../curl/ServiceCurlButton'
 import { useResources, useServiceEndpointSlices } from '../../../api/client'
 import { isRadarFeatureUnsupported } from '../../../api/radarFeatures'
 import { useNamespacedCapabilities, useIsLocalDeployment } from '../../../contexts/CapabilitiesContext'
 import type { ResourceRef } from '../../../types'
-import { DURATION_DISCLOSURE } from '@skyhook-io/k8s-ui/utils/animation'
+import { DURATION_DISCLOSURE } from '@maomada/k8s-ui/utils/animation'
 
 interface ServiceRendererProps {
   data: any
@@ -25,7 +25,7 @@ export function ServiceRenderer({ data, onCopy, copied, onNavigate }: ServiceRen
   // but we still surface a copy-paste `kubectl port-forward` command.
   const showPortForward = canPortForward || !isLocal
   // Curl dials the Service directly from in-cluster, so it's only available when
-  // Radar runs in-cluster/Cloud — locally you'd port-forward instead.
+  // KubeAtlas runs in-cluster/Cloud — locally you'd port-forward instead.
   const showCurl = !isLocal
   // Which port's inline curl panel is open (one at a time). `closing` keeps the
   // panel mounted through its collapse animation before we drop it.
@@ -40,7 +40,7 @@ export function ServiceRenderer({ data, onCopy, copied, onNavigate }: ServiceRen
   const hasNoSelector = !spec.selector || Object.keys(spec.selector).length === 0
   const canListEndpointSlices = Boolean(namespace && serviceName && spec.type !== 'ExternalName')
   const serviceSlices = useServiceEndpointSlices(namespace, serviceName, canListEndpointSlices)
-  // A Radar without the per-Service endpoint keeps its earlier behavior: only
+  // A KubeAtlas without the per-Service endpoint keeps its earlier behavior: only
   // selector-less Services list the namespace's slices and filter them here.
   const legacy = isRadarFeatureUnsupported(serviceSlices.error, 'serviceEndpointSlices')
   const shouldLoadNamespaceSlices = canListEndpointSlices && hasNoSelector && legacy

@@ -1,8 +1,8 @@
-import type { SearchCoverage } from '@skyhook-io/k8s-ui/types/read-coverage'
+import type { SearchCoverage } from '@maomada/k8s-ui/types/read-coverage'
 import type { SearchCoverageEntry } from './searchCoverageNote'
 
 /** The wire coverage that flattens back to entries, for tests: each gap lists
- *  one axis and gives the other as an extent, as Radar sends it. */
+ *  one axis and gives the other as an extent, as KubeAtlas sends it. */
 export function coverageOf(entries: SearchCoverageEntry[]): SearchCoverage {
   return {
     status: entries.length ? 'partial' : 'complete',

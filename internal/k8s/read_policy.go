@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	aicontext "github.com/skyhook-io/radar/pkg/ai/context"
+	aicontext "github.com/maomada/radar/pkg/ai/context"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

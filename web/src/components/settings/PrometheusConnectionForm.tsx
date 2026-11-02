@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useId, type ReactNode } from 'react'
 import { Check, Info, Loader2, Plug, Plus, X } from 'lucide-react'
-import { Collapse, Input } from '@skyhook-io/k8s-ui'
+import { Collapse, Input } from '@maomada/k8s-ui'
 import { Tooltip } from '../ui/Tooltip'
 import { prometheusHeadersFromRows } from './settings-state'
 import { ConnectionHeadersEditor, type HeaderOperation } from './ConnectionHeadersEditor'
@@ -127,7 +127,7 @@ export function PrometheusConnectionForm({
       </div>
       <div className="flex flex-wrap items-center gap-1 mb-1">
         <label htmlFor={urlId} className="text-sm font-medium text-theme-text-primary">指标后端 URL</label>
-        <Tooltip content="URL 必须可由 Radar 服务器访问；仅浏览器可以访问还不够。请包含后端路径前缀，但不要包含 /api/v1/query。可用图表取决于已收集的指标。">
+        <Tooltip content="URL 必须可由 KubeAtlas 服务器访问；仅浏览器可以访问还不够。请包含后端路径前缀，但不要包含 /api/v1/query。可用图表取决于已收集的指标。">
           <button type="button" aria-label="指标 URL 帮助" className="text-theme-text-tertiary"><Info className="w-3.5 h-3.5" /></button>
         </Tooltip>
       </div>
@@ -146,7 +146,7 @@ export function PrometheusConnectionForm({
       </div>
       {connectionAction}
       {!onApplyOperations && <p className="mt-2 text-xs text-theme-text-tertiary">
-        {local ? '仅应用于此集群。' : '更改将影响此 Radar 安装。若要在 Pod 替换后保留配置，请使用部署设置。'}
+        {local ? '仅应用于此集群。' : '更改将影响此 KubeAtlas 安装。若要在 Pod 替换后保留配置，请使用部署设置。'}
       </p>}
       {value.startsWith('http://') && (configuredHeaderKeys.length > 0 || operations.some(operation => operation.action === 'set')) && (
         <p className="mt-2 text-xs text-warning-text">请求头将通过未加密的 HTTP 传输。在可信的私有网络之外，请优先使用 HTTPS。</p>
@@ -154,7 +154,7 @@ export function PrometheusConnectionForm({
       {serverManaged && (
         <p className="mt-2 text-xs text-theme-text-secondary">
           服务器由启动配置控制。若要设置或更改服务器，
-          {local ? '请更新启动标志或环境变量引用，然后重启 Radar。' : '请更新部署配置（例如 Helm values），然后重启 Radar。'}
+          {local ? '请更新启动标志或环境变量引用，然后重启 KubeAtlas。' : '请更新部署配置（例如 Helm values），然后重启 KubeAtlas。'}
         </p>
       )}
       {urlFromFlag && (
@@ -246,7 +246,7 @@ export function PrometheusConnectionForm({
         )}
         {headersManaged ? (
           <p className="mt-2 text-xs text-theme-text-secondary">
-            Headers are controlled by startup configuration. Change them at their source and restart Radar.
+            Headers are controlled by startup configuration. Change them at their source and restart KubeAtlas.
           </p>
         ) : storedKeys.length > 0 && (
           <button

@@ -1,4 +1,4 @@
-import { ConditionsSection } from '@skyhook-io/k8s-ui'
+import { ConditionsSection } from '@maomada/k8s-ui'
 
 const wrap = { width: 460, padding: 8 }
 const ago = (mins: number) => new Date(Date.now() - mins * 60_000).toISOString()

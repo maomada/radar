@@ -1,4 +1,4 @@
-import { ConfirmDialog } from '@skyhook-io/k8s-ui'
+import { ConfirmDialog } from '@maomada/k8s-ui'
 
 const noop = () => {}
 

@@ -27,7 +27,7 @@ import { readActionFor, canonicalReadCode } from '../../utils/read-actions'
 // distinct visual and informational semantics — error vs absence.
 //
 // The error contract is duck-typed via FetchErrorShape so this stays in
-// @skyhook-io/k8s-ui without importing ApiError from either web/ (OSS)
+// @maomada/k8s-ui without importing ApiError from either web/ (OSS)
 // or radar-hub-web.
 
 interface FetchResultProps {

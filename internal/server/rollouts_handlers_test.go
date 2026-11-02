@@ -17,9 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/auth"
-	"github.com/skyhook-io/radar/pkg/rollouts"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/auth"
+	"github.com/maomada/radar/pkg/rollouts"
 )
 
 // A sentinel falling through to 500 reads as "Radar broke" when the real answer

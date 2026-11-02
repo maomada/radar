@@ -46,7 +46,7 @@ type Config struct {
 	KubecostClusterIDContext string `json:"kubecostClusterIdContext,omitempty"`
 	// PrometheusHeaders are sent with every request to the Prometheus API.
 	// Required for auth-protected backends (Bearer tokens, X-Scope-OrgID, etc.).
-	// Stored in plain text in ~/.radar/config.json — protect the file accordingly.
+	// Stored in plain text in ~/.kubeatlas/config.json — protect the file accordingly.
 	PrometheusHeaders        map[string]string `json:"prometheusHeaders,omitempty"`
 	PrometheusHeadersFromEnv map[string]string `json:"prometheusHeadersFromEnv,omitempty"`
 	MCPExecTools             *bool             `json:"mcpExecTools,omitempty"`
@@ -58,13 +58,13 @@ type Config struct {
 	DebugImage string `json:"debugImage,omitempty"`
 
 	// ReachabilityImage is the image for the in-cluster reachability probe Job
-	// (`radar probe`). Empty falls back to RADAR_IMAGE, then the version-matched
+	// (`radar probe`). Empty falls back to KUBEATLAS_IMAGE, then the version-matched
 	// published Radar image; set it to a reachable mirror for air-gapped clusters.
 	ReachabilityImage string `json:"reachabilityImage,omitempty"`
 	// ArgoCDURL is the Argo CD API server URL. Empty enables auto-discovery.
 	ArgoCDURL string `json:"argoCdUrl,omitempty"`
 	// ArgoCDToken is the Argo CD API bearer token. Stored in plain text in
-	// ~/.radar/config.json — Save enforces 0600 on the file.
+	// ~/.kubeatlas/config.json — Save enforces 0600 on the file.
 	ArgoCDToken string `json:"argoCdToken,omitempty"`
 	// ArgoCDInsecureTLS disables TLS certificate verification for the Argo CD
 	// API client only.
@@ -80,7 +80,7 @@ type Config struct {
 	// AIHistory persists AI investigations (transcripts + conclusions) to a local
 	// SQLite file so they survive restarts. nil = default (true), false = off.
 	AIHistory *bool `json:"aiHistory,omitempty"`
-	// AIHistoryDBPath overrides the history DB location (default ~/.radar/ai-runs.db).
+	// AIHistoryDBPath overrides the history DB location (default ~/.kubeatlas/ai-runs.db).
 	AIHistoryDBPath string `json:"aiHistoryDbPath,omitempty"`
 	// AIConsent records the acknowledged AI-investigation disclosure version per
 	// agent execution profile. Machine-scoped on purpose: consent gates a
@@ -133,14 +133,14 @@ func RecordAIConsent(surface string) error {
 // from overwriting each other's changes.
 var mu sync.Mutex
 
-// Path returns the config file path (~/.radar/config.json).
+// Path returns the config file path (~/.kubeatlas/config.json).
 func Path() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Printf("[config] Cannot determine home directory: %v (config will not be persisted)", err)
 		return ""
 	}
-	return filepath.Join(homeDir, ".radar", "config.json")
+	return filepath.Join(homeDir, ".kubeatlas", "config.json")
 }
 
 // Load reads config from disk. Returns zero-value Config if the file is missing or invalid.

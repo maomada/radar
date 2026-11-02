@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { RayClusterRenderer as BaseRenderer, type RayClusterPodSelection } from '@skyhook-io/k8s-ui/components/resources/renderers/RayClusterRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { RayClusterRenderer as BaseRenderer, type RayClusterPodSelection } from '@maomada/k8s-ui/components/resources/renderers/RayClusterRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useWorkloadPods } from '../../../api/client'
 
 export function RayClusterRenderer(props: { data: any; onNavigate?: (ref: ResourceRef) => void }) {

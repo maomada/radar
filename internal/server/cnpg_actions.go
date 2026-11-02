@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	integration "github.com/skyhook-io/radar/internal/integration"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 // CloudNativePG write actions. Every write mirrors what `kubectl cnpg` does

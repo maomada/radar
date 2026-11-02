@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { Input, Disclosure, SelectMenu } from '@skyhook-io/k8s-ui'
+import { Input, Disclosure, SelectMenu } from '@maomada/k8s-ui'
 import { FormSaveActions, type FormFeedback } from './FormSaveActions'
 import { COST_SOURCE_OPTIONS } from '../cost/source'
 
@@ -150,7 +150,7 @@ export function ArgoCDConnectionForm({
           </label>
         </div>
         <p className="text-xs text-theme-text-tertiary">
-          地址必须可从 Radar 访问。留空以自动发现此集群中的服务器。
+          地址必须可从 KubeAtlas 访问。留空以自动发现此集群中的服务器。
         </p>
         <Input
           className="block w-full min-w-0 px-3 py-2 text-sm bg-theme-elevated border border-theme-border rounded-md text-theme-text-primary placeholder:text-theme-text-tertiary focus:outline-none focus:border-skyhook-500"

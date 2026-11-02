@@ -1,8 +1,8 @@
 package resourcecontextrefs
 
 import (
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/pkg/resourcecontext"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/pkg/resourcecontext"
 )
 
 const containerCompletionSplitNote = "A regular container exited successfully while one or more siblings keep running. " +

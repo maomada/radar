@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // MemoryStore is an in-memory implementation of EventStore using a ring buffer.

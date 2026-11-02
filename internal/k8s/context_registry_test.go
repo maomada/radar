@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/errorlog"
 )
 
 // writeKubeconfig writes a minimal but valid kubeconfig to a temp file in

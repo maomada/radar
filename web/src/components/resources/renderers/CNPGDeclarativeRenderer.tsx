@@ -3,10 +3,10 @@ import {
   CNPGDatabaseRenderer as BaseDatabase,
   CNPGPublicationRenderer as BasePublication,
   CNPGSubscriptionRenderer as BaseSubscription,
-} from '@skyhook-io/k8s-ui/components/resources/renderers/CNPGDeclarativeRenderer'
-import { ResourceLink, Section, RelationshipGroup } from '@skyhook-io/k8s-ui'
-import { LookupFailureNote } from '@skyhook-io/k8s-ui/components/resources/renderers/LookupFailureNote'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+} from '@maomada/k8s-ui/components/resources/renderers/CNPGDeclarativeRenderer'
+import { ResourceLink, Section, RelationshipGroup } from '@maomada/k8s-ui'
+import { LookupFailureNote } from '@maomada/k8s-ui/components/resources/renderers/LookupFailureNote'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { useResources } from '../../../api/client'
 import { splitCNPGDeclarativeByApplied } from '../resource-utils-cnpg'
 

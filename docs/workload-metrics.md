@@ -100,7 +100,7 @@ rollout; omitted values do not mean zero requests or unlimited capacity.
 
 Local CLI and Desktop Radar save the metrics URL and HTTP headers (including
 credentials, tenant headers and environment-variable header references) per
-kubeconfig context in `~/.radar/clusters.json`. Switching Kubernetes context uses
+kubeconfig context in `~/.kubeatlas/clusters.json`. Switching Kubernetes context uses
 that context's saved backend, or discovery in the selected cluster when it has
 none; another context's backend and headers are never carried over. See
 [local integration connections](configuration.md#local-integration-connections).

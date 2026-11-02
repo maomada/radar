@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/skyhook-io/radar/pkg/k8score"
-	topology "github.com/skyhook-io/radar/pkg/topology"
+	"github.com/maomada/radar/pkg/k8score"
+	topology "github.com/maomada/radar/pkg/topology"
 )
 
 // topologyResourceProvider adapts *ResourceCache to topology.ResourceProvider.

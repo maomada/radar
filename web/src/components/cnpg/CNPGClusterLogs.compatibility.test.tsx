@@ -6,7 +6,7 @@ import { guardRadarFeature, radarFeatureSupport } from '../../api/radarFeatures'
 import { fetchJSON } from '../../api/client'
 
 const state = vi.hoisted(() => ({ props: undefined as any, capabilities: { features: { resourceIssues: true } } as any, capabilitiesPending: false, fetchStatus: 'idle' as 'idle' | 'fetching' | 'paused', interval: null as null | { since: string; until: string; clear: () => void } }))
-vi.mock('@skyhook-io/k8s-ui', async (original) => ({ ...await original<typeof import('@skyhook-io/k8s-ui')>(), WorkloadLogsViewer: (props: any) => { state.props = props; return <div>logs</div> } }))
+vi.mock('@maomada/k8s-ui', async (original) => ({ ...await original<typeof import('@maomada/k8s-ui')>(), WorkloadLogsViewer: (props: any) => { state.props = props; return <div>logs</div> } }))
 vi.mock('../../api/client', () => ({ fetchJSON: vi.fn(async () => ({ pods: [], logs: [] })), useCapabilities: () => ({ isPending: state.capabilitiesPending, isFetching: state.fetchStatus === 'fetching', fetchStatus: state.fetchStatus, refetch: vi.fn() }), useRadarFeature: () => {
   const support = radarFeatureSupport('cnpgWorkspace', state.capabilities, 'v1.16.0')
   return { support, guard: (fn: () => Promise<unknown>) => guardRadarFeature('cnpgWorkspace', support, {}, fn) }

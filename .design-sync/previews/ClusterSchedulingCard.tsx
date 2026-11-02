@@ -1,4 +1,4 @@
-import { ClusterSchedulingCard } from '@skyhook-io/k8s-ui'
+import { ClusterSchedulingCard } from '@maomada/k8s-ui'
 
 type Certainty = 'exact' | 'lower_bound' | 'upper_bound' | 'unknown'
 

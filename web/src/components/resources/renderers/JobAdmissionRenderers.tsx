@@ -1,6 +1,6 @@
-import { JobRenderer as BaseJobRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/JobRenderer'
-import { JobSetRenderer as BaseJobSetRenderer } from '@skyhook-io/k8s-ui/components/resources/renderers/JobSetRenderer'
-import type { ResourceRef } from '@skyhook-io/k8s-ui'
+import { JobRenderer as BaseJobRenderer } from '@maomada/k8s-ui/components/resources/renderers/JobRenderer'
+import { JobSetRenderer as BaseJobSetRenderer } from '@maomada/k8s-ui/components/resources/renderers/JobSetRenderer'
+import type { ResourceRef } from '@maomada/k8s-ui'
 import { KueueAdmission } from '../../execution/JobSetAdmission'
 
 type Props = { data: any; onNavigate?: (ref: ResourceRef) => void }

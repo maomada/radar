@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/skyhook-io/radar/internal/k8s"
-	"github.com/skyhook-io/radar/internal/version"
+	"github.com/maomada/radar/internal/k8s"
+	"github.com/maomada/radar/internal/version"
 )
 
 func (s *Server) handleVersionCheckBrowser(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,7 @@ package k8s
 import (
 	"strings"
 
-	"github.com/skyhook-io/radar/pkg/resourceid"
+	"github.com/maomada/radar/pkg/resourceid"
 )
 
 // namespacedBuiltinKinds maps the lowercase Kind of the well-known namespaced

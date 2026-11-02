@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { HelpCircle } from 'lucide-react'
 import { clsx } from 'clsx'
-import { isTouchIntent } from '@skyhook-io/k8s-ui'
+import { isTouchIntent } from '@maomada/k8s-ui'
 
 // The query operators recognized by the search engine (internal/search/parse.go).
 const OPERATORS: { syntax: string; desc: string }[] = [

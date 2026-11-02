@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skyhook-io/radar/internal/errorlog"
+	"github.com/maomada/radar/internal/errorlog"
 )
 
 func TestHasManualURL(t *testing.T) {

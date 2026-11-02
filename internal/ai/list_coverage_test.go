@@ -2,14 +2,14 @@ package ai
 
 import (
 	"encoding/json"
-	"github.com/skyhook-io/radar/pkg/resourceapi"
+	"github.com/maomada/radar/pkg/resourceapi"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/investigationrefs"
-	"github.com/skyhook-io/radar/pkg/investigation"
+	"github.com/maomada/radar/internal/investigationrefs"
+	"github.com/maomada/radar/pkg/investigation"
 )
 
 // partialListFixture is shared with internal/mcp, which pins it to the

@@ -3,7 +3,7 @@ package context
 import (
 	"sort"
 
-	"github.com/skyhook-io/radar/pkg/prune"
+	"github.com/maomada/radar/pkg/prune"
 )
 
 // Metadata keys to strip at all levels (beyond what cache.dropManagedFields already removes)

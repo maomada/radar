@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Grant } from '@skyhook-io/k8s-ui'
+import type { Grant } from '@maomada/k8s-ui'
 import { fetchJSON, useRadarFeature } from './client'
 import type { CNPGClusterFacts, CNPGRuntimeSourceState } from './cnpg'
 import type { ActionCapability } from './actions'

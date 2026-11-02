@@ -3,10 +3,10 @@ import { X, Plus, Trash2, Lock } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuditSettings, useUpdateAuditSettings, useAudit, useCloudRole, useCapabilities } from '../../api/client'
 import { OperatorManagedNotice } from '../settings/OperatorManagedNotice'
-import type { CheckMeta } from '@skyhook-io/k8s-ui'
-import { validateRFC1123Label, type ValidationResult } from '@skyhook-io/k8s-ui/utils/validators'
+import type { CheckMeta } from '@maomada/k8s-ui'
+import { validateRFC1123Label, type ValidationResult } from '@maomada/k8s-ui/utils/validators'
 import { Tooltip } from '../ui/Tooltip'
-import { Input } from '@skyhook-io/k8s-ui'
+import { Input } from '@maomada/k8s-ui'
 
 interface AuditSettingsDialogProps {
   namespaces: string[]
@@ -90,7 +90,7 @@ export function AuditSettingsDialog({ namespaces, onClose }: AuditSettingsDialog
             <div className="mb-4 rounded-lg border border-theme-border bg-theme-elevated/50 p-3 flex items-start gap-2.5">
               <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-theme-text-tertiary" />
               <p className="text-xs text-theme-text-tertiary">
-                Audit policy is shared across everyone using this Radar instance, so editing
+                Audit policy is shared across everyone using this KubeAtlas instance, so editing
                 is limited to owners. You can review the current settings here.
               </p>
             </div>

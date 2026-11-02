@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	prometheuspkg "github.com/skyhook-io/radar/internal/prometheus"
-	pkgauth "github.com/skyhook-io/radar/pkg/auth"
+	prometheuspkg "github.com/maomada/radar/internal/prometheus"
+	pkgauth "github.com/maomada/radar/pkg/auth"
 )
 
 func TestResolveRightsizingScanScopeUnrestrictedRequiresClusterListPerKind(t *testing.T) {

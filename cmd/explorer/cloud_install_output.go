@@ -7,10 +7,10 @@ import (
 	"io"
 	"strings"
 
-	"github.com/skyhook-io/radar/internal/cliui"
-	"github.com/skyhook-io/radar/internal/cloud"
-	"github.com/skyhook-io/radar/internal/cloudinstall"
-	"github.com/skyhook-io/radar/internal/helm"
+	"github.com/maomada/radar/internal/cliui"
+	"github.com/maomada/radar/internal/cloud"
+	"github.com/maomada/radar/internal/cloudinstall"
+	"github.com/maomada/radar/internal/helm"
 )
 
 // cloudCommandTarget keeps copy-paste follow-up commands on the same cluster
@@ -22,16 +22,16 @@ func printPreparedInstallPlan(w io.Writer, prepared *cloudinstall.PreparedProvis
 	fmt.Fprintln(w, cliui.New(w).Bold("Plan:"))
 	fmt.Fprintf(w, "  Kubernetes target: namespace %q, Helm release %q\n", prepared.Namespace(), prepared.ReleaseName())
 	if prepared.Mode() == cloudinstall.ProvisionFresh {
-		fmt.Fprintln(w, "  Action: install a new connected Radar release")
-		fmt.Fprintf(w, "  Stable target: chart %s, Radar %s\n", prepared.ChartVersion(), prepared.AppVersion())
+		fmt.Fprintln(w, "  Action: install a new connected KubeAtlas release")
+		fmt.Fprintf(w, "  Stable target: chart %s, KubeAtlas %s\n", prepared.ChartVersion(), prepared.AppVersion())
 		fmt.Fprintln(w, "  Cloud feature RBAC: enabled for Helm, Secrets, terminal, port-forward, and metrics")
 	} else {
 		current := prepared.CurrentValues()
 		fmt.Fprintln(w, "  Action: atomically upgrade and connect the existing native Helm release")
 		fmt.Fprintf(w, "  Chart: %s -> %s\n", prepared.CurrentChartVersion(), prepared.ChartVersion())
-		fmt.Fprintf(w, "  Radar image: %s -> %s\n", current.EffectiveImageTag, prepared.AppVersion())
+		fmt.Fprintf(w, "  KubeAtlas image: %s -> %s\n", current.EffectiveImageTag, prepared.AppVersion())
 		if current.ImageTag != "" {
-			fmt.Fprintf(w, "  Pinned image.tag %q will be cleared so the selected chart's stable Radar %s runs. Use --chart-version to choose a different stable target.\n",
+			fmt.Fprintf(w, "  Pinned image.tag %q will be cleared so the selected chart's stable KubeAtlas %s runs. Use --chart-version to choose a different stable target.\n",
 				current.ImageTag, prepared.AppVersion())
 		}
 		if current.ImageRepository != "" {
@@ -59,7 +59,7 @@ func printGitOpsInstallPlan(w io.Writer, plan cloudInstallPlan, target helm.Prep
 	fmt.Fprintln(w, "  Action: generate a source-of-truth handoff; do not mutate the live controller or workload")
 	fmt.Fprintf(w, "  Current chart signal: %s\n", unknownCloudValue(plan.Target.Chart))
 	fmt.Fprintf(w, "  Current image: %s\n", unknownCloudValue(plan.Target.Runtime.Image))
-	fmt.Fprintf(w, "  Stable target: chart %s, Radar %s\n", target.ChartVersion, target.AppVersion)
+	fmt.Fprintf(w, "  Stable target: chart %s, KubeAtlas %s\n", target.ChartVersion, target.AppVersion)
 	if enableCloudFeatures {
 		fmt.Fprintln(w, "  Cloud feature RBAC: the merge fragment will explicitly enable Helm, Secrets, terminal, port-forward, and metrics")
 	} else {
@@ -89,7 +89,7 @@ func printCloudPermissionFailure(
 	case cloudinstall.BlockCausePermissions:
 		fmt.Fprintf(w, "%s Your Kubernetes identity can't do this install.\n", marker)
 	case cloudinstall.BlockCauseVerification:
-		fmt.Fprintf(w, "%s This version of Radar can't install this chart version from here.\n", marker)
+		fmt.Fprintf(w, "%s This version of KubeAtlas can't install this chart version from here.\n", marker)
 	default:
 		fmt.Fprintf(w, "%s The cluster blocked part of this install.\n", marker)
 	}
@@ -97,14 +97,14 @@ func printCloudPermissionFailure(
 	if prepared.Mode() == cloudinstall.ProvisionAdopt {
 		operation = "a Helm upgrade of your existing"
 	}
-	fmt.Fprintf(w, "\nWhat Radar tried: %s release %q in namespace %q (chart %s) with the Cloud connection enabled, dry-run against the cluster as your kubeconfig identity. Nothing was changed.\n",
+	fmt.Fprintf(w, "\nWhat KubeAtlas tried: %s release %q in namespace %q (chart %s) with the Cloud connection enabled, dry-run against the cluster as your kubeconfig identity. Nothing was changed.\n",
 		operation, prepared.ReleaseName(), prepared.Namespace(), prepared.ChartVersion())
 	fmt.Fprintln(w, "\nWhy it stopped:")
 	switch cause {
 	case cloudinstall.BlockCausePermissions:
 		fmt.Fprintln(w, "  The dry run was refused because your credentials lack permissions the install needs. Anyone with them can complete this exact install.")
 	case cloudinstall.BlockCauseVerification:
-		fmt.Fprintln(w, "  The chart renders something this Radar build can't check before applying, so it refuses rather than install it unseen. A limitation of this Radar, not of your cluster or your access.")
+		fmt.Fprintln(w, "  The chart renders something this KubeAtlas build can't check before applying, so it refuses rather than install it unseen. A limitation of this KubeAtlas, not of your cluster or your access.")
 	default:
 		fmt.Fprintln(w, "  The cluster itself refused: something already there conflicts with the install, or a policy rejects it. More permission would not change that.")
 	}
@@ -112,13 +112,13 @@ func printCloudPermissionFailure(
 		fmt.Fprintf(w, "  • %s\n", detail)
 	}
 	fmt.Fprintln(w, "\nWhat to do:")
-	fmt.Fprintln(w, "  Have a cluster admin get the install command from Radar Cloud's install page — pick Helm, Argo CD or Flux, whatever this cluster normally uses; it shows exactly what it changes first —")
+	fmt.Fprintln(w, "  Have a cluster admin get the install command from upstream Cloud's install page — pick Helm, Argo CD or Flux, whatever this cluster normally uses; it shows exactly what it changes first —")
 	fmt.Fprintf(w, "  or run `radar cloud install` against this cluster (your context %q; theirs may be named differently).\n", contextName)
 	if cause == cloudinstall.BlockCauseVerification {
 		// This binary's preflight would meet the same marker for them too.
 		fmt.Fprintln(w, "  Prefer the install page here: it installs the same chart with Helm directly.")
 	}
-	fmt.Fprintf(w, "  Preserve Hub %q, namespace %q, Helm release %q, Radar cluster name %q, and chart target %q.\n",
+	fmt.Fprintf(w, "  Preserve Hub %q, namespace %q, Helm release %q, KubeAtlas cluster name %q, and chart target %q.\n",
 		hubURL, prepared.Namespace(), prepared.ReleaseName(), clusterName, prepared.ChartVersion())
 }
 
@@ -150,7 +150,7 @@ func printApprovedGitOpsHandoff(
 	fmt.Fprintln(w, handoff.Guidance)
 	fmt.Fprintln(w, "\nOne-time connection token (store it through your existing secret-management workflow; never place it in Helm values or Git):")
 	fmt.Fprintf(w, "  %s\n", token)
-	fmt.Fprintln(w, "Set RADAR_CLOUD_TOKEN in your shell without putting it in shell history, then run the manifest-generation command shown above.")
+	fmt.Fprintln(w, "Set KUBEATLAS_CLOUD_TOKEN in your shell without putting it in shell history, then run the manifest-generation command shown above.")
 	return nil
 }
 
@@ -205,7 +205,7 @@ func printGitOpsPendingHandoff(w io.Writer, err error, clusterID, clusterURL str
 	fmt.Fprintf(w, "\n%s GitOps handoff generated for Hub cluster %q, but its in-cluster connection was not confirmed: %s.\n", cliui.New(w).Marker(cliui.Attention), clusterID, reason)
 	fmt.Fprintln(w, "The configuration handoff is ready. Commit the generated configuration and token Secret through the source of truth; the existing Hub cluster remains the one to connect.")
 	fmt.Fprintln(w, "Do not rerun `radar cloud install`, because that would create another pending cluster.")
-	fmt.Fprintf(w, "Open or recover this cluster in Radar: %s\n", clusterURL)
+	fmt.Fprintf(w, "Open or recover this cluster in KubeAtlas: %s\n", clusterURL)
 }
 
 func printAdoptionRollbackGuidance(w io.Writer, recovery cloudProvisionRecovery, clusterURL string, target cloudCommandTarget) {

@@ -1,4 +1,4 @@
-module github.com/skyhook-io/radar
+module github.com/maomada/radar
 
 go 1.26.0
 
@@ -24,7 +24,7 @@ require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/common v0.72.1
-	github.com/skyhook-io/radar/pkg v0.0.0
+	github.com/maomada/radar/pkg v0.0.0
 	github.com/wailsapp/wails/v2 v2.17.0
 	golang.org/x/net v0.61.0
 	golang.org/x/oauth2 v0.37.0
@@ -193,4 +193,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace github.com/skyhook-io/radar/pkg => ./pkg
+replace github.com/maomada/radar/pkg => ./pkg

@@ -15,7 +15,7 @@ const overridesQuery = vi.hoisted(() => ({
   refetch: vi.fn(),
 }))
 
-vi.mock('@skyhook-io/k8s-ui', () => ({
+vi.mock('@maomada/k8s-ui', () => ({
   PaneLoader: ({ label }: { label: string }) => <div>{label}</div>,
 }))
 vi.mock('../../api/client', () => ({
@@ -208,7 +208,7 @@ describe('ValuesViewer', () => {
   })
 
   it('seeds the editor from the overrides-only read, not the all-values response', async () => {
-    // An older Radar can answer all=true with empty overrides when its second read fails.
+    // An older KubeAtlas can answer all=true with empty overrides when its second read fails.
     await renderViewer(<Harness helmValues={{ ...values, userSupplied: {} }} />)
 
     await act(async () => button('Edit Overrides')!.click())
@@ -224,7 +224,7 @@ describe('ValuesViewer', () => {
     expect(document.querySelector('[data-testid="values-code"]')?.textContent).toContain('tag: pinned')
   })
 
-  it('lets an older Radar edit a release with no overrides (null userSupplied)', async () => {
+  it('lets an older KubeAtlas edit a release with no overrides (null userSupplied)', async () => {
     overridesQuery.current = { ...overridesQuery.current, data: { userSupplied: null } }
     await renderViewer()
 

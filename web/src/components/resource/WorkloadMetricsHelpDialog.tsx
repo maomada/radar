@@ -1,7 +1,7 @@
 import { useLayoutEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ExternalLink, X } from 'lucide-react'
-import { Disclosure } from '@skyhook-io/k8s-ui/components/ui/Disclosure'
+import { Disclosure } from '@maomada/k8s-ui/components/ui/Disclosure'
 import type { WorkloadMetrics } from '../../api/workloadMetrics'
 import type { PrometheusTimeRange } from '../../api/client'
 
@@ -135,8 +135,8 @@ export function WorkloadMetricsHelpContent({ data, pending, error }: Pick<Props,
         </dl>
         <p>Leave both unset for automatic matching. An override replaces automatic matching for workload requests, resources, history, Pod comparison and PVC usage. For PVC usage, its labels must exist on the kubelet volume stats. It does not scope rightsizing, node/HPA or legacy network/storage metrics.</p>
         <h4 className="font-medium text-theme-text-primary">Operator configuration</h4>
-        <p><strong className="font-medium">Standalone CLI:</strong> supply the flag when starting Radar. Overrides are not saved; after changing the cluster, backend or credentials, verify the new scope before restarting with a fresh override.</p>
-        <p><strong className="font-medium">In-cluster OSS or Radar Cloud:</strong> ask the installation’s operator to update its Helm values or GitOps configuration. These are shared backend settings, not viewer preferences.</p>
+        <p><strong className="font-medium">Standalone CLI:</strong> supply the flag when starting KubeAtlas. Overrides are not saved; after changing the cluster, backend or credentials, verify the new scope before restarting with a fresh override.</p>
+        <p><strong className="font-medium">In-cluster OSS or upstream Cloud:</strong> ask the installation’s operator to update its Helm values or GitOps configuration. These are shared backend settings, not viewer preferences.</p>
         <p><strong className="font-medium">Desktop:</strong> automatic matching works without flags. Desktop does not expose these overrides yet; if one is required, use the standalone CLI with a verified scope.</p>
         <p><strong className="font-medium">Multiple Beyla observation jobs:</strong> workload charts currently honor <code className="font-mono text-xs">--beyla-job-selector</code> only alongside a verified scope override. Use one matcher, such as <code className="font-mono text-xs">{'\'job="primary-beyla"\''}</code>; Helm uses <code className="font-mono text-xs">traffic.beylaJobSelector</code>. A custom job name alone normally needs no override.</p>
       </div>

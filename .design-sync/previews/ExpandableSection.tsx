@@ -1,4 +1,4 @@
-import { ExpandableSection, KeyValueBadgeList } from '@skyhook-io/k8s-ui'
+import { ExpandableSection, KeyValueBadgeList } from '@maomada/k8s-ui'
 import type { CSSProperties } from 'react'
 
 const card: CSSProperties = {

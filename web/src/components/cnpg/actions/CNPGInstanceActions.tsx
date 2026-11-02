@@ -4,7 +4,7 @@ import { type ActionCapability, capabilityReason } from '../../../api/actions'
 import { ClusterActionDialog } from './CNPGClusterActions'
 import { CNPGDestroyInstanceDialog } from './CNPGDestroyInstanceDialog'
 import { useOpenCNPGPsql } from './useOpenCNPGPsql'
-import { Tooltip } from '@skyhook-io/k8s-ui'
+import { Tooltip } from '@maomada/k8s-ui'
 
 const LINK = 'text-accent-text hover:underline aria-disabled:cursor-not-allowed aria-disabled:text-theme-text-disabled aria-disabled:no-underline'
 

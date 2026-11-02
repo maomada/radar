@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { initNavigationMap } from "@skyhook-io/k8s-ui/utils/navigation";
+import { initNavigationMap } from "@maomada/k8s-ui/utils/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { APIResource } from "../types";
 import { apiUrl, getAuthHeaders, getCredentialsMode } from "./config";
@@ -16,8 +16,8 @@ export {
   shortenGroupName,
   getKindLabel,
   getKindPlural,
-} from "@skyhook-io/k8s-ui";
-export type { ResourceCategory } from "@skyhook-io/k8s-ui";
+} from "@maomada/k8s-ui";
+export type { ResourceCategory } from "@maomada/k8s-ui";
 
 async function fetchJSON<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(apiUrl(path), {

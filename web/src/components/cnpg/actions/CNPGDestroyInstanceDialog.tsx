@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActionConfirmDialog, PaneLoader } from '@skyhook-io/k8s-ui'
+import { ActionConfirmDialog, PaneLoader } from '@maomada/k8s-ui'
 import { cnpgActionErrorCode, useCNPGAction } from '../../../api/cnpg'
 import { actionCompleted, actionDialogResult } from '../../../api/actions'
 import { useCNPGDestroyPlan } from '../../../api/cnpg-sessions'
@@ -105,7 +105,7 @@ export function CNPGDestroyInstanceDialog({
           ? `Once ${pod} is destroyed its name is removed from the fence (a fence on every instance, ["*"], stays).`
           : `${pod} must be fenced first; its name is removed from the fence once it is destroyed (a fence on every instance, ["*"], stays).`,
         'Use this for a standby that cannot rejoin (for example after a failed pg_rewind or a corrupted volume). A plain restart deletes only the Pod and keeps the volumes attached.',
-        'Only volumes owned by this Cluster or detached by Radar from this Cluster are included.',
+        'Only volumes owned by this Cluster or detached by KubeAtlas from this Cluster are included.',
         keep ? 'Kept volumes stay in the namespace, no longer owned by the cluster; delete them yourself once you no longer need them.' : null,
       ].filter(Boolean) as string[]}
       disabledReason={

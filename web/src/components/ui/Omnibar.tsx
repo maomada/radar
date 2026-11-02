@@ -4,7 +4,7 @@ import { Search, CornerDownLeft, Loader2, AlertTriangle, Info } from 'lucide-rea
 import { clsx } from 'clsx'
 import { useAnimatedUnmount } from '../../hooks/useAnimatedUnmount'
 import { TRANSITION_BACKDROP, TRANSITION_MENU, TW_EASE_UI, overlayExitMs, overlayTransitionStyle } from '../../utils/animation'
-import { SearchPillInput, type SearchModifier } from '@skyhook-io/k8s-ui'
+import { SearchPillInput, type SearchModifier } from '@maomada/k8s-ui'
 import { getResourceIcon } from '../../utils/resource-icons'
 import type { SearchHit, SearchMatchedField } from '../../api/client'
 import { contentMatchLabel, partialSearchNotices } from './omnibar-match'
@@ -49,7 +49,7 @@ export interface OmnibarNote extends OmnibarNotePart {
 }
 
 // Health → dot color (summaryContext.health is the same vocabulary as the rest
-// of Radar). Kept local + tiny to avoid pulling the full status-tone system.
+// of KubeAtlas). Kept local + tiny to avoid pulling the full status-tone system.
 function healthDot(health?: string): string | null {
   switch (health) {
     case 'healthy': return 'bg-emerald-500'
@@ -174,7 +174,7 @@ function pillsToQuery(pills: SearchModifier[]): string {
 // (ns:, kind:, …) become removable pills. Resources lead, commands follow.
 //
 // Injectable: all data — search, commands, recents, modifier options — flows in
-// via props, so Radar standalone (cluster /api/search) and Radar Hub (fleet
+// via props, so KubeAtlas standalone (cluster /api/search) and Radar Hub (fleet
 // search) share the same UX. ⌘K focus is wired by the host.
 export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
   {
@@ -531,7 +531,7 @@ export const Omnibar = forwardRef<OmnibarHandle, OmnibarProps>(function Omnibar(
                   </div>
                 ) : resourceRows.length === 0 && (!isFetching || currentData) ? (
                   <div className="px-3 py-2 text-xs text-theme-text-tertiary">
-                    {shownNote ? 'Radar 已搜索范围内没有匹配项。' : <>没有资源匹配{freeText ? <>“{freeText}”</> : ''}。</>}
+                    {shownNote ? 'KubeAtlas 已搜索范围内没有匹配项。' : <>没有资源匹配{freeText ? <>“{freeText}”</> : ''}。</>}
                     {hasNsPill && (
                       <button onMouseDown={(e) => { e.preventDefault(); clearNsPills() }} className="ml-1.5 text-[var(--color-brand)] hover:underline">
                         移除命名空间筛选

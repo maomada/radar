@@ -1,4 +1,4 @@
-import { CardBody, CardSection, renderProse } from '@skyhook-io/k8s-ui'
+import { CardBody, CardSection, renderProse } from '@maomada/k8s-ui'
 import { AlertTriangle, Info, Wrench } from 'lucide-react'
 
 const wrap = { width: 480, display: 'flex', flexDirection: 'column', gap: 16 } as const

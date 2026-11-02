@@ -12,12 +12,12 @@ export const SIGNUP_QUERY = '?utm_source=radar-oss&utm_medium=app&utm_campaign=c
 // What the person is coming from, whether the pitch should offer "Try
 // again" (a failure can be retried; a refusal or the person's own cancel
 // cannot be "tried again" without misreading it as something going wrong),
-// and, for a blocked plan, the release Radar found so the card's install
+// and, for a blocked plan, the release KubeAtlas found so the card's install
 // link adopts it instead of opening a fresh install over it.
 export interface Handoff {
   outcome: string
   retryable: boolean
-  // What Radar attempted, when it got that far — the blocked card's evidence
+  // What KubeAtlas attempted, when it got that far — the blocked card's evidence
   // and the input to the exit it offers.
   target?: CloudInstallAttempted | null
   // A prepare error's message, shown on the pitch so the reason outlives the
@@ -36,9 +36,9 @@ export function isHandoffOutcome(value: unknown): value is string {
 
 // The prepare POST failed before any flow existed, so there is no failure
 // kind to forward; classify by HTTP class. Prepare never contacts the Hub: a
-// 503 is Radar without a cluster (disconnected or still connecting), any other
-// status is Radar itself declining or failing the inspection, a TypeError is
-// fetch failing to reach Radar's own server, and anything else is a response
+// 503 is KubeAtlas without a cluster (disconnected or still connecting), any other
+// status is KubeAtlas itself declining or failing the inspection, a TypeError is
+// fetch failing to reach KubeAtlas's own server, and anything else is a response
 // that could not be used. All of them are worth trying again.
 export function handoffForPrepareError(err: unknown): Handoff {
   let outcome = 'cluster_inspect_request_error'
@@ -68,12 +68,12 @@ export function signupUrlFor(appUrl: string, content: string, handoff?: Handoff 
 }
 
 // The one exit every blocked card offers. An install-page deep link is
-// justified only where Radar established both the target and the operation:
+// justified only where KubeAtlas established both the target and the operation:
 // a release it found (adopt, or its GitOps owner's values patch), or a fresh
 // install from a complete plan whose discovery saw the whole cluster. The
 // Hub's fresh command would reset an existing release's values and its script
 // writes the token Secret before Helm runs, so a guessed target is never
-// linked. Everywhere else the exit is Radar Cloud itself — the same
+// linked. Everywhere else the exit is upstream Cloud itself — the same
 // signup/login entry as the pitch — and the copy hands the work to an admin.
 // Signed out, the Hub stashes an /install link across sign-in only when it
 // carries a target or a method, so every install link carries one.
@@ -88,11 +88,11 @@ export interface BlockedExit {
 // name (`name=`) so the install page opens with its form already filled in;
 // the person can still change it there.
 export function exitFor(appUrl: string, content: string, handoff: Handoff | null | undefined, clusterName?: string): BlockedExit {
-  const generic = { href: signupUrlFor(appUrl, content, handoff), label: 'Open Radar Cloud', install: false }
+  const generic = { href: signupUrlFor(appUrl, content, handoff), label: 'Open upstream Cloud', install: false }
   const t = handoff?.target
   if (!t) return generic
   // An unsupported refusal names its own remedy (several Radars to pick from,
-  // a pairing to recover, ownership Radar will not guess at); a release it
+  // a pairing to recover, ownership KubeAtlas will not guess at); a release it
   // happens to know is not an invitation to install over it.
   if (handoff?.outcome === BLOCKED_OUTCOMES.unsupported) return generic
   const params = new URLSearchParams()
@@ -137,14 +137,14 @@ export interface AdminNoteContext {
 }
 
 // A cold reader gets the object of the request and the answer to "no SaaS"
-// in one place: what runs in the cluster, the trust boundary (Radar dials
-// out; what comes back through that session is Radar's own API, bounded by
+// in one place: what runs in the cluster, the trust boundary (KubeAtlas dials
+// out; what comes back through that session is KubeAtlas's own API, bounded by
 // the ServiceAccount it runs as), and that the control plane can be run
 // in-house.
-export const SELF_HOSTED_DOCS_URL = 'https://radarhq.io/docs/cloud/self-hosted/'
+export const SELF_HOSTED_DOCS_URL = 'https://github.com/maomada/radar/tree/main/docs'
 const WHAT_IT_IS = [
-  'What it is: Radar, the open-source Kubernetes tool, installed in the cluster as a Helm chart. It opens an outbound connection to a hosted control plane (nothing listens inbound); Radar Cloud users reach this Radar only through that connection, with the permissions of the ServiceAccount it runs as.',
-  `If a hosted service is not an option, the same control plane can run in-house as Radar Cloud Self-Managed: ${SELF_HOSTED_DOCS_URL}`,
+  'What it is: KubeAtlas, the open-source Kubernetes tool, installed in the cluster as a Helm chart. It opens an outbound connection to a hosted control plane (nothing listens inbound); upstream Cloud users reach this KubeAtlas only through that connection, with the permissions of the ServiceAccount it runs as.',
+  `If a hosted service is not an option, the same control plane can run in-house as upstream Cloud Self-Managed: ${SELF_HOSTED_DOCS_URL}`,
 ].join(' ')
 
 export function composeAdminNote(blocked: CloudInstallBlocked, exit: BlockedExit, where: AdminNoteContext = {}): string {
@@ -156,11 +156,11 @@ export function composeAdminNote(blocked: CloudInstallBlocked, exit: BlockedExit
   let because: string
   switch (blocked.reason) {
     case 'gitops':
-      because = `the install is managed by ${tool}, so connecting it is a values change in the repository — Radar Cloud generates the patch`
+      because = `the install is managed by ${tool}, so connecting it is a values change in the repository — upstream Cloud generates the patch`
       break
     case 'unsupported':
       // The server's message ends its own sentence; the clause adds the period.
-      because = `Radar reported: ${blocked.message.replace(/\s+/g, ' ').trim().replace(/\.$/, '')}`
+      because = `KubeAtlas reported: ${blocked.message.replace(/\s+/g, ' ').trim().replace(/\.$/, '')}`
       break
     default:
       switch (blocked.cause) {
@@ -168,7 +168,7 @@ export function composeAdminNote(blocked: CloudInstallBlocked, exit: BlockedExit
           because = `the identity in use${identity} doesn't have the permissions to install it`
           break
         case 'verification':
-          because = 'the Radar version in use can\'t install this chart version from there'
+          because = 'the KubeAtlas version in use can\'t install this chart version from there'
           break
         default:
           because = 'the cluster refused part of the install — a policy, or something already there (details below)'
@@ -177,14 +177,14 @@ export function composeAdminNote(blocked: CloudInstallBlocked, exit: BlockedExit
 
   const ask = exit.install
     ? 'Could someone with cluster access connect it?'
-    : 'Could someone with cluster access connect it from Radar Cloud?'
+    : 'Could someone with cluster access connect it from upstream Cloud?'
   const linkLabel = !exit.install
-    ? 'Open Radar Cloud:'
+    ? 'Open upstream Cloud:'
     : blocked.reason === 'gitops'
-      ? `Open Radar Cloud to get the values patch for ${tool} (sign in, confirm the cluster name; it also shows the one command that creates the token Secret):`
-      : 'Open Radar Cloud to get the install command (sign in, confirm the cluster name, pick Helm / Argo CD / Flux):'
+      ? `Open upstream Cloud to get the values patch for ${tool} (sign in, confirm the cluster name; it also shows the one command that creates the token Secret):`
+      : 'Open upstream Cloud to get the install command (sign in, confirm the cluster name, pick Helm / Argo CD / Flux):'
 
-  // Observations, not Radar narrating itself: what was found, where it stopped.
+  // Observations, not KubeAtlas narrating itself: what was found, where it stopped.
   const details: string[] = []
   if (a) {
     const target = `release ${a.release} in namespace ${a.namespace}`
@@ -201,19 +201,19 @@ export function composeAdminNote(blocked: CloudInstallBlocked, exit: BlockedExit
           ? `An existing ${target} was found; ${stage}.`
           : a.partialScan
             ? `Only namespace ${a.namespace} could be checked for an existing install; ${stage}.`
-            : `No Radar install was found in the cluster; ${stage}.`,
+            : `No KubeAtlas install was found in the cluster; ${stage}.`,
     )
   } else if (blocked.reason === 'preflight') {
-    details.push('The check for an existing Radar install did not complete.')
+    details.push('The check for an existing KubeAtlas install did not complete.')
   }
   for (const line of blocked.blocking ?? []) details.push(trimRefusal(line))
   if (a?.releaseUnread) details.push('Please confirm nothing is already installed before a fresh install.')
   if (a?.partialScan) details.push('Please check the rest of the cluster for an existing install first.')
 
   return [
-    `Request to connect cluster ${name} to Radar Cloud`,
+    `Request to connect cluster ${name} to upstream Cloud`,
     '',
-    `Connecting it from Radar was blocked: ${because}. Nothing in the cluster was changed. ${ask}`,
+    `Connecting it from KubeAtlas was blocked: ${because}. Nothing in the cluster was changed. ${ask}`,
     '',
     linkLabel,
     plainLink(exit.href),
@@ -272,14 +272,14 @@ export function composeFailureNote(failure: CloudInstallFailure, where: AdminNot
   const g = failure.guidance
   const stage =
     failure.kind === 'installed_but_tunnel_not_confirmed'
-      ? 'Radar was installed by Helm, but its connection to Radar Cloud could not be confirmed'
-      : 'the Helm install of Radar failed'
+      ? 'KubeAtlas was installed by Helm, but its connection to upstream Cloud could not be confirmed'
+      : 'the Helm install of KubeAtlas failed'
   const lines: string[] = [
-    `Request to finish connecting cluster ${name} to Radar Cloud`,
+    `Request to finish connecting cluster ${name} to upstream Cloud`,
     '',
-    `Connecting it from Radar got as far as the install: ${stage}. ${failure.message.replace(/\s+/g, ' ').trim()} Could someone with cluster access take it from here?`,
+    `Connecting it from KubeAtlas got as far as the install: ${stage}. ${failure.message.replace(/\s+/g, ' ').trim()} Could someone with cluster access take it from here?`,
   ]
-  if (g?.clusterUrl) lines.push('', 'The cluster in Radar Cloud (its page shows the recovery options):', plainLink(g.clusterUrl))
+  if (g?.clusterUrl) lines.push('', 'The cluster in upstream Cloud (its page shows the recovery options):', plainLink(g.clusterUrl))
   lines.push('', WHAT_IT_IS)
   const details: string[] = []
   if (g?.summary && g.summary !== failure.message) details.push(g.summary)

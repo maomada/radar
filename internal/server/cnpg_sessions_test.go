@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skyhook-io/radar/internal/auth"
-	cnpgsvc "github.com/skyhook-io/radar/internal/cnpg"
-	integration "github.com/skyhook-io/radar/internal/integration"
+	"github.com/maomada/radar/internal/auth"
+	cnpgsvc "github.com/maomada/radar/internal/cnpg"
+	integration "github.com/maomada/radar/internal/integration"
 )
 
 func TestCNPGActionPartialOutcomeSerialization(t *testing.T) {
