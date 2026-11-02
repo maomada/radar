@@ -66,7 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("portal listen failed: %v", err)
 	}
-	log.Printf("Radar Portal listening on %s", listener.Addr())
+	log.Printf("KubeAtlas Portal listening on %s", listener.Addr())
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
