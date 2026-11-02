@@ -18,6 +18,12 @@ let basename = '';
 let authHeadersProvider: () => Record<string, string> = () => ({});
 let credentialsMode: RequestCredentials = 'same-origin';
 
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') end--;
+  return value.slice(0, end);
+}
+
 export function getApiBase(): string {
   return apiBase;
 }
@@ -31,7 +37,7 @@ export function getApiBase(): string {
  *   - An absolute URL: `https://api.example.test/c/abc/api` (URLs use that origin)
  */
 export function setApiBase(url: string): void {
-  apiBase = url.replace(/\/+$/, '');
+  apiBase = stripTrailingSlashes(url);
 }
 
 /**
@@ -49,7 +55,7 @@ export function getBasename(): string {
  * to construct a URL relative to the host app's origin.
  */
 export function setBasename(value: string): void {
-  basename = value.replace(/\/+$/, '');
+  basename = stripTrailingSlashes(value);
 }
 
 /**

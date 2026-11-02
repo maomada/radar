@@ -1,7 +1,19 @@
 // @vitest-environment jsdom
 import { describe, expect, it, afterEach } from 'vitest'
 
-import { setBasename, stripBasename, routePath, mcpEndpointUrl, apiUrl, getApiBase, setApiBase } from './config'
+import { setBasename, getBasename, stripBasename, routePath, mcpEndpointUrl, apiUrl, getApiBase, setApiBase } from './config'
+
+it('strips long trailing slash runs without changing internal slashes', () => {
+  const suffix = '/'.repeat(100000)
+  setApiBase('https://example.test/api' + suffix)
+  setBasename('/tools//atlas' + suffix)
+  expect(getApiBase()).toBe('https://example.test/api')
+  expect(getBasename()).toBe('/tools//atlas')
+  setApiBase(suffix)
+  setBasename('')
+  expect(getApiBase()).toBe('')
+  expect(getBasename()).toBe('')
+})
 
 // setBasename mutates module state — restore standalone default after each test.
 afterEach(() => {

@@ -49,9 +49,12 @@ export function parseContextName(name: string): ParsedContextName {
   }
 
   // eksctl format: {user}@{cluster}.{region}.eksctl.io
-  const eksctlMatch = name.match(/^(.+)@([^.]+)\.([^.]+)\.eksctl\.io$/)
+  const userEnd = name.lastIndexOf('@')
+  const eksctlMatch = userEnd > 0 && !/[\r\n\u2028\u2029]/.test(name.slice(0, userEnd))
+    ? name.slice(userEnd + 1).match(/^([^.]+)\.([^.]+)\.eksctl\.io$/)
+    : null
   if (eksctlMatch) {
-    const [, , cluster, region] = eksctlMatch
+    const [, cluster, region] = eksctlMatch
     return {
       provider: 'EKS',
       account: 'eksctl',

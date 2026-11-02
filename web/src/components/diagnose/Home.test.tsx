@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,7 +8,7 @@ import { InvestigationHome, RecentList } from "./Home";
 const NOW = new Date(2026, 8, 2, 14, 30);
 const time = (day: number, hour: number) =>
   new Date(2026, 8, day, hour).toISOString();
-const visible = (html: string) => html.replace(/<[^>]*>/g, "");
+const visible = (html: string) => new DOMParser().parseFromString(html, "text/html").body.textContent ?? "";
 
 function run(patch: Partial<RunSummary> = {}): RunSummary {
   return {

@@ -55,6 +55,13 @@ describe('parseContextName', () => {
   })
 
   describe('eksctl format', () => {
+    it('handles many user separators and rejects malformed long suffixes', () => {
+      const user = 'a@' + '-@-'.repeat(20000)
+      expect(parseContextName(user + '@cluster.us-east-1.eksctl.io').clusterName).toBe('cluster')
+      expect(parseContextName(user).provider).toBeNull()
+      expect(parseContextName('@cluster.us-east-1.eksctl.io').provider).toBeNull()
+    })
+
     it('parses user@cluster.region.eksctl.io', () => {
       const r = parseContextName('admin@my-cluster.us-east-1.eksctl.io')
       expect(r.provider).toBe('EKS')

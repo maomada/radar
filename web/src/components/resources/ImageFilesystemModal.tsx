@@ -546,14 +546,14 @@ function getAuthCommand(authMethod: string, image: string): string | null {
 
     case 'aws': {
       // Extract region from ECR URL: <account>.dkr.ecr.<region>.amazonaws.com
-      const match = registry.match(/\.dkr\.ecr\.([^.]+)\.amazonaws\.com/)
+      const match = registry.match(/^[0-9]+\.dkr\.ecr\.([a-z0-9-]+)\.amazonaws\.com(?:\.cn)?$/)
       const region = match ? match[1] : '<region>'
       return `aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}`
     }
 
     case 'azure': {
       // Extract ACR name from <name>.azurecr.io
-      const acrMatch = registry.match(/^([^.]+)\.azurecr\.io/)
+      const acrMatch = registry.match(/^([a-zA-Z0-9]+)\.azurecr\.io$/)
       const acrName = acrMatch ? acrMatch[1] : '<acr-name>'
       return `az acr login --name ${acrName}`
     }
