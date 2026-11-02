@@ -323,7 +323,7 @@ func (c *Client) resolvePreparedChart(ctx context.Context, req *InstallRequest, 
 	if err != nil {
 		return nil, "", err
 	}
-	buffer, err := (repositoryHTTPGetter{entry: *entry, timeout: httpClient.Timeout, maxBytes: maxPreparedChartBytes}).getContext(ctx, chartURL)
+	buffer, err := (repositoryHTTPGetter{entry: *entry, timeout: httpClient.Timeout, maxBytes: maxPreparedChartBytes, network: c.repositoryNetwork}).getContext(ctx, chartURL)
 	var body []byte
 	if buffer != nil {
 		body = buffer.Bytes()

@@ -304,6 +304,7 @@ func TestUpdateRepositoryRejectsChangedConfiguration(t *testing.T) {
 
 func updateRepositoryTestClient(t *testing.T, entry *repo.Entry) *Client {
 	t.Helper()
+	withTestHelmHTTPClient(t)
 	dir := t.TempDir()
 	repositoryConfig := filepath.Join(dir, "repositories.yaml")
 	repositories := repo.NewFile()
@@ -311,7 +312,7 @@ func updateRepositoryTestClient(t *testing.T, entry *repo.Entry) *Client {
 	if err := repositories.WriteFile(repositoryConfig, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return &Client{settings: &cli.EnvSettings{
+	return &Client{repositoryNetwork: testHelmRepositoryNetwork(), settings: &cli.EnvSettings{
 		RepositoryConfig: repositoryConfig,
 		RepositoryCache:  filepath.Join(dir, "repository-cache"),
 	}}

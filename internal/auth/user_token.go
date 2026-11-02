@@ -49,19 +49,19 @@ func userTokenIdentity(w http.ResponseWriter, r *http.Request, cfg Config, usern
 		// 403, not 401: a 401 makes the web client reload, and a token the
 		// API server doesn't trust (wrong issuer or audience) stays rejected
 		// however often the person signs in.
-		log.Printf("[auth] Kubernetes rejected the token for %q: %v", username, err)
+		log.Print("[auth] Kubernetes rejected the sign-in token")
 		writeUserTokenError(w, http.StatusForbidden, "token_rejected", "Your Kubernetes API server does not accept your sign-in token. Check that it trusts this identity provider and client.", cfg.Mode)
 		return nil, false
 	}
 	if err != nil {
 		// Timeouts, 5xx, a server without SelfSubjectReview: the token may be
 		// fine, so signing in again would not help.
-		log.Printf("[auth] could not review the token for %q: %v", username, err)
+		log.Print("[auth] Kubernetes token review unavailable")
 		writeUserTokenError(w, http.StatusServiceUnavailable, "token_review_unavailable", "Radar could not check your sign-in token with the Kubernetes API server", cfg.Mode)
 		return nil, false
 	}
 	if reviewed.Username != username {
-		log.Printf("[auth] token identity %q does not match forwarded user %q", reviewed.Username, username)
+		log.Print("[auth] token identity does not match forwarded identity")
 		writeUserTokenError(w, http.StatusForbidden, "token_identity_mismatch", "Your sign-in token belongs to a different Kubernetes user ("+reviewed.Username+") than the one forwarded ("+username+")", cfg.Mode)
 		return nil, false
 	}
@@ -71,7 +71,7 @@ func userTokenIdentity(w http.ResponseWriter, r *http.Request, cfg Config, usern
 		// radar:ai:reader bindings, and an IdP group named system:masters
 		// would be cluster-admin. Only system:authenticated is expected here.
 		if pkgauth.IsRadarVocabularyGroup(g) || (pkgauth.IsReservedPrincipal(g) && g != "system:authenticated") {
-			log.Printf("[auth] token for %q carries reserved group %q", reviewed.Username, g)
+			log.Print("[auth] token identity carries a reserved group")
 			writeUserTokenError(w, http.StatusForbidden, "token_reserved_group", "Your identity provider puts you in group "+g+"; groups starting with radar:, cloud: or system: are reserved. Rename the group or set a groups prefix on your API server.", cfg.Mode)
 			return nil, false
 		}

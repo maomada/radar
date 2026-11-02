@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -36,6 +35,7 @@ type repositoryHTTPGetter struct {
 	entry    repo.Entry
 	timeout  time.Duration
 	maxBytes int64
+	network  *helmRepositoryNetwork
 }
 
 // A repository snapshot owns its credentials. Helm's default HTTP client
@@ -54,10 +54,23 @@ func (g repositoryHTTPGetter) getContext(ctx context.Context, target string) (*b
 	if err != nil {
 		return nil, err
 	}
-	authenticated := &http.Transport{Proxy: http.ProxyFromEnvironment, DisableCompression: true, TLSClientConfig: tlsConfig, DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSHandshakeTimeout: 10 * time.Second}
+	network := g.network
+	if network == nil {
+		network = defaultHelmRepositoryNetwork
+	}
+	authenticated := newHelmGuardedTransport(&http.Transport{
+		DisableCompression:    true,
+		TLSClientConfig:       tlsConfig,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+	}, network)
 	defer authenticated.CloseIdleConnections()
-	anonymous := authenticated.Clone()
-	anonymous.TLSClientConfig = anonymousTLS
+	anonymous := newHelmGuardedTransport(&http.Transport{
+		DisableCompression:    true,
+		TLSClientConfig:       anonymousTLS,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+	}, network)
 	defer anonymous.CloseIdleConnections()
 	timeout := g.timeout
 	if timeout == 0 {
@@ -106,7 +119,7 @@ func (g repositoryHTTPGetter) getContext(ctx context.Context, target string) (*b
 type repositoryOriginTransport struct {
 	origin                   *url.URL
 	allow                    bool
-	authenticated, anonymous *http.Transport
+	authenticated, anonymous http.RoundTripper
 }
 
 func (t repositoryOriginTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -126,7 +139,7 @@ func (c *Client) repositoryGettersWithTimeout(entry *repo.Entry, timeout time.Du
 			if scheme == "http" || scheme == "https" {
 				snapshot := *entry
 				providers[i].New = func(_ ...getter.Option) (getter.Getter, error) {
-					return repositoryHTTPGetter{entry: snapshot, timeout: timeout}, nil
+					return repositoryHTTPGetter{entry: snapshot, timeout: timeout, network: c.repositoryNetwork}, nil
 				}
 				// Helm lists its built-in HTTP provider before downloader plugins.
 				return providers

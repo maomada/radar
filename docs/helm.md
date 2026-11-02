@@ -161,6 +161,12 @@ If a private repository deliberately shares credentials with its chart host, its
 
 Custom CA certificates, client certificates and `insecure_skip_tls_verify` remain supported, including configurations with both a CA file and skipped certificate verification. If a repository address redirects from HTTP to HTTPS, configure its final HTTPS address to keep authenticated requests on the configured origin.
 
+### Repository network policy
+
+Radar checks the resolved destination address when opening each HTTP or HTTPS repository connection, including redirects, and dials the checked IP rather than resolving the hostname again. Loopback, unspecified, multicast, link-local, Alibaba metadata (`100.100.100.100`) and AWS metadata (`fd00:ec2::254`) destinations are blocked, including IPv4-mapped forms. RFC1918 and ordinary cluster CGNAT addresses remain available; localhost repository URLs are intentionally unsupported.
+
+Configured HTTP and HTTPS proxies are selected per request, but repository targets are reached through CONNECT to the checked IP so the proxy cannot resolve the chart hostname. Proxy URL Basic credentials are sent only on CONNECT, not to the chart origin. HTTPS proxies use normal certificate verification, and SOCKS5/SOCKS5h proxies use the checked target IP. Unsupported proxy schemes fail closed. The proxy endpoint itself is trusted operator configuration and is not checked as a chart destination. Some HTTP proxies refuse CONNECT to port 80; those requests fail closed rather than falling back to proxy-side hostname resolution.
+
 ### Chart download checksums
 
 When an HTTP repository index advertises a SHA-256 checksum, Radar checks the downloaded chart archive before reading or using it. An invalid checksum or a mismatch stops chart details, installation, source recording and any upgrade or values operation that downloads that chart. The release stays unchanged.

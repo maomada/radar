@@ -58,12 +58,8 @@ func forwardedIdentityKey(username string, groups []string) uint64 {
 	return h.Sum64()
 }
 
-// logAcceptedForwardedIdentity logs the first sighting of a distinct
-// (username, group-set) forwarded identity so an operator can see what
-// identity/groups actually arrived from the IdP/hub — e.g. to diagnose a
-// missing `radar:idp:<object-id>` group that never reaches k8s RBAC. Repeat
-// requests with the same identity are suppressed; a changed group set logs
-// again. Usernames and group names are non-sensitive identifiers, safe to log.
+// Deduplicate acceptance events without putting identity claims in diagnostic
+// logs. The in-memory key is never emitted.
 func logAcceptedForwardedIdentity(user *User) {
 	if user == nil || user.Username == "" {
 		return
@@ -72,5 +68,5 @@ func logAcceptedForwardedIdentity(user *User) {
 	if !forwardedIdentitySeen.shouldLog(key) {
 		return
 	}
-	log.Printf("[auth] accepted forwarded identity user=%q groups=%q", user.Username, user.Groups)
+	log.Print("[auth] accepted forwarded identity")
 }

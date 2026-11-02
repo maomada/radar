@@ -431,9 +431,9 @@ func TestSSRFGuard_DeniesInternalTargets(t *testing.T) {
 	// Unspecified addresses (0.0.0.0 / ::) route to localhost on a connect() - some
 	// Gateway controllers report 0.0.0.0 in status.addresses, so the guard must deny
 	// them too, or a probe reaches services on Radar's own localhost.
-	for _, addr := range []string{"0.0.0.0:80", "[::]:80"} {
+	for _, addr := range []string{"0.0.0.0:80", "[::]:80", "[fe80::1%eth0]:80", "[ff02::1]:80", "[ff0e::1]:80", "224.0.0.1:80", "[::ffff:127.0.0.1]:80", "[::ffff:169.254.169.254]:80", "[::ffff:100.100.100.100]:80", "not-an-ip:80", "invalid"} {
 		if err := denyInternalControl("tcp", addr, nil); err == nil {
-			t.Errorf("denyInternalControl(%s): want denied (unspecified routes to localhost), got nil", addr)
+			t.Errorf("denyInternalControl(%s): want denied restricted/unparseable address, got nil", addr)
 		}
 	}
 	// Cloud metadata endpoints that are not link-local: Alibaba IMDS (100.100.100.100,
@@ -442,6 +442,15 @@ func TestSSRFGuard_DeniesInternalTargets(t *testing.T) {
 		if err := denyInternalControl("tcp", addr, nil); err == nil {
 			t.Errorf("denyInternalControl(%s): want denied (cloud metadata), got nil", addr)
 		}
+	}
+}
+
+func TestGuardedDialContextIgnoresMutableProbeTestHook(t *testing.T) {
+	previous := dialControl
+	dialControl = nil
+	t.Cleanup(func() { dialControl = previous })
+	if _, err := GuardedDialContext(context.Background(), "tcp", "127.0.0.1:1"); err == nil || !strings.Contains(err.Error(), "SSRF guard") {
+		t.Fatalf("GuardedDialContext loopback error = %v, want immutable production policy", err)
 	}
 }
 

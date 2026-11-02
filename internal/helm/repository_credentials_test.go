@@ -143,7 +143,7 @@ func TestRepositoryClientCertificateIsolation(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				g := repositoryHTTPGetter{entry: repo.Entry{URL: origin.URL, CAFile: caPath, CertFile: certPath, KeyFile: keyPath, PassCredentialsAll: allow}}
+				g := testRepositoryGetter(repo.Entry{URL: origin.URL, CAFile: caPath, CertFile: certPath, KeyFile: keyPath, PassCredentialsAll: allow})
 				if _, err := g.Get(origin.URL); err != nil {
 					t.Fatal(err)
 				}
@@ -210,7 +210,7 @@ func TestRepositoryOriginAndRedirectPolicy(t *testing.T) {
 				origin = httptest.NewServer(handler)
 			}
 			defer origin.Close()
-			g := repositoryHTTPGetter{entry: repo.Entry{URL: origin.URL, Username: "sample", Password: "sample", InsecureSkipTLSverify: true}}
+			g := testRepositoryGetter(repo.Entry{URL: origin.URL, Username: "sample", Password: "sample", InsecureSkipTLSverify: true})
 			if _, err := g.Get(origin.URL); err != nil {
 				t.Fatal(err)
 			}
@@ -221,7 +221,7 @@ func TestRepositoryOriginAndRedirectPolicy(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := (repositoryHTTPGetter{entry: repo.Entry{URL: "http://127.0.0.1"}}).getContext(ctx, "http://127.0.0.1"); err == nil || !strings.Contains(err.Error(), "context canceled") {
+	if _, err := testRepositoryGetter(repo.Entry{URL: "http://127.0.0.1"}).getContext(ctx, "http://127.0.0.1"); err == nil || !strings.Contains(err.Error(), "context canceled") {
 		t.Fatalf("cancellation: %v", err)
 	}
 }
@@ -238,7 +238,7 @@ func TestRepositoryCAWithInsecureTLS(t *testing.T) {
 	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600); err != nil {
 		t.Fatal(err)
 	}
-	g := repositoryHTTPGetter{entry: repo.Entry{URL: server.URL, CAFile: ca, InsecureSkipTLSverify: true}}
+	g := testRepositoryGetter(repo.Entry{URL: server.URL, CAFile: ca, InsecureSkipTLSverify: true})
 	if _, err := g.Get(server.URL); err != nil {
 		t.Fatal(err)
 	}
@@ -367,10 +367,12 @@ func TestRepositoryPreparedFetchLimit(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, strings.Repeat("a", 4096)) }))
 	defer server.Close()
 	entry := repo.Entry{URL: server.URL}
-	if _, err := (repositoryHTTPGetter{entry: entry, maxBytes: 1024}).Get(server.URL); err == nil || !strings.Contains(err.Error(), "1024 bytes") {
+	bounded := testRepositoryGetter(entry)
+	bounded.maxBytes = 1024
+	if _, err := bounded.Get(server.URL); err == nil || !strings.Contains(err.Error(), "1024 bytes") {
 		t.Fatalf("bounded prepared transport: %v", err)
 	}
-	body, err := (repositoryHTTPGetter{entry: entry}).Get(server.URL)
+	body, err := testRepositoryGetter(entry).Get(server.URL)
 	if err != nil || body.Len() != 4096 {
 		t.Fatalf("legacy download compatibility: %v", err)
 	}
