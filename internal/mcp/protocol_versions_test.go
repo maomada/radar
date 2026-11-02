@@ -129,7 +129,7 @@ func decodeConnectResult(t *testing.T, resp rpcResponse, protocolVersion string)
 		t.Fatal(err)
 	}
 	if protocolVersion < discoverProtocolVersion {
-		if res.ProtocolVersion != protocolVersion || res.ServerInfo.Name != "radar" {
+		if res.ProtocolVersion != protocolVersion || res.ServerInfo.Name != "kubeatlas" {
 			t.Errorf("initialize at %s: protocolVersion %q, serverInfo.name %q", protocolVersion, res.ProtocolVersion, res.ServerInfo.Name)
 		}
 	} else if !slices.Contains(res.SupportedVersions, protocolVersion) || !slices.Contains(res.SupportedVersions, "2025-11-25") {

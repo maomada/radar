@@ -84,13 +84,13 @@ type RecoveryGuidance struct {
 
 // CanceledAfterApprovalGuidance covers cancellation between Hub approval and
 // the first Kubernetes mutation. retryHint carries the presenter's own retry
-// instruction ("Rerun `radar cloud install`…" / "Start a new connection…").
+// instruction ("Rerun `kubeatlas cloud install`…" / "Start a new connection…").
 func CanceledAfterApprovalGuidance(clusterID, clusterURL, retryHint string) RecoveryGuidance {
 	return RecoveryGuidance{
 		Summary: fmt.Sprintf("The Hub approved cluster %q, but the connection was canceled before Kubernetes provisioning began.", clusterID),
 		Lines: []string{
 			"No token Secret or Helm release was written. " + retryHint,
-			"The previous approval may remain as a pending cluster in Radar. An organization owner can delete it later:",
+			"The previous approval may remain as a pending cluster in KubeAtlas. An organization owner can delete it later:",
 		},
 		ClusterURL: clusterURL,
 	}
@@ -165,9 +165,9 @@ func TunnelConfirmationGuidance(err error, clusterID, cloudURL, clusterURL strin
 	}
 
 	return RecoveryGuidance{
-		Summary: fmt.Sprintf("Radar was provisioned and Hub cluster %q already exists, but its tunnel could not be confirmed: %s.", clusterID, reason),
+		Summary: fmt.Sprintf("KubeAtlas was provisioned and Hub cluster %q already exists, but its tunnel could not be confirmed: %s.", clusterID, reason),
 		Lines: []string{
-			"Do not rerun the installer or delete the cluster by default; the installed Radar can still connect after you resolve its startup or egress issue.",
+			"Do not rerun the installer or delete the cluster by default; the installed KubeAtlas can still connect after you resolve its startup or egress issue.",
 			fmt.Sprintf("Verify cluster DNS and outbound WSS/HTTPS access to %s.", cloudURL),
 			"Keep using this Hub cluster and token Secret for recovery. Only if you deliberately abandon the installation should you clean up Helm and the Secret, then delete the Hub cluster before starting a fresh flow.",
 		},

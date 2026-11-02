@@ -67,7 +67,7 @@ func TestChartGrantsEveryWatchedCRDGroup(t *testing.T) {
 // because their toggles default to true; the wildcard "*" is excluded on purpose.
 func chartGrantedAPIGroups(t *testing.T) map[string]bool {
 	t.Helper()
-	path := filepath.Join("..", "..", "deploy", "helm", "radar", "templates", "clusterrole.yaml")
+	path := filepath.Join("..", "..", "deploy", "helm", "kubeatlas", "templates", "clusterrole.yaml")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read chart ClusterRole template: %v", err)

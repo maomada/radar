@@ -10,25 +10,14 @@
 {{- $authDocs := "https://github.com/maomada/radar/blob/main/docs/authentication.md" -}}
 {{- $mode := .Values.auth.mode -}}
 {{- $routed := or .Values.ingress.enabled .Values.httpRoute.enabled -}}
-{{- $proxyAuth := printf "Authentication: proxy (auth.mode=proxy). Users authenticate through the proxy,\nwhich forwards their identity to Radar via HTTP headers. The auth proxy should\nbe the only path to Radar.\nSetup: %s" $authDocs -}}
+{{- $proxyAuth := printf "Authentication: proxy (auth.mode=proxy). Users authenticate through the proxy,\nwhich forwards their identity to KubeAtlas via HTTP headers. The auth proxy should\nbe the only path to KubeAtlas.\nSetup: %s" $authDocs -}}
 {{- if include "radar.cloudEnrollmentMode" . | eq "true" }}
-The Radar pod joins the Radar Hub (cloud.hubURL) with the enrollment key every time it
-starts. The pod's own listener serves only /api/health; Radar is served over the Cloud tunnel.
-
-Its log says whether it joined and, if not, why. Radar keeps trying on its own:
-
-  kubectl -n {{ $ns }} logs deploy/{{ $fullName }}
+Cloud enrollment is unavailable in KubeAtlas. Use the independent Portal registration feature.
 {{- else if .Values.cloud.enabled }}
-The Radar pod dials the Radar Cloud endpoint (cloud.url) over an outbound WebSocket.
-Once connected, the Radar Cloud install page redirects you into the cluster view.
-The pod's own listener serves only /api/health; Radar is served over the Cloud tunnel.
-
-If the install page times out, check the Radar pod logs:
-
-  kubectl logs -n {{ $ns }} deploy/{{ $fullName }}
+Cloud connectivity is unavailable in KubeAtlas. Use the independent Portal registration feature.
 {{- else if and (eq $mode "proxy") (not $routed) }}
 {{- /* No Service address or port-forward: the docs say the auth proxy should
-       be the only path to Radar. */}}
+       be the only path to KubeAtlas. */}}
 {{ $proxyAuth }}
 {{- else }}
 {{- if .Values.ingress.enabled }}
@@ -39,7 +28,7 @@ If the install page times out, check the Radar pod logs:
 {{- $urls = append $urls (printf "http%s://%s%s" (ternary "s" "" (not (empty $.Values.ingress.tls))) ($h.host | default "") $path) }}
 {{- end }}
 {{- end }}
-Open Radar at:
+Open KubeAtlas at:
 {{- range uniq $urls }}
   {{ . }}
 {{- end }}
@@ -47,7 +36,7 @@ Open Radar at:
 {{- $gw := first .Values.httpRoute.parentRefs }}
 {{- $gwNs := $gw.namespace | default $ns }}
 {{- if .Values.httpRoute.hostnames }}
-Radar's HTTPRoute hostnames:
+KubeAtlas HTTPRoute hostnames:
 {{- range .Values.httpRoute.hostnames }}
   {{ . }}{{ $basePath }}/
 {{- end }}
@@ -69,7 +58,7 @@ Access via port-forward:
 {{- end }}
 {{- if eq $mode "oidc" }}
 
-Authentication: OIDC (auth.mode=oidc). Radar redirects to your identity
+Authentication: OIDC (auth.mode=oidc). KubeAtlas redirects to your identity
 provider, validates the token, and creates a session cookie.
 Setup: {{ $authDocs }}
 {{- else if eq $mode "proxy" }}
@@ -78,13 +67,13 @@ Setup: {{ $authDocs }}
 {{- else if or $routed (ne .Values.service.type "ClusterIP") }}
 
 Warning: no auth (auth.mode=none). Only use this behind a trusted private
-network boundary. Anyone who can reach Radar can use the permissions granted to
+network boundary. Anyone who can reach KubeAtlas can use the permissions granted to
 its ServiceAccount. For shared or externally reachable installations, configure
 authentication: {{ $authDocs }}
 
-Without authentication Radar answers only localhost, IP addresses, Kubernetes
+Without authentication KubeAtlas answers only localhost, IP addresses, Kubernetes
 Service names and the ingress and HTTPRoute hostnames set in this chart. Add any
-other hostname users open Radar at, such as a Gateway listener or load balancer
+other hostname users open KubeAtlas at, such as a Gateway listener or load balancer
 hostname, to allowedHosts.
 {{- end }}
 {{- end }}

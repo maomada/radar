@@ -213,7 +213,7 @@ func createMenu(desktopApp *DesktopApp, version, goos string) *menu.Menu {
 			runtime.MessageDialog(desktopApp.ctx, runtime.MessageDialogOptions{
 				Type:    runtime.InfoDialog,
 				Title:   "About KubeAtlas",
-				Message: "KubeAtlas — Kubernetes Visibility Tool\nIndependently maintained by maomada\nOriginally created by Skyhook; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
+				Message: "KubeAtlas — Kubernetes Visibility Tool\nIndependently maintained by maomada\nDerived from Radar; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
 			})
 		})
 	}

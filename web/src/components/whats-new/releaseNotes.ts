@@ -39,7 +39,7 @@ export interface ReleaseNotes {
   improvements: string[]
 }
 
-export const CHANGELOG_URL = 'https://radarhq.io/changelog'
+export const CHANGELOG_URL = 'https://github.com/maomada/radar/blob/main/CHANGELOG.md'
 
 // Read .agents/skills/whats-new/SKILL.md before authoring or regrouping notes.
 // One entry per release that has something to announce. A user sees the

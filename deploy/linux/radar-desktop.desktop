@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Radar
+Name=KubeAtlas
 Comment=Kubernetes visibility — topology, traffic, and Helm management
 Exec=kubeatlas-desktop
 Icon=kubeatlas-desktop

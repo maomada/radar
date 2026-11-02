@@ -89,7 +89,7 @@ func (e *CloudReleaseNotDeployedError) Error() string {
 }
 
 // NotOfficialRadarReleaseError is returned when Helm storage contains a chart
-// that cannot be identified as the Skyhook Radar chart. Helm release records do
+// that cannot be identified as the KubeAtlas chart. Helm release records do
 // not retain their repository URL, so identity is based on embedded metadata.
 type NotOfficialRadarReleaseError struct {
 	Name         string
@@ -99,7 +99,7 @@ type NotOfficialRadarReleaseError struct {
 }
 
 func (e *NotOfficialRadarReleaseError) Error() string {
-	return fmt.Sprintf("release %q in namespace %q is not an official Radar chart (found %q version %q)",
+	return fmt.Sprintf("release %q in namespace %q is not a KubeAtlas chart (found %q version %q)",
 		e.Name, e.Namespace, e.ChartName, e.ChartVersion)
 }
 
@@ -111,7 +111,7 @@ type ChartDowngradeError struct {
 }
 
 func (e *ChartDowngradeError) Error() string {
-	return fmt.Sprintf("refusing to downgrade Radar chart from %s to %s", e.Current, e.Target)
+	return fmt.Sprintf("refusing to downgrade KubeAtlas chart from %s to %s", e.Current, e.Target)
 }
 
 // ReleaseChangedError means the Helm release changed after preparation. The
@@ -197,7 +197,7 @@ func (p *PreparedUpgrade) CurrentManifest() string                  { return p.c
 func (p *PreparedUpgrade) TargetManifest() string                   { return p.targetManifest }
 func (p *PreparedUpgrade) CurrentValues() CloudUpgradeValuesSummary { return p.currentValues.clone() }
 
-// PrepareCloudUpgrade inspects a deployed official Radar release, resolves the
+// PrepareCloudUpgrade inspects a deployed KubeAtlas release, resolves the
 // latest eligible stable chart by default (or req.Version when supplied), and
 // performs a server-side Helm upgrade dry-run. The exact chart archive and
 // current release revision are retained for a later validated atomic upgrade.
@@ -278,7 +278,7 @@ func (c *Client) prepareCloudUpgradeWith(ctx context.Context, actionConfig *acti
 
 	currentWorkload, err := preCloudDeploymentRef(current.Manifest, request.Namespace, request.ReleaseName)
 	if err != nil {
-		return nil, fmt.Errorf("inspect existing Radar workload: %w", err)
+		return nil, fmt.Errorf("inspect existing KubeAtlas workload: %w", err)
 	}
 	values, err := summarizeCloudUpgradeValues(current)
 	if err != nil {
@@ -585,7 +585,7 @@ func validateOfficialRadarChart(releaseName, namespace string, loaded *chart.Cha
 			}
 		}
 	}
-	if chartName != "radar" || !officialSource {
+	if chartName != "kubeatlas" || !officialSource {
 		return &NotOfficialRadarReleaseError{
 			Name: releaseName, Namespace: namespace,
 			ChartName: chartName, ChartVersion: chartVersion,
@@ -634,11 +634,11 @@ func preCloudDeploymentRef(manifest, defaultNamespace, releaseName string) (Depl
 		if object.Labels["app.kubernetes.io/instance"] != "" && object.Labels["app.kubernetes.io/instance"] != releaseName {
 			return false
 		}
-		if strings.HasPrefix(object.Labels["helm.sh/chart"], "radar-") {
+		if strings.HasPrefix(object.Labels["helm.sh/chart"], "radar-") || strings.HasPrefix(object.Labels["helm.sh/chart"], "kubeatlas-") {
 			return true
 		}
-		return slices.Contains(object.ContainerNames, "radar")
-	}, "Radar Deployment in the existing release")
+		return slices.Contains(object.ContainerNames, "radar") || slices.Contains(object.ContainerNames, "kubeatlas")
+	}, "KubeAtlas Deployment in the existing release")
 }
 
 func nestedMap(values map[string]any, path ...string) (map[string]any, bool) {

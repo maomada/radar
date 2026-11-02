@@ -344,7 +344,7 @@ func main() {
 			TitleBar: mac.TitleBarDefault(),
 			About: &mac.AboutInfo{
 				Title:   "KubeAtlas",
-				Message: "Kubernetes Visibility Tool\nIndependently maintained by maomada\nOriginally created by Skyhook; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
+				Message: "KubeAtlas — Kubernetes Visibility Tool\nIndependently maintained by maomada\nDerived from Radar; see NOTICE\n\nVersion: " + version + "\n\nhttps://github.com/maomada/radar",
 			},
 		},
 

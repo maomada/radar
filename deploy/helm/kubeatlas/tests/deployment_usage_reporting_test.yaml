@@ -28,7 +28,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: KUBEATLAS_USAGE_REPORTING
-  - it: rejects the upstream Cloud mode
+  - it: rejects legacy Cloud mode
     set:
       cloud.enabled: true
     asserts:

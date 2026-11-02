@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Radar
+# Multi-stage Dockerfile for KubeAtlas
 #
 # Usage:
 #   Full build (default):  docker build .
@@ -65,8 +65,8 @@ FROM gcr.io/distroless/static-debian12:nonroot AS full
 
 ARG SOURCE_REVISION=unknown
 ARG VERSION=dev
-LABEL org.opencontainers.image.title="Radar"
-LABEL org.opencontainers.image.description="Modern Kubernetes visibility — topology, traffic, and Helm management"
+LABEL org.opencontainers.image.title="KubeAtlas"
+LABEL org.opencontainers.image.description="Kubernetes visibility — topology, traffic, and Helm management"
 LABEL org.opencontainers.image.source="https://github.com/maomada/radar"
 LABEL org.opencontainers.image.vendor="maomada"
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION
@@ -90,8 +90,8 @@ FROM gcr.io/distroless/static-debian12:nonroot AS release
 
 ARG SOURCE_REVISION=unknown
 ARG VERSION=dev
-LABEL org.opencontainers.image.title="Radar"
-LABEL org.opencontainers.image.description="Modern Kubernetes visibility — topology, traffic, and Helm management"
+LABEL org.opencontainers.image.title="KubeAtlas"
+LABEL org.opencontainers.image.description="Kubernetes visibility — topology, traffic, and Helm management"
 LABEL org.opencontainers.image.source="https://github.com/maomada/radar"
 LABEL org.opencontainers.image.vendor="maomada"
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION

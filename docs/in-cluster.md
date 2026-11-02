@@ -103,9 +103,8 @@ using an explicit kubeconfig with a non-loopback listener. A personal loopback
 CLI in a Kubernetes-hosted development workspace remains editable unless an
 operator file is supplied. Helm installations always supply that file, regardless
 of listener or kubeconfig overrides. Local unauthenticated CLI/Desktop settings
-remain editable. upstream Cloud retains its existing role-managed settings and
-personal preferences; the chart rejects non-default `audit` or `helm.ociSources`
-values in Cloud mode rather than silently ignoring them.
+remain editable. Legacy upstream Cloud mode is unavailable in KubeAtlas; the
+chart rejects `cloud.enabled=true`.
 
 For non-Helm shared OSS, use the existing flags/env for integrations. Structured
 audit/OCI settings can be supplied through a read-only JSON file selected by
@@ -304,9 +303,8 @@ Then open `https://tools.your-domain.com/radar/`. Do not set `basePath` when you
 Path segments accept letters, digits, `-`, `_`, `.` and `~`. KubeAtlas serves the app
 **only** under the prefix — requests to unprefixed paths get a 404, so update any
 external health checks or scrapers that hit `/api/health` or `/metrics` directly
-(the chart's own probes follow `basePath` automatically). `basePath` is not
-supported together with upstream Cloud (`--cloud-url`), which owns the URL path
-itself.
+(the chart's own probes follow `basePath` automatically). Legacy Cloud tunnels
+are unavailable in KubeAtlas; `--cloud-url` is rejected.
 
 **Every URL you hand to an external system must include the prefix.** With OIDC
 that means the values you register with your identity provider:
@@ -325,7 +323,7 @@ KubeAtlas's callback route lives at `{basePath}/auth/callback`, so a redirect UR
 without the prefix sends the IdP to a path the ingress doesn't route to KubeAtlas and
 login ends in a 404.
 
-**Give each instance its own hostname.** Two Radars behind subpaths on one
+**Give each instance its own hostname.** Two KubeAtlas instances behind subpaths on one
 hostname (`/radar-a`, `/radar-b`) are the same browser origin, so they share
 browser state: the session cookie is set at `Path=/`, and `localStorage` — which
 holds the theme, log-viewer preferences and similar per-instance settings — is

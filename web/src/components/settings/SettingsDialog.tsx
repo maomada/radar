@@ -928,10 +928,9 @@ export function SettingsDialog({
               )}
             </div>
 
-            {/* Privacy: the usage-stats choice. Readable by everyone; only a local
-                install can change it here. */}
+            {/* Privacy: static notice about disabled usage reporting. */}
             <SectionPane id="privacy" active={section} title="隐私" caption="立即生效。" live>
-              <PrivacySection active={section === 'privacy'} />
+              <PrivacySection />
             </SectionPane>
 
             {/* Advanced — MCP + Timeline merged */}

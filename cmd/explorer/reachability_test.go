@@ -30,8 +30,8 @@ func TestReachabilityImagesWithVersionChecksDisabled(t *testing.T) {
 		{"1.6.0-rc.1", "1.6.0-rc.1"},
 		{"1.6.0-beta.2", "1.6.0-beta.2"},
 		{"1.6.0-vendor.1", "1.6.0-vendor.1"},
-		{"dev", "latest"},
-		{"1.6.0-37-g8b325b372", "latest"},
+		{"dev", "dev"},
+		{"1.6.0-37-g8b325b372", "1.6.0-37-g8b325b372"},
 	} {
 		t.Run(tc.version, func(t *testing.T) {
 			versionpkg.SetCurrent(tc.version)

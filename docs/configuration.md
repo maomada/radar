@@ -3,16 +3,25 @@
 This document covers KubeAtlas's cluster connection behavior. For commands and flags, see the [CLI flag definitions](../cmd/explorer/main.go).
 
 KubeAtlas stores new local state under `~/.kubeatlas` and never automatically
-reads or copies `~/.radar`. To migrate manually, review old configuration and
-state files, then selectively transfer only settings you understand. Credentials
-and secrets require a separate operator-reviewed migration; KubeAtlas does not
-copy them automatically.
-
-KubeAtlas stores new local state under `~/.kubeatlas` and never automatically
 reads or copies `~/.radar`. To migrate manually, review the old configuration
 and state files, then selectively transfer only settings you understand.
 Credentials and secrets require a separate operator-reviewed migration; KubeAtlas
 does not copy them automatically.
+
+## Compatibility and migration
+
+This distribution is derived from Radar and retains compatibility identifiers
+where changing them could invalidate user data or ownership evidence. The source
+repository and Go import path remain `maomada/radar`; the public `RadarApp`
+export, Portal `radarUrl` field, Kubernetes annotation and label keys, and
+persisted schema fields remain unchanged. These are compatibility contracts, not
+active upstream services.
+
+The original Apache license, copyright notices, attribution and Git history are
+preserved; see [NOTICE](../NOTICE). KubeAtlas is independently maintained and
+has no official upstream affiliation. New installs use `~/.kubeatlas` and
+`KUBEATLAS_*`; old `~/.radar` credentials or settings are never loaded
+automatically. Review and migrate only selected settings manually.
 
 ## MCP exposure
 
@@ -52,7 +61,7 @@ To reach KubeAtlas through a VM, WSL, dev container, jump host, or another machi
 opt into a shared listener explicitly:
 
 ```bash
-radar --listen-address=0.0.0.0
+  kubeatlas --listen-address=0.0.0.0
 ```
 
 To bind only a specific local IP, use e.g. `--listen-address=192.168.1.5` or
@@ -63,7 +72,7 @@ not accepted. The existing `0.0.0.0` wildcard retains dual-stack behavior where
 supported by the OS; `::` selects an IPv6 wildcard.
 
 Browser launch and built-in AI investigations use the selected address.
-`radar diagnose` discovers the address through `~/.kubeatlas/mcp-port`. Use
+`kubeatlas diagnose` discovers the address through `~/.kubeatlas/mcp-port`. Use
 `--server http://<address>:<port>` to select an instance explicitly (with
 brackets around IPv6 addresses).
 External MCP clients should use that address in their configured URL too.
@@ -684,7 +693,7 @@ affected metric source, including kubelet volume stats. See
 | Local CLI / `kubectl kubeatlas` | Supply the flag on each launch that needs it. These overrides have no `config.json` key or environment-variable equivalent. |
 | Desktop | Automatic matching is supported; these overrides are not exposed in Desktop's flag parser or Settings. Use standalone CLI KubeAtlas if an explicit override is required. |
 | In-cluster OSS | The operator supplies `traffic.prometheusSingleCluster` or `traffic.prometheusClusterLabels` through Helm/GitOps, which applies them at process startup. |
-| upstream Cloud | The installation's operator configures the same agent Helm values; this is not a viewer preference or a Hub authentication setting. |
+| Legacy Cloud | Unavailable in KubeAtlas; `cloud.enabled=true` is rejected by the chart. |
 
 Changing the Kubernetes connection, logical metrics backend or headers clears
 an active override and resumes automatic matching. A new local port-forward to
@@ -764,11 +773,11 @@ The header has a namespace picker on the right. Pick a single namespace to focus
 
 The pick is a per-user view filter — it doesn't change anything for other users sharing the same KubeAtlas instance. Locally, your pick is remembered per kubeconfig context across restarts. In shared (auth-enabled) deployments the pick lives for the session.
 
-The pick narrows KubeAtlas's own views only, and only because the UI sends it with each request. An API read that names no namespace (`?namespace=` / `?namespaces=`) never inherits a remembered pick: it returns everything you're allowed to see, within the `--namespace-scope` pin when one is set. So the same user reading through another client — AI tools over MCP, upstream Cloud's fleet-wide views and background pollers, or `curl` — is never quietly narrowed to a namespace picked while browsing. A few UI surfaces deliberately cover all your namespaces regardless of the pick: the namespace list in the ⌘K palette, the **My permissions** dialog, and the standalone Cost view (which disables the picker). Home's Cost Insights card follows the pick.
+The pick narrows KubeAtlas's own views only, and only because the UI sends it with each request. An API read that names no namespace (`?namespace=` / `?namespaces=`) never inherits a remembered pick: it returns everything you're allowed to see, within the `--namespace-scope` pin when one is set. So the same user reading through another client — AI tools over MCP or `curl` — is never quietly narrowed to a namespace picked while browsing. A few UI surfaces deliberately cover all your namespaces regardless of the pick: the namespace list in the ⌘K palette, the **My permissions** dialog, and the standalone Cost view (which disables the picker). Home's Cost Insights card follows the pick.
 
 Until you make a pick, local sessions default to the namespace set on the kubeconfig context (kubectl parity — the same namespace `kubectl` would use, including one set via `kubectl config set-context` or `kubens`). An explicit `--namespace` / `--namespaces` flag outranks the kubeconfig value, and contexts without either default to **All namespaces**. Once you pick namespaces or explicitly choose **All namespaces**, that choice sticks for the context and the kubeconfig value is no longer consulted.
 
-When KubeAtlas starts with `--namespace-scope`, the picker controls the process-wide cache scope instead of just a view filter. Namespaced informer caches are pinned to one namespace while cluster-scoped resources remain cluster-wide. Local/no-auth sessions can switch the scoped namespace, which rebuilds the cache in place. Auth-enabled and upstream Cloud sessions lock the picker to the startup namespace so one user cannot reshape the shared backend cache for everyone.
+When KubeAtlas starts with `--namespace-scope`, the picker controls the process-wide cache scope instead of just a view filter. Namespaced informer caches are pinned to one namespace while cluster-scoped resources remain cluster-wide. Local/no-auth sessions can switch the scoped namespace, which rebuilds the cache in place. Auth-enabled sessions lock the picker to the startup namespace so one user cannot reshape the shared backend cache for everyone.
 
 **Single namespace only.** `--namespace-scope` pins the cache to exactly one namespace; scoping to several namespaces at once is not supported yet. Passing more than one (e.g. `--namespace=a,b`) fails at startup with a clear error rather than silently caching nothing. When scoped, the namespace picker becomes single-select, and a switch re-points the whole cache to the new namespace rather than adding to it.
 

@@ -12,7 +12,7 @@ class ReleaseManifestTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         images = self.root / "images"
         charts = self.root / "charts"
-        for name in ("radar", "kubeatlas-portal"):
+        for name in ("kubeatlas", "kubeatlas-portal"):
             directory = images / f"release-image-{name}"
             directory.mkdir(parents=True)
             (directory / f"{name}.oci.tar").write_bytes(name.encode())
@@ -27,7 +27,7 @@ class ReleaseManifestTests(unittest.TestCase):
             (charts / f"{name}-1.2.3.tgz").write_bytes(name.encode())
         hashes = [
             f"{manifest._sha256(charts / f'{name}-1.2.3.tgz')}  {name}-1.2.3.tgz"
-            for name in ("radar", "kubeatlas-portal")
+            for name in ("kubeatlas", "kubeatlas-portal")
         ]
         (charts / "SHA256SUMS").write_text("\n".join(hashes) + "\n")
 
@@ -44,8 +44,8 @@ class ReleaseManifestTests(unittest.TestCase):
             False,
         )
         self.assertEqual(result["publication"]["status"], "dry-run")
-        self.assertEqual(result["images"]["radar"]["buildDigest"], "sha256:" + "b" * 64)
-        self.assertEqual(result["charts"]["radar"]["reference"], "ghcr.io/maomada/charts/kubeatlas:1.2.3")
+        self.assertEqual(result["images"]["kubeatlas"]["buildDigest"], "sha256:" + "b" * 64)
+        self.assertEqual(result["charts"]["kubeatlas"]["reference"], "ghcr.io/maomada/charts/kubeatlas:1.2.3")
 
     def test_partial_publication_is_explicit_and_summary_warns(self):
         output = self.root / "manifest.json"
@@ -61,7 +61,7 @@ class ReleaseManifestTests(unittest.TestCase):
             True,
         )
         manifest.write_manifest(output, result)
-        manifest.record_target(output, "image", "radar", "published", "sha256:" + "c" * 64)
+        manifest.record_target(output, "image", "kubeatlas", "published", "sha256:" + "c" * 64)
         manifest.record_target(output, "image", "kubeatlas-portal", "push-failed-or-unknown")
         result = manifest.finalize_manifest(output, "failure", "success", "success")
         self.assertEqual(result["publication"]["status"], "partial-or-unknown")

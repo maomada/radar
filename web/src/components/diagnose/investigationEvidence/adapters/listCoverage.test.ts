@@ -78,13 +78,13 @@ describe("a list KubeAtlas read only in some of the namespaces it collects", () 
     // The rows carry KubeAtlas's own sentence: why gamma is missing, and who can
     // widen the read, not just which namespace was read.
     expect(inventory.latest.data.coverageNote).toBe(
-      'Partial: 1 Service from namespace "alpha". Unknown: namespace "gamma", because KubeAtlas is still loading services there. Other namespaces are unknown: KubeAtlas collects services only in namespaces "alpha", "gamma". Whoever runs KubeAtlas can widen its collection.',
+      'Partial: 1 Service from namespace "alpha". Unknown: namespace "gamma", because Radar is still loading services there. Other namespaces are unknown: Radar collects services only in namespaces "alpha", "gamma". Whoever runs Radar can widen its collection.',
     );
     expect(
       renderToStaticMarkup(
         createElement(InventoryBody, { data: inventory.latest.data }),
       ),
-    ).toContain("because KubeAtlas is still loading services there");
+    ).toContain("because Radar is still loading services there");
     expect(inventory.latest.data.namespacesRead).toEqual(["alpha"]);
     expect(projection.limitations).toEqual([]);
     const coverageLimited = investigationEvidenceCoverageLimited(
@@ -112,7 +112,7 @@ describe("a list KubeAtlas read only in some of the namespaces it collects", () 
     const projection = projectCase("partial and empty");
     expect(groupsOf(projection.groups, "inventory")).toEqual([]);
     expect(projection.limitations.map((item) => item.message)).toEqual([
-      'Partial: no services in namespace "alpha". Unknown: namespace "gamma", because KubeAtlas is still loading services there. Other namespaces are unknown: KubeAtlas collects services only in namespaces "alpha", "gamma". Whoever runs KubeAtlas can widen its collection.',
+      'Partial: no services in namespace "alpha". Unknown: namespace "gamma", because Radar is still loading services there. Other namespaces are unknown: Radar collects services only in namespaces "alpha", "gamma". Whoever runs Radar can widen its collection.',
     ]);
     expect(investigationEvidenceCoverageLimited(projection, "Service")).toBe(
       true,

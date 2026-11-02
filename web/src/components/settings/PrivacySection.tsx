@@ -1,6 +1,6 @@
 import { ShieldCheck } from 'lucide-react'
 
-export function PrivacySection({ active: _active }: { active: boolean }) {
+export function PrivacySection() {
   return (
     <section className="space-y-3 text-sm text-theme-text-secondary">
       <h3 className="flex items-center gap-2 font-medium text-theme-text-primary">

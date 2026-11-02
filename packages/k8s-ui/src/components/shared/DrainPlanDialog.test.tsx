@@ -94,7 +94,7 @@ describe('DrainPlanContent', () => {
       planUpgrade: { feature: 'Drain plans', minimumVersion: 'v1.14.0', currentVersion: 'v1.13.1' },
     })
     expect(html).toContain('驱逐计划')
-    expect(html).toContain('需要 Radar v1.14 或更高版本。')
+    expect(html).toContain('需要 KubeAtlas v1.14 或更高版本。')
     expect(html).not.toContain('正在计算计划')
   })
 

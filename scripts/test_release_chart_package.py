@@ -23,7 +23,7 @@ class ReleaseChartPackageTests(unittest.TestCase):
             )
             self.assertEqual(
                 [archive.name for archive in archives],
-                ["radar-0.1.0-test.1.tgz", "kubeatlas-portal-0.1.0-test.1.tgz"],
+                ["kubeatlas-0.1.0-test.1.tgz", "kubeatlas-portal-0.1.0-test.1.tgz"],
             )
             for name, repository in package.CHARTS.items():
                 chart = output / ".staged" / name

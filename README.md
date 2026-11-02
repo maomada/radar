@@ -3,9 +3,10 @@
 **The missing open-source Kubernetes UI.**
 <br>Single binary. No account required. Apache-2.0 licensed.
 
-This repository is independently maintained by maomada and continues the
-KubeAtlas project originally created by Skyhook. See [NOTICE](NOTICE) for
-preserved attribution and [LICENSE](LICENSE) for the Apache-2.0 terms.
+This is an independently maintained KubeAtlas distribution derived from Radar.
+See [NOTICE](NOTICE) for origin attribution and [LICENSE](LICENSE) for the
+Apache-2.0 terms. There is no official upstream affiliation, and KubeAtlas is
+not yet published.
 
 [Source](https://github.com/maomada/radar) · [Documentation](docs/) ·
 [Issues](https://github.com/maomada/radar/issues) ·
@@ -31,10 +32,6 @@ Topology, resources, Helm, GitOps, traffic, audit, upgrade impact, and MCP conte
 - [Development](#development) · [Contributing](#contributing)
 
 </details>
-
-<p align="center">
-  <img src="docs/screenshot.png" alt="KubeAtlas Screenshot" width="800">
-</p>
 
 **Build from this source:**
 ```bash
@@ -105,7 +102,7 @@ The table below covers common startup flags. See the [Configuration Guide](docs/
 | `--namespace-scope` | `false` | Pin namespaced informer caches to a **single** namespace for large clusters (scoping to multiple namespaces is not supported yet). Requires `--namespace`, a kubeconfig context namespace, or a saved local single-namespace pick. Local mode can rebuild the cache when switching namespaces; auth/cloud mode locks the shared cache to the startup namespace. |
 | `--port` | `9280` | Server port |
 | `--listen-address` | `127.0.0.1` | HTTP listen IP address (IPv4 or IPv6), or `localhost`. Bind a specific local IP or use `0.0.0.0` for all interfaces. Non-loopback access needs authentication and network controls. |
-| `--base-path` | | Serve KubeAtlas under a URL prefix such as `/radar`. Use when an ingress forwards a subpath without stripping it — everything, including `/api/health`, moves under the prefix. Not supported with `--cloud-url`. |
+| `--base-path` | | Serve KubeAtlas under a URL prefix such as `/radar`. Use when an ingress forwards a subpath without stripping it — everything, including `/api/health`, moves under the prefix. Legacy Cloud tunnel flags are unsupported. |
 | `--allowed-hosts` | | Comma-separated hostnames, besides `localhost`, IP addresses and Kubernetes Service names, that an unauthenticated non-loopback listener answers, e.g. `radar.internal`. Other hostnames are refused so DNS rebinding cannot reach KubeAtlas. Exact names, or `*.example.com` for names under a domain (not the domain itself); `*` turns the check off. Env: `KUBEATLAS_ALLOWED_HOSTS`. See [HTTP Listener](docs/configuration.md#http-listener) |
 | `--trusted-origins` | | Comma-separated origins, besides the address KubeAtlas is opened at, that may use KubeAtlas's API, including changes and terminals, e.g. `http://radar.internal`. Set this when a proxy in front of KubeAtlas rewrites the `Host` header and changes fail with "KubeAtlas refused this request". Exact origins, no wildcards. Does not apply to `/mcp` (see `KUBEATLAS_MCP_TRUSTED_ORIGINS`). Env: `KUBEATLAS_TRUSTED_ORIGINS` |
 | `--no-browser` | `false` | Don't auto-open browser |

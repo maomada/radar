@@ -67,7 +67,7 @@ function clusterVersion(requirement: RadarUpgradeRequirement): string | undefine
 
 /** Headline for a full-page state: "Capacity needs a newer Radar on this cluster". */
 export function radarUpgradeHeadline(feature: string): string {
-  return `此集群需要更新版本的 Radar 才能使用${featureLabel(feature)}`
+  return `此集群需要更新版本的 KubeAtlas 才能使用${featureLabel(feature)}`
 }
 
 /** Detail under that headline: "Available from Radar v1.9. This cluster runs v1.7.2." */
@@ -75,7 +75,7 @@ export function radarUpgradeDetail(requirement: RadarUpgradeRequirement): string
   const { since, latest } = target(requirement)
   const current = clusterVersion(requirement)
   return [
-    since ? `Radar ${since} 起提供此功能。` : latest ? `最新版本 Radar（${latest}）已提供此功能。` : '',
+    since ? `KubeAtlas ${since} 起提供此功能。` : latest ? `最新版本 KubeAtlas（${latest}）已提供此功能。` : '',
     current ? `此集群当前运行 ${current}。` : '',
   ].filter(Boolean).join('')
 }
@@ -85,10 +85,10 @@ function radarUpgradeNeed(requirement: RadarUpgradeRequirement): string {
   const { since, latest } = target(requirement)
   const current = clusterVersion(requirement)
   const need = since
-    ? `需要 Radar ${since} 或更高版本。`
+    ? `需要 KubeAtlas ${since} 或更高版本。`
     : latest
-      ? `需要最新版本的 Radar（${latest}）。`
-      : '需要更新版本的 Radar。'
+      ? `需要最新版本的 KubeAtlas（${latest}）。`
+      : '需要更新版本的 KubeAtlas。'
   return current ? `${need}此集群当前运行 ${current}。` : need
 }
 
@@ -99,7 +99,7 @@ export function RadarUpgradeAction({ requirement }: { requirement: RadarUpgradeR
   if (onRequestUpgrade) {
     return (
       <button type="button" className={className} onClick={() => onRequestUpgrade(requirement)}>
-        升级 Radar
+        升级 KubeAtlas
       </button>
     )
   }

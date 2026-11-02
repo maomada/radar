@@ -172,20 +172,17 @@ func main() {
 	authOIDCCACert := flag.String("auth-oidc-ca-cert", "", "Path to CA certificate file for OIDC provider TLS verification")
 	authOIDCBackchannelLogout := flag.Bool("auth-oidc-backchannel-logout", false, "Enable OIDC Back-Channel Logout endpoint (single-replica only)")
 	authOIDCEnablePKCE := flag.Bool("auth-oidc-enable-pkce", false, "Enable PKCE (S256) for the OIDC authorization-code flow (opt-in)")
-	// Radar Hub flags — enable connected mode when --cloud-url is set.
-	// Local-binary behavior is unchanged when these flags are empty. Each
-	// flag falls back to an env var so Kubernetes deployments can source
-	// the token from a Secret without exposing it in `ps` output.
+	// Legacy Cloud flags remain parseable for clear rejection of old configs.
 	cloudURL := flag.String("cloud-url", os.Getenv("KUBEATLAS_CLOUD_URL"), "Legacy upstream Cloud option; KubeAtlas rejects Cloud configuration. Env: KUBEATLAS_CLOUD_URL")
-	cloudToken := flag.String("cloud-token", os.Getenv("KUBEATLAS_CLOUD_TOKEN"), "Connection token from the KubeAtlas install flow (rhc_<random>). Env: KUBEATLAS_CLOUD_TOKEN")
-	cloudClusterName := flag.String("cluster-name", os.Getenv("KUBEATLAS_CLOUD_CLUSTER_NAME"), "Human-readable cluster name shown in KubeAtlas (required with --cloud-url). With an enrollment key it is the exact name, and KubeAtlas picks one when it is empty. Env: KUBEATLAS_CLOUD_CLUSTER_NAME")
-	cloudHubURL := flag.String("cloud-hub-url", os.Getenv("KUBEATLAS_CLOUD_HUB_URL"), "Radar Hub https:// address to join with an enrollment key. Replaces --cloud-url when --cloud-enrollment-key-file is set. Env: KUBEATLAS_CLOUD_HUB_URL")
-	cloudEnrollmentKeyFile := flag.String("cloud-enrollment-key-file", os.Getenv("KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE"), "File holding a Radar Hub enrollment key (rhe_...). KubeAtlas joins the Hub with it on every start. Ignored when --cloud-token is set. Env: KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE")
-	cloudCAFile := flag.String("cloud-ca-file", os.Getenv("KUBEATLAS_CLOUD_CA_FILE"), "With an enrollment key: PEM file of extra CA certificates to trust for the Radar Hub, read once at startup. Env: KUBEATLAS_CLOUD_CA_FILE")
-	clusterNamePrefix := flag.String("cluster-name-prefix", os.Getenv("KUBEATLAS_CLUSTER_NAME_PREFIX"), "With an enrollment key: text put before the cluster name KubeAtlas picks. Ignored when --cluster-name is set. Env: KUBEATLAS_CLUSTER_NAME_PREFIX")
-	clusterNameSuffix := flag.String("cluster-name-suffix", os.Getenv("KUBEATLAS_CLUSTER_NAME_SUFFIX"), "With an enrollment key: text put after the cluster name KubeAtlas picks. Ignored when --cluster-name is set. Env: KUBEATLAS_CLUSTER_NAME_SUFFIX")
-	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("KUBEATLAS_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Skip TLS verification on the Radar Hub tunnel — for trials against a upstream Cloud Self-Managed control plane with a self-signed cert (insecure: encrypted but not authenticated). Env: KUBEATLAS_CLOUD_INSECURE_SKIP_VERIFY")
-	k8sCredentials := flag.String("auth-k8s-credentials", os.Getenv("KUBEATLAS_AUTH_K8S_CREDENTIALS"), "How KubeAtlas authenticates the Kubernetes calls it makes for a user: impersonate (default; KubeAtlas's ServiceAccount impersonates the user) or user-token (the user's own token, received with each request through the upstream Cloud tunnel; no impersonation). user-token requires KUBEATLAS_CLOUD_MODE and a verified tunnel. Env: KUBEATLAS_AUTH_K8S_CREDENTIALS")
+	cloudToken := flag.String("cloud-token", os.Getenv("KUBEATLAS_CLOUD_TOKEN"), "Legacy Cloud connection token (unsupported). Env: KUBEATLAS_CLOUD_TOKEN")
+	cloudClusterName := flag.String("cluster-name", os.Getenv("KUBEATLAS_CLOUD_CLUSTER_NAME"), "Legacy Cloud cluster name (unsupported). Env: KUBEATLAS_CLOUD_CLUSTER_NAME")
+	cloudHubURL := flag.String("cloud-hub-url", os.Getenv("KUBEATLAS_CLOUD_HUB_URL"), "Legacy Hub URL (unsupported). Env: KUBEATLAS_CLOUD_HUB_URL")
+	cloudEnrollmentKeyFile := flag.String("cloud-enrollment-key-file", os.Getenv("KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE"), "Legacy enrollment-key file (unsupported). Env: KUBEATLAS_CLOUD_ENROLLMENT_KEY_FILE")
+	cloudCAFile := flag.String("cloud-ca-file", os.Getenv("KUBEATLAS_CLOUD_CA_FILE"), "Legacy Cloud CA file (unsupported). Env: KUBEATLAS_CLOUD_CA_FILE")
+	clusterNamePrefix := flag.String("cluster-name-prefix", os.Getenv("KUBEATLAS_CLUSTER_NAME_PREFIX"), "Legacy Cloud cluster-name prefix (unsupported). Env: KUBEATLAS_CLUSTER_NAME_PREFIX")
+	clusterNameSuffix := flag.String("cluster-name-suffix", os.Getenv("KUBEATLAS_CLUSTER_NAME_SUFFIX"), "Legacy Cloud cluster-name suffix (unsupported). Env: KUBEATLAS_CLUSTER_NAME_SUFFIX")
+	cloudInsecureSkipVerify := flag.Bool("cloud-insecure-skip-verify", os.Getenv("KUBEATLAS_CLOUD_INSECURE_SKIP_VERIFY") == "true", "Legacy Cloud TLS option (unsupported). Env: KUBEATLAS_CLOUD_INSECURE_SKIP_VERIFY")
+	k8sCredentials := flag.String("auth-k8s-credentials", os.Getenv("KUBEATLAS_AUTH_K8S_CREDENTIALS"), "Kubernetes request credentials: impersonate (default) or user-token (legacy Cloud-only; unsupported by KubeAtlas). Env: KUBEATLAS_AUTH_K8S_CREDENTIALS")
 	// Tunable deadlines for slow / high-latency / SSH-tunneled clusters.
 	// Defaults preserve the original behavior. Each flag falls back to an
 	// environment variable so Kubernetes deployments can source values from
@@ -280,7 +277,7 @@ func main() {
 	}
 	pkgauth.SetCredentialMode(credentialMode)
 	if *showVersion {
-		fmt.Printf("radar %s\n", version)
+		fmt.Printf("kubeatlas %s\n", version)
 		os.Exit(0)
 	}
 

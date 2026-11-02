@@ -9,7 +9,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --allowed-hosts=radar.tools
+          content: --allowed-hosts=radar-kubeatlas.tools
 
   - it: adds ingress and HTTPRoute hostnames to listed hosts once each
     set:
@@ -31,7 +31,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --allowed-hosts=radar.tools,radar.internal,radar.example.com,radar.corp.example,radar.gw.example
+          content: --allowed-hosts=radar-kubeatlas.tools,radar.internal,radar.example.com,radar.corp.example,radar.gw.example
 
   - it: ignores hostnames of disabled routes
     set:
@@ -42,7 +42,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --allowed-hosts=radar.tools
+          content: --allowed-hosts=radar-kubeatlas.tools
 
   - it: keeps wildcard route hosts for the server to match
     set:
@@ -57,7 +57,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --allowed-hosts=radar.tools,*.example.com,*.gw.example
+          content: --allowed-hosts=radar-kubeatlas.tools,*.example.com,*.gw.example
 
   - it: passes the wildcard through
     set:
@@ -65,7 +65,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --allowed-hosts=radar.tools,*
+          content: --allowed-hosts=radar-kubeatlas.tools,*
 
   - it: rejects a scheme or port at install time
     set:
@@ -81,7 +81,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --allowed-hosts=radar.tools,bücher.example
+          content: --allowed-hosts=radar-kubeatlas.tools,bücher.example
 
   - it: rejects a leading-dot or port entry at install time
     set:

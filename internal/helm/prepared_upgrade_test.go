@@ -145,13 +145,13 @@ func TestSummarizeCloudUpgradeValuesUsesEffectiveChartDefaults(t *testing.T) {
 
 func TestValidateOfficialRadarChart(t *testing.T) {
 	official := &chart.Chart{Metadata: &chart.Metadata{
-		Name: "radar", Version: "1.7.0", Sources: []string{"https://github.com/maomada/radar"},
+		Name: "kubeatlas", Version: "1.7.0", Sources: []string{"https://github.com/maomada/radar"},
 	}}
 	if err := validateOfficialRadarChart("radar", "radar", official); err != nil {
 		t.Fatal(err)
 	}
 	lookalike := &chart.Chart{Metadata: &chart.Metadata{
-		Name: "radar", Version: "1.7.0", Sources: []string{"https://example.com/lookalike"},
+		Name: "kubeatlas", Version: "1.7.0", Sources: []string{"https://example.com/lookalike"},
 	}}
 	err := validateOfficialRadarChart("radar", "radar", lookalike)
 	if _, ok := err.(*NotOfficialRadarReleaseError); !ok {
@@ -251,10 +251,10 @@ func TestValidatePreparedCloudMutationSurfaceRejectsUnpreflightedObjects(t *test
 
 func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *testing.T) {
 	cfg := memoryActionConfig(t)
-	currentChart := loadUpstreamRadarTestChart(t)
+	currentChart := loadKubeAtlasTestChart(t)
 	currentChart.Metadata.Version = "1.6.0"
 	currentChart.Metadata.AppVersion = "1.6.2"
-	currentReq := &InstallRequest{ReleaseName: "radar", Namespace: "radar-system", ChartName: "radar", Version: "1.6.0", Repository: "unused"}
+	currentReq := &InstallRequest{ReleaseName: "radar", Namespace: "radar-system", ChartName: "kubeatlas", Version: "1.6.0", Repository: "unused"}
 	current, err := runServerDryRun(context.Background(), cfg, currentReq, currentChart)
 	if err != nil {
 		t.Fatalf("render current release: %v", err)
@@ -265,7 +265,7 @@ func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *t
 		t.Fatal(err)
 	}
 
-	request := InstallRequest{ReleaseName: "radar", Namespace: "flux-system", ChartName: "radar", Repository: "unused"}
+	request := InstallRequest{ReleaseName: "radar", Namespace: "flux-system", ChartName: "kubeatlas", Repository: "unused"}
 	_, err = (&Client{}).prepareCloudUpgradeWith(context.Background(), cfg, request, "1.5.4")
 	if err == nil || !strings.Contains(err.Error(), `history in namespace "flux-system" but runs in "radar-system"`) {
 		t.Fatalf("split-namespace release was not refused: %v", err)
@@ -278,7 +278,7 @@ func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *t
 	if err := unrecorded.Releases.Create(&blank); err != nil {
 		t.Fatal(err)
 	}
-	targetChart := loadUpstreamRadarTestChart(t)
+	targetChart := loadKubeAtlasTestChart(t)
 	targetChart.Metadata.Version = "1.7.0"
 	targetChart.Metadata.AppVersion = "1.7.2"
 	server := preparedChartServer(t, targetChart)
@@ -292,11 +292,11 @@ func TestPrepareCloudUpgradeRefusesReleaseRunningOutsideItsStorageNamespace(t *t
 
 func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T) {
 	cfg := memoryActionConfig(t)
-	currentChart := loadUpstreamRadarTestChart(t)
+	currentChart := loadKubeAtlasTestChart(t)
 	currentChart.Metadata.Version = "1.6.0"
 	currentChart.Metadata.AppVersion = "1.6.2"
 	currentReq := &InstallRequest{
-		ReleaseName: "radar", Namespace: "default", ChartName: "radar",
+		ReleaseName: "radar", Namespace: "default", ChartName: "kubeatlas",
 		Version: "1.6.0", Repository: "unused",
 		Values: map[string]any{"image": map[string]any{"tag": "1.5.9-pinned"}},
 	}
@@ -311,7 +311,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 		t.Fatal(err)
 	}
 
-	targetChart := loadUpstreamRadarTestChart(t)
+	targetChart := loadKubeAtlasTestChart(t)
 	// The on-disk chart carries an unreleased placeholder, which the stable-version
 	// eligibility check rightly rejects — pin a stable version like a real release.
 	targetChart.Metadata.Version = "1.7.0"
@@ -319,7 +319,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 	server := preparedChartServer(t, targetChart)
 	defer server.Close()
 	request := InstallRequest{
-		ReleaseName: "radar", Namespace: "default", ChartName: "radar", Repository: server.URL,
+		ReleaseName: "radar", Namespace: "default", ChartName: "kubeatlas", Repository: server.URL,
 		Values: map[string]any{
 			"image": map[string]any{"repository": "ghcr.io/maomada/kubeatlas"},
 			"cloud": map[string]any{
@@ -348,7 +348,7 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 	if strings.Contains(prepared.TargetManifest(), "1.5.9-pinned") {
 		t.Fatal("target manifest retained the old image.tag pin")
 	}
-	if prepared.CurrentDeployment().Name != "radar" || prepared.Deployment().Name != "radar" {
+	if prepared.CurrentDeployment().Name != "radar-kubeatlas" || prepared.Deployment().Name != "radar-kubeatlas" {
 		t.Fatalf("workloads = current %+v, target %+v", prepared.CurrentDeployment(), prepared.Deployment())
 	}
 
@@ -378,14 +378,14 @@ func TestPrepareCloudUpgradePinsReleaseAndUpgradesToChartAppVersion(t *testing.T
 }
 
 func TestResolvePreparedChartSummaryUsesVerifiedArchive(t *testing.T) {
-	loaded := loadUpstreamRadarTestChart(t)
+	loaded := loadKubeAtlasTestChart(t)
 	loaded.Metadata.Version = "1.7.0"
 	loaded.Metadata.AppVersion = "1.7.2"
 	server := preparedChartServer(t, loaded)
 	defer server.Close()
 	client := &Client{}
 	summary, err := client.ResolvePreparedChartSummary(context.Background(), &InstallRequest{
-		ReleaseName: "radar", Namespace: "radar", ChartName: "radar", Repository: server.URL,
+		ReleaseName: "radar", Namespace: "radar", ChartName: "kubeatlas", Repository: server.URL,
 	}, "1.5.4")
 	if err != nil {
 		t.Fatal(err)
@@ -395,15 +395,23 @@ func TestResolvePreparedChartSummaryUsesVerifiedArchive(t *testing.T) {
 	}
 }
 
-func loadUpstreamRadarTestChart(t *testing.T) *chart.Chart {
+func loadKubeAtlasTestChart(t *testing.T) *chart.Chart {
 	t.Helper()
 	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Cloud upgrade validation intentionally follows the upstream chart feed,
-	// not this fork's owned chart metadata.
 	loaded.Metadata.Sources = []string{"https://github.com/maomada/radar"}
+	for _, template := range loaded.Templates {
+		if strings.HasSuffix(template.Name, "templates/deployment.yaml") {
+			const guard = "{{- if .Values.cloud.enabled }}\n{{- fail \"cloud.enabled is unavailable in KubeAtlas\" }}\n{{- end }}\n"
+			if !strings.Contains(string(template.Data), guard) {
+				t.Fatal("Cloud guard not found in KubeAtlas test chart")
+			}
+			template.Data = []byte(strings.Replace(string(template.Data), guard, "", 1))
+			break
+		}
+	}
 	return loaded
 }
 
@@ -420,20 +428,20 @@ func preparedChartServer(t *testing.T, loaded *chart.Chart) *httptest.Server {
 	digest := sha256.Sum256(archive)
 	index := fmt.Sprintf(`apiVersion: v1
 entries:
-  radar:
+  %s:
   - apiVersion: v2
-    name: radar
+    name: %s
     version: %s
     appVersion: %q
     sources: [https://github.com/maomada/radar]
-    urls: [radar-%s.tgz]
+    urls: [%s-%s.tgz]
     digest: %s
-`, loaded.Metadata.Version, loaded.Metadata.AppVersion, loaded.Metadata.Version, hex.EncodeToString(digest[:]))
+`, loaded.Metadata.Name, loaded.Metadata.Name, loaded.Metadata.Version, loaded.Metadata.AppVersion, loaded.Metadata.Name, loaded.Metadata.Version, hex.EncodeToString(digest[:]))
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/index.yaml":
 			_, _ = w.Write([]byte(index))
-		case "/radar-" + loaded.Metadata.Version + ".tgz":
+		case "/" + loaded.Metadata.Name + "-" + loaded.Metadata.Version + ".tgz":
 			_, _ = w.Write(archive)
 		default:
 			http.NotFound(w, r)

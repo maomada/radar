@@ -58,13 +58,13 @@ import { useEventSource } from './hooks/useEventSource'
 import { debugNamespaceLog, refetchOnResourceEvents, resourceEventKey, useNamespaces, useNamespaceScope, useSetActiveNamespace, useSwitchContext, useAuthMe, useAudit, useClusterInfo } from './api/client'
 import { buildAuditSeverityMap } from './utils/auditBadges'
 import { isInNamespaceScope, scopeNodesToNamespaces } from './utils/topology-namespace'
-import { routePath, apiUrl, getApiBase, getAuthHeaders, getCredentialsMode, stripBasename } from './api/config'
+import { routePath, getApiBase, stripBasename } from './api/config'
 import { KeyboardShortcutProvider, useRegisterShortcut, useRegisterShortcuts, useSuppressBaseShortcuts } from './hooks/useKeyboardShortcuts'
 import { useAnimatedUnmount } from './hooks/useAnimatedUnmount'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import type { ClusterLoadState } from './types/clusterLoadState'
 import { useClusterLoadState } from './hooks/useClusterLoadState'
-import { Network, Sun, Moon, Star, Bug, SquareTerminal, HelpCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Network, Sun, Moon, Bug, SquareTerminal, HelpCircle, Loader2, RefreshCw } from 'lucide-react'
 import { useTheme } from './context/ThemeContext'
 import { Tooltip } from './components/ui/Tooltip'
 import { LargeClusterNamespacePicker } from './components/shared/LargeClusterNamespacePicker'
@@ -72,7 +72,7 @@ import { SettingsDialog, type SettingsSectionId } from './components/settings/Se
 import type { APIResource, TopologyNode, GroupingMode, MainView, SelectedResource, SelectedHelmRelease, NodeKind, TopologyMode, Topology, K8sEvent } from './types'
 import { createViewMemory } from './utils/viewMemory'
 import { createKindFilterStore } from './utils/kindFilterStore'
-import { kindToPluralWithGroup, pluralToKind, openExternal, apiVersionToGroup, relatedResourcePath, searchHitToSelectedResource, withCrossViewParams, writeViewParams, CROSS_VIEW_PARAMS, namespacesFromSearch } from './utils/navigation'
+import { kindToPluralWithGroup, pluralToKind, apiVersionToGroup, relatedResourcePath, searchHitToSelectedResource, withCrossViewParams, writeViewParams, CROSS_VIEW_PARAMS, namespacesFromSearch } from './utils/navigation'
 import { findSelectedTopologyNode } from './utils/topology-selection'
 import { type OmnibarHandle } from './components/ui/Omnibar'
 import { RadarOmnibar } from './components/ui/RadarOmnibar'
@@ -2628,150 +2628,6 @@ function App({ manageDocumentTitle = false, documentTitleSuffix, onClusterLoadSt
         </RadarUpgradeProvider>
       </CapabilitiesProvider>
     </ConnectionProvider>
-  )
-}
-
-// GitHub star button with live star count + programmatic starring via gh CLI
-// Shows a callout popover when the backend says shouldPrompt is true (synced with CLI state)
-function GitHubStarButton() {
-  const [starCount, setStarCount] = useState<number | null>(null)
-  const [starred, setStarred] = useState(false)
-  const [ghAvailable, setGhAvailable] = useState(false)
-  const [showCallout, setShowCallout] = useState(false)
-  const calloutRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLAnchorElement>(null)
-
-  useEffect(() => {
-    // Fetch star count from GitHub public API
-    fetch('https://api.github.com/repos/maomada/radar')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data && typeof data.stargazers_count === 'number') setStarCount(data.stargazers_count) })
-      .catch(() => {})
-
-    // Check if user already starred (via backend/gh CLI) and whether to show prompt
-    fetch(apiUrl('/github/starred'), { credentials: getCredentialsMode(), headers: getAuthHeaders() })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) {
-          setStarred(data.starred)
-          setGhAvailable(data.ghAvailable)
-          if (data.shouldPrompt && !data.starred) {
-            // Delay the callout, then re-check in case CLI prompted during the wait
-            setTimeout(() => {
-              fetch(apiUrl('/github/starred'), { credentials: getCredentialsMode(), headers: getAuthHeaders() })
-                .then(res => res.ok ? res.json() : null)
-                .then(fresh => {
-                  if (fresh?.shouldPrompt && !fresh.starred) {
-                    setShowCallout(true)
-                  }
-                })
-                .catch(() => {})
-            }, 3000)
-          }
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const handleDismiss = useCallback(() => {
-    setShowCallout(false)
-    fetch(apiUrl('/github/dismiss'), { method: 'POST', credentials: getCredentialsMode(), headers: getAuthHeaders() }).catch(() => {})
-  }, [])
-
-  // Close callout when clicking outside
-  useEffect(() => {
-    if (!showCallout) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        calloutRef.current && !calloutRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
-      ) {
-        handleDismiss()
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showCallout, handleDismiss])
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (starred) return // Already starred, just let the link open GitHub
-
-    if (ghAvailable) {
-      // Star via backend gh CLI
-      e.preventDefault()
-      fetch(apiUrl('/github/star'), { method: 'POST', credentials: getCredentialsMode(), headers: getAuthHeaders() })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data?.starred) {
-            setStarred(true)
-            setShowCallout(false)
-            setStarCount(prev => prev !== null ? prev + 1 : prev)
-          }
-        })
-        .catch(() => {
-          // Fallback: open GitHub in browser
-          openExternal('https://github.com/maomada/radar')
-        })
-    } else {
-      // No gh CLI — link opens GitHub; dismiss the callout
-      setShowCallout(false)
-      fetch(apiUrl('/github/dismiss'), { method: 'POST', credentials: getCredentialsMode(), headers: getAuthHeaders() }).catch(() => {})
-    }
-  }
-
-  return (
-    <div className="relative">
-      <a
-        ref={buttonRef}
-        href="https://github.com/maomada/radar"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={handleClick}
-        aria-label={starred ? '在 GitHub 上打开 KubeAtlas' : '在 GitHub 上为 KubeAtlas 加星'}
-        className="flex items-center gap-1.5 h-7 px-2 rounded-md transition-colors bg-theme-elevated hover:bg-theme-hover text-theme-text-secondary hover:text-theme-text-primary"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        <Star className={`w-3 h-3 hidden xl:block ${starred ? 'text-yellow-500 fill-current' : ''}`} />
-        {starCount !== null && (
-          <>
-            <span className="w-px h-3 bg-theme-border hidden xl:block" />
-            <span className="text-xs tabular-nums hidden xl:inline">{starCount.toLocaleString()}</span>
-          </>
-        )}
-      </a>
-
-      {/* Callout popover — synced with CLI star.json state */}
-      {showCallout && (
-        <div
-          ref={calloutRef}
-          className="absolute top-full right-0 mt-2 w-64 p-3 bg-theme-surface border border-theme-border rounded-lg shadow-lg z-50"
-        >
-          {/* Arrow */}
-          <div className="absolute -top-1.5 right-4 w-3 h-3 bg-theme-surface border-l border-t border-theme-border rotate-45" />
-          <p className="text-sm text-theme-text-primary mb-2">
-            Enjoying KubeAtlas? Show your support with a star!
-          </p>
-          <div className="flex items-center gap-2">
-            <a
-              href="https://github.com/maomada/radar"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 rounded-md transition-colors"
-            >
-              <Star className="w-3.5 h-3.5" />
-              Star on GitHub
-            </a>
-            <button
-              onClick={handleDismiss}
-              className="px-2 py-1.5 text-xs text-theme-text-tertiary hover:text-theme-text-secondary transition-colors"
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
   )
 }
 

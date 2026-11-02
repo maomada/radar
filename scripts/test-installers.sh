@@ -47,7 +47,7 @@ prefix='https://github.com/maomada/radar/releases/download/v0.0.0/'
 case "$url" in
   "$latest")
     case "${MOCK_MODE:-owned}" in
-      upstream) printf '%s' 'https://github.com/maomada/radar/releases/tag/v0.0.0' ;;
+      upstream) printf '%s' 'https://github.com/skyhook-io/radar/releases/tag/v0.0.0' ;;
       unknown) printf '%s' 'https://example.com/releases/tag/v0.0.0' ;;
       *) printf '%s' "$tag" ;;
     esac
@@ -93,6 +93,14 @@ run_install "$custom_dir" >/dev/null
 assert_file "$custom_dir/kubeatlas"
 [ -L "$custom_dir/kubectl-kubeatlas" ] || fail "custom fixture did not create kubectl plugin alias"
 "$custom_dir/kubectl-kubeatlas" --version >/dev/null
+
+protected_dir="$FIXTURE_DIR/protected/bin"
+mkdir -p "$protected_dir"
+printf '%s\n' 'pre-existing unrelated executable' > "$protected_dir/kubectl-kubeatlas"
+run_install "$protected_dir" >/dev/null
+assert_file "$protected_dir/kubeatlas"
+[ ! -L "$protected_dir/kubectl-kubeatlas" ] || fail "existing plugin path was replaced by a symlink"
+[ "$(cat "$protected_dir/kubectl-kubeatlas")" = 'pre-existing unrelated executable' ] || fail "existing plugin path was overwritten"
 
 for checksum_case in mismatch missing; do
   rejected_dir="$FIXTURE_DIR/$checksum_case"

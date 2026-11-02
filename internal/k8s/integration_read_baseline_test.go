@@ -33,7 +33,7 @@ type integrationReadEntry struct {
 
 func integrationReadBaseline(t *testing.T) []integrationReadEntry {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "deploy", "helm", "radar", "files", "integration-read-baseline.yaml"))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "deploy", "helm", "kubeatlas", "files", "integration-read-baseline.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,10 +128,18 @@ type integrationRBACDocument struct {
 
 func renderIntegrationReadChart(t *testing.T, overrides string, removeMap, removeKey bool) (map[string]string, []integrationRBACDocument) {
 	t.Helper()
-	chart, err := loader.Load(filepath.Join("..", "..", "deploy", "helm", "radar"))
+	chart, err := loader.Load(filepath.Join("..", "..", "deploy", "helm", "kubeatlas"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	templates := chart.Templates[:0]
+	for _, template := range chart.Templates {
+		name := strings.TrimPrefix(template.Name, chart.Metadata.Name+"/")
+		if name != "templates/deployment.yaml" {
+			templates = append(templates, template)
+		}
+	}
+	chart.Templates = templates
 	if removeMap || removeKey {
 		rbac := chart.Values["cloud"].(map[string]interface{})["defaultRbac"].(map[string]interface{})
 		if removeMap {
@@ -152,7 +160,7 @@ func renderIntegrationReadChart(t *testing.T, overrides string, removeMap, remov
 	if err != nil {
 		t.Fatal(err)
 	}
-	decoder := yamlutil.NewYAMLOrJSONDecoder(strings.NewReader(rendered["radar/templates/cloud-rbac-integration-read.yaml"]), 4096)
+	decoder := yamlutil.NewYAMLOrJSONDecoder(strings.NewReader(rendered["kubeatlas/templates/cloud-rbac-integration-read.yaml"]), 4096)
 	var docs []integrationRBACDocument
 	for {
 		var doc integrationRBACDocument
@@ -214,7 +222,7 @@ func TestIntegrationReadBindings(t *testing.T) {
 					continue
 				}
 				wantDocs += 1 + len(tiers)
-				roleName := "radar-integration-read-" + scope
+				roleName := "radar-kubeatlas-integration-read-" + scope
 				foundRole := false
 				for _, doc := range docs {
 					if doc.Kind == "ClusterRole" && doc.Name == roleName {
@@ -227,7 +235,7 @@ func TestIntegrationReadBindings(t *testing.T) {
 				for _, tier := range tiers {
 					found := false
 					for _, doc := range docs {
-						if doc.Kind != "ClusterRoleBinding" || doc.Name != "radar-cloud-"+tier+"-integration-read-"+scope {
+						if doc.Kind != "ClusterRoleBinding" || doc.Name != "radar-kubeatlas-cloud-"+tier+"-integration-read-"+scope {
 							continue
 						}
 						found = true
@@ -282,7 +290,7 @@ func assertIntegrationReadRules(t *testing.T, docs []integrationRBACDocument, en
 			for _, resource := range rule.Resources {
 				key := rule.APIGroups[0] + "/" + resource
 				scope, ok := want[key]
-				if !ok || doc.Name != "radar-integration-read-"+scope {
+				if !ok || doc.Name != "radar-kubeatlas-integration-read-"+scope {
 					t.Errorf("unapproved, duplicate or wrong-scope grant %s in %s", key, doc.Name)
 				}
 				delete(want, key)
@@ -325,7 +333,7 @@ func TestIntegrationReadRulesAndCollectionGates(t *testing.T) {
 	for _, key := range []string{"monitoring.coreos.com/prometheusrules", "cilium.io/ciliumnetworkpolicies"} {
 		found := false
 		for _, doc := range clusterOff {
-			if doc.Name != "radar-integration-read-namespaced" {
+			if doc.Name != "radar-kubeatlas-integration-read-namespaced" {
 				continue
 			}
 			for _, rule := range doc.Rules {
@@ -344,14 +352,14 @@ func TestIntegrationReadDoesNotChangeExistingManifests(t *testing.T) {
 	on, _ := renderIntegrationReadChart(t, "rbac.helm=true", false, false)
 	off, _ := renderIntegrationReadChart(t, "rbac.helm=true,cloud.defaultRbac.integrationRead.viewer=false,cloud.defaultRbac.integrationRead.member=false,cloud.defaultRbac.integrationRead.owner=false", false, false)
 	for name, rendered := range on {
-		if name != "radar/templates/cloud-rbac-integration-read.yaml" && !bytes.Equal([]byte(rendered), []byte(off[name])) {
+		if name != "kubeatlas/templates/cloud-rbac-integration-read.yaml" && !bytes.Equal([]byte(rendered), []byte(off[name])) {
 			t.Errorf("integration addon changed existing manifest %s", name)
 		}
 	}
 }
 
 func TestIntegrationReadCollectionMatchesCollector(t *testing.T) {
-	chart, err := loader.Load(filepath.Join("..", "..", "deploy", "helm", "radar"))
+	chart, err := loader.Load(filepath.Join("..", "..", "deploy", "helm", "kubeatlas"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +383,7 @@ func TestIntegrationReadCollectionMatchesCollector(t *testing.T) {
 			rendered, docs := renderIntegrationReadChart(t, strings.Join(off, ",")+",rbac.crdGroups."+family+"=true", false, false)
 			assertIntegrationReadRules(t, docs, func(f string) bool { return f == family })
 			var collector rbacv1.ClusterRole
-			if err := yaml.Unmarshal([]byte(rendered["radar/templates/clusterrole.yaml"]), &collector); err != nil {
+			if err := yaml.Unmarshal([]byte(rendered["kubeatlas/templates/clusterrole.yaml"]), &collector); err != nil {
 				t.Fatal(err)
 			}
 			for _, entry := range entries {

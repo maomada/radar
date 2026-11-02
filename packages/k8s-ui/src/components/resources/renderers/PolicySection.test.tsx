@@ -169,7 +169,7 @@ describe('PolicySection — connected Radar predates policy results', () => {
   it('prompts an upgrade instead of reporting a failure', () => {
     const html = renderToString(<PolicySection data={null} error={unsupported} />)
     expect(html).toContain('策略结果')
-    expect(html).toContain('需要 Radar v1.10 或更高版本。此集群当前运行 v1.7.2。')
+    expect(html).toContain('需要 KubeAtlas v1.10 或更高版本。此集群当前运行 v1.7.2。')
     expect(html).not.toContain('无法加载策略结果')
     expect(html).not.toContain('text-red-400')
   })
@@ -181,7 +181,7 @@ describe('PolicySection — connected Radar predates policy results', () => {
       </RadarUpgradeContext.Provider>,
     )
     expect(html).toContain('<button')
-    expect(html).toContain('升级 Radar')
+    expect(html).toContain('升级 KubeAtlas')
   })
 
   it('links to instructions when the host has no flow', () => {

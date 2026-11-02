@@ -19,7 +19,7 @@ tests:
           of: ClusterRole
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-ai-read
+          value: RELEASE-NAME-kubeatlas-cloud-ai-read
       - equal:
           path: aggregationRule
           value:
@@ -43,13 +43,13 @@ tests:
           of: ClusterRoleBinding
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-ai-read
+          value: RELEASE-NAME-kubeatlas-cloud-ai-read
       - equal:
           path: roleRef
           value:
             apiGroup: rbac.authorization.k8s.io
             kind: ClusterRole
-            name: RELEASE-NAME-radar-cloud-ai-read
+            name: RELEASE-NAME-kubeatlas-cloud-ai-read
       - equal:
           path: subjects
           value:
@@ -116,7 +116,7 @@ tests:
           of: ClusterRoleBinding
       - equal:
           path: roleRef.name
-          value: RELEASE-NAME-radar-cloud-ai-read
+          value: RELEASE-NAME-kubeatlas-cloud-ai-read
 
   - it: gives radar:ai:reader the cluster-read add-on without the tiers
     set:
@@ -136,7 +136,7 @@ tests:
         documentIndex: 0
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-ai-cluster-read
+          value: RELEASE-NAME-kubeatlas-cloud-ai-cluster-read
         documentIndex: 1
       - equal:
           path: subjects
@@ -150,11 +150,11 @@ tests:
     template: cloud-rbac-cluster-read.yaml
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-cloud-ai-cluster-read
+      value: RELEASE-NAME-kubeatlas-cloud-ai-cluster-read
     asserts:
       - equal:
           path: roleRef.name
-          value: RELEASE-NAME-radar-cluster-read
+          value: RELEASE-NAME-kubeatlas-cluster-read
 
   - it: drops radar:ai:reader's cluster-read binding when aiRbac is false
     set:
@@ -185,7 +185,7 @@ tests:
               apiGroup: rbac.authorization.k8s.io
         documentSelector:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-ai-integration-read-namespaced
+          value: RELEASE-NAME-kubeatlas-cloud-ai-integration-read-namespaced
       - equal:
           path: subjects
           value:
@@ -194,14 +194,14 @@ tests:
               apiGroup: rbac.authorization.k8s.io
         documentSelector:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-ai-integration-read-cluster
+          value: RELEASE-NAME-kubeatlas-cloud-ai-integration-read-cluster
 
   - it: gives radar:ai:reader the integration-read add-ons beside the tiers
     template: cloud-rbac-integration-read.yaml
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-cloud-ai-integration-read-namespaced
+      value: RELEASE-NAME-kubeatlas-cloud-ai-integration-read-namespaced
     asserts:
       - equal:
           path: roleRef.name
-          value: RELEASE-NAME-radar-integration-read-namespaced
+          value: RELEASE-NAME-kubeatlas-integration-read-namespaced

@@ -45,7 +45,7 @@ import {
 // runs, both closed enums. The links into the Hub carry utm_content naming
 // the link that was clicked and, after an in-app attempt that did not connect,
 // radar_outcome saying what happened; see cloudConnectHandoff.ts.
-const FALLBACK_APP_URL = 'https://app.example.test'
+const FALLBACK_APP_URL = ''
 
 // Rendered until (or unless) the Hub states its own. Keeping the compiled-in
 // copy as the fallback means an unreachable Hub, a self-hosted one, or an

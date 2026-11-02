@@ -14,14 +14,14 @@ import (
 	"github.com/maomada/radar/pkg/investigation"
 )
 
-// newServer builds a Radar MCP server. instructions is the server-instructions
+// newServer builds a KubeAtlas MCP server. instructions is the server-instructions
 // text sent in the initialize result and, on protocol 2026-07-28, the
 // server/discover result; empty sends none.
 func newServer(includeWrites, includeExec bool, instructions string) *mcpsdk.Server {
 	paramRegistry := newToolParamRegistry()
 	server := mcpsdk.NewServer(
 		&mcpsdk.Implementation{
-			Name:    "radar",
+			Name:    "kubeatlas",
 			Version: version.Current,
 		},
 		&mcpsdk.ServerOptions{

@@ -12,7 +12,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+
+	"github.com/maomada/radar/internal/helm"
 )
+
+func TestPrepareRejectsMissingCloudChartSourceBeforeNetwork(t *testing.T) {
+	var hc helm.Client
+	_, err := Prepare(context.Background(), &hc, fake.NewSimpleClientset(), PrepareConfig{})
+	if err == nil || err.Error() != cloudProvisioningUnavailable {
+		t.Fatalf("Prepare error = %v, want %q", err, cloudProvisioningUnavailable)
+	}
+}
 
 func TestCloudInstallValues(t *testing.T) {
 	v := cloudInstallValues("wss://api.example.test/agent", "k3Fg-9pA", false)

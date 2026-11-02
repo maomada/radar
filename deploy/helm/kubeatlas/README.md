@@ -13,7 +13,8 @@ Deploy KubeAtlas to your Kubernetes cluster for web-based cluster visualization 
 
 > Upstream Cloud is unavailable: `cloud.enabled: true` fails chart rendering.
 > Cloud-specific RBAC sections below describe retained compatibility contracts,
-> not a supported product mode.
+> not a supported product mode. Do not use these legacy values to enable Cloud
+> features; no Cloud service or Cloud-triggered upgrade is available in KubeAtlas.
 
 > **Maintainers**: this directory is the canonical source. The owned OCI publishing flow and its prerequisites are in the CI/CD guide.
 
@@ -117,181 +118,19 @@ render. `httpRoute.enabled` requires at least one `parentRefs` entry (the
 Gateway to attach to), otherwise the render fails rather than emit a route
 bound to no Gateway.
 
-### Legacy upstream Cloud integration (unavailable)
+### Cloud (unsupported)
 
-KubeAtlas does not connect to upstream Cloud. The chart rejects
-`cloud.enabled: true`; do not use the legacy Cloud setup examples from earlier
-Radar releases.
-
-```bash
-kubectl create namespace radar --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic radar-cloud-config -n radar \
-  --from-literal=token=$TOKEN \
-  --dry-run=client -o yaml | kubectl apply -f -
-helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas --version "$VERSION" -n radar \
-  --set cloud.enabled=true \
-  --set cloud.url=wss://api.example.test/agent \
-  --set cloud.clusterName=$CLUSTER_NAME \
-  --set cloud.existingSecret=radar-cloud-config
-```
-
-The `radar-cloud-config` Secret is managed independently of Helm, so token
-rotation is one `kubectl apply` — no `helm upgrade` required. The same
-applies to GitOps users: manage the Secret with SealedSecrets / SOPS /
-External Secrets and reference it via `cloud.existingSecret`; Helm never
-touches its contents.
+Legacy Radar Cloud connection and installation are unsupported in KubeAtlas.
+Use the independent Portal registration feature when you need a directory of
+opted-in KubeAtlas instances; see the [Portal guide](../../../docs/portal.md).
 
 ### Legacy Radar Hub enrollment (unavailable)
 
-KubeAtlas does not support Radar Hub enrollment. This retained documentation
-describes the legacy interface only.
+KubeAtlas does not support Radar Hub enrollment. The legacy Cloud chart
+configuration is not a supported deployment path; do not use historical Cloud
+values or instructions from older Radar documentation.
 
-An owner creates the key in Radar Hub under **Settings > Enrollment keys**. The
-Hub shows it once. On a self-hosted Hub, the install key from the Hub's config
-works too. If the key is set to wait for approval, a new cluster waits until an
-owner approves it on the Hub's Clusters page.
-
-The key is a password for all these clusters. Anyone who holds it can add a
-cluster to your Hub, or show up as one of the clusters that joined with it.
-Keep it in a Secret, not in values committed to Git.
-
-The key also decides which organization a cluster joins. A cluster that
-switches to another organization's key joins that organization as a new
-cluster; its entry in the first organization stays, offline, until an owner
-there removes it.
-
-1. Store the key in a Secret. The commands are safe to run again, for example
-   to put a new key in place:
-
-   ```bash
-   kubectl create namespace radar --dry-run=client -o yaml | kubectl apply -f -
-   kubectl create secret generic radar-hub-enrollment -n radar \
-     --from-literal=key="$ENROLLMENT_KEY" \
-     --dry-run=client -o yaml | kubectl apply -f -
-   ```
-
-   With GitOps, manage this Secret with SealedSecrets, SOPS or External
-   Secrets instead.
-
-2. Install KubeAtlas with these values, using your Hub's address:
-
-   ```yaml
-   cloud:
-     enabled: true
-     hubURL: https://hub.example.com
-     enrollment:
-       existingSecret: radar-hub-enrollment
-   auth:
-     mode: proxy
-   rbac:
-     helm: true
-     secrets: true
-     podExec: true
-     portForward: true
-     metrics: true
-     selfUpgrade: true
-   ```
-
-   ```bash
-   helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas --version "$VERSION" -n radar -f values.yaml
-   ```
-
-   The `auth` and `rbac` values are the ones a single-cluster install from the
-   Hub uses, so a cluster that joins with the key gets the same features.
-
-   If the Hub's certificate is self-signed or signed by a private CA, KubeAtlas
-   can't verify it and keeps retrying with a certificate error in its log.
-   Add the CA to the values:
-
-   ```yaml
-   cloud:
-     caBundle: |
-       -----BEGIN CERTIFICATE-----
-       ...
-       -----END CERTIFICATE-----
-   ```
-
-   When the Hub serves its own self-signed certificate, the many-clusters
-   steps in Radar Hub include it. Otherwise use the CA of whatever serves the
-   Hub's address, such as your ingress or load balancer.
-
-3. Check that it joined. KubeAtlas's log says whether it joined and, if not,
-   why:
-
-   ```bash
-   kubectl -n radar logs deploy/radar
-   ```
-
-| Value | Meaning |
-| --- | --- |
-| `cloud.hubURL` | The Hub's address. `https://`, or `http://` for localhost only. |
-| `cloud.enrollment.existingSecret` / `existingSecretKey` | The Secret holding the key (key `key` by default). |
-| `cloud.enrollment.key` | The key (`rhe_...`) inline, for trials. It ends up in the Helm release; prefer `existingSecret`. |
-| `cloud.clusterName` | The exact name shown in the Hub. |
-| `cloud.clusterNamePrefix` / `clusterNameSuffix` | Text put before or after the name KubeAtlas picks. Ignored when `clusterName` is set. |
-| `cloud.caBundle` | Extra CA certificates (PEM) for a Hub with a self-signed or private certificate. Used for joining and for the tunnel. Read once at startup; a `helm upgrade` with a new bundle restarts KubeAtlas. |
-
-#### Cluster names
-
-With no name set, KubeAtlas uses the API server host from
-`kube-public/cluster-info`, or `cluster-<first 8 characters of the kube-system
-namespace UID>` when that is not available. To choose the name, set
-`cloud.clusterName` per cluster, for example
-`--set cloud.clusterName=prod-eu`. To keep the picked name but mark where it
-runs, set a prefix or suffix shared by a group of clusters, for example
-`cloud.clusterNamePrefix: eu-`. The latest change wins: a cluster renamed in
-the Hub keeps the Hub's name across restarts, until the name KubeAtlas sends
-changes (a new `clusterName`, prefix or suffix, or a new API server host).
-
-#### How it behaves
-
-- KubeAtlas joins with the key every time it starts and gets a new token. The
-  token lives only in KubeAtlas's memory; nothing is stored in the cluster. A
-  restart lands on the same cluster entry in the Hub, with its name and
-  history, because the Hub matches the kube-system namespace UID, the
-  namespace and the Helm release.
-- When the Hub stops accepting the token, for example because another start of
-  the same cluster joined, KubeAtlas joins again on its own.
-- When the Hub refuses to add the cluster, KubeAtlas keeps trying, and its log
-  says why it isn't joining.
-- The Hub keeps one connection per cluster. Another KubeAtlas with the same
-  identity waits until that connection ends. After a pod dies without
-  shutting down cleanly, its replacement can wait up to about 90 seconds for
-  the Hub to notice.
-- After you change the key in the Secret, restart KubeAtlas so it joins with the
-  new key.
-- A configured `cloud.token` or `cloud.existingSecret` wins. The key is then
-  ignored, and the install renders exactly as a token install.
-- `replicaCount` must be 1, and the Deployment uses the `Recreate` strategy.
-- `cloud.insecureSkipVerify` is refused: use `cloud.caBundle` instead.
-- It needs KubeAtlas 1.18.2 or later.
-
-#### If the key leaks
-
-1. In Radar Hub, delete the key under **Settings > Enrollment keys** and create
-   a new one. For a self-hosted Hub's install key, change it in the Hub's
-   config.
-2. Put the new key in the Secret on every cluster, with the command from step 1
-   above.
-3. Restart KubeAtlas on every cluster, so each one joins with the new key and gets
-   a new token:
-
-   ```bash
-   kubectl -n radar rollout restart deployment/radar
-   ```
-
-Clusters that are connected keep working after the key is deleted. A cluster
-that restarts without the new key stays offline until it gets it.
-
-#### Removed clusters
-
-A cluster removed in Radar Hub stays out, even if KubeAtlas keeps running there, for
-example because GitOps keeps it installed. KubeAtlas's log says it was removed. An
-owner can let it back in under **Settings > Enrollment keys**, and it comes
-back as a new cluster with no history. To stop it trying, uninstall KubeAtlas from
-that cluster.
-
-### upstream Cloud default integration reads
+### Legacy Cloud integration-read RBAC (unsupported)
 
 upstream Cloud's default viewer/member/owner bindings receive explicit `get/list/watch`
 grants for KubeAtlas's curated integrations, in addition to their existing roles.
@@ -322,11 +161,12 @@ The [permission table](files/integration-read-baseline.yaml) records exact tuple
 and intentional exceptions. See [the policy and upgrade guide](../../../docs/cloud-rbac-baseline.md)
 for sensitive-resource exclusions, enterprise group bindings and rollout details.
 An **installed chart upgrade** is needed to apply these grants; updating only the
-KubeAtlas binary (including upstream Cloud self-upgrade) does not update RBAC. Missing new keys
-on an older `--reuse-values` installation default to enabled; set explicit false
-before upgrading if the added visibility is unwanted.
+KubeAtlas binary does not update RBAC. Missing new keys on an older
+`--reuse-values` installation default to enabled; set explicit false before
+upgrading if the added visibility is unwanted. Manage KubeAtlas upgrades through
+Helm or GitOps.
 
-### upstream Cloud background services (`radar:system`)
+### Legacy Cloud background-service RBAC (unsupported)
 
 upstream Cloud's alerts worker and timeline puller read as `radar:system`.
 `cloud.systemRbac` (default `true`) creates the chart's default read grant:
@@ -335,7 +175,7 @@ integration-read add-ons, and cluster-wide `get/list/watch` on Secrets.
 Helm release alerts and Secret changes in the timeline need Secret read;
 Helm stores releases as Secrets. The grant includes no writes.
 
-### upstream Cloud automatic Diagnose (`radar:ai:reader`)
+### Legacy Cloud Diagnose RBAC (unsupported)
 
 Manual Diagnose turns read as the person who started them. upstream Cloud forwards
 that person's identity and groups; `radar:ai:reader` is not involved. MCP clients
@@ -353,9 +193,9 @@ labelled `rbac.authorization.k8s.io/aggregate-to-view`). It does include pod
 logs and ConfigMaps, which may contain sensitive data.
 
 Both values are independent of `cloud.defaultRbac`. They control only the
-chart's default grants, not whether features run; upstream Cloud controls whether
-Diagnose runs. False or absent creates no default grant and does not remove
-customer-created bindings. To narrow the default grants, set the matching value
+legacy chart grants and do not enable Cloud or Diagnose features in KubeAtlas.
+False or absent creates no default grant and does not remove customer-created
+bindings. To narrow the default grants, set the matching value
 to false and supply your own read-only bindings for that group. With no grant,
 the group has no cluster access; automatic Diagnose has no viewer fallback.
 
@@ -501,8 +341,8 @@ required. External Secret rotation requires a restart.
 
 Before upgrading, resupply any old UI-written integration settings as Helm values;
 Pod-local files are not adopted as deployment configuration. Use matching chart
-and image versions. Cloud keeps its existing settings path and does not mount the
-OSS operator file. See [installation settings](../../../docs/in-cluster.md#installation-settings)
+and image versions. Legacy Cloud configuration is unavailable in KubeAtlas;
+no Cloud settings are loaded. See [installation settings](../../../docs/in-cluster.md#installation-settings)
 for examples and run-mode behavior.
 
 ### Timeline storage: memory vs sqlite vs postgres
@@ -607,15 +447,10 @@ rule grants `create pods/exec` (SPDY); WebSocket also needs `get pods/exec`.
 `--disable-exec`, read-only mode and disabled MCP suppress registration regardless
 of either value. See [the exec contract](../../../docs/mcp.md#exec_pod).
 
-### In-app Agent Upgrades (opt-in, for upstream Cloud users)
+### Cloud-triggered in-app upgrades (unsupported)
 
-`rbac.selfUpgrade: true` lets a upstream Cloud organization owner trigger one-click upgrades from the web UI — no terminal or cloud credentials needed. It does not upgrade anything automatically. Disabled by default; only needed when connecting to upstream Cloud (the install wizard sets this automatically).
-
-It creates a namespace-scoped Role (not a ClusterRole) with `get` + `patch` on this Deployment only, enforced via `resourceNames`. The endpoint requires an explicitly attributed Cloud `owner` role and validates the requested KubeAtlas tag. It preserves the repository already configured on the live container, including private mirrors.
-
-```bash
---set rbac.selfUpgrade=true
-```
+KubeAtlas has no Cloud-triggered upgrade UI or supported Cloud owner flow.
+Manage chart and image upgrades through your normal Helm or GitOps process.
 
 ### CRD Access
 

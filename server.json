@@ -8,11 +8,11 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/maomada/radar/blob/main/docs/mcp.md",
-  "version": "1.8.6",
+  "version": "0.0.0-unreleased",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/maomada/kubeatlas:1.8.6",
+      "identifier": "ghcr.io/maomada/kubeatlas:0.0.0-unreleased",
       "runtimeHint": "docker",
       "runtimeArguments": [
         {

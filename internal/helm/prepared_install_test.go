@@ -68,7 +68,7 @@ func TestSelectStableChartVersion_RejectsPrereleaseOldAndMissing(t *testing.T) {
 	}
 }
 
-func TestServerDryRunFindsActualCloudDeployment(t *testing.T) {
+func TestServerDryRunRejectsUnavailableCloudDeployment(t *testing.T) {
 	loaded, err := loader.Load("../../deploy/helm/kubeatlas")
 	if err != nil {
 		t.Fatal(err)
@@ -85,27 +85,13 @@ func TestServerDryRunFindsActualCloudDeployment(t *testing.T) {
 		},
 	}
 	req := &InstallRequest{
-		ReleaseName: "custom", Namespace: "observability", ChartName: "radar",
+		ReleaseName: "custom", Namespace: "observability", ChartName: "kubeatlas",
 		Version: loaded.Metadata.Version, Repository: "unused",
 		Values: values, CreateNamespace: true,
 	}
-	rel, err := runServerDryRun(context.Background(), memoryActionConfig(t), req, loaded)
-	if err != nil {
-		t.Fatalf("server dry-run: %v", err)
-	}
-	ref, err := cloudDeploymentRef(rel.Manifest, req.Namespace)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ref.Name != "custom-radar" || ref.Namespace != "observability" {
-		t.Fatalf("deployment = %+v, want observability/custom-radar", ref)
-	}
-	if !strings.Contains(ref.Selector, "app.kubernetes.io/instance=custom") || !strings.Contains(ref.Selector, "app.kubernetes.io/name=radar") {
-		t.Fatalf("selector = %q", ref.Selector)
-	}
-	prepared := &PreparedInstall{manifest: rel.Manifest}
-	if prepared.TargetManifest() != rel.Manifest {
-		t.Fatal("prepared install did not expose the pinned rendered manifest")
+	_, err = runServerDryRun(context.Background(), memoryActionConfig(t), req, loaded)
+	if err == nil || !strings.Contains(err.Error(), "cloud.enabled is unavailable in KubeAtlas") {
+		t.Fatalf("Cloud dry-run error = %v", err)
 	}
 }
 

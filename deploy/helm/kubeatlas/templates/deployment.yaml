@@ -2,7 +2,10 @@
 {{- fail "replicaCount must be 1 when persistence.enabled=true and timeline.storage=sqlite: a single PVC cannot be safely shared across pods (RWO volumes won't attach to a second pod, RWX volumes risk SQLite corruption)" }}
 {{- end }}
 {{- if .Values.cloud.enabled }}
-{{- fail "cloud.enabled is unavailable in KubeAtlas; use the independent Portal registration feature" }}
+{{- fail "cloud.enabled is unavailable in KubeAtlas" }}
+{{- end }}
+{{- if eq .Values.auth.kubernetesCredentials "user-token" }}
+{{- fail "auth.kubernetesCredentials=user-token is unavailable in KubeAtlas" }}
 {{- end }}
 {{- if eq (dig "enabled" nil (.Values.usageReporting | default dict)) true }}
 {{- fail "usageReporting.enabled=true is unavailable in KubeAtlas" }}

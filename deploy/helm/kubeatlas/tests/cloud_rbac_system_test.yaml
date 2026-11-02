@@ -18,7 +18,7 @@ tests:
           of: ClusterRole
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-system-read
+          value: RELEASE-NAME-kubeatlas-cloud-system-read
       - equal:
           path: aggregationRule
           value:
@@ -50,10 +50,10 @@ tests:
           count: 4
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-system-read
+          value: RELEASE-NAME-kubeatlas-cloud-system-read
       - equal:
           path: roleRef.name
-          value: RELEASE-NAME-radar-cloud-system-read
+          value: RELEASE-NAME-kubeatlas-cloud-system-read
       - isKind:
           of: ClusterRoleBinding
 
@@ -76,7 +76,7 @@ tests:
         documentIndex: 0
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-system-cluster-read
+          value: RELEASE-NAME-kubeatlas-cloud-system-cluster-read
         documentIndex: 1
       - equal:
           path: subjects[0].name
@@ -93,7 +93,7 @@ tests:
     template: cloud-rbac-system.yaml
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-system-secrets-read
+      value: RELEASE-NAME-kubeatlas-system-secrets-read
     asserts:
       - equal:
           path: rules
@@ -112,7 +112,7 @@ tests:
     template: cloud-rbac-system.yaml
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-cloud-system-secrets-read
+      value: RELEASE-NAME-kubeatlas-cloud-system-secrets-read
     asserts:
       - equal:
           path: subjects
@@ -135,13 +135,13 @@ tests:
           of: ClusterRoleBinding
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-radar-cloud-system-read
+          value: RELEASE-NAME-kubeatlas-cloud-system-read
       - equal:
           path: roleRef
           value:
             apiGroup: rbac.authorization.k8s.io
             kind: ClusterRole
-            name: RELEASE-NAME-radar-cloud-system-read
+            name: RELEASE-NAME-kubeatlas-cloud-system-read
       - equal:
           path: subjects
           value:
@@ -222,7 +222,7 @@ tests:
     template: cloud-rbac-integration-read.yaml
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-cloud-system-integration-read-namespaced
+      value: RELEASE-NAME-kubeatlas-cloud-system-integration-read-namespaced
     asserts:
       - equal:
           path: subjects

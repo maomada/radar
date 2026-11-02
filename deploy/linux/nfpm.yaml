@@ -2,9 +2,9 @@ name: kubeatlas-desktop
 arch: amd64
 platform: linux
 version: ${VERSION}
-maintainer: Skyhook <support@skyhook.io>
+maintainer: maomada
 description: "Kubernetes visibility — topology, traffic, and Helm management"
-vendor: Skyhook
+vendor: maomada
 homepage: https://github.com/maomada/radar
 license: Apache-2.0
 contents:

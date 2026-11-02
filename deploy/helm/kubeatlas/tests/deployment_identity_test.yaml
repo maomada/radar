@@ -18,7 +18,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: MY_DEPLOYMENT_NAME
-            value: RELEASE-NAME-radar
+            value: RELEASE-NAME-kubeatlas
       - contains:
           path: spec.template.spec.containers[0].env
           content:

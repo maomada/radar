@@ -55,7 +55,7 @@ describe('@maomada/k8s-ui deep imports', () => {
   for (const file of sourceFiles(here)) {
     // Any quoted specifier: `from` imports, side-effect and dynamic imports,
     // and stylesheet @imports all resolve through the same map.
-    for (const m of readFileSync(file, 'utf8').matchAll(/['"]@skyhook-io\/k8s-ui\/([^'"]+)['"]/g)) {
+    for (const m of readFileSync(file, 'utf8').matchAll(/['"]@maomada\/k8s-ui\/([^'"]+)['"]/g)) {
       imports.add(m[1])
     }
   }

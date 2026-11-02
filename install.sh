@@ -146,7 +146,10 @@ fi
 $SUDO mv "$BINARY_NAME" "$INSTALL_DIR/"
 
 if [ "$OS" != "windows" ]; then
-  $SUDO ln -sf "$BINARY_NAME" "$INSTALL_DIR/kubectl-kubeatlas"
+  PLUGIN_PATH="$INSTALL_DIR/kubectl-kubeatlas"
+  if [ ! -e "$PLUGIN_PATH" ] && [ ! -L "$PLUGIN_PATH" ]; then
+    $SUDO ln -s "$BINARY_NAME" "$PLUGIN_PATH" 2>/dev/null || true
+  fi
 fi
 
 # Cleanup

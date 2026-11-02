@@ -45,11 +45,11 @@ tests:
       cloud.defaultRbac.clusterScopedRead.viewer: false
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-cloud-viewer-integration-read-namespaced
+      value: RELEASE-NAME-kubeatlas-cloud-viewer-integration-read-namespaced
     asserts:
       - equal:
           path: roleRef.name
-          value: RELEASE-NAME-radar-integration-read-namespaced
+          value: RELEASE-NAME-kubeatlas-integration-read-namespaced
       - contains:
           path: subjects
           content:

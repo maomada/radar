@@ -331,7 +331,7 @@ describe('WhatsNew', () => {
     serverState = { currentVersion: 'v1.15.2', storage: 'server', seenVersion: 'v1.14.1', priorInstall: true }
     await render('/')
     const link = Array.from(dialog()!.querySelectorAll('a')).find(a => a.textContent?.includes('Full changelog'))
-    expect(link?.getAttribute('href')).toBe('https://radarhq.io/changelog')
+    expect(link?.getAttribute('href')).toBe('https://github.com/maomada/radar/blob/main/CHANGELOG.md')
   })
   it('records the version it was opened for, even if the server is upgraded while it is open', async () => {
     setCatalog(HEADLINE, QUIET)

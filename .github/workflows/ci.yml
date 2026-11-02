@@ -401,31 +401,40 @@ jobs:
       - name: Render default values
         run: helm template radar deploy/helm/kubeatlas > /dev/null
 
-      - name: Render cloud.enabled with inline token
+      - name: Reject cloud.enabled with inline token
         run: |
-          helm template radar deploy/helm/kubeatlas \
+          if output=$(helm template radar deploy/helm/kubeatlas \
             --set cloud.enabled=true \
             --set cloud.url=wss://cloud.example/agent \
             --set cloud.clusterName=test \
-            --set cloud.token=rhc_deadbeef > /dev/null
+            --set cloud.token=rhc_deadbeef 2>&1); then
+            echo "ERROR: cloud.enabled unexpectedly rendered"
+            exit 1
+          fi
+          grep -Fq "cloud.enabled is unavailable in KubeAtlas" <<< "$output"
 
-      - name: Render cloud.enabled with existingSecret
+      - name: Reject cloud.enabled with existingSecret
         run: |
-          helm template radar deploy/helm/kubeatlas \
+          if output=$(helm template radar deploy/helm/kubeatlas \
             --set cloud.enabled=true \
             --set cloud.url=wss://cloud.example/agent \
             --set cloud.clusterName=test \
-            --set cloud.existingSecret=my-cloud-token > /dev/null
+            --set cloud.existingSecret=my-cloud-token 2>&1); then
+            echo "ERROR: cloud.enabled unexpectedly rendered"
+            exit 1
+          fi
+          grep -Fq "cloud.enabled is unavailable in KubeAtlas" <<< "$output"
 
       - name: Reject cloud.enabled without token or existingSecret
         run: |
-          if helm template radar deploy/helm/kubeatlas \
+          if output=$(helm template radar deploy/helm/kubeatlas \
             --set cloud.enabled=true \
             --set cloud.url=wss://cloud.example/agent \
-            --set cloud.clusterName=test 2>/dev/null; then
-            echo "ERROR: helm template should have failed with no token set"
+            --set cloud.clusterName=test 2>&1); then
+            echo "ERROR: cloud.enabled unexpectedly rendered"
             exit 1
           fi
+          grep -Fq "cloud.enabled is unavailable in KubeAtlas" <<< "$output"
 
       - name: Render Argo CD integration with inline token
         run: |

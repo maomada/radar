@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,10 +60,49 @@ func TestKubeAtlasReportingCannotBeEnabledByEnvironmentOrSavedConsent(t *testing
 	}
 }
 
+func TestStartDisablesEnvironmentOptInAndSavedConsent(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("KUBEATLAS_USAGE_REPORTING", "on")
+	if err := settings.Save(settings.Settings{UsageData: &settings.UsageDataChoice{Enabled: true}}); err != nil {
+		t.Fatal(err)
+	}
+	samples := 0
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	c := Start(ctx, Options{ClusterSample: func() (string, ClusterShape, bool) {
+		samples++
+		return "test", ClusterShape{}, true
+	}})
+	status := c.Status()
+	if status.State != StateOff || status.CanChange || status.Ask {
+		t.Fatalf("Start status = %+v, want off and immutable without a prompt", status)
+	}
+	c.sampleCluster()
+	if samples != 0 {
+		t.Fatalf("cluster sample callback called %d times, want none", samples)
+	}
+}
+
 func TestPostReportIsUnavailable(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	transport := &recordingTransport{}
+	http.DefaultTransport = transport
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
 	if err := postReport(context.Background(), Report{}); err == nil {
 		t.Fatal("postReport should refuse without sending")
 	}
+	if transport.calls != 0 {
+		t.Fatalf("postReport made %d HTTP requests, want none", transport.calls)
+	}
+}
+
+type recordingTransport struct {
+	calls int
+}
+
+func (t *recordingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	t.calls++
+	return nil, errors.New("unexpected HTTP request")
 }
 
 type harness struct {

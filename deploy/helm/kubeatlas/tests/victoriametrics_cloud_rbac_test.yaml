@@ -10,7 +10,7 @@ tests:
   - it: adds no namespaced caller grant when collection is enabled
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-integration-read-namespaced
+      value: RELEASE-NAME-kubeatlas-integration-read-namespaced
     asserts:
       - notContains:
           path: rules[*].apiGroups
@@ -18,7 +18,7 @@ tests:
   - it: adds no cluster caller grant when collection is enabled
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-integration-read-cluster
+      value: RELEASE-NAME-kubeatlas-integration-read-cluster
     asserts:
       - notContains:
           path: rules[*].apiGroups
@@ -28,7 +28,7 @@ tests:
       rbac.crdGroups.all: true
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-integration-read-namespaced
+      value: RELEASE-NAME-kubeatlas-integration-read-namespaced
     asserts:
       - notContains:
           path: rules[*].apiGroups
@@ -41,7 +41,7 @@ tests:
       rbac.crdGroups.all: true
     documentSelector:
       path: metadata.name
-      value: RELEASE-NAME-radar-integration-read-cluster
+      value: RELEASE-NAME-kubeatlas-integration-read-cluster
     asserts:
       - notContains:
           path: rules[*].apiGroups

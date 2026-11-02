@@ -27,6 +27,30 @@ import (
 
 const testToken = "rhc_SUPERSECRET_TEST_TOKEN"
 
+func TestCloudMutationRoutesReturnGoneAndHideCapability(t *testing.T) {
+	srv := New(Config{})
+	for _, route := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/cloud/install/prepare"},
+		{http.MethodPost, "/api/cloud/install/start"},
+		{http.MethodGet, "/api/cloud/install/status"},
+		{http.MethodGet, "/api/cloud/install/discover"},
+		{http.MethodPost, "/api/cloud/install/cancel"},
+		{http.MethodPost, "/api/cloud/install/dismiss"},
+	} {
+		recorder := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(recorder, httptest.NewRequest(route.method, route.path, nil))
+		if recorder.Code != http.StatusGone {
+			t.Errorf("%s %s returned %d, want %d", route.method, route.path, recorder.Code, http.StatusGone)
+		}
+	}
+	if got := srv.cloudConnectCapability(); got != nil {
+		t.Fatalf("Cloud capability = %+v, want nil", got)
+	}
+}
+
 type fakePrepared struct {
 	mode      cloudinstall.ProvisionMode
 	namespace string

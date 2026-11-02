@@ -12,7 +12,7 @@ tests:
         disabledChecks: []
     asserts:
       - failedTemplate:
-          errorMessage: audit and helm.ociSources are supported only in OSS installations; configure Cloud through Radar Cloud instead
+          errorMessage: cloud.enabled is unavailable in KubeAtlas
   - it: rejects unsupported Cloud OCI sources instead of silently ignoring them
     template: operator-settings.yaml
     set:
@@ -21,7 +21,7 @@ tests:
         - oci://ghcr.io/example/charts
     asserts:
       - failedTemplate:
-          errorMessage: audit and helm.ociSources are supported only in OSS installations; configure Cloud through Radar Cloud instead
+          errorMessage: cloud.enabled is unavailable in KubeAtlas
   - it: renders a minimal versioned document by default
     template: operator-settings.yaml
     asserts:
@@ -62,16 +62,18 @@ tests:
       - matchRegex:
           path: data["settings.json"]
           pattern: 'oci://ghcr.io/example/charts'
-  - it: does not provision an operator overlay for Cloud
+  - it: rejects Cloud configuration before applying operator settings
     template: operator-settings.yaml
     set:
       cloud.enabled: true
+      audit.ignoredNamespaces: []
+      audit.disabledChecks: []
       cloud.token: test-token
       cloud.url: wss://hub.example.com
       cloud.clusterName: example
     asserts:
-      - hasDocuments:
-          count: 0
+      - failedTemplate:
+          errorMessage: cloud.enabled is unavailable in KubeAtlas
   - it: rejects the legacy Cloud deployment mode
     template: deployment.yaml
     set:

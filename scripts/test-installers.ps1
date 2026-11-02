@@ -12,13 +12,13 @@ function Fail([string]$Message) {
 }
 
 if ($Scenario) {
-    $InstallDir = Join-Path $env:LOCALAPPDATA "radar"
-    $Filename = "radar_v0.0.0_windows_amd64.zip"
+    $InstallDir = Join-Path $env:LOCALAPPDATA "kubeatlas"
+    $Filename = "kubeatlas_v0.0.0_windows_amd64.zip"
     $Archive = Join-Path $env:KUBEATLAS_FIXTURE_ROOT $Filename
     $Checksum = Join-Path $env:KUBEATLAS_FIXTURE_ROOT "checksums.txt"
     $Latest = "https://github.com/maomada/radar/releases/latest"
     $Tag = if ($Scenario -eq "upstream") {
-        "https://github.com/maomada/radar/releases/tag/v0.0.0"
+        "https://github.com/skyhook-io/radar/releases/tag/v0.0.0"
     } elseif ($Scenario -eq "unknown") {
         "https://example.com/releases/tag/v0.0.0"
     } else {
@@ -61,11 +61,11 @@ if ($Scenario) {
     $InstallerExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
     if ($Scenario -eq "success") {
         if ($InstallerExitCode -ne 0) { Fail "Windows success fixture returned exit code $InstallerExitCode" }
-        $Binary = Join-Path $InstallDir "kubectl-kubeatlas.exe"
-        $Alias = Join-Path $InstallDir "radar.exe"
+        $Binary = Join-Path $InstallDir "kubeatlas.exe"
+        $Alias = Join-Path $InstallDir "kubectl-kubeatlas.exe"
         if (-not (Test-Path -LiteralPath $Binary)) { Fail "missing Windows fixture binary" }
         if (-not (Test-Path -LiteralPath $Alias)) { Fail "missing Windows fixture alias" }
-        if ((Get-Content -Raw -LiteralPath $Binary) -ne "radar fixture payload") {
+        if ((Get-Content -Raw -LiteralPath $Binary) -ne "kubeatlas fixture payload") {
             Fail "unexpected Windows fixture payload"
         }
     } else {
@@ -78,13 +78,13 @@ if ($Scenario) {
 }
 
 New-Item -ItemType Directory -Path $FixtureRoot -Force | Out-Null
-$Payload = Join-Path $FixtureRoot "kubectl-kubeatlas.exe"
-$Archive = Join-Path $FixtureRoot "radar_v0.0.0_windows_amd64.zip"
+$Payload = Join-Path $FixtureRoot "kubeatlas.exe"
+$Archive = Join-Path $FixtureRoot "kubeatlas_v0.0.0_windows_amd64.zip"
 $Checksum = Join-Path $FixtureRoot "checksums.txt"
-Set-Content -LiteralPath $Payload -Value "radar fixture payload" -NoNewline
+Set-Content -LiteralPath $Payload -Value "kubeatlas fixture payload" -NoNewline
 Compress-Archive -LiteralPath $Payload -DestinationPath $Archive
 $Hash = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
-Set-Content -LiteralPath $Checksum -Value "$Hash  radar_v0.0.0_windows_amd64.zip"
+Set-Content -LiteralPath $Checksum -Value "$Hash  kubeatlas_v0.0.0_windows_amd64.zip"
 
 $OriginalUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 $OriginalLocalAppData = $env:LOCALAPPDATA
@@ -103,11 +103,11 @@ try {
         $env:KUBEATLAS_FIXTURE_ROOT = $FixtureRoot
         New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:TEMP -Force | Out-Null
         if ($Case -eq "mismatch") {
-            Set-Content -LiteralPath $Checksum -Value ("0" * 64 + "  radar_v0.0.0_windows_amd64.zip")
+            Set-Content -LiteralPath $Checksum -Value ("0" * 64 + "  kubeatlas_v0.0.0_windows_amd64.zip")
         } elseif ($Case -eq "missing") {
             Set-Content -LiteralPath $Checksum -Value "$Hash  other.zip"
         } else {
-            Set-Content -LiteralPath $Checksum -Value "$Hash  radar_v0.0.0_windows_amd64.zip"
+            Set-Content -LiteralPath $Checksum -Value "$Hash  kubeatlas_v0.0.0_windows_amd64.zip"
         }
         $OutputLog = Join-Path $CaseRoot "output.log"
         $ErrorLog = Join-Path $CaseRoot "error.log"
@@ -134,7 +134,7 @@ try {
                 Fail "Windows $Case fixture did not fail for the expected reason"
             }
         }
-        if ($Case -ne "success" -and (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA "radar"))) {
+        if ($Case -ne "success" -and (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA "kubeatlas"))) {
             Fail "Windows $Case fixture left an install directory"
         }
     }

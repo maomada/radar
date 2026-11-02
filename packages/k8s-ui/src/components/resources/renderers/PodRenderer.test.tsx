@@ -509,7 +509,7 @@ describe('PodRenderer on a Radar without variable sources', () => {
       <PodRenderer data={pod} onCopy={() => undefined} copied={null} environmentError={unsupported} />,
     )
     expect(html).toContain('Values from ConfigMaps and Secrets')
-    expect(html).toContain('需要 Radar v1.9 或更高版本。此集群当前运行 v1.7.2。')
+    expect(html).toContain('需要 KubeAtlas v1.9 或更高版本。此集群当前运行 v1.7.2。')
     expect(html).toContain('ConfigMap')
     expect(html).not.toContain('could not be loaded')
   })

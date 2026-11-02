@@ -11,7 +11,7 @@ tests:
           value: |
             Access via port-forward:
 
-              kubectl port-forward svc/radar 9280:9280 -n radar
+              kubectl port-forward svc/radar-kubeatlas 9280:9280 -n radar
               open http://localhost:9280
 
   - it: ClusterIP follows release namespace, fullname, service port and basePath
@@ -24,7 +24,7 @@ tests:
       basePath: /radar/
     asserts:
       - matchRegexRaw:
-          pattern: kubectl port-forward svc/tools-radar 9280:8080 -n platform\n
+          pattern: kubectl port-forward svc/tools-kubeatlas 9280:8080 -n platform\n
       - matchRegexRaw:
           pattern: open http://localhost:9280/radar/\n?$
       - notMatchRegexRaw:
@@ -36,7 +36,7 @@ tests:
         type: LoadBalancer
     asserts:
       - matchRegexRaw:
-          pattern: "^Access via port-forward:\n\n  kubectl port-forward svc/radar 9280:9280 -n radar\n  open http://localhost:9280\n\nWarning: no auth"
+          pattern: "^Access via port-forward:\n\n  kubectl port-forward svc/radar-kubeatlas 9280:9280 -n radar\n  open http://localhost:9280\n\nWarning: no auth"
       - notMatchRegexRaw:
           pattern: (SERVICE_IP|NODE_PORT)
 
@@ -46,7 +46,7 @@ tests:
         type: NodePort
     asserts:
       - matchRegexRaw:
-          pattern: kubectl port-forward svc/radar 9280:9280 -n radar
+          pattern: kubectl port-forward svc/radar-kubeatlas 9280:9280 -n radar
       - matchRegexRaw:
           pattern: "Warning: no auth"
 
@@ -69,7 +69,7 @@ tests:
               - radar.example.com
     asserts:
       - matchRegexRaw:
-          pattern: "Open Radar at:\n  https://radar.example.com/\n  https://radar.example.org/\n"
+          pattern: "Open KubeAtlas at:\n  https://radar.example.com/\n  https://radar.example.org/\n"
       - matchRegexRaw:
           pattern: "Warning: no auth"
       - notMatchRegexRaw:
@@ -81,7 +81,7 @@ tests:
         enabled: true
     asserts:
       - matchRegexRaw:
-          pattern: "Open Radar at:\n  http://radar.example.com/\n"
+          pattern: "Open KubeAtlas at:\n  http://radar.example.com/\n"
 
   - it: Ingress uses basePath instead of the ingress path and drops duplicates
     set:
@@ -97,7 +97,7 @@ tests:
                 pathType: Prefix
     asserts:
       - matchRegexRaw:
-          pattern: "Open Radar at:\n  http://tools.example.com/radar/\n\n"
+          pattern: "Open KubeAtlas at:\n  http://tools.example.com/radar/\n\n"
 
   - it: HTTPRoute prints its hostnames without a scheme and points at the Gateway
     set:
@@ -111,7 +111,7 @@ tests:
           - radar.example.org
     asserts:
       - matchRegexRaw:
-          pattern: "Radar's HTTPRoute hostnames:\n  radar.example.com/\n  radar.example.org/\n"
+          pattern: "KubeAtlas HTTPRoute hostnames:\n  radar.example.com/\n  radar.example.org/\n"
       - notMatchRegexRaw:
           pattern: https?://radar\.example
       - matchRegexRaw:
@@ -161,8 +161,8 @@ tests:
       - equalRaw:
           value: |
             Authentication: proxy (auth.mode=proxy). Users authenticate through the proxy,
-            which forwards their identity to Radar via HTTP headers. The auth proxy should
-            be the only path to Radar.
+            which forwards their identity to KubeAtlas via HTTP headers. The auth proxy should
+            be the only path to KubeAtlas.
             Setup: https://github.com/maomada/radar/blob/main/docs/authentication.md
 
   - it: proxy auth on a LoadBalancer Service does not print a port-forward
@@ -175,7 +175,7 @@ tests:
       - notMatchRegexRaw:
           pattern: port-forward
       - matchRegexRaw:
-          pattern: The auth proxy should\nbe the only path to Radar
+          pattern: The auth proxy should\nbe the only path to KubeAtlas
 
   - it: proxy auth behind an Ingress prints the URL and the proxy note
     set:
@@ -185,11 +185,11 @@ tests:
         enabled: true
     asserts:
       - matchRegexRaw:
-          pattern: "Open Radar at:\n  http://radar.example.com/\n\nAuthentication: proxy"
+          pattern: "Open KubeAtlas at:\n  http://radar.example.com/\n\nAuthentication: proxy"
       - notMatchRegexRaw:
           pattern: Warning
 
-  - it: Radar Cloud prints the tunnel endpoint and the log command only
+  - it: legacy Cloud notes state the feature is unavailable
     set:
       cloud:
         enabled: true
@@ -199,14 +199,10 @@ tests:
       ingress:
         enabled: true
     asserts:
-      - matchRegexRaw:
-          pattern: The Radar pod dials the Radar Cloud endpoint \(cloud.url\) over an outbound WebSocket
       - notMatchRegexRaw:
-          pattern: cloud\.example
+          pattern: (kubectl logs|port-forward svc|Open KubeAtlas at|Warning|cloud\.example)
       - matchRegexRaw:
-          pattern: kubectl logs -n radar deploy/radar
-      - notMatchRegexRaw:
-          pattern: (port-forward svc|Open Radar at|Warning)
+          pattern: Cloud connectivity is unavailable in KubeAtlas
 
   # Credentials set everywhere a value can hold one. The marker must never
   # reach the notes, in any mode.

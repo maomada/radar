@@ -1,5 +1,5 @@
 {{- if and .Values.cloud.enabled (or .Values.audit .Values.helm.ociSources) }}
-{{- fail "audit and helm.ociSources are supported only in OSS installations; configure Cloud through Radar Cloud instead" }}
+{{- fail "cloud.enabled is unavailable in KubeAtlas" }}
 {{- end }}
 {{- if not .Values.cloud.enabled }}
 apiVersion: v1

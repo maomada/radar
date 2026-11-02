@@ -5,21 +5,21 @@ import { getRadarUpgradeRequirement } from '../../types/fetch-error'
 
 describe('radarUpgradeHeadline', () => {
   it('says the cluster is behind, not the UI', () => {
-    expect(radarUpgradeHeadline('Capacity')).toBe('此集群需要更新版本的 Radar 才能使用容量')
+    expect(radarUpgradeHeadline('Capacity')).toBe('此集群需要更新版本的 KubeAtlas 才能使用容量')
   })
 })
 
 describe('radarUpgradeDetail', () => {
   it('quotes the minimum and a real current version', () => {
     expect(radarUpgradeDetail({ feature: 'Policy results', minimumVersion: 'v1.10.0', currentVersion: '1.7.2' }))
-      .toBe('Radar v1.10 起提供此功能。此集群当前运行 v1.7.2。')
+      .toBe('KubeAtlas v1.10 起提供此功能。此集群当前运行 v1.7.2。')
   })
 
   it('leaves out a current version that is not a version', () => {
     expect(radarUpgradeDetail({ feature: 'Policy results', minimumVersion: 'v1.10.0', currentVersion: 'dev' }))
-      .toBe('Radar v1.10 起提供此功能。')
+      .toBe('KubeAtlas v1.10 起提供此功能。')
     expect(radarUpgradeDetail({ feature: 'Policy results', minimumVersion: 'v1.10.0' }))
-      .toBe('Radar v1.10 起提供此功能。')
+      .toBe('KubeAtlas v1.10 起提供此功能。')
   })
 })
 
@@ -28,7 +28,7 @@ describe('radarUpgradeDetail without a known first release', () => {
 
   it('asks for the latest release when it is newer than the running one', () => {
     expect(radarUpgradeDetail({ ...unknownSince, latestVersion: '1.16.0' }))
-      .toBe('最新版本 Radar（v1.16）已提供此功能。此集群当前运行 v1.7.2。')
+      .toBe('最新版本 KubeAtlas（v1.16）已提供此功能。此集群当前运行 v1.7.2。')
   })
 
   it('only names the running version when no target release is known', () => {
@@ -40,7 +40,7 @@ describe('radarUpgradeDetail without a known first release', () => {
   it('reads the same way inline', () => {
     const html = renderToString(<RadarUpgradeNote requirement={{ ...unknownSince, latestVersion: 'v1.16.0' }} />)
     expect(html).toContain('漂移告警')
-    expect(html).toContain('需要最新版本的 Radar（v1.16）。此集群当前运行 v1.7.2。')
+    expect(html).toContain('需要最新版本的 KubeAtlas（v1.16）。此集群当前运行 v1.7.2。')
   })
 })
 
