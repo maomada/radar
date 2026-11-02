@@ -4,7 +4,7 @@ The **Reachability** tab in the resource detail view answers one question for a 
 
 > *If traffic is sent toward this resource, does it reach a healthy process - and if not, which hop is the first to break?*
 
-Available in Radar **v1.9.1+** (the in-cluster probe test also requires the probe image from v1.9.1+).
+Included in this source tree. In-cluster probing requires a compatible probe image; this is not a claim that a KubeAtlas image has been published.
 
 Naming note: this is NOT the AI Investigations feature described in the
 [MCP documentation](https://github.com/maomada/radar/blob/main/docs/mcp.md) -
@@ -20,7 +20,7 @@ The trace has two layers:
 
 The active layer can escalate the static verdict when probes give clear evidence of a real failure on a hop (every non-skipped probe failed → that hop counts toward broken; over half failed → counts toward degraded). It never softens a static verdict: a critical static finding outranks probe state, and an unverifiable path stays unverifiable.
 
-Probes run from wherever Radar is running - your laptop or inside the cluster - and that vantage changes what they can prove. A vantage-attributable failure can localize the symptom, but the headline stays *unknown* when the real traffic path was not confirmed. Radar would rather say "couldn't confirm from here" than falsely condemn a healthy path.
+Probes run from wherever KubeAtlas is running - your laptop or inside the cluster - and that vantage changes what they can prove. A vantage-attributable failure can localize the symptom, but the headline stays *unknown* when the real traffic path was not confirmed. KubeAtlas would rather say "couldn't confirm from here" than falsely condemn a healthy path.
 
 ![A Service reached by both an Ingress and an HTTPRoute: parallel entry points on the left, the path graph, and the journey inspector on the right](images/reachability/reachability-parallel-entries.png)
 
@@ -94,7 +94,7 @@ The Service curl action makes one GET from KubeAtlas to the selected Service por
 
 Each row reports outcome (`ok` / `fail` / `skipped`), latency, the path it traversed (`pod-to-pod path` or `via Kubernetes API`), and an HTTP status detail when available. The total budget is 3 seconds; per-hop runs in parallel within that envelope. Probes are an action, not a polling state; the button fires once, results land, the next static refetch replaces them.
 
-**Vantage is a first-class concept in the UI.** A reachability result is meaningless without knowing where the request came from, so the tab is built around two explicit selections: WHICH path (the **PATH** picker on the graph - one row per declared route, with per-port protocol labels like `port 53/UDP (dns)` when a Service declares dual-protocol or non-HTTP ports) and FROM WHICH vantage (selectable capsules on the graph: *Radar on your machine* dialling as a client, the *API-server proxy* relay, and the *in-cluster probe*). Selecting a vantage genuinely re-routes the graph and re-scopes the verdict, the edges, and the inspector - a laptop's success is never painted onto the in-cluster lane. Vantages Radar cannot use (a real caller workload, a genuine external client) stay visible as stated gaps rather than being hidden, so synthetic evidence never looks complete.
+**Vantage is a first-class concept in the UI.** A reachability result is meaningless without knowing where the request came from, so the tab is built around two explicit selections: WHICH path (the **PATH** picker on the graph - one row per declared route, with per-port protocol labels like `port 53/UDP (dns)` when a Service declares dual-protocol or non-HTTP ports) and FROM WHICH vantage (selectable capsules on the graph: *KubeAtlas on your machine* dialling as a client, the *API-server proxy* relay, and the *in-cluster probe*). Selecting a vantage genuinely re-routes the graph and re-scopes the verdict, the edges, and the inspector - a laptop's success is never painted onto the in-cluster lane. Vantages KubeAtlas cannot use (a real caller workload, a genuine external client) stay visible as stated gaps rather than being hidden, so synthetic evidence never looks complete.
 
 Every claim on the page carries its evidence: the verdict band states the live-check volume ("8 live checks from 2 vantages", with the DNS/TCP/TLS/HTTP breakdown on hover), a skipped route states WHY it was skipped from the exact vantage that skipped it, and node dots show each resource's own health - cluster state, never a test result (edges carry the test truth).
 
@@ -108,7 +108,7 @@ Every claim on the page carries its evidence: the verdict band states the live-c
 
 ![An Ingress subject: the front door is dialled from outside and the backend answers, with the entry path called out as unexercised](images/reachability/reachability-ingress-front-door.png)
 
-*A front-door subject. Radar dials the declared hostname from your machine (DNS, TCP, TLS, then HTTP) - here a 308 redirect - while the headline stays honest that a backend-only confirmation does not exercise the entry path.*
+*A front-door subject. KubeAtlas dials the declared hostname from your machine (DNS, TCP, TLS, then HTTP) - here a 308 redirect - while the headline stays honest that a backend-only confirmation does not exercise the entry path.*
 
 ## Security model
 
@@ -119,33 +119,33 @@ Relayed and Job-based probes are bounded by Kubernetes RBAC, but they do not alw
 | API-server relay | Namespace of the Service or Pod being proxied | `get services/proxy` and/or `get pods/proxy` |
 | In-cluster probe Job | Namespace of the resource being diagnosed | `create jobs`, `list pods`, and `get pods/log` |
 
-With [authentication](authentication.md) enabled, Radar uses the signed-in user's identity. Without authentication, Kubernetes-authorized probes use Radar's own client identity: your kubeconfig identity locally, or Radar's ServiceAccount when it runs in-cluster. The API server enforces relay permissions at request time; Radar preflights all three Job permissions before creating anything. If impersonation is unavailable, the relay is skipped rather than falling back to Radar's ServiceAccount. A proxy denial can mark that route *unreachable via the API server*, but the headline stays *unknown* because the real path was not confirmed.
+With [authentication](authentication.md) enabled, KubeAtlas uses the signed-in user's identity. Without authentication, Kubernetes-authorized probes use KubeAtlas's own client identity: your kubeconfig identity locally, or KubeAtlas's ServiceAccount when it runs in-cluster. The API server enforces relay permissions at request time; KubeAtlas preflights all three Job permissions before creating anything. If impersonation is unavailable, the relay is skipped rather than falling back to KubeAtlas's ServiceAccount. A proxy denial can mark that route *unreachable via the API server*, but the headline stays *unknown* because the real path was not confirmed.
 
 The UI asks before the first in-cluster run for a cluster and names the requests it will send (unless that consent was previously remembered). MCP has no dialog: callers must explicitly pass `in_cluster: true`, and the same RBAC preflight applies.
 
 The active Kubernetes identity authorizes Job creation, but network and mesh policy see the probe pod, not that identity. The Job runs in the diagnosed resource's namespace; its pod uses that namespace's default ServiceAccount identity but mounts no ServiceAccount token. Each run creates at most five Jobs; their containers run non-root with a read-only filesystem, all capabilities dropped, a 25-second deadline, no retries, and a 60-second TTL backstop.
 
-The default Helm chart grants neither proxy-subresource access nor Job creation, so those probe paths stay unavailable unless the relevant identity receives the permissions above. Radar running in-cluster can still dial directly from its own pod. The full `/mcp` endpoint also exposes RBAC-bounded write tools; `/mcp-readonly` excludes `apply_resource`, `patch_resource`, and the `manage_*` tools while retaining `diagnose`. On `/mcp-readonly`, the `in_cluster` argument is not exposed and schema validation rejects it.
+The default Helm chart grants neither proxy-subresource access nor Job creation, so those probe paths stay unavailable unless the relevant identity receives the permissions above. KubeAtlas running in-cluster can still dial directly from its own pod. The full `/mcp` endpoint also exposes RBAC-bounded write tools; `/mcp-readonly` excludes `apply_resource`, `patch_resource`, and the `manage_*` tools while retaining `diagnose`. On `/mcp-readonly`, the `in_cluster` argument is not exposed and schema validation rejects it.
 
 ### Agent boundary
 
-`/mcp-readonly` gives agents typed tools with fixed schemas, not a kubeconfig or shell. With authentication enabled, Kubernetes operations are bounded by the signed-in user's RBAC: direct cluster operations run under impersonation, while cache-backed reads apply per-user authorization checks. Without authentication, operations use Radar's own Kubernetes identity. The typed tool surface independently limits which operations the agent can request.
+`/mcp-readonly` gives agents typed tools with fixed schemas, not a kubeconfig or shell. With authentication enabled, Kubernetes operations are bounded by the signed-in user's RBAC: direct cluster operations run under impersonation, while cache-backed reads apply per-user authorization checks. Without authentication, operations use KubeAtlas's own Kubernetes identity. The typed tool surface independently limits which operations the agent can request.
 
 ## What it deliberately does NOT do
 
 - **No EndpointSlice reads.** The endpoint signal is pod-readiness; the trace marks this with `endpointSource: pod-readiness` so the approximation is honest.
-- **NetworkPolicy is predicted, never enforced by us.** Radar checks the ingress rules of core NetworkPolicies that select the subject's pods, without assuming a particular client (*caller-independent*). When no rule admits the path's port it surfaces "a cluster network rule would block traffic to these pods" **WARNING prediction**; when a rule allows the port only from specific sources it surfaces a source-restricted **advisory** (Radar can't tell from its own vantage whether *your* caller is allowed); an egress-only policy becomes an outbound **note**. This is always a PREDICTION, not a verdict - the CNI is the only authority on enforcement (some plugins write the NetworkPolicy object but enforce nothing), so a successful live in-cluster probe downgrades the prediction when real traffic got through, while a failed probe does not by itself prove that a policy was the cause. We do not model CNI-specific enforcement behavior. For a connection that was actually dropped, the Traffic view's per-flow panel is the place to look: with Hubble it shows the reason the plugin reported and, for policy drops, what Radar can determine from the current Kubernetes NetworkPolicies for that recorded flow (see "Why was this flow dropped?" on the Network Policies integration page).
-- **No external-path probing** for Service type LoadBalancer / NodePort - the external path requires modelling cloud LB state honestly and is intentionally out of scope today. (ExternalName **is** probed: Radar DNS-resolves and HTTP-reaches the alias host from its own vantage, marked *indirect* - a reach from Radar's network is not proof of in-cluster reachability.)
-- **No new CRDs.** Everything reads from the same informer cache the rest of Radar uses.
+- **NetworkPolicy is predicted, never enforced by us.** KubeAtlas checks the ingress rules of core NetworkPolicies that select the subject's pods, without assuming a particular client (*caller-independent*). When no rule admits the path's port it surfaces "a cluster network rule would block traffic to these pods" **WARNING prediction**; when a rule allows the port only from specific sources it surfaces a source-restricted **advisory** (KubeAtlas can't tell from its own vantage whether *your* caller is allowed); an egress-only policy becomes an outbound **note**. This is always a PREDICTION, not a verdict - the CNI is the only authority on enforcement (some plugins write the NetworkPolicy object but enforce nothing), so a successful live in-cluster probe downgrades the prediction when real traffic got through, while a failed probe does not by itself prove that a policy was the cause. We do not model CNI-specific enforcement behavior. For a connection that was actually dropped, the Traffic view's per-flow panel is the place to look: with Hubble it shows the reason the plugin reported and, for policy drops, what KubeAtlas can determine from the current Kubernetes NetworkPolicies for that recorded flow (see "Why was this flow dropped?" on the Network Policies integration page).
+- **No external-path probing** for Service type LoadBalancer / NodePort - the external path requires modelling cloud LB state honestly and is intentionally out of scope today. (ExternalName **is** probed: KubeAtlas DNS-resolves and HTTP-reaches the alias host from its own vantage, marked *indirect* - a reach from KubeAtlas's network is not proof of in-cluster reachability.)
+- **No new CRDs.** Everything reads from the same informer cache the rest of KubeAtlas uses.
 
-These are not gaps to fix soon - they are the line that keeps the feature trustworthy in clusters Radar cannot fully see.
+These are not gaps to fix soon - they are the line that keeps the feature trustworthy in clusters KubeAtlas cannot fully see.
 
 ## Limits - when an active probe can fail on healthy traffic
 
-A probe reports what *Radar's vantage* observed. Real traffic can flow fine while a probe fails, for reasons that have nothing to do with the workload:
+A probe reports what *KubeAtlas's vantage* observed. Real traffic can flow fine while a probe fails, for reasons that have nothing to do with the workload:
 
 - **Service mesh mTLS (Istio / Linkerd / Consul).** A mesh with strict mTLS rejects any connection without a valid mesh client certificate. A probe from your laptop (or any caller outside the mesh) has no such cert, so the TLS/HTTP layer fails even though sidecar-to-sidecar traffic is healthy. Recognize it: the pods carry a mesh sidecar (`istio-proxy`, `linkerd-proxy`) or mesh labels (`istio.io/rev`, `linkerd.io/inject`). Trust real in-mesh traffic over an out-of-mesh probe.
-- **NetworkPolicy.** A policy can allow real workload-to-workload traffic while blocking Radar's API-server-proxy identity (or the reverse). A failed probe next to healthy config is often this. The trace statically predicts a would-block from the caller-independent ingress rules, but the CNI is the only enforcement authority - so the prediction is confirmed or downgraded only by the live in-cluster probe.
+- **NetworkPolicy.** A policy can allow real workload-to-workload traffic while blocking KubeAtlas's API-server-proxy identity (or the reverse). A failed probe next to healthy config is often this. The trace statically predicts a would-block from the caller-independent ingress rules, but the CNI is the only enforcement authority - so the prediction is confirmed or downgraded only by the live in-cluster probe.
 - **DNS split-horizon.** A probe resolves hostnames from *your* vantage, not the cluster's. An internal name that resolves inside the cluster may not resolve (or may resolve differently) from your laptop; those probes skip with a reason rather than failing.
 - **API-server relay limits.** The relay may be denied or unable to dial an internal-only address. That result describes the relay vantage, not the workload's real traffic path.
 
@@ -185,29 +185,29 @@ The UI shows the verdict at the top of the panel with a one-sentence reason. Tre
 
 ## MCP
 
-The general-purpose `diagnose` MCP tool collects a bounded, point-in-time evidence bundle for a narrowed target; it does not run an agent or promise a root-cause verdict. For network entry kinds it returns this reachability trace instead of the pod-log fan-out used for workloads. An agent that calls `diagnose(kind=service, ...)` gets the path-shaped answer in one call, along with `relatedIssues` for raw-issue follow-up. Pass `probe: true` to add the active reachability test from Radar's vantage. Pass `in_cluster: true` to run the probe from inside the cluster - Radar creates up to 5 short-lived, self-destructing probe pods (one per intended route) under the active Kubernetes identity's RBAC to test the real dataplane the API-server-proxy vantage can't reach (e.g. to confirm a route that came back `indirect`). This is the only mutating `diagnose` option; it needs `create jobs`, `list pods`, and `get pods/log`, and falls back to a copyable command when any permission is missing.
+The general-purpose `diagnose` MCP tool collects a bounded, point-in-time evidence bundle for a narrowed target; it does not run an agent or promise a root-cause verdict. For network entry kinds it returns this reachability trace instead of the pod-log fan-out used for workloads. An agent that calls `diagnose(kind=service, ...)` gets the path-shaped answer in one call, along with `relatedIssues` for raw-issue follow-up. Pass `probe: true` to add the active reachability test from KubeAtlas's vantage. Pass `in_cluster: true` to run the probe from inside the cluster - KubeAtlas creates up to 5 short-lived, self-destructing probe pods (one per intended route) under the active Kubernetes identity's RBAC to test the real dataplane the API-server-proxy vantage can't reach (e.g. to confirm a route that came back `indirect`). This is the only mutating `diagnose` option; it needs `create jobs`, `list pods`, and `get pods/log`, and falls back to a copyable command when any permission is missing.
 
 ## In-cluster probe image
 
-The in-cluster test runs a short-lived Job whose container executes `radar probe`. Radar resolves which image that Job uses, most-trusted first:
+The in-cluster test runs a short-lived Job whose container executes `radar probe`. KubeAtlas resolves which image that Job uses, most-trusted first:
 
 1. **Explicit override** - `--reachability-image` flag / `reachabilityImage` config. Always wins.
 2. **Self-read** - radar's OWN running pod image, read from `MY_POD_NAME` / `MY_POD_NAMESPACE` (downward API) using radar's service account. The honest default: the probe runs the *same* image as radar, so it's automatically correct for private registries, mirrors, and digest-pinned deploys.
 3. **`KUBEATLAS_IMAGE` env** - the Helm chart sets this to radar's deployed image; a no-RBAC fallback for when self-read can't run.
-4. **Version-matched owned image** - `ghcr.io/maomada/kubeatlas:<version>` when that version has been published, where `<version>` is Radar's own build version.
+4. **Version-matched owned image** - `ghcr.io/maomada/kubeatlas:<version>` when that version has been published, where `<version>` is KubeAtlas's own build version.
 
 The image must ship the radar binary at `/radar` (the Job runs `["/radar","probe",...]`) - every official radar image does.
 
 By deploy shape:
 - **Standalone (Helm chart):** self-read or the chart's `KUBEATLAS_IMAGE` resolves radar's deployed image. Nothing to configure.
 - **Cloud agent (`--cloud-url`):** radar runs in-cluster as its own image; self-read resolves it. Nothing to configure.
-- **Embedded in another app:** embedding only the *frontend* library (e.g. Radar Hub) is unaffected - the backend is still a real radar image. If radar's *backend* is wrapped inside a non-radar image, self-read returns that host image, which only works if it ships `/radar` with the `probe` subcommand; otherwise set `--reachability-image` / `KUBEATLAS_IMAGE` to a published radar image. If neither is valid the probe pod fails honestly (a clear "couldn't start" status + a copyable command), never a wrong result.
+- **Embedded in another app:** embedding only the *frontend* library (e.g. the upstream Radar Hub compatibility consumer) is unaffected - the backend is still a real radar image. If radar's *backend* is wrapped inside a non-radar image, self-read returns that host image, which only works if it ships `/radar` with the `probe` subcommand; otherwise set `--reachability-image` / `KUBEATLAS_IMAGE` to a published radar image. If neither is valid the probe pod fails honestly (a clear "couldn't start" status + a copyable command), never a wrong result.
 
 **Local development:** a `-dirty` local build's version isn't a published tag, so the default (#4) won't exist. Build a probe image from your code and load it into kind:
 
 ```
 make kind-load-probe                       # builds radar-probe:dev and kind-loads it
-radar --reachability-image radar-probe:dev ...
+kubeatlas --reachability-image radar-probe:dev ...
 ```
 
 ## Performance

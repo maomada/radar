@@ -1,6 +1,6 @@
-# Contributing to maomada/radar
+# Contributing to KubeAtlas
 
-Thank you for your interest in contributing to Radar! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to KubeAtlas! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 

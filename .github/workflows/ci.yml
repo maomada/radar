@@ -366,7 +366,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Radar's own type-check covers k8s-ui source through imports, never its tests.
+      # KubeAtlas's own type-check covers k8s-ui source through imports, never its tests.
       - name: Type-check (including tests)
         run: npm run tsc
         working-directory: packages/k8s-ui
@@ -538,7 +538,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - component: radar
+          - component: kubeatlas
             dockerfile: Dockerfile
           - component: kubeatlas-portal
             dockerfile: Dockerfile.portal

@@ -1,8 +1,8 @@
 # GitOps (Argo CD & Flux)
 
-Radar's GitOps view gives Argo CD and Flux first-class treatment. Instead of treating Applications and Kustomizations as generic CRDs, you get a typed fleet view, a per-app detail page that diagnoses *why* something is misbehaving, and the controls you'd otherwise reach for `argocd` / `flux` CLI to run.
+KubeAtlas's GitOps view gives Argo CD and Flux first-class treatment. Instead of treating Applications and Kustomizations as generic CRDs, you get a typed fleet view, a per-app detail page that diagnoses *why* something is misbehaving, and the controls you'd otherwise reach for `argocd` / `flux` CLI to run.
 
-The hard part of GitOps tooling isn't sync — it's diagnosis. Radar surfaces drift, recent events, controller-failure attribution, and lifecycle state inline so you don't have to context-switch between `kubectl get`, `argocd app diff`, controller logs, and a YAML viewer to understand a stuck reconcile.
+The hard part of GitOps tooling isn't sync — it's diagnosis. KubeAtlas surfaces drift, recent events, controller-failure attribution, and lifecycle state inline so you don't have to context-switch between `kubectl get`, `argocd app diff`, controller logs, and a YAML viewer to understand a stuck reconcile.
 
 <p align="center">
   <img src="screenshots/gitops-view.png" alt="GitOps fleet view" width="800">
@@ -74,21 +74,21 @@ While an operation is running, the page polls every 2s; otherwise on-demand.
 
 ### Per-resource health
 
-The health chip on each managed resource (tree node, Resources table, per-resource Issues) comes from one of two places, and Radar tells you which:
+The health chip on each managed resource (tree node, Resources table, per-resource Issues) comes from one of two places, and KubeAtlas tells you which:
 
-- **Argo CD's own verdict.** Argo evaluates every managed resource it has a health check for (built-in checks for core kinds and many CRDs, plus your `resource.customizations`) and rolls the results up into the Application's health. Up to Argo CD 2.x this per-resource result was also written into the Application object (`status.resources[].health`), and that is what Radar reads.
-- **Argo CD's verdict, read from its API server.** Argo CD 3.0 changed the default: the controller no longer persists per-resource health into the Application (`status.resourceHealthSource: appTree`, controlled by `controller.resource.health.persist` in `argocd-cmd-params-cm`). The app-level health still rolls up, but every managed resource in the object is left without one. When Radar sees that and can reach argocd-server, it asks the server for the same per-resource verdicts (the Application's `resource-tree`, which the server keeps in its own cache) and shows those. This works with the Argo CD integration connected (Settings → Argo CD), and, without any setup, on installs that allow anonymous read (`users.anonymous.enabled`); the credential-free read accepts argocd-server's default self-signed certificate, since it sends nothing that needs protecting. Once an anonymous read has succeeded, the connection counts as the integration: Settings shows it as connected with no token needed, and the Git-rendered diff works over it too. A reachable server that refuses the read (the default) stays "not connected" — reachability alone is not an integration. The answer is accepted only when it is about the same Application (matching UID) and the Application deploys to the connected cluster. With the integration configured and no usable answer (token rejected, server unreachable, a different install answering), the notice says so and why instead of quietly showing Radar's read.
-- **Radar's own read.** When Argo's verdicts are not in the object and cannot be fetched, Radar reads the live resources itself through its issues engine (crash loops, image pulls, failed `Ready` conditions and so on) and reports what it finds. Those rows carry a **Found by Radar** marker, and a notice above the Issues band says that the problems listed are Radar's findings. Radar only reports problems this way; it never marks a resource Healthy on Argo's behalf, and a resource it has nothing on is shown without a health value.
+- **Argo CD's own verdict.** Argo evaluates every managed resource it has a health check for (built-in checks for core kinds and many CRDs, plus your `resource.customizations`) and rolls the results up into the Application's health. Up to Argo CD 2.x this per-resource result was also written into the Application object (`status.resources[].health`), and that is what KubeAtlas reads.
+- **Argo CD's verdict, read from its API server.** Argo CD 3.0 changed the default: the controller no longer persists per-resource health into the Application (`status.resourceHealthSource: appTree`, controlled by `controller.resource.health.persist` in `argocd-cmd-params-cm`). The app-level health still rolls up, but every managed resource in the object is left without one. When KubeAtlas sees that and can reach argocd-server, it asks the server for the same per-resource verdicts (the Application's `resource-tree`, which the server keeps in its own cache) and shows those. This works with the Argo CD integration connected (Settings → Argo CD), and, without any setup, on installs that allow anonymous read (`users.anonymous.enabled`); the credential-free read accepts argocd-server's default self-signed certificate, since it sends nothing that needs protecting. Once an anonymous read has succeeded, the connection counts as the integration: Settings shows it as connected with no token needed, and the Git-rendered diff works over it too. A reachable server that refuses the read (the default) stays "not connected" — reachability alone is not an integration. The answer is accepted only when it is about the same Application (matching UID) and the Application deploys to the connected cluster. With the integration configured and no usable answer (token rejected, server unreachable, a different install answering), the notice says so and why instead of quietly showing KubeAtlas's read.
+- **KubeAtlas's own read.** When Argo's verdicts are not in the object and cannot be fetched, KubeAtlas reads the live resources itself through its issues engine (crash loops, image pulls, failed `Ready` conditions and so on) and reports what it finds. Those rows carry a **Found by KubeAtlas** marker, and a notice above the Issues band says that the problems listed are KubeAtlas's findings. KubeAtlas only reports problems this way; it never marks a resource Healthy on Argo's behalf, and a resource it has nothing on is shown without a health value.
 
-Two things follow from that. A resource Argo has no health check for (so Argo ignores it) can still show a Radar finding if it is unhealthy: that is Radar's read, not a change in Argo's verdict, and the marker says so. And an Application that deploys to another cluster gets neither: Radar can only read the cluster it is connected to, so it derives nothing and says why.
+Two things follow from that. A resource Argo has no health check for (so Argo ignores it) can still show a KubeAtlas finding if it is unhealthy: that is KubeAtlas's read, not a change in Argo's verdict, and the marker says so. And an Application that deploys to another cluster gets neither: KubeAtlas can only read the cluster it is connected to, so it derives nothing and says why.
 
-To see Argo's per-resource verdicts instead of Radar's read, connect Radar to your Argo CD server in Settings (the notice links there), or set `controller.resource.health.persist: "true"` in `argocd-cmd-params-cm` and restart the application controller. Radar switches to Argo's values automatically either way.
+To see Argo's per-resource verdicts instead of KubeAtlas's read, connect KubeAtlas to your Argo CD server in Settings (the notice links there), or set `controller.resource.health.persist: "true"` in `argocd-cmd-params-cm` and restart the application controller. KubeAtlas switches to Argo's values automatically either way.
 
 ## Lifecycle awareness
 
 When a GitOps resource is being deleted (`metadata.deletionTimestamp` set), its Sync and Health values are leftovers from the last reconcile *before* deletion was triggered. Showing them as if they're current produces contradictory state ("Syncing · Progressing · Terminating") that misleads operators into trying to fix routine sync problems on a resource the cluster is actively tearing down.
 
-Radar treats Terminating as a distinct lifecycle phase that dominates other status:
+KubeAtlas treats Terminating as a distinct lifecycle phase that dominates other status:
 
 - **Detail header**: orange `[Terminating]` chip replaces Sync/Health badges. Source / Revision / Last reconcile / Sync mode metadata swaps to `Pending deletion · Finalizers`, with the original fields behind a "Show pre-deletion metadata" toggle
 - **Action buttons**: Sync, Reconcile, Suspend / Resume, Rollback, Sync-with-source disable with a tooltip explaining why. Refresh and Terminate stay enabled — they're read-only / cleanup-only verbs
@@ -118,7 +118,7 @@ Radar treats Terminating as a distinct lifecycle phase that dominates other stat
 | Operation | What it does |
 |---|---|
 | **Reconcile** | Annotates `reconcile.fluxcd.io/requestedAt` to trigger a single reconcile |
-| **Sync with source** (Kustomization / HelmRelease) | Requests the reconciles `flux reconcile --with-source` makes, upstream first: the source, then the resource. For a HelmRelease the source is its chart (the generated HelmChart of an inline `spec.chart`, named from the current spec, or the HelmChart / OCIRepository named by `spec.chartRef`), and a HelmChart's own source is reconciled before it, so a new chart version in the repository is picked up. A suspended or Terminating object anywhere in that chain fails the request with 409 before anything is written. Unlike the CLI, Radar does not wait for each step to finish. An ExternalArtifact comes from another controller, so only the resource is reconciled. Objects are patched at the API version the cluster serves |
+| **Sync with source** (Kustomization / HelmRelease) | Requests the reconciles `flux reconcile --with-source` makes, upstream first: the source, then the resource. For a HelmRelease the source is its chart (the generated HelmChart of an inline `spec.chart`, named from the current spec, or the HelmChart / OCIRepository named by `spec.chartRef`), and a HelmChart's own source is reconciled before it, so a new chart version in the repository is picked up. A suspended or Terminating object anywhere in that chain fails the request with 409 before anything is written. Unlike the CLI, KubeAtlas does not wait for each step to finish. An ExternalArtifact comes from another controller, so only the resource is reconciled. Objects are patched at the API version the cluster serves |
 | **Suspend / Resume** | Toggles `spec.suspend` |
 
 ### Keyboard shortcuts (per-app detail page)
@@ -132,16 +132,16 @@ Radar treats Terminating as a distinct lifecycle phase that dominates other stat
 
 ## Argo CD API integration (deep diff)
 
-Radar's inline field-level drift approximates desired state from the
+KubeAtlas's inline field-level drift approximates desired state from the
 `kubectl.kubernetes.io/last-applied-configuration` annotation — absent under
-server-side apply and Helm-installed resources. Connecting Radar to the
+server-side apply and Helm-installed resources. Connecting KubeAtlas to the
 argocd-server API upgrades the Changes tab with the **canonical Git-rendered
 diff**: desired (rendered from Git, with Argo's own normalizations and every
-`ignoreDifferences` rule applied — including jq rules Radar can't evaluate)
+`ignoreDifferences` rule applied — including jq rules KubeAtlas can't evaluate)
 vs live, per managed resource, as a full YAML line diff.
 
 Setup (Settings → Argo CD; the API is `PUT /api/integrations/connections` in
-local CLI and Desktop, and `PUT /api/integrations/argocd` in Radar Cloud):
+local CLI and Desktop, and `PUT /api/integrations/argocd` in legacy upstream Radar Cloud):
 
 1. Create a get-only local account in `argocd-cm` (`accounts.radar: apiKey`)
    and grant it `p, role:radar, applications, get, */*, allow` in
@@ -150,7 +150,7 @@ local CLI and Desktop, and `PUT /api/integrations/argocd` in Radar Cloud):
    works too. Don't use an admin/personal token.
 2. Paste the token in Settings. Leave the URL empty for in-cluster
    auto-discovery (the `argocd-server` Service, port-forwarded automatically
-   when Radar runs outside the cluster), or set it explicitly for external
+   when KubeAtlas runs outside the cluster), or set it explicitly for external
    endpoints. Self-signed installs need the insecure-TLS toggle.
    Alternatively, once an explicit URL is set, "Connect using CLI token" adopts
    the token your local `~/.config/argocd` CLI config holds for that server —
@@ -160,9 +160,9 @@ local CLI and Desktop, and `PUT /api/integrations/argocd` in Radar Cloud):
 Behavior and guarantees:
 
 - The token is transport, not authorization: every diff request passes
-  Radar's own per-user RBAC (Application access + a `get` SubjectAccessReview
+  KubeAtlas's own per-user RBAC (Application access + a `get` SubjectAccessReview
   on the target resource's kind) before Argo is consulted. Users can never
-  see manifests through Radar's token that Radar's RBAC would deny.
+  see manifests through KubeAtlas's token that KubeAtlas's RBAC would deny.
 - **Secret manifests are structurally redacted** — `data`/`stringData` values
   are masked per key. A value that is the same on both sides reads
   `<redacted:unchanged>`; a value that differs reads `<redacted:desired>` and
@@ -187,33 +187,33 @@ Behavior and guarantees:
   kubeconfig source entry, survives restarts and display-name qualification
   changes, and fails closed after a source switch so it is never sent to
   another cluster's argocd-server.
-- Argo CD *core* installs have no argocd-server — Radar degrades to the
+- Argo CD *core* installs have no argocd-server — KubeAtlas degrades to the
   annotation-based drift view. Same when the server is unreachable or the
   token expires; the Changes tab keeps working, only the deep diff goes away.
 
-### When Radar connects, and what pages do while it can't
+### When KubeAtlas connects, and what pages do while it can't
 
-With an Argo CD URL or token configured, Radar connects to argocd-server in
+With an Argo CD URL or token configured, KubeAtlas connects to argocd-server in
 the background as soon as Kubernetes is connected: at startup, after every
-context switch, and after a settings save. With an empty URL and Radar
+context switch, and after a settings save. With an empty URL and KubeAtlas
 running outside the cluster, that includes opening a port-forward to the
 `argocd-server` Service. Page loads never wait for this connection.
 
 What an Application page does meanwhile:
 
-- **Connecting** (no connection yet, nothing has failed): the page says Radar
+- **Connecting** (no connection yet, nothing has failed): the page says KubeAtlas
   is still connecting and asks again every 2 seconds.
 - **Retrying** (argocd-server didn't answer, refused the connection, or a
   proxy in front of it answered 502, 503 or 504): the page shows why Argo's
-  answer is missing and asks again every 30 seconds. Radar re-checks the
+  answer is missing and asks again every 30 seconds. KubeAtlas re-checks the
   server at most every 30 seconds, and only while a page has asked in that
   time, so a closed page stops the retries. Only the page whose own read
   failed keeps asking; pages for other Applications that loaded fine don't.
 - **Settled**: once Argo's answer is in, or the failure needs you (a rejected
-  token, a certificate Radar can't verify), the page stops asking.
-- **Radar didn't answer** (the page's own request to Radar failed while it was
-  waiting): the page asks again every 30 seconds until Radar answers. It
-  stops if Radar answers that the Application is gone or that you can't read
+  token, a certificate KubeAtlas can't verify), the page stops asking.
+- **KubeAtlas didn't answer** (the page's own request to KubeAtlas failed while it was
+  waiting): the page asks again every 30 seconds until KubeAtlas answers. It
+  stops if KubeAtlas answers that the Application is gone or that you can't read
   it.
 
 A timed-out per-resource health read is reused for up to 15 seconds, so
@@ -228,18 +228,18 @@ The gitops-demo cluster mints a ready-to-use token into
 ### Provisioning the token per deployment shape
 
 Settings edits are for local CLI/Desktop. Shared OSS installations are
-operator-controlled and read-only in Settings. Pick by how Radar runs:
+operator-controlled and read-only in Settings. Pick by how KubeAtlas runs:
 
 | Deployment | How to provision | Notes |
 |------------|------------------|-------|
 | **Local / desktop** | Settings → Argo CD (paste, or set the URL and choose "Connect using CLI token") | Interactive; per-context settings persist to `~/.kubeatlas/clusters.json`. |
 | **In-cluster** | Helm `argocd.existingSecret` (or `argocd.token`) → `KUBEATLAS_ARGOCD_TOKEN` | Declarative, survives restarts, read-only in the UI. |
-| **Radar Cloud** | The customer's in-cluster Radar carries the token (as above); the token never reaches the hub. | Same env path; the hub proxies to the binary, which holds the credential. |
+| **Legacy upstream Radar Cloud** | The customer's in-cluster KubeAtlas carries the token (as above); the token never reaches the hub. | Same env path; the hub proxies to the binary, which holds the credential. |
 
 When a token is provided via the environment, the integration becomes
 **environment-managed**: the Settings card renders read-only and `PUT
 /api/integrations/argocd` returns `409` — the deployment is the source of truth.
-The env token is held in memory only, never written to any local Radar file.
+The env token is held in memory only, never written to any local KubeAtlas file.
 On local CLI/Desktop, environment overrides apply only to the launch context
 and target, not every context subsequently selected. See
 [local integration connections](configuration.md#local-integration-connections).
@@ -274,42 +274,42 @@ Scoping and lifecycle:
 - **Rotation requires a pod restart** — env vars and Secret-backed env are read at
   startup and don't hot-reload. Roll the Deployment to pick up a new token.
 - **Invalid env config fails closed.** If the env vars are set but don't resolve to
-  a usable token (unreadable/empty file, invalid URL, non-boolean TLS), Radar does
+  a usable token (unreadable/empty file, invalid URL, non-boolean TLS), KubeAtlas does
   NOT fall back to a previously UI-set on-disk token — it disables the deep diff
   (annotation-drift fallback) and surfaces the reason on the Settings card. Fix the
   deployment and restart. Removing the env vars entirely returns control to any
   on-disk config; on a persistence-enabled deployment, clear both to fully remove a
   credential.
-- Deep-diff cross-cluster destinations are refused: a Radar SAR can only authorize
+- Deep-diff cross-cluster destinations are refused: a KubeAtlas SAR can only authorize
   a read against its own cluster, so Applications targeting a remote
   `spec.destination` fall back to annotation drift.
 
-## Cross-linking from the rest of Radar
+## Cross-linking from the rest of KubeAtlas
 
-The GitOps tab isn't the only place Argo/Flux ownership matters. Surfaces across Radar know about GitOps and route into the right detail page when they should:
+The GitOps tab isn't the only place Argo/Flux ownership matters. Surfaces across KubeAtlas know about GitOps and route into the right detail page when they should:
 
-- **K8s resource drawer** — the header chip reads `relationships.ownership.manager` ([states](ownership.md#what-manages-an-object)): **Managed by** for `agree`, **Listed by** for `listed` and `shared`, **Tracked by** for `claimed` and `disagree` (with a warning for `disagree`), and **via <Kind>** when a controller ancestor answers. `unknown`/`none` show no chip; native Helm keeps its Helm chip. The tooltip says what names each manager; the manager's sync status shows only for `agree`. Several candidates open a menu naming each; only managers Radar found are linked, and an Application's namespace is never guessed. Older Radars without the answer keep the metadata-based chip.
+- **K8s resource drawer** — the header chip reads `relationships.ownership.manager` ([states](ownership.md#what-manages-an-object)): **Managed by** for `agree`, **Listed by** for `listed` and `shared`, **Tracked by** for `claimed` and `disagree` (with a warning for `disagree`), and **via <Kind>** when a controller ancestor answers. `unknown`/`none` show no chip; native Helm keeps its Helm chip. The tooltip says what names each manager; the manager's sync status shows only for `agree`. Several candidates open a menu naming each; only managers KubeAtlas found are linked, and an Application's namespace is never guessed. Older Radars without the answer keep the metadata-based chip.
 - **Related Resources in the resource drawer**:
   - **Owner** and **Children** come from owner references, the links Kubernetes' garbage collector follows. A Deployment's or Rollout's old ReplicaSets (no Pods, not the current revision) sit behind *Show N older ReplicaSets*.
   - **Managed By** names the managers whose recorded lists (`status.resources`, `status.inventory`) name the object, plus other controllers that manage it without an owner reference (a cert-manager Certificate for its Secret). **Manages** on a manager lists its members, capped at 500 (`500+`). A recorded list is what the controller compared or applied, so it can include objects it doesn't sync ([ownership](ownership.md#the-model)).
   - The group is titled **Listed By** when every entry is a manager whose list names the object while its metadata doesn't confirm it (`listed`, `shared`, `disagree`, no via), as the chip words it.
   - Managed By is hidden only when the chip already says the same: a direct `agree`/`listed` answer whose single manager equals the group's single entry, with no manager coverage note.
-  - When Radar couldn't check everything a group needs (a kind it doesn't collect, a namespace outside its scope, a manager kind loading or refused, a list for a cluster it can't confirm is this one), the group says so rather than showing a short list as complete. An unreadable list and a manager kind discovery missed appear only in the hint, since either could name any object; a manager whose list can't be read still appears where the graph links it.
+  - When KubeAtlas couldn't check everything a group needs (a kind it doesn't collect, a namespace outside its scope, a manager kind loading or refused, a list for a cluster it can't confirm is this one), the group says so rather than showing a short list as complete. An unreadable list and a manager kind discovery missed appear only in the hint, since either could name any object; a manager whose list can't be read still appears where the graph links it.
   - Flux records no destination with its inventory, so after a `spec.kubeConfig` change the list names the previous destination's objects until the next reconcile.
 - **Topology** — clicking an Argo / Flux CR node opens its GitOps detail page directly, not the generic drawer
 - **Timeline** — lane labels for Argo / Flux CRs route to detail
 - **Helm view** — releases installed by Flux's helm-controller (detected via a HelmRelease CR lookup keyed by `<storageNamespace>/<releaseName>`, since Flux's labels live on the *managed* resources, not the release Secret) carry a `Flux` badge in the list and an amber `Managed by Flux · ns/name` link in the drawer, warning that `helm upgrade` would be reverted at the next reconcile
-- **Flux source CR drawers** — Related Resources › **Required by** lists the Kustomizations, HelmReleases and HelmCharts that read the source, within Radar's namespace scope. Answers "if I edit this, what gets affected on the next reconcile?"
+- **Flux source CR drawers** — Related Resources › **Required by** lists the Kustomizations, HelmReleases and HelmCharts that read the source, within KubeAtlas's namespace scope. Answers "if I edit this, what gets affected on the next reconcile?"
 
 ## Revert warnings before a write
 
-Before Radar writes to an object a GitOps controller or a Helm release owns, the dialog says what will happen to the change: **will revert**, **may revert**, an informational note, or nothing, with the reasons and a link to the owner. Set image and the Diagnose **Apply** dialog use it. A possible revert asks for an acknowledgment, which clears whenever the verdict changes.
+Before KubeAtlas writes to an object a GitOps controller or a Helm release owns, the dialog says what will happen to the change: **will revert**, **may revert**, an informational note, or nothing, with the reasons and a link to the owner. Set image and the Diagnose **Apply** dialog use it. A possible revert asks for an acknowledgment, which clears whenever the verdict changes.
 
-Radar's caches strip `managedFields` and the last-applied annotation, so the browser asks the server: `POST /api/gitops/write-evidence` with `{kind, group, namespace, name, paths[], owner?}`. The server reads the target, and its Argo CD Application or Flux Kustomization/HelmRelease owner, **as the caller**, and returns per field path:
+KubeAtlas's caches strip `managedFields` and the last-applied annotation, so the browser asks the server: `POST /api/gitops/write-evidence` with `{kind, group, namespace, name, paths[], owner?}`. The server reads the target, and its Argo CD Application or Flux Kustomization/HelmRelease owner, **as the caller**, and returns per field path:
 
 - whether the path is in the last client-side apply (`present` / `absent` / `no-annotation`);
 - which field managers own it, and whether one is the owner's own controller (`approximate` when a manager owns only an ancestor or part of the path, e.g. one container's image under `containers[*]`);
-- whether an ignore rule covers it: `effective` (Argo `ignoreDifferences` with `RespectIgnoreDifferences`, Flux `driftDetection.ignore`, or a reconcile opt-out annotation; Flux's `ssa: IfNotPresent` is read from the live object, which doesn't prove the source declares it, so it stays **may revert**), `comparison-only` (Argo without `RespectIgnoreDifferences`: self-heal won't react, the next sync overwrites), or `unevaluated` (a jq rule, a rule that covers only some of the entries a wildcard matches, or a Flux Kustomization's `spec.ignore`, which Flux documents as keeping a live edit but which hasn't been checked against a live controller). Argo's instance-wide ignore rules in `argocd-cm` aren't read, so a field only they cover still reads as the source setting it. `RespectIgnoreDifferences` counts only from the Application's own sync options: Argo reads it from the sync operation, never from a resource's `sync-options` annotation. Argo matches a `managedFieldsManagers` rule against the field's live owner, and the write makes Radar the owner, so a rule naming another manager doesn't count and one naming Radar's own (`radar`) is `unevaluated`. Argo rules match `group`/`kind` `"*"`; Flux targets are anchored regular expressions, as in Kustomize;
+- whether an ignore rule covers it: `effective` (Argo `ignoreDifferences` with `RespectIgnoreDifferences`, Flux `driftDetection.ignore`, or a reconcile opt-out annotation; Flux's `ssa: IfNotPresent` is read from the live object, which doesn't prove the source declares it, so it stays **may revert**), `comparison-only` (Argo without `RespectIgnoreDifferences`: self-heal won't react, the next sync overwrites), or `unevaluated` (a jq rule, a rule that covers only some of the entries a wildcard matches, or a Flux Kustomization's `spec.ignore`, which Flux documents as keeping a live edit but which hasn't been checked against a live controller). Argo's instance-wide ignore rules in `argocd-cm` aren't read, so a field only they cover still reads as the source setting it. `RespectIgnoreDifferences` counts only from the Application's own sync options: Argo reads it from the sync operation, never from a resource's `sync-options` annotation. Argo matches a `managedFieldsManagers` rule against the field's live owner, and the write makes KubeAtlas the owner, so a rule naming another manager doesn't count and one naming KubeAtlas's own (`radar`) is `unevaluated`. Argo rules match `group`/`kind` `"*"`; Flux targets are anchored regular expressions, as in Kustomize;
 - a wildcard path (`containers[*].image`) is judged per entry of the live object: the source must declare every container, or a rule cover every container, before the verdict is certain. When the source declares only some, the field is `partial` and the verdict is **may revert**; a wildcard that matches nothing (no init containers) is `empty` and adds no verdict. Set image uses the wildcard only until the dialog lists the containers; then it asks about each container by name (so the evidence can't predate the list) and judges the ones you change;
 - and the owner's sync policy (auto, self-heal, prune, suspended).
 
@@ -318,18 +318,18 @@ The response also includes `manager`, the server's answer from the live target (
 | Answer | Field write | Delete |
 |---|---|---|
 | `agree` | from the field evidence and policy; can be **will revert** | **will revert** with self-heal, else **may revert** |
-| `listed` | **may revert**: Radar can't confirm the manager applies the object | same |
+| `listed` | **may revert**: KubeAtlas can't confirm the manager applies the object | same |
 | `claimed` | **may revert** | same |
-| `disagree`, `shared`, several claims | **may revert**, naming every candidate and linking each one Radar found; no one candidate's exemption applies | same |
+| `disagree`, `shared`, several claims | **may revert**, naming every candidate and linking each one KubeAtlas found; no one candidate's exemption applies | same |
 | via an ancestor, no claim on the object | note: generated from the parent | note: its controller recreates it (a CronJob's Job isn't recreated) |
-| chain Radar couldn't read | **may revert** | same |
+| chain KubeAtlas couldn't read | **may revert** | same |
 | `unknown` from coverage gaps, `none` | nothing | nothing |
 
-Helm annotations beside an Argo CD or Kustomization manager (an adopted install) keep **may revert** even when that manager ignores the field. The answer is the caller's: with `narrowed` it may be incomplete, and a manager they can't read may still revert a change the visible one exempts. Status writes, new child objects, operator-owned deletes and empty wildcard paths keep their own rules. Values from a newer Radar this UI doesn't know count as unconfirmed; older Radars without `manager` keep the previous classifier.
+Helm annotations beside an Argo CD or Kustomization manager (an adopted install) keep **may revert** even when that manager ignores the field. The answer is the caller's: with `narrowed` it may be incomplete, and a manager they can't read may still revert a change the visible one exempts. Status writes, new child objects, operator-owned deletes and empty wildcard paths keep their own rules. Values from a newer KubeAtlas this UI doesn't know count as unconfirmed; older Radars without `manager` keep the previous classifier.
 
 It never returns managedFields or last-applied content, only these facts. Bodies are capped at 16 KiB (413) and at 64 paths; unknown fields are rejected (400). Wildcards in one request expand to at most 256 live entries; a path past that carries an `error` (read as **may revert**) instead of a verdict. Kubernetes 403/404 pass through.
 
-The classification is `evaluateGitOpsWriteGuard` in k8s-ui (`utils/gitops-write-guard.ts`), shown by `GitOpsWriteWarning`; the hook is `web/src/hooks/useGitOpsWriteGuard.ts`. Ownership comes from the manager answer when present, with browser-side parent lookup retained only for older Radars. When the server hasn't built either yet, the parent can't be read, or the server reports a manager the browser can't resolve (the Diagnose run's `managedBy`), ownership is treated as unknown: **may revert**, with an acknowledgment. A Radar without the endpoint (no `gitopsWriteEvidence` capability) gets the same conservative warning, whose reason says it needs a newer Radar; the write itself still works. The copy never promises a change won't be reverted.
+The classification is `evaluateGitOpsWriteGuard` in k8s-ui (`utils/gitops-write-guard.ts`), shown by `GitOpsWriteWarning`; the hook is `web/src/hooks/useGitOpsWriteGuard.ts`. Ownership comes from the manager answer when present, with browser-side parent lookup retained only for older Radars. When the server hasn't built either yet, the parent can't be read, or the server reports a manager the browser can't resolve (the Diagnose run's `managedBy`), ownership is treated as unknown: **may revert**, with an acknowledgment. A KubeAtlas without the endpoint (no `gitopsWriteEvidence` capability) gets the same conservative warning, whose reason says it needs a newer KubeAtlas; the write itself still works. The copy never promises a change won't be reverted.
 
 ## MCP integration
 
@@ -365,7 +365,7 @@ The lifecycle controller-health probe (Home dashboard `GitOps Controllers` card,
 
 ## Single-cluster scope
 
-Radar shows GitOps connections only when the controller and managed resources live in the same cluster. ArgoCD's hub-spoke pattern (controller in one cluster, workloads in another) means Application → resource edges won't render when you're connected to the ArgoCD hub. Flux typically deploys to its own cluster, so connections usually work.
+KubeAtlas shows GitOps connections only when the controller and managed resources live in the same cluster. ArgoCD's hub-spoke pattern (controller in one cluster, workloads in another) means Application → resource edges won't render when you're connected to the ArgoCD hub. Flux typically deploys to its own cluster, so connections usually work.
 
 ## See also
 

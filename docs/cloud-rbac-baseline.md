@@ -1,6 +1,6 @@
-# Radar Cloud default integration-read policy
+# Legacy upstream Radar Cloud default integration-read policy
 
-Radar's connector collects resources with its service account. A Radar Cloud user's
+The legacy upstream Radar Cloud connector collects resources with its service account. A user's
 Kubernetes permissions are separate: the default tiers bind viewer/member/owner
 to `view`/`edit`/`admin`, which do not reliably include operator CRDs. Vendor role
 aggregation may cover some types on some clusters. Without an explicit baseline,
@@ -8,7 +8,7 @@ an integration can be collected successfully but denied in an authorized diagnos
 
 The chart adds two read-only ClusterRoles: `*-integration-read-namespaced` and
 `*-integration-read-cluster`. Both grant only `get/list/watch` on exact reviewed
-group/resource identities. Each enabled Radar Cloud tier gets its own bindings to
+group/resource identities. Each enabled legacy upstream Radar Cloud tier gets its own bindings to
 `radar:<tier>` and the existing compatibility group `cloud:<tier>`. Namespaced
 resources are readable **across all namespaces** under the default bindings.
 The grants apply to any Kubernetes identity carrying those groups, not just to a
@@ -100,7 +100,7 @@ The baseline is default-on for enabled default tiers. Upgrading an installed cha
 therefore expands deliberate read access, including inline configuration. Missing
 `integrationRead` maps/keys on `helm upgrade --reuse-values` follow the declared
 default; explicit `false` is preserved. Review/set opt-outs before the upgrade.
-Upgrading only the binary or using Radar Cloud self-upgrade does not install these RBAC
+Upgrading only the binary or using legacy upstream Radar Cloud self-upgrade does not install these RBAC
 objects. No cluster configuration sync or automatic rollout is introduced.
 
 Test with `go test ./internal/k8s -run TestIntegrationRead`, chart lint/unittests,

@@ -2,7 +2,7 @@ blank_issues_enabled: false
 contact_links:
   - name: Questions and support
     url: https://github.com/maomada/radar/issues
-    about: Ask about this independently maintained version of Radar.
+    about: Ask about KubeAtlas.
   - name: Documentation
     url: https://github.com/maomada/radar/tree/main/docs
     about: Read this repository's deployment and usage documentation.

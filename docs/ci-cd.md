@@ -38,8 +38,8 @@ Helm OCI charts:
 For example, after a version is actually published:
 
 ```sh
-helm upgrade --install radar oci://ghcr.io/maomada/charts/kubeatlas \
-  --version "$VERSION" --namespace radar --create-namespace
+helm upgrade --install kubeatlas oci://ghcr.io/maomada/charts/kubeatlas \
+  --version "$VERSION" --namespace kubeatlas --create-namespace
 helm upgrade --install kubeatlas-portal oci://ghcr.io/maomada/charts/kubeatlas-portal \
   --version "$VERSION" --namespace kubeatlas-portal --create-namespace \
   --set existingSecret=portal-auth
@@ -47,7 +47,7 @@ helm upgrade --install kubeatlas-portal oci://ghcr.io/maomada/charts/kubeatlas-p
 
 Use a secret manager or existing Kubernetes Secret for credentials. Do not put
 registry credentials in chart values, runtime configuration, command arguments,
-or this repository. The Radar chart supports an `imagePullSecrets` value. The
+or this repository. The KubeAtlas chart supports an `imagePullSecrets` value. The
 Portal chart does not; its Deployment uses the namespace default ServiceAccount.
 For private GHCR images used by Portal, have the cluster operator provision that
 ServiceAccount's `imagePullSecrets` before installation. Do not assume packages
@@ -75,7 +75,8 @@ an owned distribution path exists. The Go module path and npm package names
 retain their historical compatibility identifiers; those identifiers do not
 publish or install this repository's CLI releases.
 
-Optional Radar Cloud connectivity and opt-in usage reporting still use their
-existing external service endpoints. This project does not operate those
-services or claim them as owned; see [Usage Stats](usage-stats.md) for the
-telemetry destination and contents.
+Upstream Cloud connectivity and usage reporting are disabled in KubeAtlas.
+Legacy environment settings cannot enable them, and the Helm charts reject
+enabling those features. See [Usage Stats](usage-stats.md) and
+[Authentication](authentication.md#upstream-cloud-mode) for the retained
+compatibility boundaries. The independent Portal is not the upstream Cloud.

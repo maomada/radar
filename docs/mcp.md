@@ -1,6 +1,6 @@
 # AI Integration (MCP)
 
-Radar includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents inspect, investigate, and operate your Kubernetes cluster.
+KubeAtlas includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that lets AI agents inspect, investigate, and operate your Kubernetes cluster.
 
 ## Node drain timeouts
 
@@ -11,7 +11,7 @@ the operation deadline; it is not an additional deletion-wait allowance.
 
 Configure the MCP client's tool-call timeout and every reverse proxy in the path
 to exceed the selected drain deadline plus five seconds, with room for network
-latency. For the default, use at least 150 seconds. Radar's drain route is outside
+latency. For the default, use at least 150 seconds. KubeAtlas's drain route is outside
 its normal 60-second HTTP timeout group, but that does not change external client
 or proxy limits. See [ingress timeout guidance](in-cluster.md#node-drain-requests-time-out).
 
@@ -35,7 +35,7 @@ Giving an AI agent raw `kubectl` access has problems:
 - **No enrichment** — raw output lacks topology relationships, health assessments, or cross-resource correlation
 - **Write access risk** — kubectl can modify and delete resources
 
-Radar's MCP server solves these:
+KubeAtlas's MCP server solves these:
 
 - **Token-optimized** — resources are minified, stripping noise (managed fields, internal annotations, redundant status) while preserving what matters
 - **Enriched data** — topology graphs, health assessments, deduplicated events, filtered logs (prioritizing errors/warnings)
@@ -46,26 +46,26 @@ Radar's MCP server solves these:
 
 ## Enabling / Disabling
 
-The MCP server is **enabled by default** when Radar starts. To disable it:
+The MCP server is **enabled by default** when KubeAtlas starts. To disable it:
 
 ```bash
-radar --no-mcp
+kubeatlas --no-mcp
 ```
 
 To expose only read-only MCP tools:
 
 ```bash
-radar --mcp-read-only
+kubeatlas --mcp-read-only
 ```
 
-This is one server-wide mode. `/mcp-readonly` stays available, and Radar's
+This is one server-wide mode. `/mcp-readonly` stays available, and KubeAtlas's
 internal `/mcp-investigation` endpoint keeps its read-only tools and evidence
 correlation. The full `/mcp` endpoint returns 404, including direct MCP calls.
 Write tools cannot be listed or called on the retained endpoints. Diagnostic
 options that create temporary Kubernetes resources (`diagnose`'s `in_cluster`)
 are also rejected. Built-in investigations and verification remain available;
 their Apply action is unavailable because it requires MCP write tools.
-This setting does not restrict writes in the Radar UI or REST API.
+This setting does not restrict writes in the KubeAtlas UI or REST API.
 
 CLI and Desktop accept both flags. You can also set
 `KUBEATLAS_MCP_READ_ONLY=1` or persist `"mcpReadOnly": true` in
@@ -88,7 +88,7 @@ Go's `strconv.ParseBool` spelling (`1`, `0`, `true`, `false`, `T`, `F`, and
 their supported case variants); an empty value is unset and an invalid value
 is an error. `--no-mcp --mcp-read-only` is an error. A config file containing
 both `"mcp": false` and `"mcpReadOnly": true` is also rejected; correct the
-file before starting Radar, even when passing overrides.
+file before starting KubeAtlas, even when passing overrides.
 
 Malformed or unreadable config files stop CLI, Desktop and standalone
 investigation startup rather than falling back to full MCP. For example,
@@ -96,7 +96,7 @@ investigation startup rather than falling back to full MCP. For example,
 The settings API also rejects contradictory MCP settings before saving them.
 
 In read-only mode, use `http://localhost:9280/mcp-readonly` in client
-configurations. Radar's setup dialog, settings and interactive investigation
+configurations. KubeAtlas's setup dialog, settings and interactive investigation
 handoffs select this endpoint automatically. Existing client configurations
 using `/mcp` must be updated. Startup output and `/api/capabilities`
 (`mcpEnabled`, `mcpReadOnly`) describe the effective mode.
@@ -115,7 +115,7 @@ suppressed opt-in, and `/api/config.effective.mcpExecTools` reports the running 
 Pass `namespace` and `name` as strings and `command` as an argv array. There is
 no implicit shell, stdin or TTY. For pipes/variables, explicitly use
 `["sh", "-c", "..."]`. The binary (including `sh`) must exist in the image.
-For minimal images, use Radar's **Debug container** UI, which requires separate
+For minimal images, use KubeAtlas's **Debug container** UI, which requires separate
 permission to add an ephemeral container. It does not necessarily share the
 application's filesystem or environment. Reading a config file or a new
 process's environment does not prove what the running app has loaded.
@@ -136,7 +136,7 @@ annotation or explicit name can select a proxy, init or ephemeral container.
 Without either, a proxy-only Pod requires an explicit container name.
 
 Every Kubernetes request uses one snapshot of the caller's credentials
-(impersonation or forwarded token); no-auth calls use Radar's kubeconfig or
+(impersonation or forwarded token); no-auth calls use KubeAtlas's kubeconfig or
 ServiceAccount. No privileged fallback occurs. Resolution needs reads of the
 Pod and, for workloads, its revision evidence. Exec uses WebSocket (`get` on
 `pods/exec`) with SPDY fallback (`create`). Kubernetes 1.35's default-on
@@ -176,10 +176,10 @@ the full request URI, including arguments, even at Metadata level. Output is
 unredacted, potentially sensitive and untrusted. Commands can change external
 state and use mounted credentials. Prefer read-only checks. Opt-in applies to
 all clients; Kubernetes controls caller permissions and the MCP host controls
-per-call approval. With auth off, reachable clients share Radar's authority.
+per-call approval. With auth off, reachable clients share KubeAtlas's authority.
 The namespace cache pin does not constrain named-Pod exec.
 
-Radar's audit/tool logs omit raw argv and output. Audit records include caller,
+KubeAtlas's audit/tool logs omit raw argv and output. Audit records include caller,
 requested/selected target, observed UID/node, safe executable name, argument
 count (excluding executable), and command hash. An `attempt` precedes streaming;
 its `invocationID` links the completion. Outcomes are `exit_N`, `timeout`,
@@ -199,9 +199,9 @@ The port matches your `--port` flag (default 9280). The MCP server uses the stat
 
 ## Server instructions
 
-When a client connects, Radar returns MCP [server instructions](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle#initialization) in the `initialize` result, or, for clients on protocol version 2026-07-28 (which has no `initialize`), in the `server/discover` result. The text is about 3,400 characters on which tool answers which question, how to read issue timing and attached changes, what a tool result does and does not prove, and that text read from the cluster (logs, events, annotations) is data, never instructions. It lives in [`pkg/investigation/guidance.go`](../pkg/investigation/guidance.go). Agents in clients that use server instructions get this guidance without a separate skill or rules file.
+When a client connects, KubeAtlas returns MCP [server instructions](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle#initialization) in the `initialize` result, or, for clients on protocol version 2026-07-28 (which has no `initialize`), in the `server/discover` result. The text is about 3,400 characters on which tool answers which question, how to read issue timing and attached changes, what a tool result does and does not prove, and that text read from the cluster (logs, events, annotations) is data, never instructions. It lives in [`pkg/investigation/guidance.go`](../pkg/investigation/guidance.go). Agents in clients that use server instructions get this guidance without a separate skill or rules file.
 
-What a client does with the text depends on the client and its version. Some add it to the model's context at session start; others show it only after the model loads Radar's tools; some ignore it. Claude Code keeps the first 4,096 characters (2,048 before v2.1.296; see its [MCP documentation](https://code.claude.com/docs/en/mcp)), so Radar puts tool routing first and keeps it within the first 2,048 characters. Codex describes a server whose tools it loads on demand by the first line alone, cut at 250 characters, so that line says on its own what Radar is, that its tools are preferred over kubectl for reading cluster state, and which core tools to load. Each tool's description carries its own routing, so agents in clients that ignore server instructions still get it. `/mcp-readonly` sends the same text without the write tools.
+What a client does with the text depends on the client and its version. Some add it to the model's context at session start; others show it only after the model loads KubeAtlas's tools; some ignore it. Claude Code keeps the first 4,096 characters (2,048 before v2.1.296; see its [MCP documentation](https://code.claude.com/docs/en/mcp)), so KubeAtlas puts tool routing first and keeps it within the first 2,048 characters. Codex describes a server whose tools it loads on demand by the first line alone, cut at 250 characters, so that line says on its own what KubeAtlas is, that its tools are preferred over kubectl for reading cluster state, and which core tools to load. Each tool's description carries its own routing, so agents in clients that ignore server instructions still get it. `/mcp-readonly` sends the same text without the write tools.
 
 ### Waiting for a fix to land
 
@@ -209,13 +209,13 @@ Use `wait_for` after a change to wait for a controller's rollout, Pod readiness,
 
 ## Catalog Introspection
 
-MCP registries and inspectors can start Radar without a Kubernetes cluster when they only need the tool and resource catalog:
+MCP registries and inspectors can start KubeAtlas without a Kubernetes cluster when they only need the tool and resource catalog:
 
 ```bash
-radar --mcp-catalog-only --no-browser
+kubeatlas --mcp-catalog-only --no-browser
 ```
 
-This mode skips Kubernetes initialization and starts the `/mcp` endpoint for schema introspection. Cluster-backed tool calls still require a normal Radar process connected to Kubernetes.
+This mode skips Kubernetes initialization and starts the `/mcp` endpoint for schema introspection. Cluster-backed tool calls still require a normal KubeAtlas process connected to Kubernetes.
 
 Adding `--mcp-read-only` exposes `/mcp-readonly` instead of `/mcp` and keeps the
 internal investigation mount. The same config and environment precedence applies.
@@ -223,21 +223,21 @@ internal investigation mount. The same config and environment precedence applies
 For registries that launch MCP servers over stdio, use:
 
 ```bash
-radar --mcp-catalog-stdio
+kubeatlas --mcp-catalog-stdio
 ```
 
 Add `--mcp-read-only` to serve the existing read-only catalog over stdio, with
 the same write-tool and mutating-diagnostic rejection as HTTP. Both catalog
 entrypoints reject an explicit `--no-mcp`. Choosing a catalog entrypoint
-overrides a saved `"mcp": false`. `radar diagnose --standalone`
+overrides a saved `"mcp": false`. `kubeatlas diagnose --standalone`
 honors the saved and environment MCP mode; a disabled mode rejects startup.
 
 This exposes the same tool and resource catalog over stdio without starting the HTTP UI server.
-The stdio mode is intended only for catalog introspection; normal Radar sessions use the HTTP endpoint above.
+The stdio mode is intended only for catalog introspection; normal KubeAtlas sessions use the HTTP endpoint above.
 
 ## Setup Instructions
 
-Connect your AI tool to Radar's MCP server. Radar must be running first (`radar` or `kubectl radar`). The examples use the default endpoint `http://localhost:9280/mcp`; if Radar runs on another port, use the endpoint shown in Radar's MCP dialog.
+Connect your AI tool to KubeAtlas's MCP server. KubeAtlas must be running first (`kubeatlas` or `kubectl radar`). The examples use the default endpoint `http://localhost:9280/mcp`; if KubeAtlas runs on another port, use the endpoint shown in KubeAtlas's MCP dialog.
 
 ### Claude Code
 
@@ -323,19 +323,19 @@ Add to `~/.config/opencode/opencode.json` (all projects) or `opencode.json` in y
 }
 ```
 
-Radar can also run in-app investigations with an installed OpenCode CLI (tested
+KubeAtlas can also run in-app investigations with an installed OpenCode CLI (tested
 with 1.18.5). Install with `npm install -g opencode-ai`; authenticate with
 `opencode auth login` or use your existing provider configuration, including AWS
 Bedrock. Model overrides use `provider/model` names from `opencode models`.
 
-OpenCode supports the **Your agent setup** execution profile only. Radar inherits
+OpenCode supports the **Your agent setup** execution profile only. KubeAtlas inherits
 your provider environment and OpenCode configuration, and runs with `--auto`:
 permission requests are approved automatically, including those from built-in
-tools and configured MCP servers; explicit denials still apply. Radar does not
-enforce a CLI sandbox. Diagnosis and follow-up use Radar's read-only investigation
+tools and configured MCP servers; explicit denials still apply. KubeAtlas does not
+enforce a CLI sandbox. Diagnosis and follow-up use KubeAtlas's read-only investigation
 MCP. A confirmed Apply starts a separate write-enabled session, then resumes the
 original read-only session to verify the result. As with other agents using your
-normal setup, Radar cannot authenticate write results and reports the Apply
+normal setup, KubeAtlas cannot authenticate write results and reports the Apply
 outcome as uncertain until current-state verification. Terminal handoff and
 reasoning-effort controls are not available for OpenCode.
 
@@ -418,7 +418,7 @@ Add to `~/.config/devin/mcp_config.json` (macOS/Linux) or `%APPDATA%\devin\mcp_c
 
 ### Claude Desktop
 
-Claude Desktop's custom connectors connect from Anthropic's cloud and cannot reach `localhost`. For a local Radar, use the [`mcp-remote`](https://github.com/geelen/mcp-remote) bridge (requires Node.js). Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Claude Desktop's custom connectors connect from Anthropic's cloud and cannot reach `localhost`. For a local KubeAtlas, use the [`mcp-remote`](https://github.com/geelen/mcp-remote) bridge (requires Node.js). Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -475,10 +475,10 @@ This repository does not currently publish a separate MCP registry entry or
 CLI release archives. The older `io.github.skyhook-io/radar` registry identity
 and `ghcr.io/maomada/kubeatlas` image belong to the upstream project; they are
 not releases of this independently maintained repository. Use a locally built
-Radar binary or an owned OCI image only after it has been published as
+KubeAtlas binary or an owned OCI image only after it has been published as
 described in [CI/CD](ci-cd.md).
 
-When using a compatible distroless Radar image, note these limitations:
+When using a compatible distroless KubeAtlas image, note these limitations:
 
 - **Exec-plugin auth does not work.** Kubeconfigs for GKE/EKS/AKS typically call `gke-gcloud-auth-plugin`, `aws eks get-token`, or `kubelogin` — none exist inside the container. Only kubeconfigs with embedded certificates or static tokens work.
 - **Local clusters are unreachable.** kind/minikube/Docker Desktop API servers listen on the host's `127.0.0.1`, which inside the container is the container itself.
@@ -488,9 +488,9 @@ An in-cluster deployment uses a ServiceAccount and avoids these local kubeconfig
 
 ## Crossplane pause context
 
-`list_resources` summaries, list/search `summaryContext`, and `get_resource`'s `resourceContext` carry optional `crossplanePause` for CRDs (identities in Radar's built-in registry are excluded, including typed objects converted for generic reads): `requested` for the exact `crossplane.io/paused: "true"` annotation, or `acknowledged` when the stored `Synced=False/ReconcilePaused` condition corroborates it. A request alone does not establish that a controller has stopped. Acknowledgement is a recorded observation, not a fresh external check or a claim about child controllers. No timestamp is inferred. An omitted field does not rule out other pause mechanisms.
+`list_resources` summaries, list/search `summaryContext`, and `get_resource`'s `resourceContext` carry optional `crossplanePause` for CRDs (identities in KubeAtlas's built-in registry are excluded, including typed objects converted for generic reads): `requested` for the exact `crossplane.io/paused: "true"` annotation, or `acknowledged` when the stored `Synced=False/ReconcilePaused` condition corroborates it. A request alone does not establish that a controller has stopped. Acknowledgement is a recorded observation, not a fresh external check or a claim about child controllers. No timestamp is inferred. An omitted field does not rule out other pause mechanisms.
 
-Pause is separate from recorded readiness, operational issues and audit findings. On generic CRD summary rows carrying `crossplanePause`, `ready` preserves the recorded condition status, and an independent Synced error remains in `issue` even if Ready is True. `context=none` omits enrichment but retains the summary row's `crossplanePause`. Detail keeps raw annotations/conditions; Compact keeps the exact pause annotation key. Radar's own Diagnose kickoff carries the same fact without treating pause alone as a problem. The MCP `diagnose` tool's supported kinds are unchanged; use `get_resource` for Crossplane resources. Summary rows for all terminating CRDs also retain `terminating` and `finalizers`, matching typed-resource summaries.
+Pause is separate from recorded readiness, operational issues and audit findings. On generic CRD summary rows carrying `crossplanePause`, `ready` preserves the recorded condition status, and an independent Synced error remains in `issue` even if Ready is True. `context=none` omits enrichment but retains the summary row's `crossplanePause`. Detail keeps raw annotations/conditions; Compact keeps the exact pause annotation key. KubeAtlas's own Diagnose kickoff carries the same fact without treating pause alone as a problem. The MCP `diagnose` tool's supported kinds are unchanged; use `get_resource` for Crossplane resources. Summary rows for all terminating CRDs also retain `terminating` and `finalizers`, matching typed-resource summaries.
 
 ## `diagnose` evidence limits
 
@@ -500,7 +500,7 @@ Warning events in workload `diagnose` exclude events whose `involvedObject.uid` 
 
 `podNames` lists the Pods controlled by the observed workload, with API group, kind, name and UID matched throughout controller ownership. Names are sorted and capped at 50; `podNamesTruncated` marks the cap, and `pods` counts the full set. Scope a follow-up `query_prometheus` to the listed names and namespace (`pod=~'^(a|b)$'`); a prefix such as `pod=~'api-.*'` can include sibling workloads.
 
-For Pod, Deployment, StatefulSet, DaemonSet and Argo Rollout targets, `metrics` is a vitals snapshot captured inside the same call: `cpu` (cores, 5m rate), `memory` (working-set bytes) and `restarts` (counter increase over the trailing 1h, rounded per pod) summed over those pods across `since` (default 1h) at a step that yields at most 60 points per series and keeps the samples within an 8 KiB budget, with sample values rounded to four significant digits. The selected names come from the Pods the observed workload controls at collection time. Names no longer in that set are excluded, but earlier incarnations with the same name can contribute samples within the window; a set larger than 50 is cut to the first 50 by name with `partial: true` and `omittedPods`. The field is omitted when no Prometheus is configured, the workload controls no pods, or the caller cannot `get` the diagnosed resource; when the availability probe does not answer within the 3 s budget the field is present with `error` saying so, rather than vanishing as if no Prometheus existed. Radar starts discovery again in the background when a Prometheus is installed or its connection is lost (see [Metrics charts show "Prometheus not connected"](in-cluster.md#metrics-charts-show-prometheus-not-connected)), so a diagnose that comes after the new backend is ready normally finds it already connected instead of spending its budget on discovery. When Prometheus is configured but unreachable, the branch exceeds its 3 s budget, or the whole field (queries included) exceeds a 24 KiB backstop, `series` is empty and `error` says why; when one category's query fails, that category is left out and named in `error` while the others stand. A workload whose pods the cluster cache cannot establish — a denied lister, an informer still filling, a namespace it does not watch — is reported as an error rather than charted as empty. Each entry carries the PromQL that produced it (`query`), so an empty `series` with no `error` means the window holds no samples, not that nothing was asked. Flat stretches are compressed: the interior of an evenly spaced run of equal values is dropped, keeping the point that opens it and the point that closes it, so an hour of a workload sitting still costs two points rather than sixty. `observedSamples` reports how many points Prometheus actually returned for that category before compression — a two-point series with `observedSamples: 56` is an hour of agreeing samples, one with `observedSamples: 2` is two lonely ones, and the window and step cannot tell them apart on their own because a range query returns nothing for an evaluation with no data. Values are compared after rounding, so movement too small to reach four significant digits is treated as flat; a run is only compressed when its samples are evenly spaced, so a gap in the series survives. The window ends at collection time and is not a shared observation time for the other sources.
+For Pod, Deployment, StatefulSet, DaemonSet and Argo Rollout targets, `metrics` is a vitals snapshot captured inside the same call: `cpu` (cores, 5m rate), `memory` (working-set bytes) and `restarts` (counter increase over the trailing 1h, rounded per pod) summed over those pods across `since` (default 1h) at a step that yields at most 60 points per series and keeps the samples within an 8 KiB budget, with sample values rounded to four significant digits. The selected names come from the Pods the observed workload controls at collection time. Names no longer in that set are excluded, but earlier incarnations with the same name can contribute samples within the window; a set larger than 50 is cut to the first 50 by name with `partial: true` and `omittedPods`. The field is omitted when no Prometheus is configured, the workload controls no pods, or the caller cannot `get` the diagnosed resource; when the availability probe does not answer within the 3 s budget the field is present with `error` saying so, rather than vanishing as if no Prometheus existed. KubeAtlas starts discovery again in the background when a Prometheus is installed or its connection is lost (see [Metrics charts show "Prometheus not connected"](in-cluster.md#metrics-charts-show-prometheus-not-connected)), so a diagnose that comes after the new backend is ready normally finds it already connected instead of spending its budget on discovery. When Prometheus is configured but unreachable, the branch exceeds its 3 s budget, or the whole field (queries included) exceeds a 24 KiB backstop, `series` is empty and `error` says why; when one category's query fails, that category is left out and named in `error` while the others stand. A workload whose pods the cluster cache cannot establish — a denied lister, an informer still filling, a namespace it does not watch — is reported as an error rather than charted as empty. Each entry carries the PromQL that produced it (`query`), so an empty `series` with no `error` means the window holds no samples, not that nothing was asked. Flat stretches are compressed: the interior of an evenly spaced run of equal values is dropped, keeping the point that opens it and the point that closes it, so an hour of a workload sitting still costs two points rather than sixty. `observedSamples` reports how many points Prometheus actually returned for that category before compression — a two-point series with `observedSamples: 56` is an hour of agreeing samples, one with `observedSamples: 2` is two lonely ones, and the window and step cannot tell them apart on their own because a range query returns nothing for an evaluation with no data. Values are compared after rounding, so movement too small to reach four significant digits is treated as flat; a run is only compressed when its samples are evenly spaced, so a gap in the series survives. The window ends at collection time and is not a shared observation time for the other sources.
 
 Collecting vitals costs one Prometheus round trip on every `diagnose` of a pod-backed workload, and that round trip is the call's critical path: against a healthy backend a diagnose without vitals returns in roughly 130ms and one with them in roughly 650ms, because nothing else `diagnose` does takes long enough to hide it. The queries for the three categories run concurrently with each other and with the rest of the bundle, and the branch is bounded by its own 3s budget, so a slow or unreachable Prometheus delays `diagnose` but never fails it. They are collected by default because an agent that has to ask for resource data can silently never ask, which makes a healthy verdict reached without looking indistinguishable from one where the numbers were fine. If that trade stops being worth it, the whole branch is behind one switch (`DiagnoseMetricsEnabled` in `internal/mcp`): turning it off omits the field and leaves the rest of the bundle and `query_prometheus` untouched, so the data stays reachable on request.
 
@@ -508,11 +508,11 @@ Collecting vitals costs one Prometheus round trip on every `diagnose` of a pod-b
 
 One call combines cached Kubernetes resource state, historical events/changes, and live log requests. Its completion time records when the call finished, not a shared observation time or freshness guarantee for those sources. Event/change timestamps retain their source-specific meaning.
 
-These public MCP fields are available to consumers running the updated Radar server. The investigation contract that turns them into Findings — the prompt suite, the verdict, its parser and the citation binder — lives in `pkg/investigation` and is shared by the OSS engine and Radar Hub; each product supplies its own evidence issuance, run orchestration and store, and declares on its `/agents` entry whether it performs Apply (`apply`) and the verification turn after it (`verification`).
+These public MCP fields are available to consumers running the updated KubeAtlas server. The investigation contract that turns them into Findings — the prompt suite, the verdict, its parser and the citation binder — lives in `pkg/investigation` and is shared by the OSS engine and the upstream Radar Hub compatibility consumer; each product supplies its own evidence issuance, run orchestration and store, and declares on its `/agents` entry whether it performs Apply (`apply`) and the verification turn after it (`verification`).
 
 The investigation's final JSON also carries the agent's case: `evidence` (up to 8 items of `ref`, `role`, optional one-sentence `claim` — required for `benign`, `demoted` and `rules_out` — and optional `subject`) and `ruled_out` (up to 5 hypotheses pointing at an evidence item by index). The server binds each item's ref against the run's retained ledger exactly like `root_cause_evidence_refs`: a ref from the current turn must match the exact private-transport payload; a ref from an earlier turn of the same run is accepted on the persisted `radarEvidence` flag its own validator wrote, so a revised assessment can keep resting on a result it can no longer re-read. A failing item is dropped on its own as `unlinked`, and binding runs for every assessment, healthy and inconclusive included. The server-authored `evidence` / `ruledOut` fields are `omitempty`, so a diagnosis with no bindable case carries neither: consumers must treat both as optional.
 
-**The story contract.** The last fenced `json` block in the reply that carries a verdict field (`summary`, `root_cause`, `healthy`, `inconclusive`, `steps`, `evidence` or `remediation`) is the verdict and a divider, so a patch or spec quoted in a `json` fence inside the story is never mistaken for it: prose after it is the story (`report`), prose before it the agent's evidence ledger (`notes`, kept in Activity and never shown in Findings); a reply with nothing after the block keeps the older shape, where the prose before it is the story. The story may place a Radar result with `[[radar:evidence=N]]` alone on a line — N is the 0-based index into `evidence` — or mention it inline, which places the card under that paragraph when no own-line marker places it and otherwise references the placed card (with an arrow saying where it is); `[[radar:evidence=N|compact]]` places the card with its header and role label, without the agent's note; log cards also retain the last two selected log lines. Each evidence item may carry a `gap`: the agent's own statement of what that result does not cover, rendered under its note. Only a result that returned data can be cited: a call that errored, was denied, or was truncated leaves its item `unlinked`. An inline mention past the placement cap renders as a chip that reveals the card under Captured results. Findings renders the placed result's card at that position from Radar's own record; the agent never authors a card. A marker inside a code span (which may run across lines within a paragraph), a code block, an indented code line or a blockquote is literal text. The ledger's own form, `[[radar:evidence-ref=ev_…]]`, is not a placement: the parser rewrites one that names a cited item to its index, strips any marker from `summary` and `root_cause`, and the renderer shows an unresolvable one as a citation Radar cannot identify rather than as text. At most 6 results are placed; later placements become references; a marker Radar cannot resolve renders a visible "support unavailable" note at the sentence rather than vanishing. The caps are the shape of the page and nothing else: at most 8 evidence items, 5 ruled-out hypotheses, 6 steps, 3 unresolved items and 3 root-cause refs, with a 180-rune headline cut at a sentence boundary; no other text is ever cut; a steps, unresolved or ruled-out list that ran past its cap reports the valid entries it lost in `omittedEntries`, evidence losses stay in `unlinkedEvidence`, and more than three root-cause refs still invalidate that set. The verdict adds `summary` (the one-sentence takeaway, ≤ 180 runes, clamped at a sentence boundary; `root_cause` is the two-or-three-sentence paragraph under it), `certainty` (`established` | `likely` | `suspected`, rendered as the agent's word, never a Radar mark), `unresolved` (≤ 3 items, listed under *Still open*, followed by any read Radar could not complete and, on a healthy verdict, each adverse Radar card the agent explained with its note; an adverse card the verdict never addressed, or one the agent calls a cause or symptom, keeps a small amber header naming it; every other caveat stays on the claim it bounds — the gap line under the cause card, the precondition on a step — or inside Captured results), typed `steps` (`text`, `kind` of `mitigate` | `verify` | `investigate`, optional `precondition`; when present the server derives `remediation` from them so one list feeds Apply and `recommended_index`, which may only name a `mitigate` step), and on follow-up turns `revises_assessment`, which the server keeps only on a complete verdict (`summary` plus a root cause, healthy or inconclusive). Findings shows the newest assessment turn — initial, verification, or a question whose verdict revised it — and nothing else; Activity keeps every earlier assessment complete. With typed steps present, `inconclusive` is cleared only by a non-empty `root_cause` (a mitigation never establishes a cause). No role can hide, collapse, or recolor a card, and a claim that cannot be pinned to exactly one observation shows beside its source under Captured results ("Notes without a card") instead. A subject may omit `name` to cite a listing for what it does not contain (kind and namespace name the listing; uniqueness still decides placement); a subject that names an entry binds to the listing whether or not it holds the entry, and the story card then shows that row inline, or says the entry is not in the listing, or that the name matches several entries. `observation: "resource"` names anything a call returned about a resource: a single resource, a listing, a ranking or posture card, a Helm release, a permissions check or a neighborhood; the stream-shaped kinds (`logs`, `events`, `changes`, `metrics`, `alerts`, `issue`) keep their own word so one word still picks one observation of a diagnose bundle. A receipt is not a kind of its own but what a call of any kind returned when it found nothing (a metric search, a scan with nothing about the target), so a call whose only observation is a receipt is not held to the word; what the subject names still has to match. `observation` is one of `resource`, `logs`, `events`, `changes`, `metrics` (or `metrics:cpu` / `metrics:memory` / `metrics:restarts` for a diagnose bundle's charts), `alerts` (with `name` as the rule's name, since one rules result holds several rules) or `issue` (`issues` is accepted as an alias); any other word leaves the item unplaced. A metrics card placed as the cause or the symptom shows its chart inline. Only results Radar projects into cards can be placed (`diagnose`, `get_resource`, non-empty `list_resources`, `list_namespaces`, `list_helm_releases`, `list_packages` and `search`, `get_events`, `get_pod_logs`, `get_workload_logs`, `get_changes`, `get_neighborhood`, `get_topology`, `get_helm_release` with its hooks, revision history and user values, `get_subject_permissions` with its effective rules, `get_prometheus_rules`, `query_prometheus`, `discover_metrics` as a receipt, `issues`, `top_resources` as a ranking with the workload's own row marked, and `get_cluster_audit` or `get_cluster_upgrade_readiness` as a posture card holding only the findings about the investigated resource or its relations, a scan with none becoming a receipt); an empty listing or `get_dashboard` can be cited but renders a "no card" note at the sentence. A ranking or posture card placed as the cause or symptom shows the rows about the workload inline. Subject matching forgives two agent slips that name no other object: a built-in API group on a core kind (`apps` on a Pod) and a named entry on a listing (a specific ConfigMap cited against the ConfigMaps of a namespace, or a package named by the kind the agent knows it as when the listing holds that name); a vendor group on a core kind (a Knative Service) still names a different object. A question the agent answered with `revises_assessment: false` does not make the assessment "earlier": its reads join Captured results without demoting the headline or the steps. A backend that sends no `summary` and no placement markers renders in the previous shape.
+**The story contract.** The last fenced `json` block in the reply that carries a verdict field (`summary`, `root_cause`, `healthy`, `inconclusive`, `steps`, `evidence` or `remediation`) is the verdict and a divider, so a patch or spec quoted in a `json` fence inside the story is never mistaken for it: prose after it is the story (`report`), prose before it the agent's evidence ledger (`notes`, kept in Activity and never shown in Findings); a reply with nothing after the block keeps the older shape, where the prose before it is the story. The story may place a KubeAtlas result with `[[radar:evidence=N]]` alone on a line — N is the 0-based index into `evidence` — or mention it inline, which places the card under that paragraph when no own-line marker places it and otherwise references the placed card (with an arrow saying where it is); `[[radar:evidence=N|compact]]` places the card with its header and role label, without the agent's note; log cards also retain the last two selected log lines. Each evidence item may carry a `gap`: the agent's own statement of what that result does not cover, rendered under its note. Only a result that returned data can be cited: a call that errored, was denied, or was truncated leaves its item `unlinked`. An inline mention past the placement cap renders as a chip that reveals the card under Captured results. Findings renders the placed result's card at that position from KubeAtlas's own record; the agent never authors a card. A marker inside a code span (which may run across lines within a paragraph), a code block, an indented code line or a blockquote is literal text. The ledger's own form, `[[radar:evidence-ref=ev_…]]`, is not a placement: the parser rewrites one that names a cited item to its index, strips any marker from `summary` and `root_cause`, and the renderer shows an unresolvable one as a citation KubeAtlas cannot identify rather than as text. At most 6 results are placed; later placements become references; a marker KubeAtlas cannot resolve renders a visible "support unavailable" note at the sentence rather than vanishing. The caps are the shape of the page and nothing else: at most 8 evidence items, 5 ruled-out hypotheses, 6 steps, 3 unresolved items and 3 root-cause refs, with a 180-rune headline cut at a sentence boundary; no other text is ever cut; a steps, unresolved or ruled-out list that ran past its cap reports the valid entries it lost in `omittedEntries`, evidence losses stay in `unlinkedEvidence`, and more than three root-cause refs still invalidate that set. The verdict adds `summary` (the one-sentence takeaway, ≤ 180 runes, clamped at a sentence boundary; `root_cause` is the two-or-three-sentence paragraph under it), `certainty` (`established` | `likely` | `suspected`, rendered as the agent's word, never a KubeAtlas mark), `unresolved` (≤ 3 items, listed under *Still open*, followed by any read KubeAtlas could not complete and, on a healthy verdict, each adverse KubeAtlas card the agent explained with its note; an adverse card the verdict never addressed, or one the agent calls a cause or symptom, keeps a small amber header naming it; every other caveat stays on the claim it bounds — the gap line under the cause card, the precondition on a step — or inside Captured results), typed `steps` (`text`, `kind` of `mitigate` | `verify` | `investigate`, optional `precondition`; when present the server derives `remediation` from them so one list feeds Apply and `recommended_index`, which may only name a `mitigate` step), and on follow-up turns `revises_assessment`, which the server keeps only on a complete verdict (`summary` plus a root cause, healthy or inconclusive). Findings shows the newest assessment turn — initial, verification, or a question whose verdict revised it — and nothing else; Activity keeps every earlier assessment complete. With typed steps present, `inconclusive` is cleared only by a non-empty `root_cause` (a mitigation never establishes a cause). No role can hide, collapse, or recolor a card, and a claim that cannot be pinned to exactly one observation shows beside its source under Captured results ("Notes without a card") instead. A subject may omit `name` to cite a listing for what it does not contain (kind and namespace name the listing; uniqueness still decides placement); a subject that names an entry binds to the listing whether or not it holds the entry, and the story card then shows that row inline, or says the entry is not in the listing, or that the name matches several entries. `observation: "resource"` names anything a call returned about a resource: a single resource, a listing, a ranking or posture card, a Helm release, a permissions check or a neighborhood; the stream-shaped kinds (`logs`, `events`, `changes`, `metrics`, `alerts`, `issue`) keep their own word so one word still picks one observation of a diagnose bundle. A receipt is not a kind of its own but what a call of any kind returned when it found nothing (a metric search, a scan with nothing about the target), so a call whose only observation is a receipt is not held to the word; what the subject names still has to match. `observation` is one of `resource`, `logs`, `events`, `changes`, `metrics` (or `metrics:cpu` / `metrics:memory` / `metrics:restarts` for a diagnose bundle's charts), `alerts` (with `name` as the rule's name, since one rules result holds several rules) or `issue` (`issues` is accepted as an alias); any other word leaves the item unplaced. A metrics card placed as the cause or the symptom shows its chart inline. Only results KubeAtlas projects into cards can be placed (`diagnose`, `get_resource`, non-empty `list_resources`, `list_namespaces`, `list_helm_releases`, `list_packages` and `search`, `get_events`, `get_pod_logs`, `get_workload_logs`, `get_changes`, `get_neighborhood`, `get_topology`, `get_helm_release` with its hooks, revision history and user values, `get_subject_permissions` with its effective rules, `get_prometheus_rules`, `query_prometheus`, `discover_metrics` as a receipt, `issues`, `top_resources` as a ranking with the workload's own row marked, and `get_cluster_audit` or `get_cluster_upgrade_readiness` as a posture card holding only the findings about the investigated resource or its relations, a scan with none becoming a receipt); an empty listing or `get_dashboard` can be cited but renders a "no card" note at the sentence. A ranking or posture card placed as the cause or symptom shows the rows about the workload inline. Subject matching forgives two agent slips that name no other object: a built-in API group on a core kind (`apps` on a Pod) and a named entry on a listing (a specific ConfigMap cited against the ConfigMaps of a namespace, or a package named by the kind the agent knows it as when the listing holds that name); a vendor group on a core kind (a Knative Service) still names a different object. A question the agent answered with `revises_assessment: false` does not make the assessment "earlier": its reads join Captured results without demoting the headline or the steps. A backend that sends no `summary` and no placement markers renders in the previous shape.
 
 Captured Crossplane resource cards keep declared pause as neutral context and retain the raw `Synced=False/ReconcilePaused` value. Corroborated pause alone does not make the card adverse; independent errors remain adverse. A visible explanation scopes the pause to that resource’s reconciler and describes readiness/errors as last reported. This presentation uses the captured resource, not live replacement data or agent-authored claims.
 
@@ -520,14 +520,14 @@ Captured Crossplane resource cards keep declared pause as neutral context and re
 
 ### `recommendationReason` — why a row carries no recommendation
 
-`get_rightsizing` rows may set `recommendedRequest: null`. The accompanying `recommendationReason` says why, and two of the values mean Radar **deliberately declined** to recommend rather than lacking the evidence to try. Reporting those as "no recommendation available" loses the reasoning that produced them:
+`get_rightsizing` rows may set `recommendedRequest: null`. The accompanying `recommendationReason` says why, and two of the values mean KubeAtlas **deliberately declined** to recommend rather than lacking the evidence to try. Reporting those as "no recommendation available" loses the reasoning that produced them:
 
 | Reason | Meaning |
 |--------|---------|
 | `hpa_managed` | An HPA manages this resource. Review its target before changing the request — the two controls interact. |
 | `oom_evidence` | A lower memory request is **withheld** because the container has OOM evidence in the window. Cutting it is the wrong move even though usage looks low. |
-| `oom_evidence_unavailable` | Radar could not verify recent OOM history, so it withheld a memory reduction rather than recommend one blind. |
-| `hpa_evidence_unavailable` | Radar could not verify HPA ownership, so it withheld a suggested request. |
+| `oom_evidence_unavailable` | KubeAtlas could not verify recent OOM history, so it withheld a memory reduction rather than recommend one blind. |
+| `hpa_evidence_unavailable` | KubeAtlas could not verify HPA ownership, so it withheld a suggested request. |
 | `recommended_request_exceeds_limit` | The evidence-based request would exceed the container's current limit; the limit is the thing to review first. |
 | `request_within_fit_range` | The configured request is already within 30% of the evidence-based target. Nothing to change. |
 | `insufficient_history` | Fewer than six hours of samples. Not a verdict of correctly sized. |
@@ -536,7 +536,7 @@ Captured Crossplane resource cards keep declared pause as neutral context and re
 
 ### `managedBy` — where a request change belongs
 
-Workloads carry `managedBy: {tool, kind, group, namespace, name, signal}` when Radar can tell what owns their spec: `controller` (a controller ownerReference, such as an operator's custom resource), `flux`, `argocd`, `helm`, or `addon-manager` (`addonmanager.kubernetes.io/mode=Reconcile` only — `EnsureExists` does not revert edits). A patch applied live to such a workload is overwritten on that tool's next reconcile or upgrade, so the change belongs at the source. `signal` names the metadata that produced the answer, because labels get copied between templates.
+Workloads carry `managedBy: {tool, kind, group, namespace, name, signal}` when KubeAtlas can tell what owns their spec: `controller` (a controller ownerReference, such as an operator's custom resource), `flux`, `argocd`, `helm`, or `addon-manager` (`addonmanager.kubernetes.io/mode=Reconcile` only — `EnsureExists` does not revert edits). A patch applied live to such a workload is overwritten on that tool's next reconcile or upgrade, so the change belongs at the source. `signal` names the metadata that produced the answer, because labels get copied between templates.
 
 A missing `managedBy` does **not** mean the workload is unmanaged. Argo CD's default tracking label is also every Helm chart's `app.kubernetes.io/instance`, and Terraform or `kubectl apply` leave nothing distinguishable.
 
@@ -610,7 +610,7 @@ A partial response carries a `reason`, and `guidance` names the causes that are 
 | Reason | Cause |
 |--------|-------|
 | `row_evidence_incomplete` | Row-level gaps: rows short of history, failed usage queries, or a recommendation withheld for missing HPA/OOM evidence. Cluster coverage is complete. |
-| `requested_namespaces_excluded` | A `namespaces` list included names that were not scanned. `excludedNamespaces` lists each with `access_denied`, `outside_namespace_pin`, or `not_cached` (Radar's informer cache does not hold that namespace); report only `effectiveNamespaces`. |
+| `requested_namespaces_excluded` | A `namespaces` list included names that were not scanned. `excludedNamespaces` lists each with `access_denied`, `outside_namespace_pin`, or `not_cached` (KubeAtlas's informer cache does not hold that namespace); report only `effectiveNamespaces`. |
 | `namespace_scope_limited` | The scan reached only the namespaces in `effectiveNamespaces` — scope was resolved from this identity's per-namespace access rather than a cluster-wide grant, or radar is pinned with `--namespace-scope`. `remediation` says which. |
 | `limited_scope_no_workloads` | No workloads found, and the scan did not cover everything requested. An empty result here is **not** evidence the cluster has no workloads. |
 
@@ -620,7 +620,7 @@ A partial response carries a `reason`, and `guidance` names the causes that are 
 
 ### The `--namespace-scope` pin is not an access denial
 
-A pin and an RBAC restriction produce the same namespace list. A request the pin excludes returns `reason: outside_namespace_pin` and a `remediation` naming the flag — never `access_denied`, which would tell a cluster-admin their permissions are the problem. That applies to namespaces the caller can see; one they can't is `access_denied` whether or not Radar is pinned to it, so guessing names can't find the pin.
+A pin and an RBAC restriction produce the same namespace list. A request the pin excludes returns `reason: outside_namespace_pin` and a `remediation` naming the flag — never `access_denied`, which would tell a cluster-admin their permissions are the problem. That applies to namespaces the caller can see; one they can't is `access_denied` whether or not KubeAtlas is pinned to it, so guessing names can't find the pin.
 
 ### Trend responses are pre-summarized
 
@@ -647,14 +647,14 @@ reads and search use the same codes.
 
 ### Words first
 
-An agent reading these results has not been trained on Radar's vocabulary, and
+An agent reading these results has not been trained on KubeAtlas's vocabulary, and
 a tool description can't carry a manual for it. So every result a model reads
 says in words what the codes and coverage say as data, in two parts:
 
 - **What happened**: `summary` for a list, `error` for a failure. What the
-  answer covers, what it can't show (a namespace Radar didn't read never reads
+  answer covers, what it can't show (a namespace KubeAtlas didn't read never reads
   as "none there"), and, when only a person can change that, who: a cluster
-  admin for your access, or whoever runs Radar for what it collects. Findings
+  admin for your access, or whoever runs KubeAtlas for what it collects. Findings
   shows this to people too.
 - **What the agent can do**: `next`, present only when the agent itself can
   change the answer, naming the exact tool and argument. It is absent when only
@@ -666,11 +666,11 @@ agent's next move:
 
 | Situation | `next` |
 |---|---|
-| Part of the answer clears on its own: still loading, a permission check that failed, a watch that failed to start, an unexpected error | Retry, and when: "Retry in a few seconds to read namespace \"gamma\"." (a minute for a load that missed its deadline). While Radar is still connecting to the cluster, the error itself says to retry |
+| Part of the answer clears on its own: still loading, a permission check that failed, a watch that failed to start, an unexpected error | Retry, and when: "Retry in a few seconds to read namespace \"gamma\"." (a minute for a load that missed its deadline). While KubeAtlas is still connecting to the cluster, the error itself says to retry |
 | The answer counts namespaces it can't name, so the agent can't tell whether the one it cares about was read | "To check one namespace, call list_resources again with namespace set to it." |
-| The request can't be answered as asked: a get with no namespace, a kind Radar doesn't know, a namespace you can't see, an object that isn't there | The narrower or different call: set `namespace`; `search` for `kind:<kind> <name>` (naming the kind reaches kinds a broad search skips); `list_resources kind=customresourcedefinitions`; `list_namespaces`, when Radar can list namespaces; or the same name under another kind or namespace |
+| The request can't be answered as asked: a get with no namespace, a kind KubeAtlas doesn't know, a namespace you can't see, an object that isn't there | The narrower or different call: set `namespace`; `search` for `kind:<kind> <name>` (naming the kind reaches kinds a broad search skips); `list_resources kind=customresourcedefinitions`; `list_namespaces`, when KubeAtlas can list namespaces; or the same name under another kind or namespace |
 
-A denial (`user_forbidden`), and anything Radar's own identity or configuration
+A denial (`user_forbidden`), and anything KubeAtlas's own identity or configuration
 blocks, has no `next`: retrying won't change it, and its `error` names who can.
 Codes and coverage stay for code to branch on and never change spelling; the
 sentences may be reworded.
@@ -697,26 +697,26 @@ truncation that keeps only the head of a long result:
 ```
 
 - **`summary`** is always present and leads with its verdict: `Complete:` when
-  Radar read the whole scope ("Complete: 2 services across every namespace.",
+  KubeAtlas read the whole scope ("Complete: 2 services across every namespace.",
   or "Complete within your access: …" when the scope was narrowed), otherwise
   `Partial:`, with each part it didn't read called unknown, why, and who can
   widen it.
 
 - **`scope`** is what the answer is about: `cluster` for a cluster-scoped kind,
   `all_namespaces`, or a namespace set. A namespace you name stays the scope
-  even when Radar can't read it.
+  even when KubeAtlas can't read it.
 - **`narrowedBy`** says why an unscoped request covers less than every
   namespace: `user_access` (the namespaces your access allows),
-  `namespace_pin` (Radar's `--namespace-scope`), or `namespace_collection`
-  (the namespaces Radar collects the kind in, when its identity can't list it
+  `namespace_pin` (KubeAtlas's `--namespace-scope`), or `namespace_collection`
+  (the namespaces KubeAtlas collects the kind in, when its identity can't list it
   cluster-wide). It is absent when nothing narrowed the request.
-- **`status`** is relative to `scope`: `complete` means Radar's watch of every
-  namespace in it has loaded, so missing rows are absent from what Radar
+- **`status`** is relative to `scope`: `complete` means KubeAtlas's watch of every
+  namespace in it has loaded, so missing rows are absent from what KubeAtlas
   observes *within that scope*; `partial` means `gaps` names what it did not
   read. A complete list with `narrowedBy` is still not the cluster. `status`
   keeps this meaning: watch freshness or paging, if added, get fields of their
   own.
-- **`read`** is what Radar read within `scope`. `read` and the gaps don't
+- **`read`** is what KubeAtlas read within `scope`. `read` and the gaps don't
   overlap and together make up `scope`, so on a complete answer `read` equals
   `scope`.
 - **`gaps[]`** are the reasons the answer isn't complete. Each has a `code`,
@@ -724,7 +724,7 @@ truncation that keeps only the head of a long result:
   doesn't know a newer code still knows whether to retry), and where it
   applies. For a namespaced kind every gap states its `namespaces`: a set, or
   `{"extent": "all"}` for every namespace in scope (the kind is still loading
-  everywhere, say), or `{"extent": "unknown"}` when Radar can't say which. A
+  everywhere, say), or `{"extent": "unknown"}` when KubeAtlas can't say which. A
   cluster-scoped kind's gaps have no `namespaces`. A namespace is in at most
   one gap.
 
@@ -735,10 +735,10 @@ and then only `count` says how many. A reader knows a namespace's membership
 from `names` or not at all. The same holds for a gap's `kinds` and `objects`.
 `items` is `[]` when the namespaces read hold nothing.
 
-What Radar doesn't collect shows up in one of two ways. When it knows the
+What KubeAtlas doesn't collect shows up in one of two ways. When it knows the
 namespaces it collects a kind in, an unscoped request is narrowed to them
 (`narrowedBy: namespace_collection`) and can be complete within them. A
-namespace you name that Radar doesn't collect stays in scope as a
+namespace you name that KubeAtlas doesn't collect stays in scope as a
 `radar_namespace_not_collected` gap.
 
 A client meeting a value it doesn't know treats it conservatively: an unknown
@@ -748,9 +748,9 @@ completeness or absence claim.
 
 Each namespace is read on its own. A namespace whose informer is still loading
 becomes a gap, and the other namespaces' rows are still returned. This holds
-for built-in kinds too: when Radar watches a kind namespace by namespace, a
+for built-in kinds too: when KubeAtlas watches a kind namespace by namespace, a
 namespace whose informer has synced is read even while another is loading. A
-namespace you name that Radar doesn't collect, or was refused in, is a gap too;
+namespace you name that KubeAtlas doesn't collect, or was refused in, is a gap too;
 on an unscoped request those namespaces narrow it (`namespace_collection`) instead.
 
 Secrets, Roles, RoleBindings, LimitRanges and Trivy Operator reports need your exact permission
@@ -761,19 +761,19 @@ caller whose access reaches every namespace is checked once, cluster-wide: an
 unscoped list of one of these kinds fails with `user_forbidden` unless they
 can list it everywhere, and the error says to name a namespace they can list
 it in. Cluster-scoped kinds keep exact per-kind permission
-checks and fail with `user_forbidden`. Namespace lists use every namespace Radar
+checks and fail with `user_forbidden`. Namespace lists use every namespace KubeAtlas
 knows of, after the list-namespaces permission check.
 
 The browser namespace picker does not scope MCP requests.
 
 ### Errors
 
-A list fails only when it returns no usable inventory: Radar read nothing in
+A list fails only when it returns no usable inventory: KubeAtlas read nothing in
 its scope, its cluster connection changed mid-read, or the answer was over its
 size budget. A failed read's `structuredContent` and its only text block are
 the same body, `{error, error_code, next?, coverage?}`. A list's error carries
-the `coverage` Radar assessed, without `read`: an error returns no rows. A
-request Radar couldn't turn into a scope has none (a namespace you can't see,
+the `coverage` KubeAtlas assessed, without `read`: an error returns no rows. A
+request KubeAtlas couldn't turn into a scope has none (a namespace you can't see,
 or one outside the `--namespace-scope` pin). A get's error has no coverage.
 
 ```json
@@ -797,9 +797,9 @@ every gap, so a retry that would recover one namespace is offered even when
 the code names a denial. `error_code` is the most actionable cause; when
 namespaces failed for different reasons, `coverage` has a gap for each, and the
 sentence names every cause and the namespaces each affects. When something
-other than your own access narrowed an unscoped request (what Radar collects,
+other than your own access narrowed an unscoped request (what KubeAtlas collects,
 or its pin), the sentence says that too. A get of an object that isn't there is
-`object_not_found`, and only once Radar has confirmed it read that namespace;
+`object_not_found`, and only once KubeAtlas has confirmed it read that namespace;
 otherwise the code says why it couldn't look. A get that finds its object
 returns it even while that kind is still loading: the object exists, and only
 a miss needs a complete read.
@@ -807,37 +807,37 @@ a miss needs a complete read.
 | Code | Meaning | What resolves it |
 |---|---|---|
 | `user_forbidden` | Your own RBAC denies the exact operation. | Your access |
-| `user_no_namespace_access` | Your access reaches no namespace in the request's scope (Radar checks list Pods or Deployments there). | Your access |
+| `user_no_namespace_access` | Your access reaches no namespace in the request's scope (KubeAtlas checks list Pods or Deployments there). | Your access |
 | `user_namespace_not_visible` | A namespace you named is not among those you can see, or does not exist; the code doesn't say which. | Check the name, or your access |
-| `namespace_not_found` | A namespace you named doesn't exist. Only a caller who can see every namespace is told this, and only when Radar collects Namespaces. It comes before `outside_namespace_pin`: a mistyped name is the likelier cause. REST lists and gets answer the same way, and a missing namespace beside existing ones is a gap while the others are read. | Check the name; `list_namespaces` lists them |
-| `user_permission_check_failed` | Radar could not complete your permission check. | Retry |
-| `radar_forbidden` | Kubernetes refused Radar's service account or kubeconfig identity. | Radar's access — granting yours does not help |
-| `radar_credentials_rejected` | Kubernetes rejected Radar's credentials, on this read or when Radar connected and checked its access. If a read's rejection persists, Radar's connection goes down and reads report `cluster_disconnected`. One recorded at connect leaves that namespace unread, beside the others, until Radar reconnects. | Refresh Radar's credentials; for one recorded at connect, then reconnect Radar (`POST /api/connection/retry`) |
-| `radar_namespace_not_collected` | The namespace is outside what Radar collects. | Radar's collection (`--namespaces`, `--max-scope-candidates`, or its RBAC) |
+| `namespace_not_found` | A namespace you named doesn't exist. Only a caller who can see every namespace is told this, and only when KubeAtlas collects Namespaces. It comes before `outside_namespace_pin`: a mistyped name is the likelier cause. REST lists and gets answer the same way, and a missing namespace beside existing ones is a gap while the others are read. | Check the name; `list_namespaces` lists them |
+| `user_permission_check_failed` | KubeAtlas could not complete your permission check. | Retry |
+| `radar_forbidden` | Kubernetes refused KubeAtlas's service account or kubeconfig identity. | KubeAtlas's access — granting yours does not help |
+| `radar_credentials_rejected` | Kubernetes rejected KubeAtlas's credentials, on this read or when KubeAtlas connected and checked its access. If a read's rejection persists, KubeAtlas's connection goes down and reads report `cluster_disconnected`. One recorded at connect leaves that namespace unread, beside the others, until KubeAtlas reconnects. | Refresh KubeAtlas's credentials; for one recorded at connect, then reconnect KubeAtlas (`POST /api/connection/retry`) |
+| `radar_namespace_not_collected` | The namespace is outside what KubeAtlas collects. | KubeAtlas's collection (`--namespaces`, `--max-scope-candidates`, or its RBAC) |
 | `kind_sync_pending` | The kind is still loading. | Retry shortly |
-| `kind_sync_timed_out` | The kind's initial load missed its deadline; Radar keeps trying. | Retry later; if it persists, Radar's connection or list/watch access |
-| `radar_kind_not_collected` | Radar's setup leaves the kind out. | Radar's collection configuration |
+| `kind_sync_timed_out` | The kind's initial load missed its deadline; KubeAtlas keeps trying. | Retry later; if it persists, KubeAtlas's connection or list/watch access |
+| `radar_kind_not_collected` | KubeAtlas's setup leaves the kind out. | KubeAtlas's collection configuration |
 | `kind_not_watchable` | The API can't be list/watched. | Use another tool; retrying won't help |
-| `kind_unknown` | The kind isn't in the catalog or discovery. Before answering this, Radar refreshes discovery (at most every 30 seconds), so a custom resource installed since the last refresh resolves. When discovery failed for the group the request named, or Radar's last discovery refresh failed outright, the answer is `read_error` instead: the kind may exist behind an API that isn't answering. | Check spelling, `group`, and installation |
-| `outside_namespace_pin` | The namespace, one you can see, is outside Radar's `--namespace-scope` pin. A namespace you can't see is `user_namespace_not_visible` whether or not Radar is pinned to it, so guessing names can't find the pin. | Radar's `--namespace-scope` setting |
+| `kind_unknown` | The kind isn't in the catalog or discovery. Before answering this, KubeAtlas refreshes discovery (at most every 30 seconds), so a custom resource installed since the last refresh resolves. When discovery failed for the group the request named, or KubeAtlas's last discovery refresh failed outright, the answer is `read_error` instead: the kind may exist behind an API that isn't answering. | Check spelling, `group`, and installation |
+| `outside_namespace_pin` | The namespace, one you can see, is outside KubeAtlas's `--namespace-scope` pin. A namespace you can't see is `user_namespace_not_visible` whether or not KubeAtlas is pinned to it, so guessing names can't find the pin. | KubeAtlas's `--namespace-scope` setting |
 | `namespace_required` | A namespaced `get_resource` needs a namespace. | Pass `namespace` |
-| `object_not_found` | The object is absent from a namespace Radar read in full. | — it is an answer |
-| `cluster_connecting` | Radar is still connecting. | Retry shortly |
-| `cluster_disconnected` | Radar has no working cluster connection; the explanation says why. | Radar's connection |
-| `connection_changed` | Radar's cluster connection changed during the read. | Confirm which cluster Radar is on, then retry |
+| `object_not_found` | The object is absent from a namespace KubeAtlas read in full. | — it is an answer |
+| `cluster_connecting` | KubeAtlas is still connecting. | Retry shortly |
+| `cluster_disconnected` | KubeAtlas has no working cluster connection; the explanation says why. | KubeAtlas's connection |
+| `connection_changed` | KubeAtlas's cluster connection changed during the read. | Confirm which cluster KubeAtlas is on, then retry |
 | `read_error` | An unexpected failure; the explanation says what. | Retry, or investigate |
 
 The same table, as the action each code calls for, is
 `pkg/readreason/testdata/actions.json`.
 
-Under Radar Cloud, a denial of a viewer or member also says an owner of their
+Under the legacy upstream Radar Cloud contract, a denial of a viewer or member also says an owner of their
 organization can raise their role, which may grant the permission: the chart
-binds each Radar Cloud role to Kubernetes permissions by default, and a cluster
-can bind its own. Radar doesn't know which, so a cluster admin stays the first
+binds each role to Kubernetes permissions by default, and a cluster
+can bind its own. KubeAtlas doesn't know which, so a cluster admin stays the first
 remedy.
 
-Errors about Radar's own access omit the API server's response, which may name
-Radar's identity; the raw cause is logged server-side. Errors, gaps and
+Errors about KubeAtlas's own access omit the API server's response, which may name
+KubeAtlas's identity; the raw cause is logged server-side. Errors, gaps and
 summaries name only namespaces the user may read or named themselves.
 
 Findings shows a list's summary as its coverage caveat, including for an empty
@@ -845,7 +845,7 @@ partial or narrowed list. A placed story card distinguishes an unread subject na
 from a missing object in a namespace that was read; when a listing read more
 namespaces than it names, the card says how many it read and that the subject's
 namespace may not have been one. A bare array comes from a
-Radar older than this contract and is never read as complete.
+KubeAtlas older than this contract and is never read as complete.
 
 ## Available Tools
 
@@ -861,18 +861,18 @@ For `get_cost` and `get_rightsizing`, see [Cost and rightsizing evidence limits]
 | `diagnose` | Collect a bounded, point-in-time evidence bundle for one narrowed workload, GitOps reconciler, or network entry kind in a single call. It supports diagnosis but does not run an agent, provide an authoritative root-cause verdict, or exhaustively read every source. Pod/Deployment/StatefulSet/DaemonSet and Argo Rollout (`kind=Rollout`, `group=argoproj.io`) get minified resource + `resourceContext` + selected, capped current and previous container logs across pods + `crashCause` evidence that pairs active crashloop status with one highest-signal filtered log line (`logLineSelection` states how the line was chosen, in descending confidence: `fatal_pattern`, `traceback_header_only`, `last_matched_line`, `log_tail`) + filtered events + `startupBlockers`; Application/Kustomization/Flux HelmRelease get reconciler status + related parsed issues; Service/Ingress/HTTPRoute/GRPCRoute/Gateway get coverage-honest [reachability evidence](reachability.md): a `summary` (headline + tested/passed/failed/skipped counts over the intended routes), `routes` (per-route outcome + `confidence` - `indirect` = reached only via the API-server proxy, not the live-traffic path), `notTested` (with why + a copyable command), an optional named `brokenRoute` when established, and `path` (hops with static findings). Optional active reachability test (`probe: true`, bounded to a 3s total budget; a timeout returns an honest partial). The returned bundle is frozen from one call, but its sources are not read atomically; preserve its limits, errors, timestamps, and confidence. In `resourceContext`, `issueSummary` uses live-operational `critical`/`warning` and, when the top issue is about another resource (for example the NetworkPolicy isolating a Service), names it in `topSubject`, while `auditSummary` uses the Checks posture-remediation ladder `critical`/`high`/`medium`/`low` (current built-ins are `high`/`medium`) and is not evidence of an active outage. | `kind` (required: workload, GitOps reconciler, or network entry kind), `group` (optional API group; set it for CRDs or same-kind collisions, for example `argoproj.io` for `Rollout`; built-in groups are inferred when omitted), `namespace` (required), `name` (required), `probe` (optional: network kinds only - run DNS/TCP/TLS/HTTP probes as applicable; explicitly non-HTTP Service ports stop at TCP), `in_cluster` (optional on the full `/mcp` endpoint only, **MUTATING** - network kinds only: runs the applicable probe layers from inside the cluster by creating up to 5 short-lived, self-deleting probe pods under your RBAC; the only diagnose option with a side effect, requires `create jobs`, `list pods`, and `get pods/log`; forces `probe` on; omitted from and rejected by `/mcp-readonly`) |
 | `get_dashboard` | Cluster/namespace health overview — resource counts, failing pods, unhealthy workloads, warning-event groups (`warningGroups`, up to 20 recency-ordered; `totalWarningGroups`/`warningGroupsTruncated` signal when more exist), Helm status. Inventory-style triage before drilling in. | `namespace` (optional) |
 | `top_resources` | Live metrics ranked like `kubectl top | sort`, joined with K8s context (status, restarts, owner, requests/limits). Use for CPU/memory/OOM/load symptoms. | `kind` (optional: `pods` default, `workloads`, `nodes`), `namespace` (optional), `sort` (optional: `cpu` default, `memory`), `limit` (optional, default 20, max 100) |
-| `list_resources` | List resources of a kind with minified summaries + per-row `summaryContext` (managedBy / health / issueCount). Returns `{summary, next?, coverage, items}`: a sentence saying what the rows cover and what Radar did not read, what you can do to complete it when you can, then the same as data ([lists](#lists)). | `kind` (required), `group` (optional), `namespace` (optional), `context` (optional: default / `none`) |
-| `search` | Find resources by content/term match (config keys, env refs, images, label values, CRD fields, webhook configs, status messages). Tokens AND'd; secret values and CA bundles never indexed. Supports `kind:`/`ns:`/`label:`/`image:` modifiers (a Kind, its plural, or a kubectl short name of a built-in such as `netpol`, `ing`, `sa`, `quota`) and CEL `filter`. Searches workloads, Pods, Services, Ingresses, IngressClasses, NetworkPolicies, ConfigMaps, Secrets (names only), PVCs, PVs, StorageClasses, HPAs, PDBs, ResourceQuotas, LimitRanges, ServiceAccounts, Roles, RoleBindings, ClusterRoles, ClusterRoleBindings, Nodes, Namespaces, Events (with `kind:Event`) and watched CRDs; a `kind:` term also searches a large CRD Radar watches only on demand. Endpoints, EndpointSlices and Leases are not searched; use `list_resources`. Trivy Operator reports match by CVE ID with package and installed/fixed versions, SBOM component, failed check ID and scanned image (`image:`); a secret finding's matched text is never indexed or reachable. Free tokens can land on different findings of one report, so use the CEL `report` binding (`report.vulnerabilities.exists(v, …)`) to match a single finding. A report is scan-time evidence: `summaryContext.managedBy` names the workload and `summaryContext.scanned` the scanned object (`missing` means Radar can't find it). By default Trivy Operator deletes an old ReplicaSet's reports after a rollout; with `vulnerabilityScannerScanOnlyCurrentRevisions: false` they stay, and `scanned.replicas: 0` usually marks one (a Deployment scaled to zero also reads 0). Trivy reports are returned only where the caller may list that report kind. Every result carries `coverage` (`status`, `narrowedBy`, `gaps`), and a partial result, an empty narrowed one, or one with hits that Radar's namespace collection or pin limited adds `coverageHint`; see [Search coverage](#search-coverage-and-cel-object-filters). | `query` (required), `filter` (optional CEL), `limit` (optional) |
-| `get_resource` | Inspect one known resource: minified spec, status, and metadata, plus default-on `resourceContext` with relationships and available resource-specific summaries. Operational issues and static audit posture remain distinct; audit findings are not evidence of an active outage. See [integration documentation](integrations.md) for controller-specific context and limits. Optional supplemental data adds events, metrics, recent changes, rollback revisions, detailed issue context, or a Node drain estimate. `include=drain-plan` reuses the read-only REST drain estimator with the caller’s credentials and the removal drawer’s explicit options; it returns up to 100 current pods, full summary counts, `drainPlanTotalPods` and `drainPlanPodsTruncated`. It evaluates Eviction API/PDB eligibility, not controller-specific policy or eviction history. `include=issues` returns up to three `relatedIssues`, with `relatedIssuesTotal` and `relatedIssuesTruncated`; this is independent of `context=none`. `staleEnv` lists env vars that running containers read from a Secret or ConfigMap key and that started before that key's last data write, so they likely still hold the earlier value until restart: on a Secret or ConfigMap it names the consuming Pods, on a Pod or workload its env vars. It is attached with `context=none` too, shows up to 5 rows with `total`, needs `get` on Pods and on the source's kind, and skips volume mounts, which refresh in place. For a Secret write made before Radar started, the row comes from the Secret's managedFields (`evidenceSource: managed_fields_mtime`), names no key, and says the write may not have touched data; ConfigMap rows come only from changes Radar observed. For logs use `get_pod_logs`, `get_workload_logs`, or `diagnose` for supported kinds. | `kind` (required), `name` (required), `namespace` (optional — omit for cluster-scoped kinds), `group` (optional, for ambiguous kinds), `include` (optional, comma-separated: `events,metrics,changes,revisions,issues,drain-plan`; `revisions` lists rollback targets for Deployment/StatefulSet/DaemonSet/Rollout), `context` (optional: `basic` default, `none` to omit `resourceContext`; a Pod/template divergence note can still appear in `warnings`, and `staleEnv` still attaches) |
+| `list_resources` | List resources of a kind with minified summaries + per-row `summaryContext` (managedBy / health / issueCount). Returns `{summary, next?, coverage, items}`: a sentence saying what the rows cover and what KubeAtlas did not read, what you can do to complete it when you can, then the same as data ([lists](#lists)). | `kind` (required), `group` (optional), `namespace` (optional), `context` (optional: default / `none`) |
+| `search` | Find resources by content/term match (config keys, env refs, images, label values, CRD fields, webhook configs, status messages). Tokens AND'd; secret values and CA bundles never indexed. Supports `kind:`/`ns:`/`label:`/`image:` modifiers (a Kind, its plural, or a kubectl short name of a built-in such as `netpol`, `ing`, `sa`, `quota`) and CEL `filter`. Searches workloads, Pods, Services, Ingresses, IngressClasses, NetworkPolicies, ConfigMaps, Secrets (names only), PVCs, PVs, StorageClasses, HPAs, PDBs, ResourceQuotas, LimitRanges, ServiceAccounts, Roles, RoleBindings, ClusterRoles, ClusterRoleBindings, Nodes, Namespaces, Events (with `kind:Event`) and watched CRDs; a `kind:` term also searches a large CRD KubeAtlas watches only on demand. Endpoints, EndpointSlices and Leases are not searched; use `list_resources`. Trivy Operator reports match by CVE ID with package and installed/fixed versions, SBOM component, failed check ID and scanned image (`image:`); a secret finding's matched text is never indexed or reachable. Free tokens can land on different findings of one report, so use the CEL `report` binding (`report.vulnerabilities.exists(v, …)`) to match a single finding. A report is scan-time evidence: `summaryContext.managedBy` names the workload and `summaryContext.scanned` the scanned object (`missing` means KubeAtlas can't find it). By default Trivy Operator deletes an old ReplicaSet's reports after a rollout; with `vulnerabilityScannerScanOnlyCurrentRevisions: false` they stay, and `scanned.replicas: 0` usually marks one (a Deployment scaled to zero also reads 0). Trivy reports are returned only where the caller may list that report kind. Every result carries `coverage` (`status`, `narrowedBy`, `gaps`), and a partial result, an empty narrowed one, or one with hits that KubeAtlas's namespace collection or pin limited adds `coverageHint`; see [Search coverage](#search-coverage-and-cel-object-filters). | `query` (required), `filter` (optional CEL), `limit` (optional) |
+| `get_resource` | Inspect one known resource: minified spec, status, and metadata, plus default-on `resourceContext` with relationships and available resource-specific summaries. Operational issues and static audit posture remain distinct; audit findings are not evidence of an active outage. See [integration documentation](integrations.md) for controller-specific context and limits. Optional supplemental data adds events, metrics, recent changes, rollback revisions, detailed issue context, or a Node drain estimate. `include=drain-plan` reuses the read-only REST drain estimator with the caller’s credentials and the removal drawer’s explicit options; it returns up to 100 current pods, full summary counts, `drainPlanTotalPods` and `drainPlanPodsTruncated`. It evaluates Eviction API/PDB eligibility, not controller-specific policy or eviction history. `include=issues` returns up to three `relatedIssues`, with `relatedIssuesTotal` and `relatedIssuesTruncated`; this is independent of `context=none`. `staleEnv` lists env vars that running containers read from a Secret or ConfigMap key and that started before that key's last data write, so they likely still hold the earlier value until restart: on a Secret or ConfigMap it names the consuming Pods, on a Pod or workload its env vars. It is attached with `context=none` too, shows up to 5 rows with `total`, needs `get` on Pods and on the source's kind, and skips volume mounts, which refresh in place. For a Secret write made before KubeAtlas started, the row comes from the Secret's managedFields (`evidenceSource: managed_fields_mtime`), names no key, and says the write may not have touched data; ConfigMap rows come only from changes KubeAtlas observed. For logs use `get_pod_logs`, `get_workload_logs`, or `diagnose` for supported kinds. | `kind` (required), `name` (required), `namespace` (optional — omit for cluster-scoped kinds), `group` (optional, for ambiguous kinds), `include` (optional, comma-separated: `events,metrics,changes,revisions,issues,drain-plan`; `revisions` lists rollback targets for Deployment/StatefulSet/DaemonSet/Rollout), `context` (optional: `basic` default, `none` to omit `resourceContext`; a Pod/template divergence note can still appear in `warnings`, and `staleEnv` still attaches) |
 | `get_topology` | Whole-namespace/cluster topology graph (nodes + edges). Use `summary` format for LLM-friendly text chains. Once you have a suspect root, prefer `get_neighborhood`. | `namespace` (optional), `view` (optional: `traffic` or `resources`), `format` (optional: `graph` or `summary`) |
 | `get_neighborhood` | BFS-expanded topology neighborhood around one known root — cheaper and clearer than `get_topology` for cross-resource failures (routing, selector/endpoint, refs, owner chains). RBAC-filtered. | `kind` (required), `namespace` (optional), `name` (required), `profile` (optional: `auto` default / `all`), `hops` (optional, default 1, max 2) |
 | `get_events` | Recent Kubernetes events, deduplicated and sorted **Warning-groups-first then by recency** — all types by default, so warnings lead and lifecycle events follow as timeline evidence. Filter by resource kind/name to scope; `type=Warning` for warnings only, `type=Normal` for lifecycle only. A namespace the caller cannot read returns an empty list with `accessDenied: true`, so an empty result without the marker means nothing is recorded for that scope. A request with no `namespace` means cluster-wide; when the caller may read only some namespaces the answer covers those alone and says so with `partialScope: true` and `scopeNamespaces`, so a narrowed empty result is never read as a clean cluster. | `namespace` (optional), `limit` (optional, default 20, max 100), `kind` (optional), `name` (optional), `type` (optional: `all` default, `Warning`, `Normal`) |
-| `get_changes` | Recent meaningful changes from the Kubernetes cluster timeline plus native Helm release deployment/operation history (`source: helm`). Use to investigate what changed before an incident, including failed upgrades, rollbacks, and current Helm revisions. If the response includes `sourcesErrored`, treat it as partial data for those sources. A namespace query without `kind` or `name` adds `clusterScopedChanges` (see [below](#cluster-scoped-admission-changes-in-a-namespace-view)). Until Radar has connected to the cluster it returns a `cluster_connecting` error rather than an empty list, as the REST API does. Use `get_helm_release include=history,operations` for the full Helm revision trail. For Deployments, StatefulSets, DaemonSets, CronJobs, Jobs, PodDisruptionBudgets, HPAs, Services, Ingresses, Gateway API objects, Argo Rollouts, admission webhook configurations, ResourceQuotas and LimitRanges, a changed desired-state field without its own row appears in the summary as `other spec changes: <fields>` (webhook configurations: `other changes`), with full paths in `fields`; a block added or removed as a whole is named once, and past 25 such fields one `spec (more fields)` row lists the rest by path. In those `other spec changes` rows, values Radar keeps out of the feed (free-form strings such as annotations, expressions and header values, anything under a container spec, and large structures) read `(value hidden)`, or `(set)` beside `null` when the field was added or removed. Dedicated rows show their own values with key-aware redaction: env values, command arguments, labels and selector values under secret-looking keys read `[REDACTED]`, and exec probe commands are hidden. A run of 5 or more plain creates in one namespace (rows with no diff or message, each within 60 s of the previous one, such as an install) is listed under `created` instead of one row each: `first` (timestamp of the earliest create), `count`, `apiVersions` (kind → apiVersion) and `objects`, one `+<seconds after first>s Kind/name` line per object, with ` (used by Kind/name, …)` for a consumed ConfigMap. Each line carries everything the row it replaces did. Lone creates, creates of NetworkPolicies, ResourceQuotas, LimitRanges, HPAs, PodDisruptionBudgets, ReferenceGrants, webhook configurations and GitOps Applications, Kustomizations and HelmReleases, and every delete and non-Secret update stay full rows; a `name=` query returns only full rows. `created` objects count toward `limit`. Each query reads at most the newest 1000 matching rows per change type (100 with `name`); when a window holds more, `narrowHint` says relevant changes may be missing. When the window starts before the history Radar holds (Radar started observing later, or deleted older events to stay within its history size or retention limit), the response carries `historyCoverage` with `incomplete`, `reasons` (`observation_started_late`, `events_evicted`) and, for callers who can read every namespace, `complete_since`; an empty answer is then not evidence that nothing changed. | `namespace` (optional), `kind` (optional), `name` (optional), `since` (optional, e.g. `1h`, `30m`; default `1h`), `limit` (optional, default 20, max 50) |
+| `get_changes` | Recent meaningful changes from the Kubernetes cluster timeline plus native Helm release deployment/operation history (`source: helm`). Use to investigate what changed before an incident, including failed upgrades, rollbacks, and current Helm revisions. If the response includes `sourcesErrored`, treat it as partial data for those sources. A namespace query without `kind` or `name` adds `clusterScopedChanges` (see [below](#cluster-scoped-admission-changes-in-a-namespace-view)). Until KubeAtlas has connected to the cluster it returns a `cluster_connecting` error rather than an empty list, as the REST API does. Use `get_helm_release include=history,operations` for the full Helm revision trail. For Deployments, StatefulSets, DaemonSets, CronJobs, Jobs, PodDisruptionBudgets, HPAs, Services, Ingresses, Gateway API objects, Argo Rollouts, admission webhook configurations, ResourceQuotas and LimitRanges, a changed desired-state field without its own row appears in the summary as `other spec changes: <fields>` (webhook configurations: `other changes`), with full paths in `fields`; a block added or removed as a whole is named once, and past 25 such fields one `spec (more fields)` row lists the rest by path. In those `other spec changes` rows, values KubeAtlas keeps out of the feed (free-form strings such as annotations, expressions and header values, anything under a container spec, and large structures) read `(value hidden)`, or `(set)` beside `null` when the field was added or removed. Dedicated rows show their own values with key-aware redaction: env values, command arguments, labels and selector values under secret-looking keys read `[REDACTED]`, and exec probe commands are hidden. A run of 5 or more plain creates in one namespace (rows with no diff or message, each within 60 s of the previous one, such as an install) is listed under `created` instead of one row each: `first` (timestamp of the earliest create), `count`, `apiVersions` (kind → apiVersion) and `objects`, one `+<seconds after first>s Kind/name` line per object, with ` (used by Kind/name, …)` for a consumed ConfigMap. Each line carries everything the row it replaces did. Lone creates, creates of NetworkPolicies, ResourceQuotas, LimitRanges, HPAs, PodDisruptionBudgets, ReferenceGrants, webhook configurations and GitOps Applications, Kustomizations and HelmReleases, and every delete and non-Secret update stay full rows; a `name=` query returns only full rows. `created` objects count toward `limit`. Each query reads at most the newest 1000 matching rows per change type (100 with `name`); when a window holds more, `narrowHint` says relevant changes may be missing. When the window starts before the history KubeAtlas holds (KubeAtlas started observing later, or deleted older events to stay within its history size or retention limit), the response carries `historyCoverage` with `incomplete`, `reasons` (`observation_started_late`, `events_evicted`) and, for callers who can read every namespace, `complete_since`; an empty answer is then not evidence that nothing changed. | `namespace` (optional), `kind` (optional), `name` (optional), `since` (optional, e.g. `1h`, `30m`; default `1h`), `limit` (optional, default 20, max 50) |
 | `get_pod_logs` | Pod logs with secret redaction. Without `grep`, prioritizes errors/warnings and falls back to recent tail lines; with `grep`, returns only regex-matching lines instead of applying the diagnostic filter. Returns `container` when explicitly requested or resolved from a readable single-container Pod. If Pod metadata is unavailable, the log read still proceeds, but an unspecified container remains unknown. | `namespace` (required), `name` (required), `container` (optional; specify for multi-container Pods), `tail_lines` (optional, default 200), `grep` (optional), `previous` (optional), `since` (optional) |
 | `get_workload_logs` | Aggregated logs from all pods of a workload (Deployment, StatefulSet, DaemonSet, Job, Argo Workflow). Without `grep`, auto-filters for diagnostic relevance; with `grep`, returns only matching timestamp-prefixed lines. | `kind` (required), `namespace` (required), `name` (required), `container` (optional), `tail_lines` (optional, default 100 per pod), `grep` (optional) |
 | `get_cluster_audit` | `missingInputs`, when present, names unavailable inputs in the scan; zero findings do not establish that all checks passed. Static config posture — best-practice findings (Security / Reliability / Efficiency) with remediation. INDEPENDENT of operational health. Finding severity and the explicit `summary.critical`/`high`/`medium`/`low` counts are posture remediation priority; current built-in checks emit `high` or `medium`. For "what's broken right now?" use `issues`. | `namespace` (optional), `category` (optional), `severity` (optional: `critical`, `high`, `medium`, or `low`) |
 | `get_cluster_upgrade_readiness` | Upgrade impact analysis for a target Kubernetes minor — the evidenced check catalog (version skew, removed/deprecated API usage across live manifests / Helm sources / API-server metrics, node runtime + cgroup evidence, drain feasibility, webhook readiness, release-specific config checks). The verdict is not a readiness guarantee: `unknown` checks had incomplete evidence, `coverage` states what the caller's RBAC could actually inspect, and `no_access` returns no verdict at all. Tier 1 is one row per check; `check=<id>` expands into findings with evidence + remediation, paged 25 at a time (`offset` + `scan_id` bind pages to one scan snapshot). Results are memoized ~60s per caller; `refresh=true` re-scans after a fix. Fix findings at the source `evidence.source` names — live objects via `patch_resource`/`apply_resource`, Helm findings in the chart, GitOps-managed resources in Git. | `target` (optional, default next minor), `check` (optional), `level` (optional: `blocker`, `warning`, `review`), `offset` (optional), `scan_id` (required when `offset` > 0), `refresh` (optional) |
-| `get_runtime_versions` | Which running workloads use which runtime version, for runtime CVEs (PHP2Shell and the like). For each image a visible Pod runs, Radar reads the image config for the digest the Pod reports and the node's platform (manifest and config only, never layers) and returns the versions it declares: curated keys Docker official images set and images built `FROM` them inherit (`PHP_VERSION`, `NODE_VERSION`, `PYTHON_VERSION`, `GOLANG_VERSION`, `RUBY_VERSION`, `JAVA_VERSION`, `HTTPD_VERSION`, `NGINX_VERSION`, `TOMCAT_VERSION`, `PG_VERSION`, `REDIS_VERSION`, `MONGO_VERSION`, `MARIADB_VERSION`, `MYSQL_VERSION`, `RUST_VERSION`) plus the OCI `version` and `base.name` labels; no other env value is ever read. A declared version is what the image says, not proof of the binary, and runtimes installed from distro packages declare nothing here (Trivy reports cover those; use `search`). `fixed_in` classifies each version against the first fix on its branch: all but the last component for most runtimes (`8.3.36` covers 8.3.x, `17.6` covers 17.x), the major for Node (`22.23.4` covers 22.x), and a single branch for Rust (`1.82.0` covers every earlier version). Prereleases such as `22.23.4-rc.1` count as below their release; a prerelease of a later Node minor or Rust release is `unparsed`, since it may have been cut before the fix landed. Classifications: `declared_below_fix`, `declared_at_or_above_fix`, `branch_not_listed` (no fix was given for that branch, such as an end-of-life line; not a sign it is unaffected), `unparsed`. An image `status` other than `ok` (`no_declaration`, `auth_required`, `not_found`, `rate_limited`, `blocked`, `error`, `not_checked`) means unknown, not absent. `resolvedFrom: spec` or `tag` means the kubelet reported no registry digest, so the image named in the Pod spec is shown without a fix verdict; `platformAssumed` means the node's platform wasn't readable and linux/amd64 was used, so no fix verdict is emitted. Missing runtime declarations stay visible as `no_declaration`, counted as unknown; unsupported or distro version formats remain `unparsed`. Only Pods the caller may list are read. Each image is looked up with its Pods' own pull secrets one at a time, then anonymously; node registry credentials are not used, so images pulled only with node identity may remain unreadable; Radar's own registry credentials are used only when Radar runs locally with auth off. A result read with a credential is cached for that credential only, an anonymous one for everyone. Credentialed lookups require HTTPS, including token exchanges and redirects. The call returns within a 40-second lookup budget. Registry use is bounded: at most 4 lookups run at once across callers and 200 attempts per call, 429s are not retried and pause that registry for 5 minutes, configs over 1 MiB are refused, and only the registry a Pod names may sit on a private or (outside the cluster) loopback address; link-local addresses, and redirects or token endpoints elsewhere on internal addresses, are refused. Behind an HTTP proxy, HTTPS goes through a CONNECT tunnel to the checked address; requests that can't be pinned that way are refused when Radar runs in-cluster. `fixed_in` needs `runtime`. Unknown runtime names and unsupported fixed-release formats return input errors. Manifest GETs can consume registry pull quotas shared with workloads, including Docker Hub account or egress-IP limits; a cold inventory can spend multiple manifest requests per image. Transient lookup failures are cached for 30 seconds. | `namespace` (optional), `runtime` (optional, e.g. `php`), `fixed_in` (optional, comma-separated, e.g. `8.2.35,8.3.36,8.4.27,8.5.12`), `limit` (optional, default 50, max 200) |
+| `get_runtime_versions` | Which running workloads use which runtime version, for runtime CVEs (PHP2Shell and the like). For each image a visible Pod runs, KubeAtlas reads the image config for the digest the Pod reports and the node's platform (manifest and config only, never layers) and returns the versions it declares: curated keys Docker official images set and images built `FROM` them inherit (`PHP_VERSION`, `NODE_VERSION`, `PYTHON_VERSION`, `GOLANG_VERSION`, `RUBY_VERSION`, `JAVA_VERSION`, `HTTPD_VERSION`, `NGINX_VERSION`, `TOMCAT_VERSION`, `PG_VERSION`, `REDIS_VERSION`, `MONGO_VERSION`, `MARIADB_VERSION`, `MYSQL_VERSION`, `RUST_VERSION`) plus the OCI `version` and `base.name` labels; no other env value is ever read. A declared version is what the image says, not proof of the binary, and runtimes installed from distro packages declare nothing here (Trivy reports cover those; use `search`). `fixed_in` classifies each version against the first fix on its branch: all but the last component for most runtimes (`8.3.36` covers 8.3.x, `17.6` covers 17.x), the major for Node (`22.23.4` covers 22.x), and a single branch for Rust (`1.82.0` covers every earlier version). Prereleases such as `22.23.4-rc.1` count as below their release; a prerelease of a later Node minor or Rust release is `unparsed`, since it may have been cut before the fix landed. Classifications: `declared_below_fix`, `declared_at_or_above_fix`, `branch_not_listed` (no fix was given for that branch, such as an end-of-life line; not a sign it is unaffected), `unparsed`. An image `status` other than `ok` (`no_declaration`, `auth_required`, `not_found`, `rate_limited`, `blocked`, `error`, `not_checked`) means unknown, not absent. `resolvedFrom: spec` or `tag` means the kubelet reported no registry digest, so the image named in the Pod spec is shown without a fix verdict; `platformAssumed` means the node's platform wasn't readable and linux/amd64 was used, so no fix verdict is emitted. Missing runtime declarations stay visible as `no_declaration`, counted as unknown; unsupported or distro version formats remain `unparsed`. Only Pods the caller may list are read. Each image is looked up with its Pods' own pull secrets one at a time, then anonymously; node registry credentials are not used, so images pulled only with node identity may remain unreadable; KubeAtlas's own registry credentials are used only when KubeAtlas runs locally with auth off. A result read with a credential is cached for that credential only, an anonymous one for everyone. Credentialed lookups require HTTPS, including token exchanges and redirects. The call returns within a 40-second lookup budget. Registry use is bounded: at most 4 lookups run at once across callers and 200 attempts per call, 429s are not retried and pause that registry for 5 minutes, configs over 1 MiB are refused, and only the registry a Pod names may sit on a private or (outside the cluster) loopback address; link-local addresses, and redirects or token endpoints elsewhere on internal addresses, are refused. Behind an HTTP proxy, HTTPS goes through a CONNECT tunnel to the checked address; requests that can't be pinned that way are refused when KubeAtlas runs in-cluster. `fixed_in` needs `runtime`. Unknown runtime names and unsupported fixed-release formats return input errors. Manifest GETs can consume registry pull quotas shared with workloads, including Docker Hub account or egress-IP limits; a cold inventory can spend multiple manifest requests per image. Transient lookup failures are cached for 30 seconds. | `namespace` (optional), `runtime` (optional, e.g. `php`), `fixed_in` (optional, comma-separated, e.g. `8.2.35,8.3.36,8.4.27,8.5.12`), `limit` (optional, default 50, max 200) |
 | `list_packages` | Installed packages (Helm releases, label-managed workloads, CRDs, Argo Applications, Flux HelmReleases + Kustomizations) with source provenance, versions, and health, in one call. Response includes `sourceLegend` for the stable source codes. | `namespace` (optional), `source` (optional: `H`/`helm`, `L`/`labels`, `C`/`crds`, `A`/`argocd`, `F`/`fluxcd`), `chart` (optional substring) |
 | `list_helm_releases` | List Helm releases with status, resource health, storage namespace, Flux ownership, current `lastOperation`, and a capped `operations` trail when Helm history indicates failed upgrades, rollback-after-failure, rollbacks, or stuck pending operations. Use this first for Helm deployment debugging. | `namespace` (optional) |
 | `get_helm_release` | Returns the release with its owned resources, `hooks` with their outcome, `history` (the newest ten stored revisions; `include=history` returns them all) and the user-supplied `values` (redacted). Detailed Helm release info with owned resources, resource health, Flux ownership, current `lastOperation`, `operationInsight` (active/recovered state, likely resource to inspect, suggested compare), hooks, and failed/running hook diagnostics with live Job/Pod/Event/redacted-log evidence when still available. Use `include=history,operations` for the full Helm revision trail; `include=values` for key-aware redacted user values; `include=diff,values_diff,notes_diff,resource_diff` for revision comparison. Manifest `diff` redacts Secret values while preserving key changes; `notes_diff` uses pattern-based redaction. For releases with `storageNamespace`, pass that value as `namespace`. | `namespace` (required: Helm storage namespace), `name` (required), `include` (optional: `values,history,operations,diff,values_diff,notes_diff,resource_diff`), `diff_revision_1` (required when `include` contains a diff token) / `diff_revision_2` (optional, defaults to current) |
@@ -884,7 +884,7 @@ For `get_cost` and `get_rightsizing`, see [Cost and rightsizing evidence limits]
 | `get_cost` | Estimated costs from OpenCost or Kubecost: namespace summary, workload/node breakdown, or summarized trend. Hourly rates and 730-hour projections; availability, scope and missing evidence are explicit. See [evidence limits](#cost-and-rightsizing-evidence-limits). | `view` (summary default, workloads, nodes, trend), `namespace` (required for workloads; filters summary/trend), `kind` + `name` (one workload), `name` (one node), `range` (trend: 6h, 24h default, 7d), `include_points` (trend only, default false), `limit` (row views: 1–100, default 20) |
 | `get_rightsizing` | CPU/memory request recommendations from 7 days of usage. Workload scope is cheap; namespace/cluster scans run in the background for up to three minutes. Running responses include `scanId`, `scanStatus`, and `nextCall`; follow that call to retrieve progress without restarting completed batches. Scans are retained up to 15 minutes; use `refresh=true` after changes. Results prioritize evidenced safety risks, then increases, reductions, and routine reviews; ties use replica-weighted request delta. Check confidence and manual-review reasons; reductions do not directly imply bill savings. | `scope` (required: workload, namespace, cluster), `kind` + `name` (workload), `namespace` (workload or namespace scope), `namespaces` (namespace scope only, nonempty array; mutually exclusive with namespace), `include_all` (default false; workload always returns all), `classification` (scan only: reduction, increase, review, need_data, in_range), `limit` (scan only: 1–100, default 20), `scan_id` (retrieve one scan with the same scope/namespaces), `refresh` (scan only; start fresh, cannot combine with scan_id) |
 
-API group is part of a resource's identity. Radar infers the canonical group for built-in kinds, but callers should pass `group` for a supported CRD or whenever a Kind can exist in more than one group. For example, diagnose an Argo Rollout with:
+API group is part of a resource's identity. KubeAtlas infers the canonical group for built-in kinds, but callers should pass `group` for a supported CRD or whenever a Kind can exist in more than one group. For example, diagnose an Argo Rollout with:
 
 ```json
 {"kind":"Rollout","group":"argoproj.io","namespace":"prod","name":"checkout"}
@@ -904,17 +904,17 @@ transition still receives its grace. The same state appears in Pod health and
 summary rows.
 
 Watched, synchronized custom resources that remain deleting appear in `issues`
-as `termination_stuck`, timed from the deletion request. Radar starts no new
+as `termination_stuck`, timed from the deletion request. KubeAtlas starts no new
 watches for this scan; an empty result does not establish that unwatched kinds
 are healthy. These findings also feed Active Issues and AI resource/search
 summaries, but not dashboard health summaries or `cluster://health`.
 
 A `Ready=False/Deleting` condition is expected during the first 10 minutes of
-an actual deletion. This follows Radar's termination warning window, not a
+an actual deletion. This follows KubeAtlas's termination warning window, not a
 Kubernetes deadline. Other failure conditions remain eligible under the existing
 condition selector, including its suspension and whole-object generation gates.
 The same window tolerates an API-server deletion timestamp slightly ahead of
-Radar's clock; a farther-future timestamp does not establish expected progress.
+KubeAtlas's clock; a farther-future timestamp does not establish expected progress.
 After that window, or when deletion timing is unavailable, the condition remains
 a fallback when no stuck-deletion finding is available. It never takes priority
 over an independent error, including a qualified older-generation observation.
@@ -952,7 +952,7 @@ list for cluster-wide searches. A missing or down controller requires complete
 cluster-wide Pod, Deployment,
 StatefulSet and DaemonSet visibility. Incomplete inventory cannot enable removal.
 A negative search is not proof of an uninstall; a controller may run elsewhere
-or use an identity Radar does not recognize.
+or use an identity KubeAtlas does not recognize.
 
 Only Flux and VictoriaMetrics currently opt into `conditional_cleanup`, separate
 from `action`. It contains `condition`, `agent_guidance`, `caution`, and `removals`
@@ -971,11 +971,11 @@ older VictoriaMetrics operators place such finalizers on managed objects.
 
 `search` scans typed resources (including RBAC, ServiceAccounts, NetworkPolicies,
 IngressClasses, LimitRanges and ResourceQuotas) and discovered dynamic kinds,
-including admission webhook configurations. A broad search covers the kinds Radar
-watches. Large custom kinds that Radar doesn't watch until someone asks are searched
+including admission webhook configurations. A broad search covers the kinds KubeAtlas
+watches. Large custom kinds that KubeAtlas doesn't watch until someone asks are searched
 only when a `kind:` term names them: an explicit `kind:` query starts the existing
 bounded on-demand watch and waits briefly for initial sync once CRD discovery is
-ready. Leases, Endpoints and EndpointSlices, which Radar reads directly instead of
+ready. Leases, Endpoints and EndpointSlices, which KubeAtlas reads directly instead of
 watching, are never warmed; use `list_resources` for them. Alternate built-in groups
 of typed kinds are skipped, so `kind:Event` does not duplicate core Events through
 `events.k8s.io`. Third-party CRDs named Event are searched normally; only built-in
@@ -993,7 +993,7 @@ gap is either about kinds or about namespaces, and states both axes: `kinds`
 (`{count, names}` of `{kind, group}`, an omitted group being core) and
 `namespaces`, each listing every member, past its limit only counting them, or
 giving an extent: `{"extent": "all"}` for every one in the search's scope, or
-`{"extent": "unknown"}` when Radar can't say which. A kind gap reaches all
+`{"extent": "unknown"}` when KubeAtlas can't say which. A kind gap reaches all
 namespaces when the kind failed everywhere and an unknown part when only some
 namespaces failed; a namespace gap reaches all kinds only when every searched
 kind was excluded in those namespaces, and otherwise an unknown subset of kinds.
@@ -1007,26 +1007,26 @@ because findings in unscanned reports may still match.
 asked: something was loading or failed, a kind or namespace you named couldn't
 be searched, or the filter couldn't be evaluated on some objects. `complete`
 means no such problem was reported. A broad query searches only what your
-access and Radar's collection allow without listing each kind it skipped, so
+access and KubeAtlas's collection allow without listing each kind it skipped, so
 `narrowedBy` says when that happened (`user_access`, `namespace_pin`,
 `namespace_collection`, `kind_collection`): even a complete
 search is then no proof that nothing exists outside it.** `kind_collection` means
-kinds Radar isn't watching were skipped; naming one with `kind:` searches it.
-`namespace_collection` means namespaces Radar doesn't collect were skipped. Result limits (`total` vs `total_matched`, MCP
+kinds KubeAtlas isn't watching were skipped; naming one with `kind:` searches it.
+`namespace_collection` means namespaces KubeAtlas doesn't collect were skipped. Result limits (`total` vs `total_matched`, MCP
 `narrowHint`) are separate.
 
 What gets reported follows from that:
 
-- **Your access and Radar's setup are the scope of a search, not gaps in it.** A
+- **Your access and KubeAtlas's setup are the scope of a search, not gaps in it.** A
   kind-level access, setup or query reason (`user_forbidden`, `radar_forbidden`,
   `kind_unknown`) is a gap only for a kind a `kind:` term names; on a broad query
   it adds to `narrowedBy` instead. A namespace reason is a gap only for a
   namespace an `ns:` term, a REST namespace parameter, or the MCP `namespace`
   argument names. So `ns:` alone never yields per-kind gaps, and `kind:` alone
-  never yields namespace or collection-scope gaps. A named kind Radar's setup leaves out is
+  never yields namespace or collection-scope gaps. A named kind KubeAtlas's setup leaves out is
   `radar_kind_not_collected`. Kinds search never covers are outside every search,
   so on a broad query they don't add to `narrowedBy`: Endpoints, EndpointSlices and
-  Leases, which Radar reads directly instead of watching, are `kind_not_searchable`
+  Leases, which KubeAtlas reads directly instead of watching, are `kind_not_searchable`
   (read them with `list_resources`), and APIs that can't be listed and watched are
   `kind_not_watchable`.
 - **Loading and failures are always reported, folded.** All `kind_sync_pending`
@@ -1038,26 +1038,26 @@ What gets reported follows from that:
 - **Only kinds you may read count, and your access comes first.** Your own access is
   checked before a kind's loading, failed or collection state is reported, so a kind
   you can't list never shows up as loading for you, and a named kind that neither
-  you nor Radar can read is `user_forbidden` (yours to fix). Radar's own denial
+  you nor KubeAtlas can read is `user_forbidden` (yours to fix). KubeAtlas's own denial
   (`radar_forbidden`) is reported only when you could read the kind. A kind
   search never covers (`kind_not_searchable`, `kind_not_watchable`) is reported
   without a permission check.
 - **While discovery is loading** (API discovery, or the CRD discovery that decides
-  which custom kinds Radar watches), the response carries a `kind_sync_pending`
+  which custom kinds KubeAtlas watches), the response carries a `kind_sync_pending`
   gap whose kinds are `{"extent": "unknown"}` (the set isn't known yet) and no `kind_unknown`: a `kind:`
   term that matched nothing may simply not be discovered yet. When API discovery
   failed for some groups, or its last refresh failed and retained an older snapshot,
   an unmatched `kind:` term is still `kind_unknown`, beside a `read_error` gap whose
-  kinds are unknown: the kind may live in a group Radar couldn't discover. For broad searches, incomplete discovery adds `kind_collection`
+  kinds are unknown: the kind may live in a group KubeAtlas couldn't discover. For broad searches, incomplete discovery adds `kind_collection`
   to `narrowedBy`. Search reads the in-memory discovery snapshot without refreshing it.
-- **A kind Radar doesn't watch yet narrows a broad search** (`kind_collection`),
+- **A kind KubeAtlas doesn't watch yet narrows a broad search** (`kind_collection`),
   for example one too large to watch eagerly; a `kind:` term warms it and reports
-  what happens. An access check Radar is still retrying is `kind_sync_pending`;
+  what happens. An access check KubeAtlas is still retrying is `kind_sync_pending`;
   one that failed for a reason other than a refusal, or never answered once its
   retries ran out, is `read_error`, which naming the kind retries. Neither is read
   as a deliberate limit. A watch that started but hasn't finished loading by its
   deadline is `kind_sync_timed_out`, which naming the kind can't restart. A
-  namespace Radar's own credentials can't list stays outside its collection: on a
+  namespace KubeAtlas's own credentials can't list stays outside its collection: on a
   broad search it adds `namespace_collection` to `narrowedBy`, and it is
   `radar_namespace_not_collected` when an `ns:` term names it.
 - **Named kinds may warm within one shared two-second deadline.** Broad searches
@@ -1065,7 +1065,7 @@ What gets reported follows from that:
   The per-hit `summaryContext` (health, issue count, managedBy) is left out when it
   can't be built within about three seconds, as right after a restart while
   custom-resource discovery runs.
-- **A kind Radar watches namespace by namespace is searched where it has
+- **A kind KubeAtlas watches namespace by namespace is searched where it has
   loaded.** A namespace whose informer is still loading is a `kind_sync_pending`
   gap for the kind, and the namespaces that are ready still contribute hits.
 - **When your namespace access couldn't be determined**, namespaced kinds are not
@@ -1075,34 +1075,34 @@ What gets reported follows from that:
 | Code | Reported | Meaning | Next step |
 |---|---|---|---|
 | `kind_sync_pending` | always (folded) | The kind or discovery is still loading, or warming ran out of time. | Retry in a few seconds. |
-| `kind_sync_timed_out` | always (folded) | The kind's initial load missed its deadline; Radar keeps trying. | Retry later; if it persists, inspect Radar's connection and list/watch access. |
+| `kind_sync_timed_out` | always (folded) | The kind's initial load missed its deadline; KubeAtlas keeps trying. | Retry later; if it persists, inspect KubeAtlas's connection and list/watch access. |
 | `read_error` | always (folded) | A list or discovery failure, or an access check that failed or never answered. | Retry; on a broad search, `kind:` re-checks the kind. |
-| `user_permission_check_failed` | always (folded) | Radar could not complete your permission check and failed closed. This is not a denial; authorized namespaces still contribute hits. | Retry. |
-| `radar_credentials_rejected` | always (folded) | Kubernetes rejected Radar's own credentials for the kind. | Whoever runs Radar checks its credentials. |
+| `user_permission_check_failed` | always (folded) | KubeAtlas could not complete your permission check and failed closed. This is not a denial; authorized namespaces still contribute hits. | Retry. |
+| `radar_credentials_rejected` | always (folded) | Kubernetes rejected KubeAtlas's own credentials for the kind. | Whoever runs KubeAtlas checks its credentials. |
 | `user_forbidden` | named `kind:` | Your role cannot list the kind in some or all of the searched namespaces. | Ask for access; authorized namespaces still contribute hits. |
-| `radar_forbidden` | named `kind:` | Kubernetes refused Radar's own identity for the kind. | Fix Radar's access; granting the caller access does not help. |
-| `radar_kind_not_collected` | named `kind:` | Radar's setup leaves the kind out. | Use `list_resources`, or change Radar's collection. |
-| `kind_not_searchable` | named `kind:` | Search doesn't cover the kind: Radar reads Endpoints, EndpointSlices and Leases directly instead of watching them. | Use `list_resources` or `get_resource`. |
-| `kind_not_watchable` | named `kind:` | The API can't be listed and watched, so Radar can't collect it. | Read it from the Kubernetes API directly; warming will not help. |
+| `radar_forbidden` | named `kind:` | Kubernetes refused KubeAtlas's own identity for the kind. | Fix KubeAtlas's access; granting the caller access does not help. |
+| `radar_kind_not_collected` | named `kind:` | KubeAtlas's setup leaves the kind out. | Use `list_resources`, or change KubeAtlas's collection. |
+| `kind_not_searchable` | named `kind:` | Search doesn't cover the kind: KubeAtlas reads Endpoints, EndpointSlices and Leases directly instead of watching them. | Use `list_resources` or `get_resource`. |
+| `kind_not_watchable` | named `kind:` | The API can't be listed and watched, so KubeAtlas can't collect it. | Read it from the Kubernetes API directly; warming will not help. |
 | `kind_unknown` | named `kind:` | A `kind:` term matched no kind in the discovered catalog: it isn't installed on this cluster, or it is misspelled. Reported in your spelling. | Check the spelling, and whether the API is installed here. |
 | `namespace_not_found` | named `ns:` | The namespace doesn't exist on this cluster. Only a caller who can see every namespace is told this. | Check the name. |
 | `user_namespace_not_visible` | named `ns:` | The namespace isn't among the namespaces you can see, or doesn't exist; the code doesn't say which. | Use a namespace you can see, or ask for access. |
-| `outside_namespace_pin` | named `ns:` | Radar's `--namespace-scope` pin leaves the namespace out. | Radar's `--namespace-scope` setting. |
-| `radar_namespace_not_collected` | named `ns:` | Radar's cache left kinds unsearched there: `kinds.extent` is `all` only if every searched kind was excluded, otherwise `unknown`. | Widen Radar's collection. |
-| `filter_eval_failed` | when the filter fails | The `filter=` expression couldn't be evaluated on some objects Radar read. | Guard missing fields with `has()`. |
-| `findings_scan_incomplete` | when the findings search ran out of time | Radar stopped searching Trivy report findings when its time budget ran out, so a CVE or package may be in a report it left out. | Narrow with `kind:`, `ns:` or a more specific term. |
+| `outside_namespace_pin` | named `ns:` | KubeAtlas's `--namespace-scope` pin leaves the namespace out. | KubeAtlas's `--namespace-scope` setting. |
+| `radar_namespace_not_collected` | named `ns:` | KubeAtlas's cache left kinds unsearched there: `kinds.extent` is `all` only if every searched kind was excluded, otherwise `unknown`. | Widen KubeAtlas's collection. |
+| `filter_eval_failed` | when the filter fails | The `filter=` expression couldn't be evaluated on some objects KubeAtlas read. | Guard missing fields with `has()`. |
+| `findings_scan_incomplete` | when the findings search ran out of time | KubeAtlas stopped searching Trivy report findings when its time budget ran out, so a CVE or package may be in a report it left out. | Narrow with `kind:`, `ns:` or a more specific term. |
 
 A namespace gap lists the namespaces you named where kinds were missed for that
 reason, once per code, never per kind. Every combination of its axes was missed;
 `kinds: {"extent": "unknown"}` does not qualify kinds successfully searched there.
 A named namespace that doesn't exist is
 `namespace_not_found` for a caller whose RBAC covers every namespace, never
-searched to a silent empty answer or blamed on the pin (Radar watches
+searched to a silent empty answer or blamed on the pin (KubeAtlas watches
 Namespaces cluster-wide, even under the pin; when it can't list them, existence is
 unknown and the namespace is treated as existing). For anyone else existence is
 never checked, so a namespace outside your RBAC is `user_namespace_not_visible`
-whether or not it exists. Kubernetes refusing Radar's own identity is
-`radar_forbidden` or `radar_credentials_rejected`: either way it is Radar's access
+whether or not it exists. Kubernetes refusing KubeAtlas's own identity is
+`radar_forbidden` or `radar_credentials_rejected`: either way it is KubeAtlas's access
 to fix, not yours.
 
 On a broad search, read-error hints suggest a `kind:` search to re-check; a search that already names the kind reports the failure without
@@ -1112,9 +1112,9 @@ On MCP, a partial result also carries `coverageHint`: an explanation per reason
 present, most actionable first (a typo, an unsearchable kind, a failing filter,
 loading), at most three sentences and then `+N more reasons.`. A narrowed broad
 search with no hits carries one too, saying it doesn't rule out matches outside
-your access and Radar's collection. A search with hits says so when Radar
+your access and KubeAtlas's collection. A search with hits says so when KubeAtlas
 collects some kinds only in some namespaces, or is pinned to one, since those
-limits come from how Radar is installed; the caller's own access is not
+limits come from how KubeAtlas is installed; the caller's own access is not
 repeated. A named kind denied across the whole
 namespace scope suggests trying `ns:<namespace>`; namespace access may differ,
 so this is a suggestion, not a promise of access. REST never carries it.
@@ -1156,7 +1156,7 @@ use exact caller list gates. These gates try one cluster-wide check, then bounde
 checks only after a denial. Cluster-scoped kinds use an exact cluster-scoped check.
 
 `features.searchCoverage` advertises the coverage response and `object` binding so
-embedding hosts can gate them when connected to an older Radar.
+embedding hosts can gate them when connected to an older KubeAtlas.
 
 CEL exposes `object` (the cached object with Secret data/stringData removed)
 alongside the existing `kind`,
@@ -1187,7 +1187,7 @@ unreported ready replicas:
 cluster scope) when there are at most 20, and otherwise only count them.
 Surviving hits remain available. A valid false predicate is an ordinary non-match.
 
-For `issues`, `unchecked_sources` lists the issue sources Radar couldn't check for this answer, so their issues may be missing; don't read the response as healthy for them. Sources: `helm` (failed or stuck Helm releases), `resources` (built-in kinds such as Pods, workloads, PVCs, HPAs and Nodes), `custom_resources` (failing conditions on custom resources) and `karpenter` (NodePools, NodeClasses, NodeClaims). Reasons: `read_failed`, `kind_sync_pending` (still loading, for example right after Radar starts; ask again shortly), `kind_sync_failed` (loading stalled), and `collector_access_denied` (Kubernetes refused Radar's own identity, so the caller's permissions can't fix it). An entry may carry `kinds` (only those kinds went unchecked) and `namespaces` (only those namespaces failed; the rest are complete). Treat any other source or reason as unchecked too. Read `timing_summary` when present; it explains timing combinations that are easy to misread without schema context. The raw provenance fields remain available for filtering. `first_seen` is an evidence-backed lower bound, `onset_unknown` means no contributing signal has a known onset, and `resource_created_at` is resource-age context rather than issue age. A missing `first_seen` is exposed to CEL as `0`; require `first_seen != 0` for any age filter, and also require `onset_coverage_unknown == 0` when the whole row must have exact timing.
+For `issues`, `unchecked_sources` lists the issue sources KubeAtlas couldn't check for this answer, so their issues may be missing; don't read the response as healthy for them. Sources: `helm` (failed or stuck Helm releases), `resources` (built-in kinds such as Pods, workloads, PVCs, HPAs and Nodes), `custom_resources` (failing conditions on custom resources) and `karpenter` (NodePools, NodeClasses, NodeClaims). Reasons: `read_failed`, `kind_sync_pending` (still loading, for example right after KubeAtlas starts; ask again shortly), `kind_sync_failed` (loading stalled), and `collector_access_denied` (Kubernetes refused KubeAtlas's own identity, so the caller's permissions can't fix it). An entry may carry `kinds` (only those kinds went unchecked) and `namespaces` (only those namespaces failed; the rest are complete). Treat any other source or reason as unchecked too. Read `timing_summary` when present; it explains timing combinations that are easy to misread without schema context. The raw provenance fields remain available for filtering. `first_seen` is an evidence-backed lower bound, `onset_unknown` means no contributing signal has a known onset, and `resource_created_at` is resource-age context rather than issue age. A missing `first_seen` is exposed to CEL as `0`; require `first_seen != 0` for any age filter, and also require `onset_coverage_unknown == 0` when the whole row must have exact timing.
 
 Resource context distinguishes observed dependency references (`dependencies` and
 `dependents`) from autoscalers (`scaledBy`). A Certificate depends on its issuer;
@@ -1238,7 +1238,7 @@ counts, and `diagnose` adds the same breakdown to the Pods hop as an info findin
 for example "Selects 2 pods from 2 workloads: frontend (1), search (1)". This is
 context only. Workloads the caller can't read are withheld, and `omitted` says so.
 
-Radar raises a `service_mixed_backends` warning, never critical, and resource
+KubeAtlas raises a `service_mixed_backends` warning, never critical, and resource
 context adds the `mixed_backends` warning with the same sentence in
 `serviceSummary.mixedBackends`, only when the workloads that receive traffic don't
 all serve the Service:
@@ -1308,7 +1308,7 @@ a winner the evidence doesn't support ([full rules](ownership.md#what-manages-an
   with a `check` (`recorded`, `omitted`, `missing`, `withheld`, …).
 - `state`: `agree` (a list and the metadata name the same manager — the strongest answer), `listed` (a list alone,
   which isn't proof the manager applies it), `disagree` (look at both), `shared` (several lists), `claimed` (metadata
-  only), `unknown` (Radar couldn't look everywhere) or `none` (nothing Radar can see — **not** "unmanaged").
+  only), `unknown` (KubeAtlas couldn't look everywhere) or `none` (nothing KubeAtlas can see — **not** "unmanaged").
 - `via`: the controller ancestor whose evidence answers (a Pod's Deployment); `listedBy`/`claims` are then its.
   `alsoClaimed` lists other claims on the way, each `on` its object.
 - `lead` is where to look first, not a verdict. `narrowed: true` means you may read only part of the evidence.
@@ -1326,7 +1326,7 @@ with cached, nonterminal Pods assigned through `spec.nodeName`. Controlled Pods
 and assigned Pending Pods are included; unassigned Pods, Pods on other nodes and
 completed Pods are excluded. References are permission-filtered per namespace,
 sorted deterministically and capped at 20. `total` counts only readable Pods;
-`truncated` marks the item cap. This is observed placement in Radar's cache scope,
+`truncated` marks the item cap. This is observed placement in KubeAtlas's cache scope,
 not a cluster-wide workload count or a list of potential scheduling candidates.
 When Relationships already collected placement, context reuses that result.
 Unavailable Pod data, including a missing placement provider, records
@@ -1418,13 +1418,13 @@ Repeated Secret updates collapse into the newest row with merged changed keys, `
 
 A namespace `get_changes` (no `kind` or `name`) adds `clusterScopedChanges`; a
 single-namespace `issues` answer adds `cluster_scoped_changes` when it has rows
-or a coverage gap (notes that only say Radar started inside the window are left
+or a coverage gap (notes that only say KubeAtlas started inside the window are left
 out there). It lists MutatingWebhookConfiguration and
 ValidatingWebhookConfiguration changes in the window, capped with truncation
 disclosed, each with `applicability` and `applies_because`:
 
 - `applies`: a changed webhook's current selectors and rules reach the namespace.
-- `may_apply`: Radar cannot establish that, for example because of unevaluated
+- `may_apply`: KubeAtlas cannot establish that, for example because of unevaluated
   object selectors or CEL, rules of unknown scope, unreadable labels, or a
   deleted or re-scoped webhook.
 
@@ -1466,7 +1466,7 @@ the result, so the preview does not guarantee completion.
 ### MCP deletion preview and confirmation
 
 External writable MCP exposes `delete_resource`. It is absent from read-only
-mounts and from the built-in `/mcp-apply` transport used by Radar OSS's built-in CLI agents. Hub's sidecar independently enforces its read-only gate; it does not use this new mount.
+mounts and from the built-in `/mcp-apply` transport used by KubeAtlas OSS's built-in CLI agents. Hub's sidecar independently enforces its read-only gate; it does not use this new mount.
 Built-in deletion stays deferred until the approval flow presents this preview.
 There is no new configuration switch.
 
@@ -1489,7 +1489,7 @@ GC dependents, possible dependents and controller teardown stay separate.
 Counts cover the observed traversal before each 100-reference MCP list cap;
 `ownershipCoverage` carries source gaps, caller narrowing and traversal limits.
 Namespace contents and CRD instances are never interpreted as an empty list.
-A completely unavailable or timed-out impact calculation returns no usable confirmation token. Inspect `cascade.unavailableReason` and `recoveryAction`: connection/cache loading can recover, but access or collection limits require a change. Use the UI or kubectl if Radar cannot provide caller-readable impact. Partial observed projections retain explicit coverage limits. One 40s
+A completely unavailable or timed-out impact calculation returns no usable confirmation token. Inspect `cascade.unavailableReason` and `recoveryAction`: connection/cache loading can recover, but access or collection limits require a change. Use the UI or kubectl if KubeAtlas cannot provide caller-readable impact. Partial observed projections retain explicit coverage limits. One 40s
 budget covers the call, with at most 5s each for enumeration and post-delete
 observation. A stuck kubeconfig exec credential refresh can outlive the request
 budget, as with other client-go operations.
@@ -1503,4 +1503,4 @@ kind/group/target and preview/accepted/failed/unknown outcomes; confirmation
 values are omitted from ordinary tool-argument logs.
 
 
-Confirmation tokens are process-local. Use a single Radar replica or session affinity so preview and confirmation reach the same process; a restart invalidates outstanding tokens. `/mcp-apply` is an authenticated subset of writable `/mcp`, intended for built-in agents, not a private network endpoint.
+Confirmation tokens are process-local. Use a single KubeAtlas replica or session affinity so preview and confirmation reach the same process; a restart invalidates outstanding tokens. `/mcp-apply` is an authenticated subset of writable `/mcp`, intended for built-in agents, not a private network endpoint.

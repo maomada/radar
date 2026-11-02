@@ -146,14 +146,14 @@ auth:
 
 **CLI flags:**
 ```bash
-radar --auth-mode=proxy \
+kubeatlas --auth-mode=proxy \
       --auth-user-header=X-Forwarded-User \
       --auth-groups-header=X-Forwarded-Groups
 ```
 
 > **Security:** Your ingress must strip `X-Forwarded-User` and `X-Forwarded-Groups` headers from external requests to prevent spoofing. The auth proxy should be the **only** path to KubeAtlas. KubeAtlas logs a warning at startup as a reminder.
 
-> **Proxies:** Preserve the browser-facing `Host` header when proxying KubeAtlas. KubeAtlas accepts changes and pod exec sessions only from its own page, and it recognizes that page by comparing the browser's `Origin` with `Host` (or by `Sec-Fetch-Site`, which browsers send over HTTPS). If your proxy must rewrite `Host`, list the address users open KubeAtlas at in `trustedOrigins` (Helm) or `KUBEATLAS_TRUSTED_ORIGINS`. See [Changes fail with "KubeAtlas refused this request"](in-cluster.md#changes-fail-with-radar-refused-this-request).
+> **Proxies:** Preserve the browser-facing `Host` header when proxying KubeAtlas. KubeAtlas accepts changes and pod exec sessions only from its own page, and it recognizes that page by comparing the browser's `Origin` with `Host` (or by `Sec-Fetch-Site`, which browsers send over HTTPS). If your proxy must rewrite `Host`, list the address users open KubeAtlas at in `trustedOrigins` (Helm) or `KUBEATLAS_TRUSTED_ORIGINS`. See [Changes fail with "KubeAtlas refused this request"](in-cluster.md#changes-fail-with-kubeatlas-refused-this-request).
 
 > **Local terminal:** The host-level local terminal requires both a loopback-bound KubeAtlas listener and a loopback URL, and is unavailable when authentication is enabled. Unlike pod exec, it runs as the KubeAtlas process's operating-system user and cannot be safely impersonated per caller.
 

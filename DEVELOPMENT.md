@@ -1,6 +1,6 @@
 # Development Guide
 
-Guide for developers contributing to Radar or building custom versions.
+Guide for developers contributing to KubeAtlas or building custom versions.
 
 ## Prerequisites
 

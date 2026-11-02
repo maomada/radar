@@ -390,7 +390,7 @@ jobs:
           fi
           DIGEST="$(skopeo inspect --format '{{.Digest}}' --authfile "$HOME/.docker/config.json" "docker://$TARGET_REF")"
           python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind image --name kubeatlas --status published --digest "$DIGEST"
-      - name: Copy Radar Portal image archive to GHCR
+      - name: Copy KubeAtlas Portal image archive to GHCR
         id: push-kubeatlas-portal
         env:
           TARGET_REF: ghcr.io/maomada/kubeatlas-portal:${{ needs.validate.outputs.version }}
@@ -426,7 +426,7 @@ jobs:
           printf '%s\n' "$PUSH_RESULT"
           DIGEST="$(printf '%s\n' "$PUSH_RESULT" | awk '/^Digest: / { print $2 }' | tail -n 1)"
           python3 trusted/scripts/release_manifest.py target --manifest "$MANIFEST" --kind chart --name kubeatlas --status published --digest "$DIGEST"
-      - name: Push Radar Portal chart
+      - name: Push KubeAtlas Portal chart
         id: push-kubeatlas-portal-chart
         env:
           TARGET_REF: ghcr.io/maomada/charts/kubeatlas-portal:${{ needs.validate.outputs.version }}

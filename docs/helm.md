@@ -1,6 +1,6 @@
 # Helm Support
 
-Radar treats Helm as a release system, not just a set of Kubernetes objects. The Helm view combines release metadata, rendered resources, revision history, operation insight, revision comparison, and live Kubernetes evidence around failed hooks.
+KubeAtlas treats Helm as a release system, not just a set of Kubernetes objects. The Helm view combines release metadata, rendered resources, revision history, operation insight, revision comparison, and live Kubernetes evidence around failed hooks.
 
 ## Release List
 
@@ -9,7 +9,7 @@ The Helm list shows:
 - Release status, chart version, app version, revision, and update time.
 - Resource health derived from the current rendered manifest and live Kubernetes status.
 - Helm storage namespace. This matters for controllers such as Flux, which may store the Helm release Secret outside the target namespace.
-- Flux ownership when Radar can match the release to a Flux `HelmRelease`.
+- Flux ownership when KubeAtlas can match the release to a Flux `HelmRelease`.
 - `lastOperation` for current failed upgrades, rollback-after-failure patterns, explicit rollbacks, and stuck pending operations (including uninstalls).
 - A capped operation trail for failed upgrades, rollbacks, rollback-after-failure, and stuck pending operations (including uninstalls).
 
@@ -25,52 +25,52 @@ The drawer includes:
 - Resources: live status for resources rendered by the current release.
 - Hooks: hook events, path, weight, status, run times, delete policies, output-log policies, and diagnostics for failed/running hooks.
 
-Compare opens as a full page instead of rendering inside the drawer. The drawer links to Compare from history rows and operation banners when Radar can identify a useful revision pair.
+Compare opens as a full page instead of rendering inside the drawer. The drawer links to Compare from history rows and operation banners when KubeAtlas can identify a useful revision pair.
 
 ## Operation Insight
 
-Radar derives a Helm operation signal from release history and the current release status. It distinguishes:
+KubeAtlas derives a Helm operation signal from release history and the current release status. It distinguishes:
 
 - Active failed upgrades.
 - Active pending or stuck installs/upgrades/rollbacks/uninstalls.
 - Explicit rollbacks.
 - Recovered rollback-after-failure flows.
 
-For active failed or stuck releases, Radar ranks the rendered live resources and surfaces the best resource to inspect when one is unhealthy or not ready. Workloads rank above leaf resources, but a Service or Ingress with a concrete issue can still be selected when it is the strongest signal.
+For active failed or stuck releases, KubeAtlas ranks the rendered live resources and surfaces the best resource to inspect when one is unhealthy or not ready. Workloads rank above leaf resources, but a Service or Ingress with a concrete issue can still be selected when it is the strongest signal.
 
-For recovered operations, Radar suggests the revision comparison most likely to explain the recovery:
+For recovered operations, KubeAtlas suggests the revision comparison most likely to explain the recovery:
 
 - Previous completed revision to failed upgrade revision.
 - Restored revision to failed upgrade revision for rollback-after-failure.
 - Previous completed revision to rollback revision for explicit rollbacks.
 
-Flux-owned Helm releases defer to Flux. Radar shows the owning `HelmRelease` and does not synthesize native Helm operation insight for releases managed by Flux's helm-controller, because the GitOps controller is the authoritative reconciler.
+Flux-owned Helm releases defer to Flux. KubeAtlas shows the owning `HelmRelease` and does not synthesize native Helm operation insight for releases managed by Flux's helm-controller, because the GitOps controller is the authoritative reconciler.
 
 Active native Helm failures and stuck pending operations (including uninstalls) also appear in the global Issues stream as `kind=HelmRelease`, `group=helm.sh`. Recovered rollbacks are deployment history, not live issues; use Helm detail or `get_changes` for those.
 
-Uninstalls that remain `uninstalling` for at least ten minutes appear as `HelmReleaseUninstallStuck` warnings. Radar times them from Helm's `Info.Deleted`, the recorded uninstall start, rather than the last deployment. Revision history preserves `Info.Deleted` separately from the deployment update time; stuck-operation and issue onset timestamps use the uninstall start. A missing start time does not produce an age-based stuck issue.
+Uninstalls that remain `uninstalling` for at least ten minutes appear as `HelmReleaseUninstallStuck` warnings. KubeAtlas times them from Helm's `Info.Deleted`, the recorded uninstall start, rather than the last deployment. Revision history preserves `Info.Deleted` separately from the deployment update time; stuck-operation and issue onset timestamps use the uninstall start. A missing start time does not produce an age-based stuck issue.
 
-Helm rewrites `Info.Deleted` at the start of every uninstall attempt, before the pre-delete hook runs, so a retry that fails on the same blocker would otherwise restart the clock and hide the issue for another ten minutes. Radar keeps the earliest uninstall start it has read for the release revision (per context, storage namespace and release name) and uses it for both the elapsed time and the issue onset; it resets when the release leaves `uninstalling` or moves to another revision. Revision history still shows Helm's latest `Info.Deleted`. The anchor lives in the Radar process: after a restart, or once Radar has not read the release for a day, it re-anchors to Helm's latest timestamp.
+Helm rewrites `Info.Deleted` at the start of every uninstall attempt, before the pre-delete hook runs, so a retry that fails on the same blocker would otherwise restart the clock and hide the issue for another ten minutes. KubeAtlas keeps the earliest uninstall start it has read for the release revision (per context, storage namespace and release name) and uses it for both the elapsed time and the issue onset; it resets when the release leaves `uninstalling` or moves to another revision. Revision history still shows Helm's latest `Info.Deleted`. The anchor lives in the KubeAtlas process: after a restart, or once KubeAtlas has not read the release for a day, it re-anchors to Helm's latest timestamp.
 
-The issue suggests checking pre-delete hook Jobs and surviving resources with finalizers before retrying the uninstall (Helm re-runs an uninstall stuck in this state). When a hook is the blocker, `helm uninstall --no-hooks` completes the uninstall, but Helm does not remove the Jobs and Pods the hook created, and resources held by finalizers stay Terminating. Radar no longer ties either to the release afterwards, so the issue tells the operator to delete the hook's leftovers and check for Terminating resources. These are investigation steps, not verified blocker diagnoses.
+The issue suggests checking pre-delete hook Jobs and surviving resources with finalizers before retrying the uninstall (Helm re-runs an uninstall stuck in this state). When a hook is the blocker, `helm uninstall --no-hooks` completes the uninstall, but Helm does not remove the Jobs and Pods the hook created, and resources held by finalizers stay Terminating. KubeAtlas no longer ties either to the release afterwards, so the issue tells the operator to delete the hook's leftovers and check for Terminating resources. These are investigation steps, not verified blocker diagnoses.
 
-To find them, Radar first lists only the labels of the Helm release Secrets the caller can read. Helm labels each one with the release name, revision and status. Radar then reads in full only the releases whose newest revision is failed or pending, plus any release with the same name in the same read. If any release Secret lacks those labels, Radar reads them all in full, as before. Releases stored with Helm's ConfigMap or SQL drivers are not read for issues. `/api/issues` waits for this read, and the read stops as soon as the caller disconnects.
+To find them, KubeAtlas first lists only the labels of the Helm release Secrets the caller can read. Helm labels each one with the release name, revision and status. KubeAtlas then reads in full only the releases whose newest revision is failed or pending, plus any release with the same name in the same read. If any release Secret lacks those labels, KubeAtlas reads them all in full, as before. Releases stored with Helm's ConfigMap or SQL drivers are not read for issues. `/api/issues` waits for this read, and the read stops as soon as the caller disconnects.
 
-When that read fails, for example because the API server returns an error or Radar's 60-second request limit runs out, `/api/issues` still answers, with `"unchecked_sources": [{"source": "helm", "reason": "read_failed"}]`: failed or stuck Helm releases may be missing from the response. The MCP `issues` tool returns the same field. A caller that may not list release Secrets gets no Helm issues and no `helm` entry, the same as for any other kind it can't list.
+When that read fails, for example because the API server returns an error or KubeAtlas's 60-second request limit runs out, `/api/issues` still answers, with `"unchecked_sources": [{"source": "helm", "reason": "read_failed"}]`: failed or stuck Helm releases may be missing from the response. The MCP `issues` tool returns the same field. A caller that may not list release Secrets gets no Helm issues and no `helm` entry, the same as for any other kind it can't list.
 
-When the read covers several namespaces and only some fail, the issues from the others are kept, and the entry names the ones that failed: `{"source": "helm", "reason": "read_failed", "namespaces": ["payments"]}`. When Radar's ServiceAccount is not allowed to impersonate the user, every user is refused the same way. That is Radar's own access failing, not the user's permissions, so the entry says `"reason": "collector_access_denied"` instead of the read counting as a denial.
+When the read covers several namespaces and only some fail, the issues from the others are kept, and the entry names the ones that failed: `{"source": "helm", "reason": "read_failed", "namespaces": ["payments"]}`. When KubeAtlas's ServiceAccount is not allowed to impersonate the user, every user is refused the same way. That is KubeAtlas's own access failing, not the user's permissions, so the entry says `"reason": "collector_access_denied"` instead of the read counting as a denial.
 
 The Home Helm card and the MCP `get_dashboard` tool make the same split: they say access is restricted only when Kubernetes denied the caller's own read. Rejected credentials (401) and a missing `impersonate` permission show as a failed read, with the error.
 
 ## Failed Upgrades And Rollback Inference
 
-Helm history does not persist whether `helm upgrade --atomic` was set. Radar infers an atomic-style rollback from the revision sequence:
+Helm history does not persist whether `helm upgrade --atomic` was set. KubeAtlas infers an atomic-style rollback from the revision sequence:
 
 - A failed upgrade revision.
 - Followed by a deployed rollback revision.
 - With revision descriptions/statuses that point back to the previously deployed release.
 
-Radar surfaces that as a Helm operation instead of making the operator infer it from raw revision rows. The UI and MCP response include the failed revision, rollback revision, target revision, and failure description when Helm recorded one. Radar calls this an inferred rollback-after-failure pattern; it does not claim the exact Helm CLI flag that caused it.
+KubeAtlas surfaces that as a Helm operation instead of making the operator infer it from raw revision rows. The UI and MCP response include the failed revision, rollback revision, target revision, and failure description when Helm recorded one. KubeAtlas calls this an inferred rollback-after-failure pattern; it does not claim the exact Helm CLI flag that caused it.
 
 ## Revision Compare
 
@@ -93,14 +93,14 @@ Use the manifest diff for exact YAML and for cases where a resource was renamed 
 
 ## Hook Diagnostics
 
-For failed or running hooks, Radar reports:
+For failed or running hooks, KubeAtlas reports:
 
 - Hook identity, namespace, kind, path, lifecycle events, and last-run phase.
 - Delete/output-log policies that may explain missing evidence.
 - Live Job/Pod/Event evidence when it still exists.
 - Short, redacted log snippets from correlated hook pods when the current identity can read logs.
 
-Evidence is best-effort. Helm hook delete policies, `ttlSecondsAfterFinished`, garbage collection, or RBAC can remove or hide the Job/Pod/Event/log data after Helm records the hook phase. Radar says when evidence is unavailable instead of pretending there is no hook failure.
+Evidence is best-effort. Helm hook delete policies, `ttlSecondsAfterFinished`, garbage collection, or RBAC can remove or hide the Job/Pod/Event/log data after Helm records the hook phase. KubeAtlas says when evidence is unavailable instead of pretending there is no hook failure.
 
 Evidence reads use the requester's Kubernetes identity in auth-enabled deployments. Log snippets are capped and scrubbed for secret patterns before they are returned.
 
@@ -124,15 +124,15 @@ Use `issues` for currently broken native Helm releases: active failed and stuck 
 
 - Atomic rollback detection is inferred from Helm history because Helm does not persist the `--atomic` flag.
 - Rendered resource diff is a compact summary. It can show field-level changes for known Kubernetes kinds, but the manifest diff remains the exact source of truth.
-- When rendered object identities do not overlap, Radar reports added/removed context instead of guessing a rename.
-- Hook evidence can disappear after Helm records the failure. Radar reports the absence and likely reasons, but cannot reconstruct deleted Job/Pod logs unless Kubernetes or Helm retained them.
-- Flux-managed releases should be changed through Flux. Radar links them to the owning `HelmRelease` and warns that direct `helm upgrade` changes may be reconciled back.
-- Upgrade source detection depends on source data available to the running Radar environment. Local OSS can use local Helm repo/OCI configuration; Radar Cloud should not assume that local repo config exists, so unresolved source states are reported explicitly.
+- When rendered object identities do not overlap, KubeAtlas reports added/removed context instead of guessing a rename.
+- Hook evidence can disappear after Helm records the failure. KubeAtlas reports the absence and likely reasons, but cannot reconstruct deleted Job/Pod logs unless Kubernetes or Helm retained them.
+- Flux-managed releases should be changed through Flux. KubeAtlas links them to the owning `HelmRelease` and warns that direct `helm upgrade` changes may be reconciled back.
+- Upgrade source detection depends on source data available to the running KubeAtlas environment. Local OSS can use local Helm repo/OCI configuration; the legacy upstream Radar Cloud should not assume that local repo config exists, so unresolved source states are reported explicitly.
 
 
 ## Chart sources and upgrades
 
-Radar identifies a chart by its repository URL and chart name. Local repository aliases can differ between machines. OCI sources use the full registry/chart path. Charts with the same name or version in different repositories are separate choices.
+KubeAtlas identifies a chart by its repository URL and chart name. Local repository aliases can differ between machines. OCI sources use the full registry/chart path. Charts with the same name or version in different repositories are separate choices.
 
 Normal upgrades use the saved source. If no source is confirmed, use **Choose chart source** in the release drawer. The picker shows the last recorded source first, followed by other configured sources. A name match is a suggestion, not proof of where the release was installed from.
 
@@ -142,7 +142,7 @@ Use **ArtifactHub** to find a public source, then click **Search ArtifactHub**. 
 
 You can associate an original source when its installed package matches the chart Helm stored. Older source records may need confirmation again if they lack a chart binding or a later Helm command changed the chart. This comparison cannot establish the origin of identical copies or verify subchart bodies Helm omitted from release storage.
 
-Values-only edits can use the chart Helm stored. If Helm omitted dependencies from an umbrella chart, record its original source so Radar can restore the exact installed package before editing values.
+Values-only edits can use the chart Helm stored. If Helm omitted dependencies from an umbrella chart, record its original source so KubeAtlas can restore the exact installed package before editing values.
 
 To use another repository, select it for the next upgrade. Choose an available version, review your settings and preview the rendered resource changes. The old installed version does not need to remain in the selected repository. Preview and apply use the same selected package and settings; if either changes, preview again.
 
@@ -155,9 +155,9 @@ Explicit source changes use `POST /api/helm/releases/{namespace}/{name}/source/p
 
 ### Repository credentials and redirects
 
-For HTTP repositories, Radar sends repository passwords and client certificates only to the configured address's scheme, hostname and port. A redirect or a chart URL on another origin is fetched without those credentials by default. Public chart hosts are fetched without repository credentials. By default, on a different origin, Radar verifies the server certificate using system trust plus any configured CA, even if verification was skipped for the repository.
+For HTTP repositories, KubeAtlas sends repository passwords and client certificates only to the configured address's scheme, hostname and port. A redirect or a chart URL on another origin is fetched without those credentials by default. Public chart hosts are fetched without repository credentials. By default, on a different origin, KubeAtlas verifies the server certificate using system trust plus any configured CA, even if verification was skipped for the repository.
 
-If a private repository deliberately shares credentials with its chart host, its Helm configuration must explicitly enable `pass_credentials_all`. This also permits sending the client certificate to that host. Use it only for hosts you trust. Redirected Basic authentication still follows Go's hostname restrictions; Radar does not restore a header Go removed.
+If a private repository deliberately shares credentials with its chart host, its Helm configuration must explicitly enable `pass_credentials_all`. This also permits sending the client certificate to that host. Use it only for hosts you trust. Redirected Basic authentication still follows Go's hostname restrictions; KubeAtlas does not restore a header Go removed.
 
 Custom CA certificates, client certificates and `insecure_skip_tls_verify` remain supported, including configurations with both a CA file and skipped certificate verification. If a repository address redirects from HTTP to HTTPS, configure its final HTTPS address to keep authenticated requests on the configured origin.
 
@@ -169,8 +169,8 @@ Configured HTTP and HTTPS proxies are selected per request, but repository targe
 
 ### Chart download checksums
 
-When an HTTP repository index advertises a SHA-256 checksum, Radar checks the downloaded chart archive before reading or using it. An invalid checksum or a mismatch stops chart details, installation, source recording and any upgrade or values operation that downloads that chart. The release stays unchanged.
+When an HTTP repository index advertises a SHA-256 checksum, KubeAtlas checks the downloaded chart archive before reading or using it. An invalid checksum or a mismatch stops chart details, installation, source recording and any upgrade or values operation that downloads that chart. The release stays unchanged.
 
 If the download does not match, refresh the repository and retry. If it still fails, contact the repository maintainer. A stale index and a changed archive can both cause a mismatch.
 
-Existing local Helm flows still accept repositories that omit checksums. Prepared installs for Cloud enrollment continue to require one. A checksum checks agreement with the index; it does not prove who published the chart. OCI pulls keep their registry digest handling. If an HTTP index lists an OCI chart URL, Radar also checks its advertised SHA-256 against the downloaded chart archive.
+Existing local Helm flows still accept repositories that omit checksums. Prepared installs for Cloud enrollment continue to require one. A checksum checks agreement with the index; it does not prove who published the chart. OCI pulls keep their registry digest handling. If an HTTP index lists an OCI chart URL, KubeAtlas also checks its advertised SHA-256 against the downloaded chart archive.

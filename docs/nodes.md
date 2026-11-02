@@ -27,7 +27,7 @@ Drain waits by default until the Pods whose evictions were accepted are deleted.
 An accepted eviction alone is not completion. DaemonSet, static and completed
 Pods excluded by the operation do not prevent completion.
 
-A deadline can leave Pods pending deletion. If Radar cannot verify deletion,
+A deadline can leave Pods pending deletion. If KubeAtlas cannot verify deletion,
 it reports unconfirmed Pods and a verification error instead of claiming the
 node is drained. REST outcomes distinguish `complete`, `incomplete`,
 `unconfirmed` and `started`; `waitForDeletion: false` returns after evictions

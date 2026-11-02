@@ -1,6 +1,6 @@
 # Project structure
 
-Reference layout for the Radar repo. Use this when locating where a concern lives — most of the load-bearing detail is on the per-area sections inside `CLAUDE.md` (k8s caching, topology, MCP, error handling, renderers). This file is the directory map.
+Reference layout for the KubeAtlas repo. Use this when locating where a concern lives — most of the load-bearing detail is on the per-area sections inside `CLAUDE.md` (k8s caching, topology, MCP, error handling, renderers). This file is the directory map.
 
 ```
 radar/
