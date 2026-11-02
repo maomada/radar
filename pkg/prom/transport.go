@@ -72,17 +72,18 @@ func (t *HTTPTransport) Do(ctx context.Context, method, path string, params url.
 	var requestBody io.Reader
 	if method == http.MethodPost {
 		requestBody = strings.NewReader(params.Encode())
-	} else if len(params) > 0 {
-		if strings.Contains(full, "?") {
-			full = full + "&" + params.Encode()
-		} else {
-			full = full + "?" + params.Encode()
-		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, full, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("prom.HTTPTransport: build request: %w", err)
+	}
+	if method != http.MethodPost && len(params) > 0 {
+		if req.URL.RawQuery != "" {
+			req.URL.RawQuery += "&" + params.Encode()
+		} else {
+			req.URL.RawQuery = params.Encode()
+		}
 	}
 	req.Header.Set("Accept", "application/json")
 	for k, v := range t.Headers {

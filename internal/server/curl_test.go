@@ -1,11 +1,20 @@
 package server
 
 import (
+	"crypto/tls"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 )
+
+func testCurlClient(t *testing.T) *http.Client {
+	t.Helper()
+	client := curlDialClient()
+	client.Transport.(*http.Transport).DialContext = (&net.Dialer{}).DialContext
+	return client
+}
 
 // A curld Service must not be able to bounce the curl to a redirect target —
 // don't chase a Service-controlled 3xx. curlDialClient must not follow redirects.
@@ -22,7 +31,7 @@ func TestCurlDialClientDoesNotFollowRedirects(t *testing.T) {
 	}))
 	defer proxy.Close()
 
-	resp, err := curlDialClient().Get(proxy.URL + "/x")
+	resp, err := testCurlClient(t).Get(proxy.URL + "/x")
 	if err != nil {
 		t.Fatalf("unexpected request error: %v", err)
 	}
@@ -34,6 +43,41 @@ func TestCurlDialClientDoesNotFollowRedirects(t *testing.T) {
 	if hits := atomic.LoadInt32(&downstreamHits); hits != 0 {
 		t.Errorf("redirect was followed — downstream host hit %d time(s)", hits)
 	}
+}
+
+func TestCurlDialClientBlocksLoopbackByDefault(t *testing.T) {
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		hits.Add(1)
+	}))
+	defer server.Close()
+	if _, err := curlDialClient().Get(server.URL); err == nil {
+		t.Fatal("loopback request unexpectedly succeeded")
+	}
+	if got := hits.Load(); got != 0 {
+		t.Fatalf("blocked curl reached server %d times", got)
+	}
+}
+
+func TestCurlDialClientTLSVerification(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+	untrusted := testCurlClient(t)
+	if _, err := untrusted.Get(server.URL); err == nil {
+		t.Fatal("self-signed server unexpectedly trusted")
+	}
+	trusted := testCurlClient(t)
+	trusted.Transport.(*http.Transport).TLSClientConfig = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		RootCAs:    server.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs,
+	}
+	resp, err := trusted.Get(server.URL)
+	if err != nil {
+		t.Fatalf("configured CA request failed: %v", err)
+	}
+	_ = resp.Body.Close()
 }
 
 func TestCurlNameValidation(t *testing.T) {

@@ -255,8 +255,29 @@ func (h *HubbleSource) loadTLSConfig(ctx context.Context, namespace string) (*tl
 // This handles environments like AKS where the Hubble Relay cert has a different SAN
 // (e.g., *.hubble-relay.cilium.io) than the default k8s service DNS name.
 func (h *HubbleSource) discoverTLSServerName(ctx context.Context, address string) (string, error) {
+	if h.tlsConfig == nil || h.tlsConfig.RootCAs == nil {
+		return "", fmt.Errorf("relay CA is required for certificate discovery")
+	}
+	roots := h.tlsConfig.RootCAs
 	probeCfg := &tls.Config{
 		InsecureSkipVerify: true,
+		MinVersion:         tls.VersionTLS12,
+		// The SAN is not known yet; authenticate its certificate chain before using it.
+		VerifyConnection: func(state tls.ConnectionState) error {
+			if len(state.PeerCertificates) == 0 {
+				return fmt.Errorf("server returned no certificates")
+			}
+			intermediates := x509.NewCertPool()
+			for _, cert := range state.PeerCertificates[1:] {
+				intermediates.AddCert(cert)
+			}
+			_, err := state.PeerCertificates[0].Verify(x509.VerifyOptions{
+				Roots:         roots,
+				Intermediates: intermediates,
+				KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			})
+			return err
+		},
 	}
 	// Include client certs in case the server requires mTLS
 	if h.tlsConfig != nil && len(h.tlsConfig.Certificates) > 0 {

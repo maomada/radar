@@ -70,6 +70,11 @@ var httpClient = &http.Client{
 		return nil
 	},
 	Timeout: 30 * time.Second,
+	Transport: newHelmGuardedTransport(&http.Transport{
+		DisableCompression:    true,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+	}, defaultHelmRepositoryNetwork),
 }
 
 // Client provides access to Helm releases
@@ -80,7 +85,8 @@ type Client struct {
 	// chartPathLocator is a test seam for chart transport. Production callers
 	// leave it nil and use locateChartPath, which wires Helm's registry client
 	// for OCI references.
-	chartPathLocator func(*action.Configuration, string, string) (string, error)
+	chartPathLocator  func(*action.Configuration, string, string) (string, error)
+	repositoryNetwork *helmRepositoryNetwork
 	// restConfig, when set, is the explicit rest.Config all actions target —
 	// used by callers that resolve the cluster themselves before Radar's k8s
 	// singleton is up (the CLI install driver), so Helm can't diverge onto a

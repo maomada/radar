@@ -3,6 +3,7 @@ package prom
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -126,6 +127,41 @@ func TestHTTPTransportSameOriginRedirectPolicy(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestHTTPTransportPreservesBasePathAndQueryParameters(t *testing.T) {
+	var getURI, postURI, postBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			getURI = r.RequestURI
+		case http.MethodPost:
+			postURI = r.RequestURI
+			body, _ := io.ReadAll(r.Body)
+			postBody = string(body)
+		}
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+	params := url.Values{"query": {`x&next=http://evil.test/?token=secret#frag`}}
+	transport := NewHTTPTransport(server.URL, "/tenant", nil)
+	if _, err := transport.Do(context.Background(), http.MethodGet, "/api/v1/query?existing=kept", params); err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	getURL, err := url.ParseRequestURI(getURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if getURL.Path != "/tenant/api/v1/query" || getURL.Query().Get("existing") != "kept" ||
+		getURL.Query().Get("query") != params.Get("query") || len(getURL.Query()) != 2 {
+		t.Fatalf("GET request URI = %q", getURI)
+	}
+	if _, err := transport.Do(context.Background(), http.MethodPost, "/api/v1/query?existing=kept", params); err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	if postURI != "/tenant/api/v1/query?existing=kept" || postBody != params.Encode() {
+		t.Fatalf("POST URI/body = %q / %q", postURI, postBody)
 	}
 }
 
