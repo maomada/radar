@@ -132,8 +132,25 @@ func TestMiddleware_ProxyHeaders_LogsAcceptedIdentity(t *testing.T) {
 	if !strings.Contains(line, "[auth] accepted forwarded identity") {
 		t.Fatalf("expected accepted-identity log line, got: %q", line)
 	}
-	if !strings.Contains(line, "dave") || !strings.Contains(line, "radar:idp:read-only-team") {
-		t.Errorf("log line missing user/group: %q", line)
+	if strings.Contains(line, "dave") || strings.Contains(line, "radar:idp:read-only-team") {
+		t.Error("diagnostic log includes forwarded identity claims")
+	}
+}
+
+func TestRejectDisallowedIdentityDoesNotLogPrincipal(t *testing.T) {
+	var output bytes.Buffer
+	defer log.SetOutput(log.Writer())
+	log.SetOutput(&output)
+	rec := httptest.NewRecorder()
+	rejectDisallowedIdentity(rec, "system:private-principal", true)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+	if !strings.Contains(output.String(), "rejected identity with disallowed principal") {
+		t.Fatal("missing rejection event")
+	}
+	if strings.Contains(output.String(), "private-principal") {
+		t.Error("diagnostic log includes rejected principal")
 	}
 }
 

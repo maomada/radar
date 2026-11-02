@@ -30,11 +30,11 @@ func TestLogAcceptedForwardedIdentity_FirstCallLogs(t *testing.T) {
 	if !strings.Contains(line, "[auth] accepted forwarded identity") {
 		t.Fatalf("expected accepted-identity log line, got: %q", line)
 	}
-	if !strings.Contains(line, `user="alice"`) {
-		t.Errorf("log line missing username: %q", line)
+	if strings.Contains(line, "alice") {
+		t.Error("diagnostic log includes the username")
 	}
-	if !strings.Contains(line, "radar:idp:abc123") {
-		t.Errorf("log line missing group: %q", line)
+	if strings.Contains(line, "radar:idp:abc123") {
+		t.Error("diagnostic log includes the group claim")
 	}
 }
 
